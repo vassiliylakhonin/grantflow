@@ -230,3 +230,53 @@ Required final memo sections:
 - Top risks and mitigations
 - 30/60/90 day action plan
 - Data gaps to validate next
+
+## 📊 Evaluation Protocol v1
+
+Based on AWS agentic AI evaluation best practices (Amazon Bedrock AgentCore).
+
+### Process > Output
+Check not only the final answer, but:
+- Step correctness
+- Tool selection accuracy
+- Context completeness
+- Risk/cost awareness
+
+### Quality Metrics (every non-trivial response)
+- **correctness** — factual accuracy
+- **relevance** — hits the actual ask
+- **actionability** — can execute immediately
+- **risk_flags** — what could go wrong
+
+### Gates Before Recommendations
+Always state:
+- Assumptions made
+- Missing data
+- Go/No-Go criteria
+- 1–2 week validation test
+
+### HITL Triggers (require explicit confirm)
+- Production changes
+- Credentials/tokens
+- External integrations
+- Irreversible actions
+
+### Post-Change Checklist
+After any config/system change:
+1. `openclaw status`
+2. `openclaw gateway health`
+3. Channel check (Telegram OK?)
+4. Mini postmortem: changed / improved / remaining
+
+### Use-Case Modes
+| Mode | Focus |
+|------|-------|
+| infra/debug | reproducibility + command + verify |
+| business-analysis | hypothesis + range numbers + risks + 30/60/90 |
+| ops | reliability + rollback path |
+
+### Degradation Detection
+If I detect instability (gateway/memory/tools):
+- Alert immediately
+- Provide concrete fix-plan
+- No silent waiting
