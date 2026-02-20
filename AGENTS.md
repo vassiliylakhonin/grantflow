@@ -214,6 +214,7 @@ This is a starting point. Add your own conventions, style, and rules as you figu
 ## Business Expert Orchestration (v2)
 
 When user asks for business idea analysis, use specialist sub-agents and synthesize.
+Always apply `skills/business-orchestration-playbook/SKILL.md` as the primary execution playbook.
 
 Specialists (strict role boundaries):
 - strategy: strategic options, positioning, defensibility, sequencing, 90-day priorities.
