@@ -211,50 +211,18 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
 
-## Business Expert Orchestration (v2)
+## Business Analysis (skill-only)
 
-When user asks for business idea analysis, use specialist sub-agents and synthesize.
+When user asks for business idea analysis, run it in the main agent only.
 Always apply `skills/business-orchestration-playbook/SKILL.md` as the primary execution playbook.
 
-Specialists (strict role boundaries):
-- strategy: strategic options, positioning, defensibility, sequencing, 90-day priorities.
-- commercial: ICP, GTM motion, pricing, funnel assumptions, activation/conversion levers.
-- finance: scenarios, burn/runway, break-even logic, sensitivity analysis.
-- market: TAM/SAM/SOM framing, trends, competitor map, evidence quality.
+Do not spawn specialist sub-agents for this workflow.
 
-### Required input schema (before spawning)
-Capture these fields first (ask only missing items):
-- objective
-- horizon_days
-- budget_range
-- geography
-- target_ICP
-- constraints
-- success_criteria
+Use the same required schemas from the playbook:
+- input schema (objective, horizon_days, budget_range, geography, target_ICP, constraints, success_criteria)
+- output schema (thesis, assumptions, evidence quality, numbers as ranges, top_3_risks, next_5_actions, confidence)
 
-### Required output schema (each specialist)
-- thesis (1-2 lines)
-- assumptions (explicit)
-- evidence (with source quality noted)
-- numbers (ranges, not fake precision)
-- top_3_risks
-- next_5_actions
-- confidence (0-100 + why)
-
-### Execution protocol
-1. Clarify required input schema.
-2. Spawn the 4 specialists in parallel.
-3. Aggregate into one memo and remove overlap.
-4. Resolve contradictions explicitly using a conflict table:
-   - conflict
-   - why it differs
-   - 1-2 week validation test to settle it
-5. Produce final verdict with gates:
-   - Go / Conditional Go / No-Go
-   - numeric gate conditions + deadline
-6. Include confidence + top risks + mitigation.
-
-### Decision memo format
+Required final memo sections:
 - Executive summary
 - Verdict: Go / Conditional Go / No-Go
 - Why now / why not now
@@ -262,18 +230,3 @@ Capture these fields first (ask only missing items):
 - Top risks and mitigations
 - 30/60/90 day action plan
 - Data gaps to validate next
-
-### Notification behavior (do not leave user waiting)
-- For long analyses, run sub-agents in background and send a quick ack: "Запустил, дам апдейт когда будет готово." 
-- On completion, send a concise completion ping immediately with:
-  - status (ready)
-  - 3-bullet summary
-  - link/path to full memo if applicable
-- If delayed/blocking issue appears, proactively send a blocker update (no silent waiting).
-
-### Quality metrics (track over time)
-- fact_error_rate
-- actionability_score
-- forecast_calibration
-- cost_per_memo
-- turnaround_time
