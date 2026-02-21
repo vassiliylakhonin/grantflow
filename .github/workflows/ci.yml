@@ -20,20 +20,45 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
       
+      - name: Debug directory structure
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Files in root ==="
+          ls -la
+          echo "=== Files in aidgraph/ ==="
+          ls -la aidgraph/ || echo "aidgraph/ not found"
+          echo "=== Looking for requirements.txt ==="
+          find . -name "requirements.txt" -type f
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r aidgraph/requirements.txt
+          if [ -f "aidgraph/requirements.txt" ]; then
+            pip install -r aidgraph/requirements.txt
+          elif [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt
+          else
+            echo "ERROR: requirements.txt not found"
+            exit 1
+          fi
       
       - name: List test files
         run: |
           echo "=== Test files ==="
           find . -name "test_*.py" -type f
-          ls -la aidgraph/tests/
+          ls -la aidgraph/tests/ || echo "aidgraph/tests/ not found"
       
       - name: Run tests
         run: |
-          pytest aidgraph/tests/ -v --tb=short || true
+          if [ -d "aidgraph/tests" ]; then
+            pytest aidgraph/tests/ -v --tb=short
+          elif [ -d "tests" ]; then
+            pytest tests/ -v --tb=short
+          else
+            echo "ERROR: No tests directory found"
+            exit 1
+          fi
       
       - name: Upload coverage (optional)
         uses: actions/upload-artifact@v4
