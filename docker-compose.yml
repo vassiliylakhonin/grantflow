@@ -1,0 +1,34 @@
+# docker-compose.yml
+
+version: '3.8'
+
+services:
+  aidgraph-api:
+    build: .
+    container_name: aidgraph-api
+    ports:
+      - "8000:8000"
+    environment:
+      - AIDGRAPH_API_HOST=0.0.0.0
+      - AIDGRAPH_API_PORT=8000
+      - AIDGRAPH_DEBUG=false
+      - AIDGRAPH_HITL_ENABLED=true
+      - AIDGRAPH_MAX_ITERATIONS=3
+      - AIDGRAPH_CHROMA_DIR=/app/chroma_db
+    volumes:
+      - chroma_data:/app/chroma_db
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  chroma_data:
+    driver: local
+
+networks:
+  default:
+    name: aidgraph-network
