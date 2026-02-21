@@ -1,0 +1,57 @@
+# OpenClaw workspace files (not part of AidGraph)
+AGENTS.md
+BOOTSTRAP.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+.clawhub/
+.openclaw/
+.pi/
+memory/
+skills/
+new-project/
+vassiliylakhonin.github.io/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# ChromaDB data (generated)
+chroma_db/
+
+# Backups
+backups/
