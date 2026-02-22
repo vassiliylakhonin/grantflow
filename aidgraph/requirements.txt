@@ -6,7 +6,7 @@ langchain==0.3.1
 langchain-core==0.3.15
 
 # RAG
-chromadb==0.5.6
+chromadb==0.6.3
 
 # API
 fastapi==0.115.0
