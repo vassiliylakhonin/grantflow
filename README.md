@@ -243,6 +243,7 @@ Core endpoints:
 - `POST /generate` - start async drafting job
 - `POST /cancel/{job_id}` - cancel an accepted/running/pending HITL job (best-effort)
 - `GET /status/{job_id}` - poll job status/state
+- `GET /status/{job_id}/citations` - retrieve typed citation/traceability records for the job
 - `POST /resume/{job_id}` - resume a HITL-paused job
 - `GET /hitl/pending` - list pending checkpoints
 - `POST /hitl/approve` - approve/reject checkpoint
@@ -287,6 +288,34 @@ Webhook retries/backoff (optional env vars):
 - `GRANTFLOW_WEBHOOK_TIMEOUT_S` (default `5.0`)
 - `GRANTFLOW_WEBHOOK_BACKOFF_BASE_MS` (default `250`)
 - `GRANTFLOW_WEBHOOK_BACKOFF_MAX_MS` (default `2000`)
+
+### Citation traceability (optional)
+
+`GET /status/{job_id}/citations` returns a typed, integration-friendly view of citation traces collected during drafting (for example, RAG hits used by the MEL step).
+
+Example response shape:
+
+```json
+{
+  "job_id": "uuid",
+  "status": "done",
+  "citation_count": 2,
+  "citations": [
+    {
+      "stage": "mel",
+      "citation_type": "rag_result",
+      "namespace": "usaid_ads201",
+      "source": "/path/to/usaid_guidance.pdf",
+      "page": 12,
+      "chunk": 3,
+      "chunk_id": "usaid_ads201_p12_c0",
+      "used_for": "EG.3.2-1",
+      "label": "USAID ADS 201 p.12",
+      "excerpt": "..."
+    }
+  ]
+}
+```
 
 ## Human-in-the-Loop Checkpoints (MVP)
 
