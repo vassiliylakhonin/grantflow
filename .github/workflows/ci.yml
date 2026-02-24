@@ -26,16 +26,16 @@ jobs:
           pwd
           echo "=== Files in root ==="
           ls -la
-          echo "=== Files in aidgraph/ ==="
-          ls -la aidgraph/ || echo "aidgraph/ not found"
+          echo "=== Files in grantflow/ ==="
+          ls -la grantflow/ || echo "grantflow/ not found"
           echo "=== Looking for requirements.txt ==="
           find . -name "requirements.txt" -type f
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f "aidgraph/requirements.txt" ]; then
-            pip install -r aidgraph/requirements.txt
+          if [ -f "grantflow/requirements.txt" ]; then
+            pip install -r grantflow/requirements.txt
           elif [ -f "requirements.txt" ]; then
             pip install -r requirements.txt
           else
@@ -47,12 +47,12 @@ jobs:
         run: |
           echo "=== Test files ==="
           find . -name "test_*.py" -type f
-          ls -la aidgraph/tests/ || echo "aidgraph/tests/ not found"
+          ls -la grantflow/tests/ || echo "grantflow/tests/ not found"
       
       - name: Run tests
         run: |
-          if [ -d "aidgraph/tests" ]; then
-            pytest aidgraph/tests/ -v --tb=short
+          if [ -d "grantflow/tests" ]; then
+            pytest grantflow/tests/ -v --tb=short
           elif [ -d "tests" ]; then
             pytest tests/ -v --tb=short
           else

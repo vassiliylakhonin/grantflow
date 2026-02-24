@@ -1,0 +1,88 @@
+# grantflow/swarm/nodes/mel_specialist.py
+
+from __future__ import annotations
+
+from typing import Dict, Any
+
+from grantflow.core.config import config
+from grantflow.memory_bank.vector_store import vector_store
+
+
+def _build_query_text(state: Dict[str, Any]) -> str:
+    input_context = state.get("input") or state.get("input_context") or {}
+    project = input_context.get("project", "project")
+    country = input_context.get("country", "")
+    toc = state.get("toc_draft", {}) or {}
+    brief = ((toc.get("toc") or {}).get("brief") if isinstance(toc, dict) else "") or ""
+    parts = [str(project), str(country), str(brief)]
+    return " | ".join([p for p in parts if p])
+
+
+def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Назначает MEL индикаторы к ToC c RAG-запросом в namespace донора."""
+    strategy = state.get("donor_strategy") or state.get("strategy")
+    if not strategy:
+        state.setdefault("errors", []).append("MEL cannot run without donor_strategy")
+        return state
+
+    namespace = strategy.get_rag_collection()
+    query_text = _build_query_text(state)
+    top_k = max(1, min(int(config.rag.default_top_k or 3), 3))
+
+    indicators: list[dict[str, Any]] = []
+    rag_trace: Dict[str, Any] = {
+        "namespace": namespace,
+        "query": query_text,
+        "top_k": top_k,
+        "used_results": 0,
+    }
+
+    try:
+        result = vector_store.query(namespace=namespace, query_texts=[query_text], n_results=top_k)
+        docs = ((result or {}).get("documents") or [[]])[0]
+        metas = ((result or {}).get("metadatas") or [[]])[0]
+
+        for idx, doc in enumerate(docs):
+            meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
+            citation = (
+                meta.get("citation")
+                or meta.get("source")
+                or f"{namespace}"
+            )
+            indicators.append(
+                {
+                    "indicator_id": meta.get("indicator_id", f"IND_{idx+1:03d}"),
+                    "name": meta.get("name", f"Indicator from {namespace} #{idx+1}"),
+                    "justification": (
+                        "Selected from donor-specific RAG collection "
+                        f"'{namespace}' based on project query."
+                    ),
+                    "citation": citation,
+                    "baseline": meta.get("baseline", "TBD"),
+                    "target": meta.get("target", "TBD"),
+                    "evidence_excerpt": str(doc)[:240],
+                }
+            )
+        rag_trace["used_results"] = len(indicators)
+    except Exception as exc:
+        state.setdefault("errors", []).append(f"MEL RAG query failed: {exc}")
+        rag_trace["error"] = str(exc)
+
+    if not indicators:
+        indicators = [
+            {
+                "indicator_id": "IND_001",
+                "name": "Project Output Indicator",
+                "justification": (
+                    "Fallback indicator used because donor-specific RAG collection returned no results."
+                ),
+                "citation": namespace,
+                "baseline": "TBD",
+                "target": "TBD",
+            }
+        ]
+
+    mel = {"indicators": indicators, "rag_trace": rag_trace}
+    state["mel"] = mel
+    state["logframe_draft"] = mel
+    return state

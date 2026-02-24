@@ -3,7 +3,7 @@
 
 set -e
 
-echo "🚀 AidGraph Production Deployment"
+echo "🚀 GrantFlow Production Deployment"
 echo "=================================="
 
 # Проверка Docker
@@ -42,7 +42,7 @@ sleep 10
 echo "🏥 Checking health..."
 curl -f http://localhost:8000/health || {
     echo "❌ Health check failed"
-    docker-compose logs aidgraph-api
+    docker-compose logs api
     exit 1
 }
 

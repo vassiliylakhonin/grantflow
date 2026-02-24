@@ -1,318 +1,270 @@
-# AidGraph v2.0
+# GrantFlow
 
-**Enterprise-grade grant proposal automation for international donors**
+**Compliance-aware, agentic proposal drafting engine for institutional funding workflows**
 
-[![CI](https://github.com/vassiliylakhonin/aidgraph-prod/actions/workflows/ci.yml/badge.svg)](https://github.com/vassiliylakhonin/aidgraph-prod/actions/workflows/ci.yml)
-[![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red.svg)](LICENSE)
+GrantFlow is a FastAPI + LangGraph backend that helps proposal teams convert structured project input into donor-aligned draft artifacts for institutional funders.
 
----
+It combines donor-specific strategy isolation, stateful orchestration, critique loops, and exportable outputs to reduce proposal preparation time and review cycles.
 
-## 🎯 Overview
+## What Problem It Solves
 
-AidGraph automates the creation of grant proposals for major international donors:
+Teams writing grants for major donors often lose time on the same expensive steps:
 
-- **USAID** (ADS 201 compliant)
-- **European Union** (INTPA guidelines)
-- **World Bank** (ADS 301 framework)
-- **United Nations** (coming soon)
+- translating raw project ideas into donor-specific structure
+- aligning ToC / LogFrame logic with compliance expectations
+- drafting MEL indicators with traceable justification and citations
+- iterating across reviewers when logic gaps are discovered late
 
-Built with **LangGraph** for stateful orchestration, **ChromaDB** for RAG-based document retrieval, and **FastAPI** for production-ready APIs.
+General-purpose LLMs can draft text, but they often fail on donor-specific structure, auditability, and consistency. GrantFlow is designed to be a **compliance-aware orchestration backend**, not a one-shot text generator.
 
----
+## What GrantFlow Produces
 
-## ✨ Features
+- Theory of Change (ToC) draft
+- LogFrame / MEL indicators draft
+- Export files for review (`docx`, `xlsx`, or ZIP bundle)
 
-| Feature | Description |
-|---------|-------------|
-| **Donor Strategy Pattern** | Isolated logic per donor with dedicated RAG namespaces |
-| **LangGraph State Machine** | Cyclical Red Teaming (max 3 iterations, quality threshold ≥8.0) |
-| **Human-in-the-Loop (HITL)** | Approval checkpoints after ToC and LogFrame generation |
-| **RAG Integration** | ChromaDB with namespace isolation (`usaid_ads201`, `eu_intpa`, `worldbank_ads301`) |
-| **Export Engines** | `.docx` (Theory of Change) and `.xlsx` (LogFrame with indicators) |
-| **Production Ready** | Docker, CI/CD, health checks, automated backups |
+## Positioning (Product)
 
----
+GrantFlow can be described as:
 
-## 🏗️ Architecture
+- **AI-assisted grant proposal orchestration platform**
+- **Agentic workflow for donor-compliant proposal drafting**
+- **Multi-agent grant drafting backend (LangGraph + FastAPI)**
 
+Practical note:
+- This is an AI-assisted system with human review, not a claim of fully autonomous proposal writing.
+
+## Architecture (MVP)
+
+- `FastAPI` API for job orchestration and export
+- `LangGraph` workflow: `discovery -> architect -> mel -> critic`
+- Critic loop with quality threshold and max iterations
+- Donor-specific strategy classes for prompt isolation + RAG namespace isolation
+- `ChromaDB` vector store wrapper with namespace isolation
+- Fallback in-memory vector backend when Chroma is unavailable (useful in local/sandboxed environments)
+
+## Donor Coverage
+
+GrantFlow currently supports a **catalog of 45 donors / donor groups** via `GET /donors`.
+
+This includes:
+
+- intergovernmental / supranational donors (EU, UN agencies cluster, World Bank/IFC, AfDB, ADB, IDB, EBRD, Global Fund, Gavi)
+- major bilateral donors and agencies (USAID, U.S. Department of State, FCDO, GIZ, JICA, Sida, Norad, SDC, GAC, AFD, and others)
+- private foundations and philanthropic funders (Gates Foundation, Open Society Foundations, Rockefeller Foundation, Ford Foundation, Wellcome Trust, etc.)
+
+### Strategy Types
+
+GrantFlow supports two levels of donor handling:
+
+- **Specialized strategies** (custom prompts/schema today): `usaid`, `eu`, `worldbank`, `giz`, `us_state_department`
+- **Generic donor strategy** (catalog-backed, donor-specific metadata + RAG namespace): all other catalog entries
+
+Canonical donor IDs and aliases are exposed by `GET /donors`.
+
+### Quick Reference for Integrators
+
+| Tier | Canonical `donor_id` | Example aliases | Notes |
+|------|----------------------|-----------------|-------|
+| Specialized | `usaid` | `usaid.gov` | Custom strategy + donor-specific prompts/schema |
+| Specialized | `eu` | `european-union`, `ec` | Custom strategy + EU-specific prompts/schema |
+| Specialized | `worldbank` | `world_bank`, `ifc` | Custom strategy + World Bank prompts/schema |
+| Specialized | `giz` | `deutsche_gesellschaft_fur_internationale_zusammenarbeit` | Custom GIZ strategy |
+| Specialized | `us_state_department` | `state_department`, `us_department_of_state` | Custom U.S. State Department strategy |
+| Generic (catalog-backed) | `un_agencies` | `undp`, `unicef`, `wfp`, `unhcr`, `unwomen`, `unfpa` | Shared UN agencies strategy metadata + namespace |
+| Generic (catalog-backed) | `fcdo` | `ukaid`, `foreign_commonwealth_development_office` | Generic strategy with donor-specific metadata |
+| Generic (catalog-backed) | `gavi` | `gavi_vaccine_alliance` | Generic strategy with donor-specific metadata |
+| Generic (catalog-backed) | `global_fund` | `globalfund`, `the_global_fund` | Generic strategy with donor-specific metadata |
+| Generic (catalog-backed) | `gates_foundation` | `gates`, `bill_and_melinda_gates_foundation` | Generic strategy with donor-specific metadata |
+
+For the complete list (45 records), query `GET /donors`.
+
+## Human-in-the-Loop Checkpoints (MVP)
+
+GrantFlow currently includes **Human-in-the-Loop Checkpoints (MVP)** at the API level:
+
+- checkpoint creation when `hitl_enabled=true`
+- job status transition to `pending_hitl`
+- approval/rejection endpoints for review workflows
+- explicit resume endpoint (`POST /resume/{job_id}`) to continue execution after review
+
+Current scope:
+- staged pause/resume is implemented at the API/job runner level (`/generate` -> `pending_hitl` -> `/resume/{job_id}`)
+- full graph-native pause/resume inside LangGraph itself is still a planned next step
+
+This is the recommended wording for public materials today:
+- **Human-in-the-loop checkpoints (MVP) for review and approval**
+
+## API Contract (Current)
+
+`POST /generate` expects a strict payload:
+
+```json
+{
+  "donor_id": "usaid",
+  "input_context": {
+    "project": "Water Sanitation",
+    "country": "Kenya"
+  },
+  "llm_mode": false,
+  "hitl_enabled": false
+}
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      AidGraph API                            │
-│                    (FastAPI + LangGraph)                     │
-└─────────────────────────────────────────────────────────────┘
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-        ▼                     ▼                     ▼
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│   Discovery   │───▶│   Architect   │───▶│     MEL       │
-│   (Validate)  │    │   (ToC Draft) │    │  (Indicators) │
-└───────────────┘    └───────────────┘    └───────────────┘
-                             │                     │
-                             └──────────┬──────────┘
-                                        ▼
-                               ┌───────────────┐
-                               │     Critic    │
-                               │ (Red Team QA) │
-                               └───────────────┘
-                                        │
-                          ┌─────────────┴─────────────┐
-                          │                           │
-                   Score < 8.0                   Score ≥ 8.0
-                          │                           │
-                          ▼                           ▼
-                   (Loop back)                 (Export/ HITL)
-```
 
----
+Notes:
 
-## 🚀 Quickstart
+- `donor_id` + `input_context` are required
+- older shapes such as `donor` / `input` are intentionally rejected (`422`) to keep the public contract stable
+- if `llm_mode=true` but `OPENAI_API_KEY` is not set, the critic falls back to a deterministic local evaluator instead of failing the job
+- donor aliases are supported (for example `state_department`, `undp`, `giz`)
 
-### Local Development
+## Quickstart (Local)
 
 ```bash
-# Clone repository
-git clone https://github.com/vassiliylakhonin/aidgraph-prod.git
-cd aidgraph-prod
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r grantflow/requirements.txt
 
-# Create virtual environment
-python -m venv .venv && source .venv/bin/activate
-
-# Install dependencies
-pip install -r aidgraph/requirements.txt
-
-# Configure environment
 cp .env.example .env
-# Edit .env with your API keys (OPENAI_API_KEY, etc.)
+# Add OPENAI_API_KEY if you want live LLM critique
 
-# Run API server
-uvicorn aidgraph.api.app:app --reload --host 0.0.0.0 --port 8000
-
-# Open Swagger UI
-open http://localhost:8000/docs
+uvicorn grantflow.api.app:app --reload
 ```
 
-### Production (Docker)
+Health check:
 
 ```bash
-# Build and deploy
-./deploy.sh
-
-# View logs
-docker-compose logs -f aidgraph-api
-
-# Stop services
-docker-compose down
+curl -s http://127.0.0.1:8000/health
 ```
 
----
+## Example Flow
 
-## 📡 API Endpoints
-
-### Core
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | `GET` | Health check |
-| `/donors` | `GET` | List supported donors |
-| `/generate` | `POST` | Start proposal generation |
-| `/export` | `POST` | Export to `.docx` / `.xlsx` |
-
-### HITL (Human-in-the-Loop)
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/hitl/pending` | `GET` | List pending approval checkpoints |
-| `/hitl/approve` | `POST` | Approve or reject a checkpoint |
-
----
-
-## 📋 Example Usage
-
-### 1. Generate Proposal
+Create a generation job:
 
 ```bash
-curl -X POST http://localhost:8000/generate \
-  -H "Content-Type: application/json" \
+curl -s -X POST http://127.0.0.1:8000/generate \
+  -H 'Content-Type: application/json' \
   -d '{
-    "donor_id": "USAID",
+    "donor_id": "usaid",
     "input_context": {
-      "project": "Water Sanitation in Kenya",
-      "budget": 5000000,
-      "duration_months": 36,
-      "target_beneficiaries": 50000
+      "project": "Water Sanitation",
+      "country": "Kenya"
     },
-    "llm_mode": true,
+    "llm_mode": false,
+    "hitl_enabled": false
+  }'
+```
+
+Poll job status:
+
+```bash
+curl -s http://127.0.0.1:8000/status/<JOB_ID>
+```
+
+Example (specialized donor: GIZ):
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/generate \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "donor_id": "giz",
+    "input_context": {
+      "project": "TVET and SME support",
+      "country": "Kenya"
+    },
+    "llm_mode": false,
     "hitl_enabled": true
   }'
 ```
 
-### 2. Approve HITL Checkpoint
+Example (specialized donor via alias: U.S. Department of State):
 
 ```bash
-curl -X POST http://localhost:8000/hitl/approve \
-  -H "Content-Type: application/json" \
+curl -s -X POST http://127.0.0.1:8000/generate \
+  -H 'Content-Type: application/json' \
   -d '{
-    "checkpoint_id": "550e8400-e29b-41d4-a716-446655440000",
-    "approved": true,
-    "feedback": "ToC looks good, proceed to LogFrame"
+    "donor_id": "state_department",
+    "input_context": {
+      "project": "Civil society resilience",
+      "country": "Georgia"
+    },
+    "llm_mode": false,
+    "hitl_enabled": true
   }'
 ```
 
-### 3. Export Artifacts
+Export both artifacts as ZIP:
 
 ```bash
-curl -X POST http://localhost:8000/export \
-  -H "Content-Type: application/json" \
-  -d '{
-    "toc_draft": {...},
-    "logframe_draft": {...},
-    "donor_id": "USAID",
-    "format": "both"
-  }' \
-  --output proposal.zip
+curl -s -X POST http://127.0.0.1:8000/export \
+  -H 'Content-Type: application/json' \
+  -d '{"payload": {"state": {}}, "format": "both"}'
 ```
 
----
+(For a real export call, pass the `state` object returned by `/status/<JOB_ID>`.)
 
-## 🧪 Testing
+## Docker / Compose
+
+Minimal local stack (API + Chroma) is provided:
+
+- `Dockerfile`
+- `docker-compose.yml`
+
+Run:
 
 ```bash
-# Run all tests
-pytest aidgraph/tests -v
-
-# Run specific test file
-pytest aidgraph/tests/test_integration.py -v
-
-# Run with coverage
-pytest aidgraph/tests --cov=aidgraph --cov-report=html
+docker-compose up --build
 ```
 
----
+API will be available on `:8000`, Chroma on host `:8001`.
 
-## ⚙️ Configuration
+## Ingesting Donor Documents (RAG)
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AIDGRAPH_API_HOST` | `0.0.0.0` | API bind host |
-| `AIDGRAPH_API_PORT` | `8000` | API port |
-| `AIDGRAPH_DEBUG` | `false` | Debug mode (auto-reload) |
-| `AIDGRAPH_HITL_ENABLED` | `true` | Enable HITL checkpoints |
-| `AIDGRAPH_MAX_ITERATIONS` | `3` | Max Red Team cycles |
-| `AIDGRAPH_CRITIC_THRESHOLD` | `8.0` | Quality score threshold |
-| `AIDGRAPH_CHROMA_DIR` | `./chroma_db` | ChromaDB persist directory |
-| `AIDGRAPH_TOP_K` | `5` | Default RAG results |
-| `AIDGRAPH_CHEAP_MODEL` | `gpt-4o-mini` | Model for drafting |
-| `AIDGRAPH_REASONING_MODEL` | `gpt-4o` | Model for critique |
-| `OPENAI_API_KEY` | — | OpenAI API key (required) |
-
----
-
-## 📦 Project Structure
-
-```
-aidgraph-prod/
-├── aidgraph/
-│   ├── core/                  # Core logic
-│   │   ├── donor_strategy.py  # Abstract base strategy
-│   │   ├── state.py           # LangGraph state definition
-│   │   ├── config.py          # Configuration loader
-│   │   └── strategies/        # Donor implementations
-│   │       ├── usaid.py
-│   │       ├── eu.py
-│   │       ├── worldbank.py
-│   │       └── factory.py
-│   ├── swarm/                 # LangGraph orchestration
-│   │   ├── graph.py           # StateGraph builder
-│   │   ├── hitl.py            # HITL checkpoint manager
-│   │   └── nodes/             # Graph nodes
-│   │       ├── discovery.py
-│   │       ├── architect.py
-│   │       ├── mel_specialist.py
-│   │       └── critic.py
-│   ├── memory_bank/           # RAG layer
-│   │   ├── vector_store.py    # ChromaDB wrapper
-│   │   └── ingest.py          # PDF ingestion script
-│   ├── exporters/             # Output generators
-│   │   ├── word_builder.py    # .docx exporter
-│   │   └── excel_builder.py   # .xlsx exporter
-│   ├── api/                   # FastAPI application
-│   │   └── app.py
-│   ├── tests/                 # Test suite
-│   │   ├── test_integration.py
-│   │   ├── test_strategies.py
-│   │   └── test_vector_store.py
-│   ├── requirements.txt
-│   ├── pytest.ini
-│   └── README.md
-├── .github/
-│   └── workflows/
-│       └── ci.yml             # GitHub Actions CI
-├── Dockerfile
-├── docker-compose.yml
-├── deploy.sh                  # Deployment script
-├── backup.sh                  # Backup script
-├── .env.example
-└── README.md                  # This file
-```
-
----
-
-## 🔒 Security
-
-- **No secrets in code** — Use `.env` or environment variables
-- **Weekly security scans** — GitHub Actions + `safety` + `bandit`
-- **Isolated RAG namespaces** — Donor data separation
-- **HITL approval required** — Human oversight for critical outputs
-
----
-
-## 📊 Monitoring
+Ingest a single PDF into a donor namespace:
 
 ```bash
-# Health check
-curl http://localhost:8000/health
-
-# View Docker logs
-docker-compose logs -f aidgraph-api
-
-# Check ChromaDB stats (Python)
-python -c "from aidgraph.memory_bank.vector_store import vector_store; print(vector_store.get_stats('usaid_ads201'))"
+python -m grantflow.memory_bank.ingest /path/to/file.pdf usaid_ads201
 ```
 
----
+Ingest all PDFs in a folder:
 
-## 🔄 CI/CD Pipeline
-
-```yaml
-Push to main → CI (pytest) → Build Docker → Push to GHCR → Deploy notification
+```bash
+python -m grantflow.memory_bank.ingest /path/to/folder usaid_ads201 --folder
 ```
 
-Automated on every push to `main` branch.
+## Repository Layout
 
----
+```text
+grantflow/
+├── api/               # FastAPI app
+├── core/              # config, state, donor strategies
+├── exporters/         # docx/xlsx builders
+├── memory_bank/       # vector store + ingestion tools
+├── swarm/             # LangGraph graph + nodes + HITL
+└── tests/             # integration / strategy / vector store tests
+```
 
-## 📝 License
+## Security / Publishing Notes
 
-**Proprietary** — All rights reserved.
+- Do not commit `.env` files or provider keys
+- `OPENAI_API_KEY` is expected from environment variables only
+- generated local data (`chroma_db/`, `backups/`) is ignored by `.gitignore`
 
----
+## Project Status
 
-## 🤝 Contributing
+This is an actively evolving MVP backend. The current implementation prioritizes:
 
-This is a private repository. For access requests, contact the maintainer.
+- stable API contract
+- deterministic workflow execution
+- donor strategy isolation
+- export pipeline reliability
+- staged review checkpoints with resume (HITL MVP)
+- broad donor catalog coverage with incremental specialization
 
----
+Next likely steps:
 
-## 📞 Support
-
-- **Issues:** https://github.com/vassiliylakhonin/aidgraph-prod/issues
-- **Repository:** https://github.com/vassiliylakhonin/aidgraph-prod
-
----
-
-**Built with ❤️ by AidGraph Team**
-
-*Version 2.0 — February 2026*
+- graph-native HITL pause/resume (inside LangGraph runtime)
+- more specialized strategies for priority donors (e.g. UN agencies, FCDO, Gavi, Global Fund, Gates)
+- stronger typed graph state across nodes
+- production job store (Redis/Celery)
+- richer donor-specific RAG + LLM drafting nodes
