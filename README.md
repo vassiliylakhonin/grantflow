@@ -246,6 +246,8 @@ Core endpoints:
 - `GET /status/{job_id}/citations` - retrieve typed citation/traceability records for the job
 - `GET /status/{job_id}/versions` - retrieve typed draft version history snapshots (`toc` / `logframe`)
 - `GET /status/{job_id}/diff` - retrieve a unified diff between draft versions (optionally filtered by section)
+- `GET /status/{job_id}/events` - retrieve typed job timeline/audit trail events
+- `GET /status/{job_id}/metrics` - retrieve derived workflow/ROI metrics from the job timeline
 - `POST /resume/{job_id}` - resume a HITL-paused job
 - `GET /hitl/pending` - list pending checkpoints
 - `POST /hitl/approve` - approve/reject checkpoint
@@ -349,6 +351,39 @@ Example diff response shape:
   "has_diff": true,
   "diff_text": "--- toc_v1\n+++ toc_v2\n@@ ...",
   "diff_lines": ["--- toc_v1", "+++ toc_v2", "@@ ..."]
+}
+```
+
+### Job timeline and metrics (optional)
+
+GrantFlow also exposes a typed job timeline (`events`) and derived workflow metrics (`metrics`) for auditability and ROI tracking.
+
+Get timeline events:
+
+```bash
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/events
+```
+
+Get derived metrics:
+
+```bash
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/metrics
+```
+
+Example metrics response shape:
+
+```json
+{
+  "job_id": "uuid",
+  "status": "done",
+  "event_count": 12,
+  "status_change_count": 8,
+  "pause_count": 1,
+  "resume_count": 1,
+  "time_to_first_draft_seconds": 42.7,
+  "time_to_terminal_seconds": 185.3,
+  "time_in_pending_hitl_seconds": 96.2,
+  "terminal_status": "done"
 }
 ```
 
