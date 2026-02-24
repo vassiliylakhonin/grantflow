@@ -117,10 +117,11 @@ uvicorn grantflow.api.app:app --reload
 
 API will start on `http://127.0.0.1:8000`.
 
-### 4) Health check
+### 4) Health and readiness checks
 
 ```bash
 curl -s http://127.0.0.1:8000/health
+curl -s http://127.0.0.1:8000/ready
 ```
 
 ### 5) Generate a draft (USAID example)
@@ -198,6 +199,7 @@ curl -s -X POST http://127.0.0.1:8000/generate \
 Core endpoints:
 
 - `GET /health` - service health/status
+- `GET /ready` - readiness check for API + vector store backend
 - `GET /donors` - supported donor catalog and aliases
 - `POST /generate` - start async drafting job
 - `GET /status/{job_id}` - poll job status/state
