@@ -98,6 +98,25 @@ class JobEventsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobMetricsPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    event_count: int
+    status_change_count: int
+    pause_count: int
+    resume_count: int
+    created_at: Optional[str] = None
+    started_at: Optional[str] = None
+    first_pending_hitl_at: Optional[str] = None
+    terminal_at: Optional[str] = None
+    terminal_status: Optional[str] = None
+    time_to_first_draft_seconds: Optional[float] = None
+    time_to_terminal_seconds: Optional[float] = None
+    time_in_pending_hitl_seconds: Optional[float] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 class HITLPendingCheckpointPublicResponse(BaseModel):
     id: str
     stage: str

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import difflib
 import json
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -200,6 +201,82 @@ def public_job_events_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
         "status": str(job.get("status") or ""),
         "event_count": len(events),
         "events": events,
+    }
+
+
+def _parse_event_ts(value: Any) -> Optional[datetime]:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    raw_events = job.get("job_events")
+    events: list[Dict[str, Any]] = []
+    if isinstance(raw_events, list):
+        events = [sanitize_for_public_response(item) for item in raw_events if isinstance(item, dict)]
+
+    status_events = [e for e in events if e.get("type") == "status_changed"]
+    pause_events = [e for e in status_events if e.get("to_status") == "pending_hitl"]
+    resume_events = [e for e in events if e.get("type") == "resume_requested"]
+    terminal_statuses = {"done", "error", "canceled"}
+
+    created_event = next((e for e in status_events if e.get("to_status") == "accepted"), None)
+    started_event = next((e for e in status_events if e.get("to_status") == "running"), None)
+    first_pending_event = next((e for e in status_events if e.get("to_status") == "pending_hitl"), None)
+    terminal_event = next((e for e in reversed(status_events) if e.get("to_status") in terminal_statuses), None)
+
+    created_at = _parse_event_ts((created_event or {}).get("ts"))
+    started_at = _parse_event_ts((started_event or {}).get("ts"))
+    first_pending_at = _parse_event_ts((first_pending_event or {}).get("ts"))
+    terminal_at = _parse_event_ts((terminal_event or {}).get("ts"))
+
+    # Sum durations spent in pending_hitl until the next status transition.
+    total_pending_s = 0.0
+    pending_started_at: Optional[datetime] = None
+    for e in status_events:
+        ts = _parse_event_ts(e.get("ts"))
+        if ts is None:
+            continue
+        to_status = e.get("to_status")
+        if to_status == "pending_hitl":
+            pending_started_at = ts
+            continue
+        if pending_started_at is not None:
+            total_pending_s += max(0.0, (ts - pending_started_at).total_seconds())
+            pending_started_at = None
+    # If still pending at the end, leave the open interval uncounted (deterministic snapshot metric).
+
+    first_draft_marker = first_pending_at or terminal_at
+    time_to_first_draft = (
+        max(0.0, (first_draft_marker - created_at).total_seconds())
+        if created_at is not None and first_draft_marker is not None
+        else None
+    )
+    time_to_terminal = (
+        max(0.0, (terminal_at - created_at).total_seconds())
+        if created_at is not None and terminal_at is not None
+        else None
+    )
+
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "event_count": len(events),
+        "status_change_count": len(status_events),
+        "pause_count": len(pause_events),
+        "resume_count": len(resume_events),
+        "created_at": (created_event or {}).get("ts"),
+        "started_at": (started_event or {}).get("ts"),
+        "first_pending_hitl_at": (first_pending_event or {}).get("ts"),
+        "terminal_at": (terminal_event or {}).get("ts"),
+        "terminal_status": (terminal_event or {}).get("to_status"),
+        "time_to_first_draft_seconds": round(time_to_first_draft, 3) if time_to_first_draft is not None else None,
+        "time_to_terminal_seconds": round(time_to_terminal, 3) if time_to_terminal is not None else None,
+        "time_in_pending_hitl_seconds": round(total_pending_s, 3),
     }
 
 

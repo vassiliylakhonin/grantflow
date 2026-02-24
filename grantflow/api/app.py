@@ -17,6 +17,7 @@ from grantflow.api.public_views import (
     public_job_citations_payload,
     public_job_diff_payload,
     public_job_events_payload,
+    public_job_metrics_payload,
     public_job_payload,
     public_job_versions_payload,
 )
@@ -25,6 +26,7 @@ from grantflow.api.schemas import (
     JobCitationsPublicResponse,
     JobDiffPublicResponse,
     JobEventsPublicResponse,
+    JobMetricsPublicResponse,
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
 )
@@ -660,6 +662,19 @@ def get_status_events(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_events_payload(job_id, job)
+
+
+@app.get(
+    "/status/{job_id}/metrics",
+    response_model=JobMetricsPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_metrics(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_metrics_payload(job_id, job)
 
 
 @app.post("/hitl/approve")
