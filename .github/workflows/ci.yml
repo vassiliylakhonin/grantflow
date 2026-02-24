@@ -9,8 +9,28 @@ on:
     branches: [ main ]
 
 jobs:
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Lint shell scripts
+        run: shellcheck deploy.sh backup.sh
+
+      - name: Bash syntax check
+        run: |
+          bash -n deploy.sh
+          bash -n backup.sh
+
   test:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
       
@@ -19,17 +39,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-      
-      - name: Debug directory structure
-        run: |
-          echo "=== Current directory ==="
-          pwd
-          echo "=== Files in root ==="
-          ls -la
-          echo "=== Files in grantflow/ ==="
-          ls -la grantflow/ || echo "grantflow/ not found"
-          echo "=== Looking for requirements.txt ==="
-          find . -name "requirements.txt" -type f
+          cache-dependency-path: grantflow/requirements.txt
       
       - name: Install dependencies
         run: |
@@ -43,18 +53,12 @@ jobs:
             exit 1
           fi
       
-      - name: List test files
-        run: |
-          echo "=== Test files ==="
-          find . -name "test_*.py" -type f
-          ls -la grantflow/tests/ || echo "grantflow/tests/ not found"
-      
       - name: Run tests
         run: |
           if [ -d "grantflow/tests" ]; then
-            pytest grantflow/tests/ -v --tb=short
+            python -m pytest -c grantflow/pytest.ini grantflow/tests/ -v --tb=short
           elif [ -d "tests" ]; then
-            pytest tests/ -v --tb=short
+            python -m pytest tests/ -v --tb=short
           else
             echo "ERROR: No tests directory found"
             exit 1

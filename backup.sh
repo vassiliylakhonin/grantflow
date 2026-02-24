@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # backup.sh
 
-set -e
+set -euo pipefail
 
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -18,9 +18,16 @@ else
     echo "⚠️  chroma_db directory not found"
 fi
 
-# Оставляем только последние 10 бэкапов
-cd "$BACKUP_DIR"
-ls -t chroma_db_*.tar.gz 2>/dev/null | tail -n +11 | xargs -r rm
-cd -
+# Оставляем только последние 10 бэкапов (по timestamp в имени файла)
+pushd "$BACKUP_DIR" >/dev/null
+shopt -s nullglob
+backups=(chroma_db_*.tar.gz)
+if [ "${#backups[@]}" -gt 10 ]; then
+    mapfile -t sorted_backups < <(printf '%s\n' "${backups[@]}" | sort -r)
+    for old_backup in "${sorted_backups[@]:10}"; do
+        rm -f -- "$old_backup"
+    done
+fi
+popd >/dev/null
 
 echo "✅ Backup complete"
