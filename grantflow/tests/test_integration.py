@@ -43,7 +43,7 @@ def test_demo_console_page_loads():
     assert "text/html" in response.headers["content-type"]
     body = response.text
     assert "GrantFlow Demo Console" in body
-    assert "/status/<JOB_ID>/metrics" in body
+    assert "/status/${encodeURIComponent(jobId)}/metrics" in body
 
 
 def test_ready_endpoint():
