@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import io
+import os
+import secrets
 import uuid
 import zipfile
 from enum import Enum
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
@@ -101,6 +103,16 @@ def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> N
     )
     state["hitl_feedback_history"] = history
     state["hitl_feedback"] = feedback
+
+
+def _require_api_key_if_configured(request: Request) -> None:
+    expected = os.getenv("GRANTFLOW_API_KEY") or os.getenv("API_KEY")
+    if not expected:
+        return
+
+    provided = request.headers.get("x-api-key")
+    if not provided or not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 def _sanitize_for_public_response(value: Any) -> Any:
@@ -248,7 +260,8 @@ def list_donors():
 
 
 @app.post("/generate")
-async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
+async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, request: Request):
+    _require_api_key_if_configured(request)
     donor = req.donor_id.strip()
     if not donor:
         raise HTTPException(status_code=400, detail="Missing donor_id")
@@ -289,7 +302,8 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks):
 
 
 @app.post("/resume/{job_id}")
-async def resume_job(job_id: str, background_tasks: BackgroundTasks):
+async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Request):
+    _require_api_key_if_configured(request)
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -337,7 +351,8 @@ def get_status(job_id: str):
 
 
 @app.post("/hitl/approve")
-def approve_checkpoint(req: HITLApprovalRequest):
+def approve_checkpoint(req: HITLApprovalRequest, request: Request):
+    _require_api_key_if_configured(request)
     checkpoint = hitl_manager.get_checkpoint(req.checkpoint_id)
     if not checkpoint:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
@@ -360,7 +375,8 @@ def list_pending_hitl(donor_id: Optional[str] = None):
 
 
 @app.post("/export")
-def export_artifacts(req: ExportRequest):
+def export_artifacts(req: ExportRequest, request: Request):
+    _require_api_key_if_configured(request)
     toc_draft, logframe_draft, donor_id = _resolve_export_inputs(req)
     fmt = (req.format or "").lower()
 

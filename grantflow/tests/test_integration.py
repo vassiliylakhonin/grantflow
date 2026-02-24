@@ -79,6 +79,24 @@ def test_status_redacts_internal_strategy_objects():
     assert state["toc_draft"]
 
 
+def test_generate_requires_api_key_when_configured(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
+
+    payload = {
+        "donor_id": "usaid",
+        "input_context": {"project": "Public Health", "country": "Kenya"},
+        "llm_mode": False,
+        "hitl_enabled": False,
+    }
+
+    response = client.post("/generate", json=payload)
+    assert response.status_code == 401
+
+    response = client.post("/generate", json=payload, headers={"X-API-Key": "test-secret"})
+    assert response.status_code == 200
+    assert response.json()["status"] == "accepted"
+
+
 def test_hitl_pause_resume_flow():
     response = client.post(
         "/generate",

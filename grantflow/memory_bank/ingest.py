@@ -25,6 +25,13 @@ def load_pdf_text(pdf_path: str) -> str:
 
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
     """Разбивает текст на чанки с перекрытием."""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be > 0")
+    if overlap < 0:
+        raise ValueError("overlap must be >= 0")
+    if overlap >= chunk_size:
+        raise ValueError("overlap must be < chunk_size")
+
     chunks = []
     start = 0
     while start < len(text):
