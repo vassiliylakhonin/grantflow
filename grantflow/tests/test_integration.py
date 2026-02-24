@@ -1,8 +1,10 @@
 # grantflow/tests/test_integration.py
 
+import json
 import time
 from fastapi.testclient import TestClient
 
+import grantflow.api.app as api_app_module
 from grantflow.api.app import app
 
 client = TestClient(app)
@@ -148,6 +150,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert schemes["ApiKeyAuth"]["name"] == "X-API-Key"
 
     generate_security = (((spec.get("paths") or {}).get("/generate") or {}).get("post") or {}).get("security")
+    ingest_security = (((spec.get("paths") or {}).get("/ingest") or {}).get("post") or {}).get("security")
     status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
@@ -164,6 +167,7 @@ def test_openapi_declares_api_key_security_scheme():
         .get("schema")
     )
     assert generate_security == [{"ApiKeyAuth": []}]
+    assert ingest_security == [{"ApiKeyAuth": []}]
     assert status_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
@@ -171,6 +175,74 @@ def test_openapi_declares_api_key_security_scheme():
     schemas = (spec.get("components") or {}).get("schemas") or {}
     assert "JobStatusPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
+
+
+def test_ingest_endpoint_uploads_to_donor_namespace(monkeypatch):
+    calls = {}
+
+    def fake_ingest(pdf_path: str, namespace: str, metadata=None):
+        calls["pdf_path"] = pdf_path
+        calls["namespace"] = namespace
+        calls["metadata"] = metadata or {}
+        return {
+            "namespace": namespace,
+            "source": pdf_path,
+            "chunks_ingested": 3,
+            "stats": {"namespace": namespace, "document_count": 3},
+        }
+
+    monkeypatch.setattr(api_app_module, "ingest_pdf_to_namespace", fake_ingest)
+
+    response = client.post(
+        "/ingest",
+        data={"donor_id": "usaid", "metadata_json": json.dumps({"source_type": "manual_upload"})},
+        files={"file": ("sample.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ingested"
+    assert body["donor_id"] == "usaid"
+    assert body["namespace"] == "usaid_ads201"
+    assert body["filename"] == "sample.pdf"
+    assert body["result"]["chunks_ingested"] == 3
+
+    assert calls["namespace"] == "usaid_ads201"
+    assert calls["metadata"]["uploaded_filename"] == "sample.pdf"
+    assert calls["metadata"]["donor_id"] == "usaid"
+    assert calls["metadata"]["source_type"] == "manual_upload"
+
+
+def test_ingest_endpoint_validates_pdf_extension():
+    response = client.post(
+        "/ingest",
+        data={"donor_id": "usaid"},
+        files={"file": ("notes.txt", b"hello", "text/plain")},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Only PDF uploads are supported"
+
+
+def test_ingest_endpoint_requires_api_key_when_configured(monkeypatch):
+    def fake_ingest(pdf_path: str, namespace: str, metadata=None):
+        return {"namespace": namespace, "source": pdf_path, "chunks_ingested": 1, "stats": {}}
+
+    monkeypatch.setattr(api_app_module, "ingest_pdf_to_namespace", fake_ingest)
+    monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
+
+    response = client.post(
+        "/ingest",
+        data={"donor_id": "usaid"},
+        files={"file": ("sample.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+    )
+    assert response.status_code == 401
+
+    response = client.post(
+        "/ingest",
+        data={"donor_id": "usaid"},
+        files={"file": ("sample.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert response.status_code == 200
 
 
 def test_hitl_pause_resume_flow():

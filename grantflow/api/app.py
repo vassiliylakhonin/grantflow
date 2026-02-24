@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import io
+import json
+import tempfile
 import uuid
 import zipfile
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
@@ -22,6 +24,7 @@ from grantflow.core.stores import create_job_store_from_env
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
+from grantflow.memory_bank.ingest import ingest_pdf_to_namespace
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
@@ -354,6 +357,84 @@ def list_pending_hitl(request: Request, donor_id: Optional[str] = None):
     return {
         "pending_count": len(pending),
         "checkpoints": [public_checkpoint_payload(cp) for cp in pending],
+    }
+
+
+@app.post("/ingest")
+async def ingest_pdf(
+    request: Request,
+    donor_id: str = Form(...),
+    file: UploadFile = File(...),
+    metadata_json: Optional[str] = Form(None),
+):
+    require_api_key_if_configured(request)
+
+    donor = (donor_id or "").strip()
+    if not donor:
+        raise HTTPException(status_code=400, detail="Missing donor_id")
+
+    try:
+        strategy = DonorFactory.get_strategy(donor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    filename = (file.filename or "").strip()
+    if not filename:
+        raise HTTPException(status_code=400, detail="Missing uploaded file name")
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF uploads are supported")
+
+    content_type = (file.content_type or "").lower().strip()
+    allowed_content_types = {"", "application/pdf", "application/x-pdf", "application/octet-stream"}
+    if content_type not in allowed_content_types:
+        raise HTTPException(status_code=400, detail=f"Unsupported content type: {content_type}")
+
+    metadata: Optional[Dict[str, Any]] = None
+    if metadata_json:
+        try:
+            parsed = json.loads(metadata_json)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid metadata_json: {exc.msg}") from exc
+        if not isinstance(parsed, dict):
+            raise HTTPException(status_code=400, detail="metadata_json must decode to an object")
+        metadata = parsed
+
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty")
+
+    namespace = strategy.get_rag_collection()
+    upload_metadata: Dict[str, Any] = {
+        "uploaded_filename": filename,
+        "uploaded_content_type": content_type or "application/pdf",
+        "donor_id": donor,
+    }
+    if metadata:
+        upload_metadata.update(metadata)
+
+    tmp_path: Optional[str] = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix="grantflow_ingest_", suffix=".pdf", delete=False) as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        result = ingest_pdf_to_namespace(tmp_path, namespace=namespace, metadata=upload_metadata)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Ingest failed: {exc}") from exc
+    finally:
+        if tmp_path:
+            try:
+                import os
+
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+
+    return {
+        "status": "ingested",
+        "donor_id": donor,
+        "namespace": namespace,
+        "filename": filename,
+        "result": result,
     }
 
 
