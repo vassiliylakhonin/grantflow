@@ -140,8 +140,28 @@ def test_openapi_declares_api_key_security_scheme():
 
     generate_security = (((spec.get("paths") or {}).get("/generate") or {}).get("post") or {}).get("security")
     status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
+    status_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    pending_response_schema = (
+        ((((spec.get("paths") or {}).get("/hitl/pending") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     assert generate_security == [{"ApiKeyAuth": []}]
     assert status_security == [{"ApiKeyAuth": []}]
+    assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
+    assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
+
+    schemas = (spec.get("components") or {}).get("schemas") or {}
+    assert "JobStatusPublicResponse" in schemas
+    assert "HITLPendingListPublicResponse" in schemas
 
 
 def test_hitl_pause_resume_flow():

@@ -76,6 +76,37 @@ class ExportRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobStatusPublicResponse(BaseModel):
+    status: str
+    state: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    hitl_enabled: Optional[bool] = None
+    checkpoint_id: Optional[str] = None
+    checkpoint_stage: Optional[str] = None
+    checkpoint_status: Optional[str] = None
+    resume_from: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class HITLPendingCheckpointPublicResponse(BaseModel):
+    id: str
+    stage: str
+    status: str
+    donor_id: str
+    feedback: Optional[str] = None
+    has_state_snapshot: bool
+
+    model_config = ConfigDict(extra="allow")
+
+
+class HITLPendingListPublicResponse(BaseModel):
+    pending_count: int
+    checkpoints: list[HITLPendingCheckpointPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 def _resolve_export_inputs(req: ExportRequest) -> tuple[dict, dict, str]:
     payload = req.payload or {}
     if isinstance(payload.get("state"), dict):
@@ -400,7 +431,7 @@ async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Re
     }
 
 
-@app.get("/status/{job_id}")
+@app.get("/status/{job_id}", response_model=JobStatusPublicResponse, response_model_exclude_none=True)
 def get_status(job_id: str, request: Request):
     _require_api_key_if_configured(request, for_read=True)
     job = _get_job(job_id)
@@ -424,7 +455,7 @@ def approve_checkpoint(req: HITLApprovalRequest, request: Request):
     return {"status": "rejected", "checkpoint_id": req.checkpoint_id}
 
 
-@app.get("/hitl/pending")
+@app.get("/hitl/pending", response_model=HITLPendingListPublicResponse, response_model_exclude_none=True)
 def list_pending_hitl(request: Request, donor_id: Optional[str] = None):
     _require_api_key_if_configured(request, for_read=True)
     pending = hitl_manager.list_pending(donor_id)
