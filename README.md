@@ -42,9 +42,24 @@ It is designed for implementing organizations (e.g. DAI, Chemonics, Tetra Tech),
 
 ### Estimated ROI (Early)
 
-GrantFlow reduces time spent on drafting and review-loop overhead, especially where teams repeatedly restructure the same project idea into donor-aligned formats (ToC / LogFrame / MEL).
+GrantFlow is designed to reduce drafting and review-loop overhead, not replace human review or compliance sign-off.
 
-In practice, a realistic estimate is **~25-40% time savings** on draft/rework cycles, which often translates to **~3-8 staff hours saved per proposal** in common cases (and more for complex applications with multiple reviewers or partners).
+A practical early estimate is **~25-40% time savings** on draft/rework cycles, especially when teams repeatedly reshape the same project idea into donor-aligned formats (ToC / LogFrame / MEL).
+
+#### Typical savings by proposal complexity (illustrative)
+
+- **Smaller NGO / single-team proposal**: ~`8-20` drafting+rework hours baseline -> **~2-8 hours saved**
+- **Multi-reviewer proposal (program + MEL + management)**: ~`20-40` hours baseline -> **~5-16 hours saved**
+- **Consortium / partner-heavy / federal-style application**: ~`40+` hours baseline -> **materially higher savings**, especially in coordination and revision cycles
+
+#### Where the savings usually come from
+
+- faster conversion of project ideas into donor-aligned structures
+- less manual reformatting/rephrasing across review rounds
+- quicker internal review handoffs with HITL checkpoints
+- exportable draft artifacts ready for substantive review earlier
+
+> These are directional estimates for planning/ROI discussions. Actual savings depend on donor requirements, team maturity, and how much of the workflow is standardized.
 
 ## Key Features
 
