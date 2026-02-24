@@ -142,6 +142,24 @@ curl -s -X POST http://127.0.0.1:8000/generate \
 
 If `GRANTFLOW_API_KEY` is configured, add `-H 'X-API-Key: <your-key>'` to write requests (`/generate`, `/resume`, `/hitl/approve`, `/export`).
 
+### 5b) Generate with webhooks (optional)
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/generate \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "donor_id": "usaid",
+    "input_context": {
+      "project": "Water Sanitation",
+      "country": "Kenya"
+    },
+    "llm_mode": false,
+    "hitl_enabled": true,
+    "webhook_url": "https://example.com/grantflow-webhook",
+    "webhook_secret": "replace-me"
+  }'
+```
+
 ### 6) Check job status
 
 ```bash
@@ -202,11 +220,52 @@ Core endpoints:
 - `GET /ready` - readiness check for API + vector store backend
 - `GET /donors` - supported donor catalog and aliases
 - `POST /generate` - start async drafting job
+- `POST /cancel/{job_id}` - cancel an accepted/running/pending HITL job (best-effort)
 - `GET /status/{job_id}` - poll job status/state
 - `POST /resume/{job_id}` - resume a HITL-paused job
 - `GET /hitl/pending` - list pending checkpoints
 - `POST /hitl/approve` - approve/reject checkpoint
+- `POST /ingest` - upload PDF donor guidance into donor namespace (RAG ingestion)
 - `POST /export` - export outputs as `docx`, `xlsx`, or ZIP
+
+### Webhook events (optional)
+
+When `webhook_url` is provided in `POST /generate`, GrantFlow sends job lifecycle events:
+
+- `job.started`
+- `job.pending_hitl`
+- `job.completed`
+- `job.failed`
+- `job.canceled`
+
+Webhook payload shape:
+
+```json
+{
+  "event": "job.completed",
+  "job_id": "uuid",
+  "status": "done",
+  "job": {
+    "status": "done",
+    "state": { "...": "..." },
+    "hitl_enabled": false,
+    "webhook_configured": true
+  }
+}
+```
+
+If `webhook_secret` is provided, requests include `X-GrantFlow-Signature` with an HMAC SHA-256 signature of the raw request body:
+
+```text
+X-GrantFlow-Signature: sha256=<hex_digest>
+```
+
+Webhook retries/backoff (optional env vars):
+
+- `GRANTFLOW_WEBHOOK_MAX_ATTEMPTS` (default `3`)
+- `GRANTFLOW_WEBHOOK_TIMEOUT_S` (default `5.0`)
+- `GRANTFLOW_WEBHOOK_BACKOFF_BASE_MS` (default `250`)
+- `GRANTFLOW_WEBHOOK_BACKOFF_MAX_MS` (default `2000`)
 
 ## Human-in-the-Loop Checkpoints (MVP)
 
@@ -268,15 +327,21 @@ Optional environment variables:
 - `CHROMA_COLLECTION_PREFIX`
 - `CHROMA_PERSIST_DIRECTORY`
 - `GRANTFLOW_API_KEY` (if set, write endpoints require `X-API-Key`)
+- `GRANTFLOW_REQUIRE_AUTH_FOR_READS` (`true` to require `X-API-Key` for `/status` and `/hitl/pending`)
 - `GRANTFLOW_JOB_STORE` (`inmem` or `sqlite`)
 - `GRANTFLOW_HITL_STORE` (`inmem` or `sqlite`, defaults to job store mode)
 - `GRANTFLOW_SQLITE_PATH` (SQLite file path for job/HITL persistence)
+- `GRANTFLOW_WEBHOOK_MAX_ATTEMPTS`
+- `GRANTFLOW_WEBHOOK_TIMEOUT_S`
+- `GRANTFLOW_WEBHOOK_BACKOFF_BASE_MS`
+- `GRANTFLOW_WEBHOOK_BACKOFF_MAX_MS`
 
 ### Docker Compose persistence/auth notes
 
 - `docker-compose.yml` is configured to use SQLite-backed job/HITL persistence by default.
 - API state DB is stored in the `grantflow_state` volume (`/data/grantflow_state.db` in the container).
 - To protect write endpoints in deployment, set `GRANTFLOW_API_KEY` in your `.env` and send `X-API-Key` from clients.
+- If you use webhooks, prefer HTTPS endpoints and set `webhook_secret` to verify `X-GrantFlow-Signature`.
 
 ## Testing
 
