@@ -244,6 +244,8 @@ Core endpoints:
 - `POST /cancel/{job_id}` - cancel an accepted/running/pending HITL job (best-effort)
 - `GET /status/{job_id}` - poll job status/state
 - `GET /status/{job_id}/citations` - retrieve typed citation/traceability records for the job
+- `GET /status/{job_id}/versions` - retrieve typed draft version history snapshots (`toc` / `logframe`)
+- `GET /status/{job_id}/diff` - retrieve a unified diff between draft versions (optionally filtered by section)
 - `POST /resume/{job_id}` - resume a HITL-paused job
 - `GET /hitl/pending` - list pending checkpoints
 - `POST /hitl/approve` - approve/reject checkpoint
@@ -314,6 +316,39 @@ Example response shape:
       "excerpt": "..."
     }
   ]
+}
+```
+
+### Draft version history and diffs (optional)
+
+GrantFlow records draft snapshots during the pipeline (for example, ToC drafts from `architect` and logframe drafts from `mel`), which makes review loops easier to audit.
+
+List versions:
+
+```bash
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/versions
+curl -s "http://127.0.0.1:8000/status/<JOB_ID>/versions?section=toc"
+```
+
+Get a diff (latest two versions in a section by default):
+
+```bash
+curl -s "http://127.0.0.1:8000/status/<JOB_ID>/diff?section=toc"
+curl -s "http://127.0.0.1:8000/status/<JOB_ID>/diff?from_version_id=toc_v1&to_version_id=toc_v2"
+```
+
+Example diff response shape:
+
+```json
+{
+  "job_id": "uuid",
+  "status": "done",
+  "section": "toc",
+  "from_version_id": "toc_v1",
+  "to_version_id": "toc_v2",
+  "has_diff": true,
+  "diff_text": "--- toc_v1\n+++ toc_v2\n@@ ...",
+  "diff_lines": ["--- toc_v1", "+++ toc_v2", "@@ ..."]
 }
 ```
 
