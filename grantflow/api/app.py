@@ -9,9 +9,10 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
+from grantflow.api.demo_ui import render_demo_ui_html
 from grantflow.api.public_views import (
     public_checkpoint_payload,
     public_job_citations_payload,
@@ -465,6 +466,11 @@ def readiness_check():
 @app.get("/donors")
 def list_donors():
     return {"donors": DonorFactory.list_supported()}
+
+
+@app.get("/demo", response_class=HTMLResponse, include_in_schema=False)
+def demo_console():
+    return HTMLResponse(render_demo_ui_html())
 
 
 @app.get(

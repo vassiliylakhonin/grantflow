@@ -37,6 +37,15 @@ def test_health_endpoint():
     assert diagnostics["vector_store"]["collection_prefix"]
 
 
+def test_demo_console_page_loads():
+    response = client.get("/demo")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    body = response.text
+    assert "GrantFlow Demo Console" in body
+    assert "/status/<JOB_ID>/metrics" in body
+
+
 def test_ready_endpoint():
     response = client.get("/ready")
     assert response.status_code == 200

@@ -1,0 +1,692 @@
+from __future__ import annotations
+
+
+def render_demo_ui_html() -> str:
+    return """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GrantFlow Demo Console</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --paper: #fffaf1;
+      --ink: #1f1d1a;
+      --muted: #6d665d;
+      --line: #d8cfbf;
+      --accent: #0f766e;
+      --accent-2: #b45309;
+      --good: #166534;
+      --warn: #b45309;
+      --bad: #b91c1c;
+      --shadow: 0 10px 30px rgba(31, 29, 26, 0.08);
+      --radius: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      --sans: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(15,118,110,.10), transparent 45%),
+        radial-gradient(circle at 90% 0%, rgba(180,83,9,.12), transparent 35%),
+        linear-gradient(180deg, #f4f0e8 0%, #efe9dd 100%);
+    }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: 22px 18px 40px; }
+    .hero {
+      background: linear-gradient(135deg, rgba(255,250,241,.92), rgba(250,242,228,.92));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+      backdrop-filter: blur(2px);
+    }
+    .hero h1 { margin: 0 0 4px; font-size: 1.4rem; letter-spacing: .02em; }
+    .hero p { margin: 0; color: var(--muted); }
+    .toolbar, .grid { display: grid; gap: 12px; }
+    .toolbar { grid-template-columns: 1.6fr .8fr .7fr .7fr auto auto; margin: 12px 0 16px; }
+    .grid { grid-template-columns: 1.1fr .9fr; }
+    .stack { display: grid; gap: 12px; }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card h2 {
+      margin: 0;
+      padding: 12px 14px;
+      font-size: .95rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,.55);
+    }
+    .card .body { padding: 12px 14px; }
+    label { display: block; font-size: .75rem; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+    input, select, textarea, button {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      padding: 10px 11px;
+    }
+    textarea { min-height: 78px; resize: vertical; font-family: var(--mono); font-size: .86rem; }
+    .json { min-height: 120px; }
+    button {
+      cursor: pointer;
+      background: linear-gradient(180deg, #fff, #f5f0e5);
+      transition: transform .08s ease, box-shadow .12s ease;
+      box-shadow: 0 1px 0 rgba(31,29,26,.05);
+    }
+    button:hover { transform: translateY(-1px); }
+    button.primary { background: linear-gradient(180deg, #117c73, #0f766e); color: #fff; border-color: #0f766e; }
+    button.secondary { background: linear-gradient(180deg, #c96f1b, #b45309); color: #fff; border-color: #b45309; }
+    button.ghost { background: transparent; }
+    button.danger { background: linear-gradient(180deg, #dc2626, #b91c1c); color: #fff; border-color: #b91c1c; }
+    .row { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .row3 { display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr; }
+    .row4 { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .mono { font-family: var(--mono); font-size: .84rem; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      border-radius: 999px; padding: 4px 10px; border: 1px solid var(--line);
+      background: #fff; font-size: .82rem;
+    }
+    .pill .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--muted); }
+    .status-accepted .dot { background: #2563eb; }
+    .status-running .dot { background: #0891b2; }
+    .status-pending_hitl .dot { background: var(--warn); }
+    .status-done .dot { background: var(--good); }
+    .status-error .dot, .status-canceled .dot { background: var(--bad); }
+    .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .kpi {
+      border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.8); padding: 10px;
+    }
+    .kpi .label { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+    .kpi .value { font-family: var(--mono); font-size: 1rem; }
+    pre {
+      margin: 0; white-space: pre-wrap; word-break: break-word;
+      background: #1f2329; color: #e5e7eb; border-radius: 10px; padding: 12px;
+      font-family: var(--mono); font-size: .79rem; line-height: 1.4;
+      max-height: 360px; overflow: auto;
+    }
+    .list {
+      display: grid; gap: 8px;
+      max-height: 320px; overflow: auto;
+    }
+    .item {
+      border: 1px solid var(--line); background: rgba(255,255,255,.78); border-radius: 12px; padding: 10px;
+    }
+    .item .title { font-weight: 600; margin-bottom: 4px; }
+    .item .sub { color: var(--muted); font-size: .82rem; }
+    .footer-note { color: var(--muted); font-size: .8rem; margin-top: 8px; }
+    .hidden { display: none !important; }
+    .blink-in { animation: fadeSlide .25s ease; }
+    @keyframes fadeSlide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+    @media (max-width: 1080px) {
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      .row3, .row4, .kpis { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .toolbar, .row, .row3, .row4, .kpis { grid-template-columns: 1fr; }
+      .wrap { padding: 12px; }
+      .hero h1 { font-size: 1.15rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>GrantFlow Demo Console</h1>
+      <p>Minimal operator UI for generate → HITL → review traces (citations, versions, diff, events, metrics).</p>
+    </section>
+
+    <section class="toolbar">
+      <div>
+        <label for="apiBase">API Base</label>
+        <input id="apiBase" value="" placeholder="http://127.0.0.1:8000" />
+      </div>
+      <div>
+        <label for="apiKey">X-API-Key (optional)</label>
+        <input id="apiKey" value="" placeholder="server key if auth enabled" />
+      </div>
+      <div>
+        <label for="jobIdInput">Job ID</label>
+        <input id="jobIdInput" placeholder="Paste job id or generate new" />
+      </div>
+      <div>
+        <label for="diffSection">Diff Section</label>
+        <select id="diffSection">
+          <option value="">auto</option>
+          <option value="toc">toc</option>
+          <option value="logframe">logframe</option>
+        </select>
+      </div>
+      <div style="align-self:end;">
+        <button id="refreshAllBtn" class="ghost">Refresh All</button>
+      </div>
+      <div style="align-self:end;">
+        <button id="pollToggleBtn" class="secondary">Start Poll</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="stack">
+        <div class="card">
+          <h2>Generate</h2>
+          <div class="body">
+            <div class="row4">
+              <div><label for="donorId">Donor ID</label><input id="donorId" value="usaid" /></div>
+              <div><label for="project">Project</label><input id="project" value="Water Sanitation" /></div>
+              <div><label for="country">Country</label><input id="country" value="Kenya" /></div>
+              <div><label for="hitlEnabled">HITL</label>
+                <select id="hitlEnabled"><option value="false">false</option><option value="true">true</option></select>
+              </div>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <div><label for="llmMode">LLM Mode</label><select id="llmMode"><option value="false">false</option><option value="true">true</option></select></div>
+              <div><label for="webhookUrl">Webhook URL (optional)</label><input id="webhookUrl" placeholder="https://example.com/webhook" /></div>
+              <div><label for="webhookSecret">Webhook Secret (optional)</label><input id="webhookSecret" placeholder="secret" /></div>
+            </div>
+            <div style="margin-top:10px;">
+              <button id="generateBtn" class="primary">Generate Draft</button>
+            </div>
+            <div class="footer-note">Tip: when auth is enabled on the API, set <code>X-API-Key</code> above once and all actions will use it.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>HITL Actions</h2>
+          <div class="body">
+            <div class="row3">
+              <div>
+                <label>Current Status</label>
+                <div id="statusPill" class="pill status-unknown"><span class="dot"></span><span id="statusPillText">unknown</span></div>
+              </div>
+              <div>
+                <label>Checkpoint ID</label>
+                <input id="checkpointId" readonly />
+              </div>
+              <div>
+                <label>Checkpoint Stage</label>
+                <input id="checkpointStage" readonly />
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <label for="hitlFeedback">Feedback</label>
+              <textarea id="hitlFeedback" placeholder="Reviewer notes for approve/reject"></textarea>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="approveBtn" class="primary">Approve Checkpoint</button>
+              <button id="rejectBtn" class="danger">Reject Checkpoint</button>
+              <button id="resumeBtn" class="secondary">Resume Job</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <button id="cancelBtn" class="danger">Cancel Job</button>
+              <button id="openPendingBtn" class="ghost">Load /hitl/pending</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Status Snapshot</h2>
+          <div class="body">
+            <pre id="statusJson">No job selected.</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card">
+          <h2>Metrics</h2>
+          <div class="body">
+            <div class="kpis" id="metricsCards">
+              <div class="kpi"><div class="label">Time to first draft</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Time to terminal</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Time in pending HITL</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Pauses</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Resumes</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Terminal status</div><div class="value mono">-</div></div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="metricsJson">{}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Versions & Diff</h2>
+          <div class="body">
+            <div class="row">
+              <button id="versionsBtn" class="ghost">Load Versions</button>
+              <button id="diffBtn" class="ghost">Load Diff</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label for="fromVersionId">from_version_id (optional)</label>
+                <input id="fromVersionId" placeholder="toc_v1" />
+              </div>
+              <div>
+                <label for="toVersionId">to_version_id (optional)</label>
+                <input id="toVersionId" placeholder="toc_v2" />
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <div class="list" id="versionsList"></div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="diffPre">No diff loaded.</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Citations</h2>
+          <div class="body">
+            <div class="row">
+              <button id="citationsBtn" class="ghost">Load Citations</button>
+              <button id="eventsBtn" class="ghost">Load Events</button>
+            </div>
+            <div style="margin-top:10px;">
+              <div class="list" id="citationsList"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Timeline Events</h2>
+          <div class="body">
+            <div class="list" id="eventsList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+      const state = {
+        pollTimer: null,
+        polling: false,
+      };
+
+      const els = {
+        apiBase: $("apiBase"),
+        apiKey: $("apiKey"),
+        jobIdInput: $("jobIdInput"),
+        donorId: $("donorId"),
+        project: $("project"),
+        country: $("country"),
+        hitlEnabled: $("hitlEnabled"),
+        llmMode: $("llmMode"),
+        webhookUrl: $("webhookUrl"),
+        webhookSecret: $("webhookSecret"),
+        diffSection: $("diffSection"),
+        fromVersionId: $("fromVersionId"),
+        toVersionId: $("toVersionId"),
+        hitlFeedback: $("hitlFeedback"),
+        checkpointId: $("checkpointId"),
+        checkpointStage: $("checkpointStage"),
+        statusPill: $("statusPill"),
+        statusPillText: $("statusPillText"),
+        statusJson: $("statusJson"),
+        metricsJson: $("metricsJson"),
+        diffPre: $("diffPre"),
+        versionsList: $("versionsList"),
+        citationsList: $("citationsList"),
+        eventsList: $("eventsList"),
+        metricsCards: $("metricsCards"),
+        generateBtn: $("generateBtn"),
+        refreshAllBtn: $("refreshAllBtn"),
+        pollToggleBtn: $("pollToggleBtn"),
+        approveBtn: $("approveBtn"),
+        rejectBtn: $("rejectBtn"),
+        resumeBtn: $("resumeBtn"),
+        cancelBtn: $("cancelBtn"),
+        versionsBtn: $("versionsBtn"),
+        diffBtn: $("diffBtn"),
+        citationsBtn: $("citationsBtn"),
+        eventsBtn: $("eventsBtn"),
+        openPendingBtn: $("openPendingBtn"),
+      };
+
+      function initDefaults() {
+        els.apiBase.value = localStorage.getItem("grantflow_demo_api_base") || window.location.origin;
+        els.apiKey.value = localStorage.getItem("grantflow_demo_api_key") || "";
+        els.jobIdInput.value = localStorage.getItem("grantflow_demo_job_id") || "";
+      }
+
+      function persistBasics() {
+        localStorage.setItem("grantflow_demo_api_base", els.apiBase.value.trim());
+        localStorage.setItem("grantflow_demo_api_key", els.apiKey.value.trim());
+        localStorage.setItem("grantflow_demo_job_id", els.jobIdInput.value.trim());
+      }
+
+      function apiBase() {
+        return (els.apiBase.value.trim() || window.location.origin).replace(/\\/$/, "");
+      }
+
+      function currentJobId() {
+        return els.jobIdInput.value.trim();
+      }
+
+      function headers(extra = {}) {
+        const h = { ...extra };
+        const apiKey = els.apiKey.value.trim();
+        if (apiKey) h["X-API-Key"] = apiKey;
+        return h;
+      }
+
+      async function apiFetch(path, opts = {}) {
+        persistBasics();
+        const url = `${apiBase()}${path}`;
+        const res = await fetch(url, {
+          ...opts,
+          headers: { ...(opts.headers || {}), ...headers() },
+        });
+        const ct = res.headers.get("content-type") || "";
+        let body;
+        if (ct.includes("application/json")) body = await res.json();
+        else body = await res.text();
+        if (!res.ok) {
+          throw new Error(typeof body === "string" ? body : JSON.stringify(body, null, 2));
+        }
+        return body;
+      }
+
+      function setStatusPill(status) {
+        const safe = (status || "unknown").toString();
+        els.statusPill.className = `pill status-${safe}`;
+        els.statusPillText.textContent = safe;
+      }
+
+      function setJson(el, value) {
+        el.textContent = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+        el.classList.remove("blink-in");
+        void el.offsetWidth;
+        el.classList.add("blink-in");
+      }
+
+      function fmtSec(v) {
+        if (typeof v !== "number") return "-";
+        if (v < 60) return `${v.toFixed(1)}s`;
+        const m = Math.floor(v / 60);
+        const s = Math.round(v % 60);
+        return `${m}m ${s}s`;
+      }
+
+      function renderMetricsCards(metrics) {
+        const values = [
+          fmtSec(metrics.time_to_first_draft_seconds),
+          fmtSec(metrics.time_to_terminal_seconds),
+          fmtSec(metrics.time_in_pending_hitl_seconds),
+          String(metrics.pause_count ?? "-"),
+          String(metrics.resume_count ?? "-"),
+          String(metrics.terminal_status ?? metrics.status ?? "-"),
+        ];
+        [...els.metricsCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
+          node.textContent = values[i] ?? "-";
+        });
+      }
+
+      function renderCitations(list) {
+        els.citationsList.innerHTML = "";
+        if (!Array.isArray(list) || list.length === 0) {
+          els.citationsList.innerHTML = `<div class="item"><div class="sub">No citations found.</div></div>`;
+          return;
+        }
+        for (const c of list) {
+          const div = document.createElement("div");
+          div.className = "item";
+          const label = c.label || c.source || c.namespace || "Citation";
+          const meta = [c.stage, c.citation_type, c.used_for].filter(Boolean).join(" · ");
+          const pageChunk = [c.page != null ? `p.${c.page}` : null, c.chunk != null ? `chunk ${c.chunk}` : null].filter(Boolean).join(" · ");
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(label)}</div>
+            <div class="sub">${escapeHtml(meta || "trace")}${pageChunk ? ` · ${escapeHtml(pageChunk)}` : ""}</div>
+            ${c.excerpt ? `<div class="sub" style="margin-top:6px;">${escapeHtml(String(c.excerpt).slice(0, 240))}</div>` : ""}
+          `;
+          els.citationsList.appendChild(div);
+        }
+      }
+
+      function renderVersions(list) {
+        els.versionsList.innerHTML = "";
+        if (!Array.isArray(list) || list.length === 0) {
+          els.versionsList.innerHTML = `<div class="item"><div class="sub">No versions found.</div></div>`;
+          return;
+        }
+        for (const v of list) {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(v.version_id || "version")}</div>
+            <div class="sub">${escapeHtml([v.section, v.node, v.iteration != null ? `iter ${v.iteration}` : null].filter(Boolean).join(" · "))}</div>
+          `;
+          div.addEventListener("click", () => {
+            if (!els.fromVersionId.value) els.fromVersionId.value = v.version_id || "";
+            else els.toVersionId.value = v.version_id || "";
+          });
+          els.versionsList.appendChild(div);
+        }
+      }
+
+      function renderEvents(list) {
+        els.eventsList.innerHTML = "";
+        if (!Array.isArray(list) || list.length === 0) {
+          els.eventsList.innerHTML = `<div class="item"><div class="sub">No events found.</div></div>`;
+          return;
+        }
+        for (const e of list) {
+          const div = document.createElement("div");
+          div.className = "item";
+          const transition = e.type === "status_changed" ? [e.from_status || "∅", "→", e.to_status || "?"].join(" ") : "";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(e.type || "event")}</div>
+            <div class="sub">${escapeHtml(e.ts || "")}${transition ? ` · ${escapeHtml(transition)}` : ""}</div>
+          `;
+          els.eventsList.appendChild(div);
+        }
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      async function generateJob() {
+        const payload = {
+          donor_id: els.donorId.value.trim(),
+          input_context: {
+            project: els.project.value.trim(),
+            country: els.country.value.trim(),
+          },
+          llm_mode: els.llmMode.value === "true",
+          hitl_enabled: els.hitlEnabled.value === "true",
+        };
+        if (els.webhookUrl.value.trim()) payload.webhook_url = els.webhookUrl.value.trim();
+        if (els.webhookSecret.value.trim()) payload.webhook_secret = els.webhookSecret.value.trim();
+
+        const body = await apiFetch("/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (body && body.job_id) {
+          els.jobIdInput.value = body.job_id;
+          persistBasics();
+          await refreshAll();
+        }
+      }
+
+      async function refreshStatus() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}`);
+        setJson(els.statusJson, body);
+        setStatusPill(body.status);
+        els.checkpointId.value = body.checkpoint_id || "";
+        els.checkpointStage.value = body.checkpoint_stage || "";
+        return body;
+      }
+
+      async function refreshCitations() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/citations`);
+        renderCitations(body.citations || []);
+        return body;
+      }
+
+      async function refreshVersions() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const section = els.diffSection.value;
+        const q = section ? `?section=${encodeURIComponent(section)}` : "";
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/versions${q}`);
+        renderVersions(body.versions || []);
+        return body;
+      }
+
+      async function refreshDiff() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const params = new URLSearchParams();
+        if (els.diffSection.value) params.set("section", els.diffSection.value);
+        if (els.fromVersionId.value.trim()) params.set("from_version_id", els.fromVersionId.value.trim());
+        if (els.toVersionId.value.trim()) params.set("to_version_id", els.toVersionId.value.trim());
+        const q = params.toString() ? `?${params.toString()}` : "";
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/diff${q}`);
+        setJson(els.diffPre, body.diff_text || body);
+        return body;
+      }
+
+      async function refreshEvents() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/events`);
+        renderEvents(body.events || []);
+        return body;
+      }
+
+      async function refreshMetrics() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/metrics`);
+        renderMetricsCards(body);
+        setJson(els.metricsJson, body);
+        return body;
+      }
+
+      async function refreshAll() {
+        const jobId = currentJobId();
+        if (!jobId) {
+          throw new Error("Set or generate a job_id first");
+        }
+        await refreshStatus();
+        await Promise.allSettled([
+          refreshMetrics(),
+          refreshCitations(),
+          refreshVersions(),
+          refreshDiff(),
+          refreshEvents(),
+        ]);
+      }
+
+      async function approveOrReject(approved) {
+        const checkpointId = els.checkpointId.value.trim();
+        if (!checkpointId) throw new Error("No checkpoint_id in current status");
+        const body = {
+          checkpoint_id: checkpointId,
+          approved,
+          feedback: els.hitlFeedback.value.trim() || undefined,
+        };
+        await apiFetch("/hitl/approve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        await refreshAll();
+      }
+
+      async function resumeJob() {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        await apiFetch(`/resume/${encodeURIComponent(jobId)}`, { method: "POST" });
+        await refreshAll();
+      }
+
+      async function cancelJob() {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        await apiFetch(`/cancel/${encodeURIComponent(jobId)}`, { method: "POST" });
+        await refreshAll();
+      }
+
+      async function loadPendingList() {
+        const body = await apiFetch("/hitl/pending");
+        setJson(els.statusJson, { pending_only: body });
+      }
+
+      function togglePolling() {
+        state.polling = !state.polling;
+        els.pollToggleBtn.textContent = state.polling ? "Stop Poll" : "Start Poll";
+        if (state.polling) {
+          state.pollTimer = setInterval(() => {
+            if (!currentJobId()) return;
+            refreshAll().catch(showError);
+          }, 3000);
+          refreshAll().catch(showError);
+        } else if (state.pollTimer) {
+          clearInterval(state.pollTimer);
+          state.pollTimer = null;
+        }
+      }
+
+      function showError(err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setJson(els.statusJson, { error: msg });
+      }
+
+      function bind() {
+        els.generateBtn.addEventListener("click", () => generateJob().catch(showError));
+        els.refreshAllBtn.addEventListener("click", () => refreshAll().catch(showError));
+        els.pollToggleBtn.addEventListener("click", togglePolling);
+        els.approveBtn.addEventListener("click", () => approveOrReject(true).catch(showError));
+        els.rejectBtn.addEventListener("click", () => approveOrReject(false).catch(showError));
+        els.resumeBtn.addEventListener("click", () => resumeJob().catch(showError));
+        els.cancelBtn.addEventListener("click", () => cancelJob().catch(showError));
+        els.versionsBtn.addEventListener("click", () => refreshVersions().catch(showError));
+        els.diffBtn.addEventListener("click", () => refreshDiff().catch(showError));
+        els.citationsBtn.addEventListener("click", () => refreshCitations().catch(showError));
+        els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
+        els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
+        [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
+      }
+
+      initDefaults();
+      bind();
+      if (currentJobId()) {
+        refreshAll().catch(() => {});
+      } else {
+        setStatusPill("idle");
+      }
+    })();
+  </script>
+</body>
+</html>
+"""
