@@ -9,7 +9,9 @@ from enum import Enum
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse
+from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, ConfigDict
 
 from grantflow.core.config import config
@@ -29,6 +31,8 @@ app = FastAPI(
     description="Enterprise-grade grant proposal automation",
     version="2.0.0",
 )
+
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 JOB_STORE = create_job_store_from_env()
 
@@ -105,14 +109,68 @@ def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> N
     state["hitl_feedback"] = feedback
 
 
-def _require_api_key_if_configured(request: Request) -> None:
-    expected = os.getenv("GRANTFLOW_API_KEY") or os.getenv("API_KEY")
+def _api_key_configured() -> str | None:
+    return os.getenv("GRANTFLOW_API_KEY") or os.getenv("API_KEY")
+
+
+def _read_auth_required() -> bool:
+    return (os.getenv("GRANTFLOW_REQUIRE_AUTH_FOR_READS", "false").strip().lower() == "true")
+
+
+def _require_api_key_if_configured(request: Request, *, for_read: bool = False) -> None:
+    expected = _api_key_configured()
     if not expected:
+        return
+    if for_read and not _read_auth_required():
         return
 
     provided = request.headers.get("x-api-key")
     if not provided or not secrets.compare_digest(provided, expected):
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def _install_openapi_api_key_security() -> None:
+    protected_operations = {
+        ("post", "/generate"),
+        ("post", "/resume/{job_id}"),
+        ("post", "/hitl/approve"),
+        ("post", "/export"),
+        ("get", "/status/{job_id}"),
+        ("get", "/hitl/pending"),
+    }
+
+    def custom_openapi():
+        if app.openapi_schema:
+            return app.openapi_schema
+
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=(
+                f"{app.description}\n\n"
+                "Optional API key auth: set `GRANTFLOW_API_KEY` on the server and send "
+                "`X-API-Key` on protected endpoints. Reads can also require auth when "
+                "`GRANTFLOW_REQUIRE_AUTH_FOR_READS=true`."
+            ),
+            routes=app.routes,
+        )
+
+        components = schema.setdefault("components", {})
+        security_schemes = components.setdefault("securitySchemes", {})
+        security_schemes["ApiKeyAuth"] = {"type": "apiKey", "in": "header", "name": "X-API-Key"}
+
+        for path, methods in (schema.get("paths") or {}).items():
+            for method_name, operation in methods.items():
+                if (method_name.lower(), path) in protected_operations and isinstance(operation, dict):
+                    operation["security"] = [{"ApiKeyAuth": []}]
+
+        app.openapi_schema = schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi
+
+
+_install_openapi_api_key_security()
 
 
 def _sanitize_for_public_response(value: Any) -> Any:
@@ -343,7 +401,8 @@ async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Re
 
 
 @app.get("/status/{job_id}")
-def get_status(job_id: str):
+def get_status(job_id: str, request: Request):
+    _require_api_key_if_configured(request, for_read=True)
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -366,7 +425,8 @@ def approve_checkpoint(req: HITLApprovalRequest, request: Request):
 
 
 @app.get("/hitl/pending")
-def list_pending_hitl(donor_id: Optional[str] = None):
+def list_pending_hitl(request: Request, donor_id: Optional[str] = None):
+    _require_api_key_if_configured(request, for_read=True)
     pending = hitl_manager.list_pending(donor_id)
     return {
         "pending_count": len(pending),

@@ -97,6 +97,53 @@ def test_generate_requires_api_key_when_configured(monkeypatch):
     assert response.json()["status"] == "accepted"
 
 
+def test_read_endpoints_require_api_key_when_configured(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
+    monkeypatch.setenv("GRANTFLOW_REQUIRE_AUTH_FOR_READS", "true")
+
+    gen = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Health Systems", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+
+    status_unauth = client.get(f"/status/{job_id}")
+    assert status_unauth.status_code == 401
+
+    status_auth = client.get(f"/status/{job_id}", headers={"X-API-Key": "test-secret"})
+    assert status_auth.status_code == 200
+
+    pending_unauth = client.get("/hitl/pending")
+    assert pending_unauth.status_code == 401
+
+    pending_auth = client.get("/hitl/pending", headers={"X-API-Key": "test-secret"})
+    assert pending_auth.status_code == 200
+
+
+def test_openapi_declares_api_key_security_scheme():
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    spec = response.json()
+
+    schemes = ((spec.get("components") or {}).get("securitySchemes") or {})
+    assert "ApiKeyAuth" in schemes
+    assert schemes["ApiKeyAuth"]["type"] == "apiKey"
+    assert schemes["ApiKeyAuth"]["in"] == "header"
+    assert schemes["ApiKeyAuth"]["name"] == "X-API-Key"
+
+    generate_security = (((spec.get("paths") or {}).get("/generate") or {}).get("post") or {}).get("security")
+    status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
+    assert generate_security == [{"ApiKeyAuth": []}]
+    assert status_security == [{"ApiKeyAuth": []}]
+
+
 def test_hitl_pause_resume_flow():
     response = client.post(
         "/generate",
