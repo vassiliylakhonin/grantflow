@@ -4,6 +4,7 @@ import io
 import threading
 import uuid
 import zipfile
+from enum import Enum
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException
@@ -107,6 +108,50 @@ def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> N
     )
     state["hitl_feedback_history"] = history
     state["hitl_feedback"] = feedback
+
+
+def _sanitize_for_public_response(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, dict):
+        return {str(k): _sanitize_for_public_response(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_for_public_response(item) for item in value]
+    return str(value)
+
+
+def _public_state_snapshot(state: Any) -> Any:
+    if not isinstance(state, dict):
+        return _sanitize_for_public_response(state)
+
+    redacted_state = {}
+    for key, value in state.items():
+        if key in {"strategy", "donor_strategy"}:
+            continue
+        redacted_state[str(key)] = _sanitize_for_public_response(value)
+    return redacted_state
+
+
+def _public_job_payload(job: Dict[str, Any]) -> Dict[str, Any]:
+    public_job: Dict[str, Any] = {}
+    for key, value in job.items():
+        if key == "state":
+            public_job[key] = _public_state_snapshot(value)
+            continue
+        public_job[str(key)] = _sanitize_for_public_response(value)
+    return public_job
+
+
+def _public_checkpoint_payload(checkpoint: Dict[str, Any]) -> Dict[str, Any]:
+    public_checkpoint: Dict[str, Any] = {}
+    for key, value in checkpoint.items():
+        if key == "state_snapshot":
+            continue
+        public_checkpoint[str(key)] = _sanitize_for_public_response(value)
+    public_checkpoint["has_state_snapshot"] = "state_snapshot" in checkpoint
+    return public_checkpoint
 
 
 def _pause_for_hitl(job_id: str, state: dict, stage: Literal["toc", "logframe"], resume_from: HITLStartAt) -> None:
@@ -295,7 +340,7 @@ def get_status(job_id: str):
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return job
+    return _public_job_payload(job)
 
 
 @app.post("/hitl/approve")
@@ -315,7 +360,10 @@ def approve_checkpoint(req: HITLApprovalRequest):
 @app.get("/hitl/pending")
 def list_pending_hitl(donor_id: Optional[str] = None):
     pending = hitl_manager.list_pending(donor_id)
-    return {"pending_count": len(pending), "checkpoints": pending}
+    return {
+        "pending_count": len(pending),
+        "checkpoints": [_public_checkpoint_payload(cp) for cp in pending],
+    }
 
 
 @app.post("/export")

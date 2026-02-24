@@ -57,6 +57,28 @@ def test_generate_basic_async_job_flow():
     assert state["quality_score"] >= 0
 
 
+def test_status_redacts_internal_strategy_objects():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Governance Support", "country": "Ukraine"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+    state = status["state"]
+    assert "donor_strategy" not in state
+    assert "strategy" not in state
+    assert state["donor_id"] == "usaid"
+    assert state["toc_draft"]
+
+
 def test_hitl_pause_resume_flow():
     response = client.post(
         "/generate",
@@ -148,6 +170,11 @@ def test_hitl_checkpoint_endpoints():
     response = client.get("/hitl/pending")
     assert response.status_code == 200
     assert response.json()["pending_count"] >= 1
+    checkpoints = response.json()["checkpoints"]
+    matching = [cp for cp in checkpoints if cp["id"] == checkpoint_id]
+    assert matching
+    assert "state_snapshot" not in matching[0]
+    assert matching[0]["has_state_snapshot"] is True
 
     response = client.post(
         "/hitl/approve",
