@@ -524,11 +524,11 @@ CI runs both Python tests and shell script lint/syntax checks.
 
 ## Roadmap
 
-- Expand donor-specific strategies and schemas
-- Improve citation grounding and evidence traceability
-- Add richer review UI for HITL checkpoints
-- Strengthen export templates and formatting controls
-- Broaden test coverage for edge cases and failure modes
+- Expand donor-specific strategies, schemas, and validation rules
+- Improve citation grounding quality (ranking, confidence, and evidence fidelity)
+- Evolve the review UI beyond the demo console (section comments, diff navigation, reviewer workflows)
+- Strengthen donor-ready export templates and formatting controls
+- Broaden reliability/test coverage for concurrency, persistence, and failure recovery edge cases
 
 ## License
 
