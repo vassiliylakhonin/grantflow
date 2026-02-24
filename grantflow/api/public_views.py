@@ -34,7 +34,7 @@ def public_state_snapshot(state: Any) -> Any:
 def public_job_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     public_job: Dict[str, Any] = {}
     for key, value in job.items():
-        if key in {"webhook_url", "webhook_secret", "job_events"}:
+        if key in {"webhook_url", "webhook_secret", "job_events", "review_comments"}:
             continue
         if key == "state":
             public_job[key] = public_state_snapshot(value)
@@ -42,6 +42,37 @@ def public_job_payload(job: Dict[str, Any]) -> Dict[str, Any]:
         public_job[str(key)] = sanitize_for_public_response(value)
     public_job["webhook_configured"] = bool(job.get("webhook_url"))
     return public_job
+
+
+def public_job_comments_payload(
+    job_id: str,
+    job: Dict[str, Any],
+    *,
+    section: Optional[str] = None,
+    comment_status: Optional[str] = None,
+    version_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    raw_comments = job.get("review_comments")
+    comments: list[Dict[str, Any]] = []
+    if isinstance(raw_comments, list):
+        for item in raw_comments:
+            if not isinstance(item, dict):
+                continue
+            comments.append(sanitize_for_public_response(item))
+
+    if section:
+        comments = [c for c in comments if str(c.get("section") or "") == section]
+    if comment_status:
+        comments = [c for c in comments if str(c.get("status") or "") == comment_status]
+    if version_id:
+        comments = [c for c in comments if str(c.get("version_id") or "") == version_id]
+
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "comment_count": len(comments),
+        "comments": comments,
+    }
 
 
 def public_job_citations_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:

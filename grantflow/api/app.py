@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict
 from grantflow.api.demo_ui import render_demo_ui_html
 from grantflow.api.public_views import (
     public_checkpoint_payload,
+    public_job_comments_payload,
     public_job_citations_payload,
     public_job_diff_payload,
     public_job_events_payload,
@@ -25,11 +26,13 @@ from grantflow.api.public_views import (
 )
 from grantflow.api.schemas import (
     HITLPendingListPublicResponse,
+    JobCommentsPublicResponse,
     JobCitationsPublicResponse,
     JobDiffPublicResponse,
     JobEventsPublicResponse,
     JobMetricsPublicResponse,
     PortfolioMetricsPublicResponse,
+    ReviewCommentPublicResponse,
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
 )
@@ -64,6 +67,7 @@ JOB_STORE = create_job_store_from_env()
 
 HITLStartAt = Literal["start", "architect", "mel", "critic"]
 TERMINAL_JOB_STATUSES = {"done", "error", "canceled"}
+REVIEW_COMMENT_SECTIONS = {"toc", "logframe", "general"}
 STATUS_WEBHOOK_EVENTS = {
     "running": "job.started",
     "pending_hitl": "job.pending_hitl",
@@ -199,6 +203,15 @@ class ExportRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobCommentCreateRequest(BaseModel):
+    section: str
+    message: str
+    author: Optional[str] = None
+    version_id: Optional[str] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 def _resolve_export_inputs(req: ExportRequest) -> tuple[dict, dict, str, list[dict[str, Any]]]:
     payload = req.payload or {}
     if isinstance(payload.get("state"), dict):
@@ -234,6 +247,62 @@ def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> N
     )
     state["hitl_feedback_history"] = history
     state["hitl_feedback"] = feedback
+
+
+def _job_draft_version_exists_for_section(job: Dict[str, Any], *, section: str, version_id: str) -> bool:
+    state = job.get("state")
+    if not isinstance(state, dict):
+        return False
+    raw_versions = state.get("draft_versions")
+    if not isinstance(raw_versions, list):
+        return False
+    for item in raw_versions:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("version_id") or "") != version_id:
+            continue
+        if str(item.get("section") or "") != section:
+            continue
+        return True
+    return False
+
+
+def _append_review_comment(
+    job_id: str,
+    *,
+    section: str,
+    message: str,
+    author: Optional[str] = None,
+    version_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing = job.get("review_comments")
+    comments = [c for c in existing if isinstance(c, dict)] if isinstance(existing, list) else []
+    comment: Dict[str, Any] = {
+        "comment_id": str(uuid.uuid4()),
+        "ts": _utcnow_iso(),
+        "section": section,
+        "status": "open",
+        "message": message,
+    }
+    if author:
+        comment["author"] = author
+    if version_id:
+        comment["version_id"] = version_id
+    comments.append(comment)
+    _update_job(job_id, review_comments=comments[-500:])
+    _record_job_event(
+        job_id,
+        "review_comment_added",
+        comment_id=comment["comment_id"],
+        section=section,
+        version_id=version_id,
+        author=author,
+    )
+    return comment
 
 
 def _job_is_canceled(job_id: str) -> bool:
@@ -713,6 +782,66 @@ def get_status_metrics(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_metrics_payload(job_id, job)
+
+
+@app.get(
+    "/status/{job_id}/comments",
+    response_model=JobCommentsPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_comments(
+    job_id: str,
+    request: Request,
+    section: Optional[str] = None,
+    comment_status: Optional[str] = Query(default=None, alias="status"),
+    version_id: Optional[str] = None,
+):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_comments_payload(
+        job_id,
+        job,
+        section=section,
+        comment_status=comment_status,
+        version_id=version_id,
+    )
+
+
+@app.post(
+    "/status/{job_id}/comments",
+    response_model=ReviewCommentPublicResponse,
+    response_model_exclude_none=True,
+)
+def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Request):
+    require_api_key_if_configured(request)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    section = (req.section or "").strip().lower()
+    if section not in REVIEW_COMMENT_SECTIONS:
+        raise HTTPException(status_code=400, detail=f"Unsupported section: {section or req.section}")
+
+    message = (req.message or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Missing comment message")
+    if len(message) > 4000:
+        raise HTTPException(status_code=400, detail="Comment message is too long")
+
+    author = (req.author or "").strip() or None
+    version_id = (req.version_id or "").strip() or None
+    if version_id and not _job_draft_version_exists_for_section(job, section=section, version_id=version_id):
+        raise HTTPException(status_code=400, detail="Unknown version_id for requested section")
+
+    return _append_review_comment(
+        job_id,
+        section=section,
+        message=message,
+        author=author,
+        version_id=version_id,
+    )
 
 
 @app.post("/hitl/approve")

@@ -117,6 +117,27 @@ class JobMetricsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class ReviewCommentPublicResponse(BaseModel):
+    comment_id: str
+    ts: str
+    section: str
+    status: str
+    message: str
+    author: Optional[str] = None
+    version_id: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobCommentsPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    comment_count: int
+    comments: list[ReviewCommentPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioMetricsFiltersPublicResponse(BaseModel):
     donor_id: Optional[str] = None
     status: Optional[str] = None

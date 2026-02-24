@@ -286,6 +286,92 @@ def test_versions_and_diff_endpoints():
     assert any(line.startswith("-") or line.startswith("+") for line in diff_body["diff_lines"])
 
 
+def test_status_comments_endpoints_create_list_and_filter():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "WASH", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+    _wait_for_terminal_status(job_id)
+
+    versions_resp = client.get(f"/status/{job_id}/versions", params={"section": "toc"})
+    assert versions_resp.status_code == 200
+    versions = versions_resp.json()["versions"]
+    assert versions
+    toc_version_id = versions[-1]["version_id"]
+
+    create_resp = client.post(
+        f"/status/{job_id}/comments",
+        json={
+            "section": "toc",
+            "message": "Please tighten assumptions and clarify beneficiary targeting.",
+            "author": "reviewer-1",
+            "version_id": toc_version_id,
+        },
+    )
+    assert create_resp.status_code == 200
+    created = create_resp.json()
+    assert created["section"] == "toc"
+    assert created["status"] == "open"
+    assert created["version_id"] == toc_version_id
+    assert created["author"] == "reviewer-1"
+
+    comments_resp = client.get(f"/status/{job_id}/comments")
+    assert comments_resp.status_code == 200
+    comments_body = comments_resp.json()
+    assert comments_body["job_id"] == job_id
+    assert comments_body["comment_count"] >= 1
+    assert any(c["comment_id"] == created["comment_id"] for c in comments_body["comments"])
+
+    filtered_resp = client.get(
+        f"/status/{job_id}/comments",
+        params={"section": "toc", "status": "open", "version_id": toc_version_id},
+    )
+    assert filtered_resp.status_code == 200
+    filtered_body = filtered_resp.json()
+    assert filtered_body["comment_count"] >= 1
+    assert all(c["section"] == "toc" for c in filtered_body["comments"])
+    assert all(c["status"] == "open" for c in filtered_body["comments"])
+    assert all((c.get("version_id") or "") == toc_version_id for c in filtered_body["comments"])
+
+    status_resp = client.get(f"/status/{job_id}")
+    assert status_resp.status_code == 200
+    assert "review_comments" not in status_resp.json()
+
+
+def test_status_comments_endpoint_rejects_invalid_section_or_version():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Nutrition", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+    _wait_for_terminal_status(job_id)
+
+    bad_section = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "budget", "message": "Budget narrative mismatch"},
+    )
+    assert bad_section.status_code == 400
+
+    bad_version = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "toc", "message": "Version mismatch", "version_id": "missing-version"},
+    )
+    assert bad_version.status_code == 400
+
+
 def test_metrics_endpoint_derives_timeline_metrics_from_events():
     job_id = "test-job-metrics-1"
     api_app_module.JOB_STORE.set(
@@ -499,6 +585,25 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     metrics_auth = client.get(f"/status/{job_id}/metrics", headers={"X-API-Key": "test-secret"})
     assert metrics_auth.status_code == 200
 
+    comments_unauth = client.get(f"/status/{job_id}/comments")
+    assert comments_unauth.status_code == 401
+
+    comments_auth = client.get(f"/status/{job_id}/comments", headers={"X-API-Key": "test-secret"})
+    assert comments_auth.status_code == 200
+
+    add_comment_unauth = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "general", "message": "Needs management review"},
+    )
+    assert add_comment_unauth.status_code == 401
+
+    add_comment_auth = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "general", "message": "Needs management review"},
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert add_comment_auth.status_code == 200
+
     portfolio_metrics_unauth = client.get("/portfolio/metrics")
     assert portfolio_metrics_unauth.status_code == 401
 
@@ -541,6 +646,12 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_metrics_security = (
         (((spec.get("paths") or {}).get("/status/{job_id}/metrics") or {}).get("get") or {}).get("security")
+    )
+    status_comments_get_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}).get("security")
+    )
+    status_comments_post_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}).get("security")
     )
     portfolio_metrics_security = (
         (((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get("security")
@@ -587,6 +698,13 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    status_comments_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     portfolio_metrics_response_schema = (
         ((((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -610,6 +728,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_diff_security == [{"ApiKeyAuth": []}]
     assert status_events_security == [{"ApiKeyAuth": []}]
     assert status_metrics_security == [{"ApiKeyAuth": []}]
+    assert status_comments_get_security == [{"ApiKeyAuth": []}]
+    assert status_comments_post_security == [{"ApiKeyAuth": []}]
     assert portfolio_metrics_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
@@ -617,6 +737,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_diff_response_schema == {"$ref": "#/components/schemas/JobDiffPublicResponse"}
     assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
     assert status_metrics_response_schema == {"$ref": "#/components/schemas/JobMetricsPublicResponse"}
+    assert status_comments_response_schema == {"$ref": "#/components/schemas/JobCommentsPublicResponse"}
     assert portfolio_metrics_response_schema == {"$ref": "#/components/schemas/PortfolioMetricsPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
 
@@ -630,6 +751,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobEventsPublicResponse" in schemas
     assert "JobEventPublicResponse" in schemas
     assert "JobMetricsPublicResponse" in schemas
+    assert "JobCommentsPublicResponse" in schemas
+    assert "ReviewCommentPublicResponse" in schemas
     assert "PortfolioMetricsPublicResponse" in schemas
     assert "PortfolioMetricsFiltersPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
