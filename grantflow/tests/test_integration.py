@@ -166,6 +166,15 @@ def test_status_includes_citations_traceability(monkeypatch):
     assert citation["used_for"] == "EG.3.2-1"
     assert "excerpt" in citation and citation["excerpt"]
 
+    citations_response = client.get(f"/status/{job_id}/citations")
+    assert citations_response.status_code == 200
+    citations_body = citations_response.json()
+    assert citations_body["job_id"] == job_id
+    assert citations_body["status"] == "done"
+    assert citations_body["citation_count"] >= 1
+    assert isinstance(citations_body["citations"], list)
+    assert citations_body["citations"][0]["stage"]
+
 
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
@@ -208,6 +217,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     status_auth = client.get(f"/status/{job_id}", headers={"X-API-Key": "test-secret"})
     assert status_auth.status_code == 200
 
+    citations_unauth = client.get(f"/status/{job_id}/citations")
+    assert citations_unauth.status_code == 401
+
+    citations_auth = client.get(f"/status/{job_id}/citations", headers={"X-API-Key": "test-secret"})
+    assert citations_auth.status_code == 200
+
     pending_unauth = client.get("/hitl/pending")
     assert pending_unauth.status_code == 401
 
@@ -230,8 +245,18 @@ def test_openapi_declares_api_key_security_scheme():
     ingest_security = (((spec.get("paths") or {}).get("/ingest") or {}).get("post") or {}).get("security")
     cancel_security = (((spec.get("paths") or {}).get("/cancel/{job_id}") or {}).get("post") or {}).get("security")
     status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
+    status_citations_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/citations") or {}).get("get") or {}).get("security")
+    )
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_citations_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/citations") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
         .get("content", {})
         .get("application/json", {})
@@ -248,11 +273,15 @@ def test_openapi_declares_api_key_security_scheme():
     assert ingest_security == [{"ApiKeyAuth": []}]
     assert cancel_security == [{"ApiKeyAuth": []}]
     assert status_security == [{"ApiKeyAuth": []}]
+    assert status_citations_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
+    assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
 
     schemas = (spec.get("components") or {}).get("schemas") or {}
     assert "JobStatusPublicResponse" in schemas
+    assert "JobCitationsPublicResponse" in schemas
+    assert "CitationPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
 
 

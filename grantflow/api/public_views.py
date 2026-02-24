@@ -41,6 +41,21 @@ def public_job_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     return public_job
 
 
+def public_job_citations_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    state = job.get("state")
+    citations = []
+    if isinstance(state, dict):
+        raw = state.get("citations")
+        if isinstance(raw, list):
+            citations = [sanitize_for_public_response(item) for item in raw if isinstance(item, dict)]
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "citation_count": len(citations),
+        "citations": citations,
+    }
+
+
 def public_checkpoint_payload(checkpoint: Dict[str, Any]) -> Dict[str, Any]:
     public_checkpoint: Dict[str, Any] = {}
     for key, value in checkpoint.items():

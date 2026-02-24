@@ -15,6 +15,7 @@ PROTECTED_OPERATIONS = {
     ("post", "/hitl/approve"),
     ("post", "/export"),
     ("get", "/status/{job_id}"),
+    ("get", "/status/{job_id}/citations"),
     ("get", "/hitl/pending"),
 }
 

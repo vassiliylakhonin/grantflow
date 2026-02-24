@@ -11,8 +11,8 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
-from grantflow.api.public_views import public_checkpoint_payload, public_job_payload
-from grantflow.api.schemas import HITLPendingListPublicResponse, JobStatusPublicResponse
+from grantflow.api.public_views import public_checkpoint_payload, public_job_citations_payload, public_job_payload
+from grantflow.api.schemas import HITLPendingListPublicResponse, JobCitationsPublicResponse, JobStatusPublicResponse
 from grantflow.api.security import (
     api_key_configured,
     install_openapi_api_key_security,
@@ -507,6 +507,19 @@ def get_status(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_payload(job)
+
+
+@app.get(
+    "/status/{job_id}/citations",
+    response_model=JobCitationsPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_citations(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_citations_payload(job_id, job)
 
 
 @app.post("/hitl/approve")

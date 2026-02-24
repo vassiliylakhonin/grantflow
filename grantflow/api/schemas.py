@@ -18,6 +18,32 @@ class JobStatusPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class CitationPublicResponse(BaseModel):
+    stage: Optional[str] = None
+    citation_type: Optional[str] = None
+    namespace: Optional[str] = None
+    source: Optional[str] = None
+    page: Optional[int] = None
+    page_start: Optional[int] = None
+    page_end: Optional[int] = None
+    chunk: Optional[int] = None
+    chunk_id: Optional[str] = None
+    used_for: Optional[str] = None
+    label: Optional[str] = None
+    excerpt: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobCitationsPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    citation_count: int
+    citations: list[CitationPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class HITLPendingCheckpointPublicResponse(BaseModel):
     id: str
     stage: str
