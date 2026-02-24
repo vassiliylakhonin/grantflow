@@ -11,12 +11,18 @@ from pydantic import BaseModel, ConfigDict
 
 from grantflow.api.public_views import public_checkpoint_payload, public_job_payload
 from grantflow.api.schemas import HITLPendingListPublicResponse, JobStatusPublicResponse
-from grantflow.api.security import install_openapi_api_key_security, require_api_key_if_configured
+from grantflow.api.security import (
+    api_key_configured,
+    install_openapi_api_key_security,
+    read_auth_required,
+    require_api_key_if_configured,
+)
 from grantflow.core.config import config
 from grantflow.core.stores import create_job_store_from_env
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
+from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
 from grantflow.swarm.nodes.architect import draft_toc
@@ -198,9 +204,35 @@ def _resume_target_from_checkpoint(checkpoint: Dict[str, Any], default_resume_fr
     raise ValueError("Checkpoint is not ready for resume")
 
 
+def _health_diagnostics() -> dict[str, Any]:
+    job_store_mode = "sqlite" if getattr(JOB_STORE, "db_path", None) else "inmem"
+    hitl_store_mode = "sqlite" if bool(getattr(hitl_manager, "_use_sqlite", False)) else "inmem"
+    sqlite_path = getattr(JOB_STORE, "db_path", None) or (getattr(hitl_manager, "_sqlite_path", None) if hitl_store_mode == "sqlite" else None)
+
+    vector_backend = "chroma" if getattr(vector_store, "client", None) is not None else "memory"
+    diagnostics = {
+        "job_store": {"mode": job_store_mode},
+        "hitl_store": {"mode": hitl_store_mode},
+        "auth": {
+            "api_key_configured": bool(api_key_configured()),
+            "read_auth_required": bool(read_auth_required()),
+        },
+        "vector_store": {
+            "backend": vector_backend,
+            "collection_prefix": getattr(vector_store, "prefix", "grantflow"),
+        },
+    }
+    if sqlite_path and (job_store_mode == "sqlite" or hitl_store_mode == "sqlite"):
+        diagnostics["sqlite"] = {"path": str(sqlite_path)}
+    client_init_error = getattr(vector_store, "_client_init_error", None)
+    if client_init_error:
+        diagnostics["vector_store"]["client_init_error"] = str(client_init_error)
+    return diagnostics
+
+
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "version": "2.0.0"}
+    return {"status": "healthy", "version": "2.0.0", "diagnostics": _health_diagnostics()}
 
 
 @app.get("/donors")

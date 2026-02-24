@@ -23,7 +23,16 @@ def _wait_for_terminal_status(job_id: str, timeout_s: float = 3.0):
 def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["status"] == "healthy"
+    body = response.json()
+    assert body["status"] == "healthy"
+    assert body["version"]
+    diagnostics = body["diagnostics"]
+    assert diagnostics["job_store"]["mode"] in {"inmem", "sqlite"}
+    assert diagnostics["hitl_store"]["mode"] in {"inmem", "sqlite"}
+    assert isinstance(diagnostics["auth"]["api_key_configured"], bool)
+    assert isinstance(diagnostics["auth"]["read_auth_required"], bool)
+    assert diagnostics["vector_store"]["backend"] in {"chroma", "memory"}
+    assert diagnostics["vector_store"]["collection_prefix"]
 
 
 def test_list_donors():
