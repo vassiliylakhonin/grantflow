@@ -37,6 +37,32 @@ def test_health_endpoint():
     assert diagnostics["vector_store"]["collection_prefix"]
 
 
+def test_ready_endpoint():
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ready"
+    checks = body["checks"]
+    assert checks["vector_store"]["backend"] in {"chroma", "memory"}
+    assert checks["vector_store"]["ready"] is True
+
+
+def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
+    class BrokenClient:
+        def heartbeat(self):
+            raise RuntimeError("chroma unavailable")
+
+    monkeypatch.setattr(api_app_module.vector_store, "client", BrokenClient())
+
+    response = client.get("/ready")
+    assert response.status_code == 503
+    body = response.json()
+    assert body["detail"]["status"] == "degraded"
+    assert body["detail"]["checks"]["vector_store"]["backend"] == "chroma"
+    assert body["detail"]["checks"]["vector_store"]["ready"] is False
+    assert "chroma unavailable" in body["detail"]["checks"]["vector_store"]["error"]
+
+
 def test_list_donors():
     response = client.get("/donors")
     assert response.status_code == 200

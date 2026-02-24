@@ -233,9 +233,44 @@ def _health_diagnostics() -> dict[str, Any]:
     return diagnostics
 
 
+def _vector_store_readiness() -> dict[str, Any]:
+    client = getattr(vector_store, "client", None)
+    backend = "chroma" if client is not None else "memory"
+
+    if backend == "memory":
+        return {"ready": True, "backend": "memory", "reason": "in-memory fallback backend active"}
+
+    try:
+        heartbeat = getattr(client, "heartbeat", None)
+        if callable(heartbeat):
+            hb_value = heartbeat()
+            return {"ready": True, "backend": "chroma", "heartbeat": str(hb_value)}
+
+        # Fallback to a lightweight no-op-ish capability check if heartbeat() is unavailable.
+        list_collections = getattr(client, "list_collections", None)
+        if callable(list_collections):
+            list_collections()
+        return {"ready": True, "backend": "chroma"}
+    except Exception as exc:
+        return {"ready": False, "backend": "chroma", "error": str(exc)}
+
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "version": "2.0.0", "diagnostics": _health_diagnostics()}
+
+
+@app.get("/ready")
+def readiness_check():
+    vector_ready = _vector_store_readiness()
+    ready = bool(vector_ready.get("ready"))
+    payload = {
+        "status": "ready" if ready else "degraded",
+        "checks": {"vector_store": vector_ready},
+    }
+    if not ready:
+        raise HTTPException(status_code=503, detail=payload)
+    return payload
 
 
 @app.get("/donors")
