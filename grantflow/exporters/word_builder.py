@@ -2,13 +2,57 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from docx import Document
-from docx.shared import Inches, Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from io import BytesIO
 
-def build_docx_from_toc(toc_draft: Dict[str, Any], donor_id: str) -> bytes:
+
+def _citation_summary_line(citation: Dict[str, Any]) -> str:
+    stage = citation.get("stage", "")
+    ctype = citation.get("citation_type", "")
+    used_for = citation.get("used_for", "")
+    label = citation.get("label") or citation.get("source") or citation.get("namespace") or ""
+    page = citation.get("page")
+    chunk = citation.get("chunk")
+
+    parts = []
+    if stage:
+        parts.append(f"[{stage}]")
+    if ctype:
+        parts.append(str(ctype))
+    if used_for:
+        parts.append(f"for {used_for}")
+    if label:
+        parts.append(f"- {label}")
+    if page is not None:
+        parts.append(f"(p.{page})")
+    if chunk is not None:
+        parts.append(f"(chunk {chunk})")
+    return " ".join(parts).strip()
+
+
+def _add_citation_traceability_section(doc: Document, citations: list[Dict[str, Any]]) -> None:
+    if not citations:
+        return
+
+    doc.add_heading("Citation Traceability", level=1)
+    doc.add_paragraph(
+        "Structured citation records collected during drafting (strategy references and/or RAG retrieval results)."
+    )
+    for citation in citations:
+        doc.add_paragraph(_citation_summary_line(citation), style="List Bullet")
+        excerpt = (citation.get("excerpt") or "").strip()
+        if excerpt:
+            p = doc.add_paragraph()
+            p.add_run(f"Excerpt: {excerpt[:240]}").italic = True
+
+
+def build_docx_from_toc(
+    toc_draft: Dict[str, Any],
+    donor_id: str,
+    citations: Optional[List[Dict[str, Any]]] = None,
+) -> bytes:
     """Конвертирует ToC draft в форматированный .docx."""
     doc = Document()
     
@@ -41,16 +85,22 @@ def build_docx_from_toc(toc_draft: Dict[str, Any], donor_id: str) -> bytes:
             doc.add_paragraph(f"• {ind.get('name', 'Unknown')}", style='List Bullet')
             if "justification" in ind:
                 doc.add_paragraph(f"  Justification: {ind['justification']}", style='Intense Quote')
+
+    _add_citation_traceability_section(doc, citations or toc_draft.get("citations") or [])
     
     bio = BytesIO()
     doc.save(bio)
     bio.seek(0)
     return bio.read()
 
-def save_docx_to_file(toc_draft: Dict[str, Any], donor_id: str, 
-                      output_path: str) -> str:
+def save_docx_to_file(
+    toc_draft: Dict[str, Any],
+    donor_id: str,
+    output_path: str,
+    citations: Optional[List[Dict[str, Any]]] = None,
+) -> str:
     """Сохраняет .docx на диск."""
-    content = build_docx_from_toc(toc_draft, donor_id)
+    content = build_docx_from_toc(toc_draft, donor_id, citations=citations)
     with open(output_path, 'wb') as f:
         f.write(content)
     return output_path

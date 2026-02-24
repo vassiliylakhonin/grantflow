@@ -2,14 +2,66 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.utils import get_column_letter
 from io import BytesIO
 
-def build_xlsx_from_logframe(logframe_draft: Dict[str, Any], 
-                              donor_id: str) -> bytes:
+
+def _autosize_columns(ws) -> None:
+    for col in ws.columns:
+        max_length = 0
+        column = col[0].column_letter
+        for cell in col:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except Exception:
+                pass
+        adjusted_width = min(max_length + 2, 60)
+        ws.column_dimensions[column].width = adjusted_width
+
+
+def _add_citations_sheet(wb: Workbook, citations: list[Dict[str, Any]]) -> None:
+    if not citations:
+        return
+    ws = wb.create_sheet("Citations")
+    headers = [
+        "Stage",
+        "Type",
+        "Used For",
+        "Label",
+        "Namespace",
+        "Source",
+        "Page",
+        "Chunk",
+        "Chunk ID",
+        "Excerpt",
+    ]
+    ws.append(headers)
+    for c in citations:
+        ws.append(
+            [
+                c.get("stage", ""),
+                c.get("citation_type", ""),
+                c.get("used_for", ""),
+                c.get("label", ""),
+                c.get("namespace", ""),
+                c.get("source", ""),
+                c.get("page", ""),
+                c.get("chunk", ""),
+                c.get("chunk_id", ""),
+                (c.get("excerpt", "") or "")[:500],
+            ]
+        )
+    _autosize_columns(ws)
+
+
+def build_xlsx_from_logframe(
+    logframe_draft: Dict[str, Any],
+    donor_id: str,
+    citations: Optional[List[Dict[str, Any]]] = None,
+) -> bytes:
     """Конвертирует LogFrame draft в форматированный .xlsx."""
     wb = Workbook()
     ws = wb.active
@@ -45,27 +97,22 @@ def build_xlsx_from_logframe(logframe_draft: Dict[str, Any],
         ws.cell(row=row, column=5, value=ind.get("baseline", "TBD")).border = thin_border
         ws.cell(row=row, column=6, value=ind.get("target", "TBD")).border = thin_border
     
-    for col in ws.columns:
-        max_length = 0
-        column = col[0].column_letter
-        for cell in col:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        adjusted_width = min(max_length + 2, 50)
-        ws.column_dimensions[column].width = adjusted_width
+    _autosize_columns(ws)
+    _add_citations_sheet(wb, citations or logframe_draft.get("citations") or [])
     
     bio = BytesIO()
     wb.save(bio)
     bio.seek(0)
     return bio.read()
 
-def save_xlsx_to_file(logframe_draft: Dict[str, Any], donor_id: str,
-                      output_path: str) -> str:
+def save_xlsx_to_file(
+    logframe_draft: Dict[str, Any],
+    donor_id: str,
+    output_path: str,
+    citations: Optional[List[Dict[str, Any]]] = None,
+) -> str:
     """Сохраняет .xlsx на диск."""
-    content = build_xlsx_from_logframe(logframe_draft, donor_id)
+    content = build_xlsx_from_logframe(logframe_draft, donor_id, citations=citations)
     with open(output_path, 'wb') as f:
         f.write(content)
     return output_path

@@ -108,7 +108,7 @@ class ExportRequest(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
-def _resolve_export_inputs(req: ExportRequest) -> tuple[dict, dict, str]:
+def _resolve_export_inputs(req: ExportRequest) -> tuple[dict, dict, str, list[dict[str, Any]]]:
     payload = req.payload or {}
     if isinstance(payload.get("state"), dict):
         payload = payload["state"]
@@ -116,12 +116,16 @@ def _resolve_export_inputs(req: ExportRequest) -> tuple[dict, dict, str]:
     donor_id = req.donor_id or payload.get("donor") or payload.get("donor_id") or "grantflow"
     toc = req.toc_draft or payload.get("toc_draft") or payload.get("toc") or {}
     logframe = req.logframe_draft or payload.get("logframe_draft") or payload.get("mel") or {}
+    citations = payload.get("citations") or []
 
     if not isinstance(toc, dict):
         toc = {}
     if not isinstance(logframe, dict):
         logframe = {}
-    return toc, logframe, str(donor_id)
+    if not isinstance(citations, list):
+        citations = []
+    citations = [c for c in citations if isinstance(c, dict)]
+    return toc, logframe, str(donor_id), citations
 
 
 def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> None:
@@ -628,7 +632,7 @@ async def ingest_pdf(
 @app.post("/export")
 def export_artifacts(req: ExportRequest, request: Request):
     require_api_key_if_configured(request)
-    toc_draft, logframe_draft, donor_id = _resolve_export_inputs(req)
+    toc_draft, logframe_draft, donor_id, citations = _resolve_export_inputs(req)
     fmt = (req.format or "").lower()
 
     try:
@@ -636,10 +640,10 @@ def export_artifacts(req: ExportRequest, request: Request):
         xlsx_bytes: Optional[bytes] = None
 
         if fmt in {"docx", "both"}:
-            docx_bytes = build_docx_from_toc(toc_draft, donor_id)
+            docx_bytes = build_docx_from_toc(toc_draft, donor_id, citations=citations)
 
         if fmt in {"xlsx", "both"}:
-            xlsx_bytes = build_xlsx_from_logframe(logframe_draft, donor_id)
+            xlsx_bytes = build_xlsx_from_logframe(logframe_draft, donor_id, citations=citations)
 
         if fmt == "docx" and docx_bytes is not None:
             return StreamingResponse(
