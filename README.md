@@ -101,6 +101,12 @@ export OPENAI_API_KEY=your_key_here
 export CHROMA_HOST=localhost
 export CHROMA_PORT=8000
 export CHROMA_COLLECTION_PREFIX=grantflow
+# Optional API auth (enables X-API-Key on write endpoints)
+# export GRANTFLOW_API_KEY=change-me
+# Optional persistence (default is in-memory)
+# export GRANTFLOW_JOB_STORE=sqlite
+# export GRANTFLOW_HITL_STORE=sqlite
+# export GRANTFLOW_SQLITE_PATH=./grantflow_state.db
 ```
 
 ### 3) Run the API
@@ -132,6 +138,8 @@ curl -s -X POST http://127.0.0.1:8000/generate \
     "hitl_enabled": false
   }'
 ```
+
+If `GRANTFLOW_API_KEY` is configured, add `-H 'X-API-Key: <your-key>'` to write requests (`/generate`, `/resume`, `/hitl/approve`, `/export`).
 
 ### 6) Check job status
 
@@ -257,6 +265,16 @@ Optional environment variables:
 - `CHROMA_PORT`
 - `CHROMA_COLLECTION_PREFIX`
 - `CHROMA_PERSIST_DIRECTORY`
+- `GRANTFLOW_API_KEY` (if set, write endpoints require `X-API-Key`)
+- `GRANTFLOW_JOB_STORE` (`inmem` or `sqlite`)
+- `GRANTFLOW_HITL_STORE` (`inmem` or `sqlite`, defaults to job store mode)
+- `GRANTFLOW_SQLITE_PATH` (SQLite file path for job/HITL persistence)
+
+### Docker Compose persistence/auth notes
+
+- `docker-compose.yml` is configured to use SQLite-backed job/HITL persistence by default.
+- API state DB is stored in the `grantflow_state` volume (`/data/grantflow_state.db` in the container).
+- To protect write endpoints in deployment, set `GRANTFLOW_API_KEY` in your `.env` and send `X-API-Key` from clients.
 
 ## Testing
 
