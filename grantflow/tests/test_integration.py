@@ -329,6 +329,23 @@ def test_status_comments_endpoints_create_list_and_filter():
     assert comments_body["comment_count"] >= 1
     assert any(c["comment_id"] == created["comment_id"] for c in comments_body["comments"])
 
+    resolve_resp = client.post(f"/status/{job_id}/comments/{created['comment_id']}/resolve")
+    assert resolve_resp.status_code == 200
+    resolved = resolve_resp.json()
+    assert resolved["comment_id"] == created["comment_id"]
+    assert resolved["status"] == "resolved"
+
+    resolved_filter_resp = client.get(f"/status/{job_id}/comments", params={"status": "resolved"})
+    assert resolved_filter_resp.status_code == 200
+    resolved_filter_body = resolved_filter_resp.json()
+    assert any(c["comment_id"] == created["comment_id"] for c in resolved_filter_body["comments"])
+
+    reopen_resp = client.post(f"/status/{job_id}/comments/{created['comment_id']}/reopen")
+    assert reopen_resp.status_code == 200
+    reopened = reopen_resp.json()
+    assert reopened["comment_id"] == created["comment_id"]
+    assert reopened["status"] == "open"
+
     filtered_resp = client.get(
         f"/status/{job_id}/comments",
         params={"section": "toc", "status": "open", "version_id": toc_version_id},
@@ -603,6 +620,25 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
         headers={"X-API-Key": "test-secret"},
     )
     assert add_comment_auth.status_code == 200
+    comment_id = add_comment_auth.json()["comment_id"]
+
+    resolve_comment_unauth = client.post(f"/status/{job_id}/comments/{comment_id}/resolve")
+    assert resolve_comment_unauth.status_code == 401
+
+    resolve_comment_auth = client.post(
+        f"/status/{job_id}/comments/{comment_id}/resolve",
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert resolve_comment_auth.status_code == 200
+
+    reopen_comment_unauth = client.post(f"/status/{job_id}/comments/{comment_id}/reopen")
+    assert reopen_comment_unauth.status_code == 401
+
+    reopen_comment_auth = client.post(
+        f"/status/{job_id}/comments/{comment_id}/reopen",
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert reopen_comment_auth.status_code == 200
 
     portfolio_metrics_unauth = client.get("/portfolio/metrics")
     assert portfolio_metrics_unauth.status_code == 401
@@ -652,6 +688,14 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_comments_post_security = (
         (((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}).get("security")
+    )
+    status_comments_resolve_security = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/resolve") or {}).get("post") or {}))
+        .get("security")
+    )
+    status_comments_reopen_security = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/reopen") or {}).get("post") or {}))
+        .get("security")
     )
     portfolio_metrics_security = (
         (((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get("security")
@@ -705,6 +749,35 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    status_comments_post_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_comments_resolve_response_schema = (
+        (
+            ((((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/resolve") or {}).get("post") or {})
+             .get("responses"))
+            or {}
+        )
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_comments_reopen_response_schema = (
+        (
+            ((((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/reopen") or {}).get("post") or {})
+             .get("responses"))
+            or {}
+        )
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     portfolio_metrics_response_schema = (
         ((((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -730,6 +803,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_metrics_security == [{"ApiKeyAuth": []}]
     assert status_comments_get_security == [{"ApiKeyAuth": []}]
     assert status_comments_post_security == [{"ApiKeyAuth": []}]
+    assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
+    assert status_comments_reopen_security == [{"ApiKeyAuth": []}]
     assert portfolio_metrics_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
@@ -738,6 +813,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
     assert status_metrics_response_schema == {"$ref": "#/components/schemas/JobMetricsPublicResponse"}
     assert status_comments_response_schema == {"$ref": "#/components/schemas/JobCommentsPublicResponse"}
+    assert status_comments_post_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
+    assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
+    assert status_comments_reopen_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert portfolio_metrics_response_schema == {"$ref": "#/components/schemas/PortfolioMetricsPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
 

@@ -305,6 +305,56 @@ def _append_review_comment(
     return comment
 
 
+def _set_review_comment_status(
+    job_id: str,
+    *,
+    comment_id: str,
+    next_status: str,
+) -> Dict[str, Any]:
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing = job.get("review_comments")
+    comments = [c for c in existing if isinstance(c, dict)] if isinstance(existing, list) else []
+    updated_comment: Optional[Dict[str, Any]] = None
+    changed = False
+
+    next_comments: list[Dict[str, Any]] = []
+    for item in comments:
+        cid = str(item.get("comment_id") or "")
+        if cid != comment_id:
+            next_comments.append(item)
+            continue
+
+        current = dict(item)
+        current_status = str(current.get("status") or "open")
+        if current_status != next_status:
+            current["status"] = next_status
+            current["updated_ts"] = _utcnow_iso()
+            if next_status == "resolved":
+                current["resolved_at"] = current["updated_ts"]
+            elif "resolved_at" in current:
+                current.pop("resolved_at", None)
+            changed = True
+        updated_comment = current
+        next_comments.append(current)
+
+    if updated_comment is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    if changed:
+        _update_job(job_id, review_comments=next_comments[-500:])
+        _record_job_event(
+            job_id,
+            "review_comment_status_changed",
+            comment_id=comment_id,
+            status=next_status,
+            section=updated_comment.get("section"),
+        )
+    return updated_comment
+
+
 def _job_is_canceled(job_id: str) -> bool:
     job = _get_job(job_id)
     return bool(job and job.get("status") == "canceled")
@@ -842,6 +892,26 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
         author=author,
         version_id=version_id,
     )
+
+
+@app.post(
+    "/status/{job_id}/comments/{comment_id}/resolve",
+    response_model=ReviewCommentPublicResponse,
+    response_model_exclude_none=True,
+)
+def resolve_status_comment(job_id: str, comment_id: str, request: Request):
+    require_api_key_if_configured(request)
+    return _set_review_comment_status(job_id, comment_id=comment_id, next_status="resolved")
+
+
+@app.post(
+    "/status/{job_id}/comments/{comment_id}/reopen",
+    response_model=ReviewCommentPublicResponse,
+    response_model_exclude_none=True,
+)
+def reopen_status_comment(job_id: str, comment_id: str, request: Request):
+    require_api_key_if_configured(request)
+    return _set_review_comment_status(job_id, comment_id=comment_id, next_status="open")
 
 
 @app.post("/hitl/approve")

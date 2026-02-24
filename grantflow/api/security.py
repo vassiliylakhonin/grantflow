@@ -22,6 +22,8 @@ PROTECTED_OPERATIONS = {
     ("get", "/status/{job_id}/metrics"),
     ("get", "/status/{job_id}/comments"),
     ("post", "/status/{job_id}/comments"),
+    ("post", "/status/{job_id}/comments/{comment_id}/resolve"),
+    ("post", "/status/{job_id}/comments/{comment_id}/reopen"),
     ("get", "/portfolio/metrics"),
     ("get", "/hitl/pending"),
 }

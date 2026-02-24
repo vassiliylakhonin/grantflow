@@ -309,6 +309,51 @@ def render_demo_ui_html() -> str:
             <div class="list" id="eventsList"></div>
           </div>
         </div>
+
+        <div class="card">
+          <h2>Review Comments</h2>
+          <div class="body">
+            <div class="row3">
+              <div>
+                <label for="commentSection">Section</label>
+                <select id="commentSection">
+                  <option value="general">general</option>
+                  <option value="toc">toc</option>
+                  <option value="logframe">logframe</option>
+                </select>
+              </div>
+              <div>
+                <label for="commentAuthor">Author (optional)</label>
+                <input id="commentAuthor" placeholder="reviewer-1" />
+              </div>
+              <div>
+                <label for="commentVersionId">Version ID (optional)</label>
+                <input id="commentVersionId" placeholder="toc_v2" />
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <label for="commentMessage">Comment</label>
+              <textarea id="commentMessage" placeholder="Reviewer note for ToC / LogFrame / general workflow issue"></textarea>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="commentsBtn" class="ghost">Load Comments</button>
+              <button id="addCommentBtn" class="primary">Add Comment</button>
+              <button id="resolveCommentBtn" class="secondary">Resolve Selected</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label for="selectedCommentId">Selected Comment ID</label>
+                <input id="selectedCommentId" readonly />
+              </div>
+              <div style="align-self:end;">
+                <button id="reopenCommentBtn" class="ghost">Reopen Selected</button>
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <div class="list" id="commentsList"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   </div>
@@ -346,7 +391,13 @@ def render_demo_ui_html() -> str:
         versionsList: $("versionsList"),
         citationsList: $("citationsList"),
         eventsList: $("eventsList"),
+        commentsList: $("commentsList"),
         metricsCards: $("metricsCards"),
+        commentSection: $("commentSection"),
+        commentAuthor: $("commentAuthor"),
+        commentVersionId: $("commentVersionId"),
+        commentMessage: $("commentMessage"),
+        selectedCommentId: $("selectedCommentId"),
         generateBtn: $("generateBtn"),
         refreshAllBtn: $("refreshAllBtn"),
         pollToggleBtn: $("pollToggleBtn"),
@@ -358,6 +409,10 @@ def render_demo_ui_html() -> str:
         diffBtn: $("diffBtn"),
         citationsBtn: $("citationsBtn"),
         eventsBtn: $("eventsBtn"),
+        commentsBtn: $("commentsBtn"),
+        addCommentBtn: $("addCommentBtn"),
+        resolveCommentBtn: $("resolveCommentBtn"),
+        reopenCommentBtn: $("reopenCommentBtn"),
         openPendingBtn: $("openPendingBtn"),
       };
 
@@ -500,6 +555,32 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function renderComments(list) {
+        els.commentsList.innerHTML = "";
+        if (!Array.isArray(list) || list.length === 0) {
+          els.commentsList.innerHTML = `<div class="item"><div class="sub">No comments found.</div></div>`;
+          return;
+        }
+        for (const c of list) {
+          const div = document.createElement("div");
+          div.className = "item";
+          const titleBits = [`[${c.status || "open"}]`, c.section || "general"];
+          if (c.comment_id) titleBits.push(`#${String(c.comment_id).slice(0, 8)}`);
+          const meta = [c.ts, c.author, c.version_id].filter(Boolean).join(" · ");
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(titleBits.join(" "))}</div>
+            <div class="sub">${escapeHtml(c.message || "")}</div>
+            <div class="sub" style="margin-top:6px;">${escapeHtml(meta || "")}</div>
+          `;
+          div.addEventListener("click", () => {
+            els.selectedCommentId.value = c.comment_id || "";
+            if (c.section) els.commentSection.value = c.section;
+            if (c.version_id) els.commentVersionId.value = c.version_id;
+          });
+          els.commentsList.appendChild(div);
+        }
+      }
+
       function escapeHtml(s) {
         return String(s)
           .replaceAll("&", "&amp;")
@@ -583,6 +664,14 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshComments() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/comments`);
+        renderComments(body.comments || []);
+        return body;
+      }
+
       async function refreshMetrics() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -604,6 +693,7 @@ def render_demo_ui_html() -> str:
           refreshVersions(),
           refreshDiff(),
           refreshEvents(),
+          refreshComments(),
         ]);
       }
 
@@ -642,6 +732,42 @@ def render_demo_ui_html() -> str:
         setJson(els.statusJson, { pending_only: body });
       }
 
+      async function addComment() {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        const message = els.commentMessage.value.trim();
+        if (!message) throw new Error("Comment message is required");
+        const body = {
+          section: els.commentSection.value || "general",
+          message,
+        };
+        if (els.commentAuthor.value.trim()) body.author = els.commentAuthor.value.trim();
+        if (els.commentVersionId.value.trim()) body.version_id = els.commentVersionId.value.trim();
+        const created = await apiFetch(`/status/${encodeURIComponent(jobId)}/comments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        els.selectedCommentId.value = created.comment_id || "";
+        els.commentMessage.value = "";
+        await refreshComments();
+        return created;
+      }
+
+      async function setCommentStatus(nextStatus) {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        const commentId = els.selectedCommentId.value.trim();
+        if (!commentId) throw new Error("Select a comment first");
+        const action = nextStatus === "resolved" ? "resolve" : "reopen";
+        const updated = await apiFetch(
+          `/status/${encodeURIComponent(jobId)}/comments/${encodeURIComponent(commentId)}/${action}`,
+          { method: "POST" }
+        );
+        await refreshComments();
+        return updated;
+      }
+
       function togglePolling() {
         state.polling = !state.polling;
         els.pollToggleBtn.textContent = state.polling ? "Stop Poll" : "Start Poll";
@@ -674,6 +800,10 @@ def render_demo_ui_html() -> str:
         els.diffBtn.addEventListener("click", () => refreshDiff().catch(showError));
         els.citationsBtn.addEventListener("click", () => refreshCitations().catch(showError));
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
+        els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
+        els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
+        els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
+        els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
       }
