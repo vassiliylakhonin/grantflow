@@ -40,6 +40,12 @@ It is designed for implementing organizations (e.g. DAI, Chemonics, Tetra Tech),
 - MEL plan artifacts
 - Exportable `.docx` / `.xlsx` (or both as ZIP)
 
+### Estimated ROI (Early)
+
+GrantFlow reduces time spent on drafting and review-loop overhead, especially where teams repeatedly restructure the same project idea into donor-aligned formats (ToC / LogFrame / MEL).
+
+In practice, a realistic estimate is **~25-40% time savings** on draft/rework cycles, which often translates to **~3-8 staff hours saved per proposal** in common cases (and more for complex applications with multiple reviewers or partners).
+
 ## Key Features
 
 - Donor strategy isolation (U.S. State Department, USAID, EU, World Bank, GIZ, plus generic donor coverage)
