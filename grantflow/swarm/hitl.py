@@ -12,6 +12,8 @@ from typing import Any, Dict, Literal, Optional
 from grantflow.core.stores import (
     _env,
     default_sqlite_path,
+    ensure_sqlite_component_schema,
+    open_sqlite_connection,
     prepare_state_for_storage,
     storage_json_dumps,
     storage_json_loads,
@@ -28,6 +30,8 @@ class HITLStatus(str, Enum):
 
 class HITLCheckpoint:
     """In-memory manager for Human-in-the-Loop checkpoints."""
+    SCHEMA_COMPONENT = "hitl_checkpoints"
+    SCHEMA_VERSION = 1
 
     def __init__(self):
         mode = storage_mode(
@@ -42,12 +46,11 @@ class HITLCheckpoint:
             self._init_sqlite()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._sqlite_path, timeout=30)
-        conn.row_factory = sqlite3.Row
-        return conn
+        return open_sqlite_connection(self._sqlite_path)
 
     def _init_sqlite(self) -> None:
         with self._connect() as conn:
+            ensure_sqlite_component_schema(conn, self.SCHEMA_COMPONENT, self.SCHEMA_VERSION)
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS hitl_checkpoints (

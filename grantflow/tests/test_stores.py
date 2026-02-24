@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-from grantflow.core.stores import SQLiteJobStore
+from grantflow.core.stores import SQLiteJobStore, open_sqlite_connection
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.hitl import HITLCheckpoint, HITLStatus
 
@@ -80,3 +80,55 @@ def test_sqlite_hitl_checkpoint_store_roundtrip(monkeypatch, tmp_path):
     assert checkpoint is not None
     assert checkpoint["status"] == HITLStatus.APPROVED
     assert checkpoint["feedback"] == "ok"
+
+
+def test_sqlite_stores_initialize_pragmas_and_schema_meta(monkeypatch, tmp_path):
+    db_path = tmp_path / "grantflow_state.db"
+    monkeypatch.setenv("GRANTFLOW_SQLITE_PATH", str(db_path))
+    monkeypatch.setenv("GRANTFLOW_HITL_STORE", "sqlite")
+    monkeypatch.setenv("GRANTFLOW_SQLITE_BUSY_TIMEOUT_MS", "7000")
+
+    SQLiteJobStore(str(db_path))
+    HITLCheckpoint()
+
+    with open_sqlite_connection(str(db_path)) as conn:
+        journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+        busy_timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+        rows = conn.execute(
+            "SELECT component, version FROM schema_meta ORDER BY component"
+        ).fetchall()
+        rows = [(row["component"], row["version"]) for row in rows]
+
+    assert str(journal_mode).lower() == "wal"
+    assert int(busy_timeout) == 7000
+    assert ("hitl_checkpoints", 1) in rows
+    assert ("jobs", 1) in rows
+
+
+def test_sqlite_job_store_upgrades_schema_meta_version_on_reinit(tmp_path):
+    db_path = tmp_path / "grantflow_state.db"
+
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schema_meta (
+              component TEXT PRIMARY KEY,
+              version INTEGER NOT NULL,
+              updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            "INSERT INTO schema_meta (component, version) VALUES (?, ?)",
+            ("jobs", 0),
+        )
+
+    SQLiteJobStore(str(db_path))
+
+    with sqlite3.connect(str(db_path)) as conn:
+        version = conn.execute(
+            "SELECT version FROM schema_meta WHERE component = ?",
+            ("jobs",),
+        ).fetchone()[0]
+
+    assert int(version) == 1

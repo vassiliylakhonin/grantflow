@@ -12,6 +12,7 @@ from grantflow.core.strategies.factory import DonorFactory
 
 
 RUNTIME_STATE_KEYS = {"strategy", "donor_strategy"}
+DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000
 
 
 def _env(name: str, default: str) -> str:
@@ -21,6 +22,15 @@ def _env(name: str, default: str) -> str:
 
 def default_sqlite_path() -> str:
     return _env("GRANTFLOW_SQLITE_PATH", "./grantflow_state.db")
+
+
+def sqlite_busy_timeout_ms() -> int:
+    raw = _env("GRANTFLOW_SQLITE_BUSY_TIMEOUT_MS", str(DEFAULT_SQLITE_BUSY_TIMEOUT_MS))
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_SQLITE_BUSY_TIMEOUT_MS
+    return max(0, value)
 
 
 def storage_mode(name: str, default: str = "inmem") -> str:
@@ -92,6 +102,58 @@ def storage_json_loads(value: str) -> Any:
     return json.loads(value)
 
 
+def open_sqlite_connection(db_path: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path, timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute(f"PRAGMA busy_timeout = {sqlite_busy_timeout_ms()}")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    return conn
+
+
+def ensure_sqlite_schema_meta(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS schema_meta (
+          component TEXT PRIMARY KEY,
+          version INTEGER NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def ensure_sqlite_component_schema(conn: sqlite3.Connection, component: str, target_version: int) -> int:
+    ensure_sqlite_schema_meta(conn)
+    row = conn.execute("SELECT version FROM schema_meta WHERE component = ?", (component,)).fetchone()
+    if row is None:
+        conn.execute(
+            """
+            INSERT INTO schema_meta (component, version, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            """,
+            (component, target_version),
+        )
+        return target_version
+
+    current_version = int(row["version"])
+    if current_version > target_version:
+        raise RuntimeError(
+            f"Unsupported newer schema for component '{component}': {current_version} > {target_version}"
+        )
+    if current_version < target_version:
+        # Placeholder for future migrations; current schema is single-step and idempotent.
+        conn.execute(
+            """
+            UPDATE schema_meta
+            SET version = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE component = ?
+            """,
+            (target_version, component),
+        )
+    return target_version
+
+
 class InMemoryJobStore:
     def __init__(self) -> None:
         self._jobs: Dict[str, Dict[str, Any]] = {}
@@ -115,18 +177,20 @@ class InMemoryJobStore:
 
 
 class SQLiteJobStore:
+    SCHEMA_COMPONENT = "jobs"
+    SCHEMA_VERSION = 1
+
     def __init__(self, db_path: Optional[str] = None) -> None:
         self.db_path = db_path or default_sqlite_path()
         self._write_lock = threading.Lock()
         self._init_db()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, timeout=30)
-        conn.row_factory = sqlite3.Row
-        return conn
+        return open_sqlite_connection(self.db_path)
 
     def _init_db(self) -> None:
         with self._connect() as conn:
+            ensure_sqlite_component_schema(conn, self.SCHEMA_COMPONENT, self.SCHEMA_VERSION)
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS jobs (
