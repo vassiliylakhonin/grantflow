@@ -11,10 +11,14 @@ services:
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8000
       - CHROMA_COLLECTION_PREFIX=grantflow
+      - JOB_STORE=sqlite
+      - HITL_STORE=sqlite
+      - GRANTFLOW_SQLITE_PATH=/data/grantflow_state.db
       - ENV=prod
-      - JOB_STORE=inmem
     depends_on:
       - chroma
+    volumes:
+      - grantflow_state:/data
 
   chroma:
     image: chromadb/chroma:latest
@@ -32,3 +36,4 @@ services:
 
 volumes:
   chroma_data:
+  grantflow_state:
