@@ -248,6 +248,7 @@ Core endpoints:
 - `GET /status/{job_id}/diff` - retrieve a unified diff between draft versions (optionally filtered by section)
 - `GET /status/{job_id}/events` - retrieve typed job timeline/audit trail events
 - `GET /status/{job_id}/metrics` - retrieve derived workflow/ROI metrics from the job timeline
+- `GET /portfolio/metrics` - retrieve aggregated ROI/ops metrics across jobs (with filters)
 - `POST /resume/{job_id}` - resume a HITL-paused job
 - `GET /hitl/pending` - list pending checkpoints
 - `POST /hitl/approve` - approve/reject checkpoint
@@ -370,6 +371,13 @@ Get derived metrics:
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/metrics
 ```
 
+Get aggregated portfolio metrics (optional filters):
+
+```bash
+curl -s http://127.0.0.1:8000/portfolio/metrics
+curl -s "http://127.0.0.1:8000/portfolio/metrics?donor_id=usaid&status=done&hitl_enabled=true"
+```
+
 Example metrics response shape:
 
 ```json
@@ -384,6 +392,32 @@ Example metrics response shape:
   "time_to_terminal_seconds": 185.3,
   "time_in_pending_hitl_seconds": 96.2,
   "terminal_status": "done"
+}
+```
+
+Example portfolio metrics response shape:
+
+```json
+{
+  "job_count": 24,
+  "filters": {
+    "donor_id": "usaid",
+    "status": "done",
+    "hitl_enabled": true
+  },
+  "status_counts": {
+    "done": 24
+  },
+  "donor_counts": {
+    "usaid": 24
+  },
+  "terminal_job_count": 24,
+  "hitl_job_count": 24,
+  "total_pause_count": 24,
+  "total_resume_count": 24,
+  "avg_time_to_first_draft_seconds": 48.2,
+  "avg_time_to_terminal_seconds": 210.4,
+  "avg_time_in_pending_hitl_seconds": 102.7
 }
 ```
 
