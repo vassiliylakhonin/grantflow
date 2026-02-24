@@ -5,6 +5,7 @@ import json
 import tempfile
 import uuid
 import zipfile
+from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
@@ -15,6 +16,7 @@ from grantflow.api.public_views import (
     public_checkpoint_payload,
     public_job_citations_payload,
     public_job_diff_payload,
+    public_job_events_payload,
     public_job_payload,
     public_job_versions_payload,
 )
@@ -22,6 +24,7 @@ from grantflow.api.schemas import (
     HITLPendingListPublicResponse,
     JobCitationsPublicResponse,
     JobDiffPublicResponse,
+    JobEventsPublicResponse,
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
 )
@@ -65,6 +68,61 @@ STATUS_WEBHOOK_EVENTS = {
 }
 
 
+def _utcnow_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _append_job_event_records(
+    previous: Optional[Dict[str, Any]],
+    next_payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    events = []
+    raw_previous_events = (previous or {}).get("job_events")
+    if isinstance(raw_previous_events, list):
+        events = [e for e in raw_previous_events if isinstance(e, dict)]
+
+    # Preserve explicitly supplied events (used by manual event appends).
+    if isinstance(next_payload.get("job_events"), list):
+        events = [e for e in next_payload["job_events"] if isinstance(e, dict)]
+
+    prev_status = (previous or {}).get("status")
+    next_status = next_payload.get("status")
+    if prev_status != next_status and next_status is not None:
+        events = list(events)
+        events.append(
+            {
+                "event_id": str(uuid.uuid4()),
+                "ts": _utcnow_iso(),
+                "type": "status_changed",
+                "from_status": None if prev_status is None else str(prev_status),
+                "to_status": str(next_status),
+                "status": str(next_status),
+            }
+        )
+
+    if events:
+        next_payload["job_events"] = events[-200:]
+    return next_payload
+
+
+def _record_job_event(job_id: str, event_type: str, **fields: Any) -> None:
+    job = JOB_STORE.get(job_id)
+    if not job:
+        return
+    existing = job.get("job_events")
+    events = [e for e in existing if isinstance(e, dict)] if isinstance(existing, list) else []
+    event: Dict[str, Any] = {
+        "event_id": str(uuid.uuid4()),
+        "ts": _utcnow_iso(),
+        "type": event_type,
+        "status": str(job.get("status") or ""),
+    }
+    for key, value in fields.items():
+        event[str(key)] = value
+    events.append(event)
+    JOB_STORE.update(job_id, job_events=events[-200:])
+
+
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
     previous = JOB_STORE.get(job_id)
     next_payload = dict(payload)
@@ -76,6 +134,7 @@ def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
         if key not in next_payload and previous and previous.get(key):
             next_payload[key] = previous.get(key)
 
+    next_payload = _append_job_event_records(previous, next_payload)
     JOB_STORE.set(job_id, next_payload)
     _dispatch_job_webhook_for_status_change(job_id, previous, next_payload)
 
@@ -84,7 +143,13 @@ def _update_job(job_id: str, **patch: Any) -> Dict[str, Any]:
     previous = JOB_STORE.get(job_id)
     if previous and previous.get("status") == "canceled" and patch.get("status") != "canceled":
         return previous
-    updated = JOB_STORE.update(job_id, **patch)
+    next_patch = dict(patch)
+    merged_preview = dict(previous or {})
+    merged_preview.update(next_patch)
+    merged_preview = _append_job_event_records(previous, merged_preview)
+    if "job_events" in merged_preview:
+        next_patch["job_events"] = merged_preview["job_events"]
+    updated = JOB_STORE.update(job_id, **next_patch)
     _dispatch_job_webhook_for_status_change(job_id, previous, updated)
     return updated
 
@@ -472,6 +537,7 @@ def cancel_job(job_id: str, request: Request):
         cancellation_reason="Canceled by user",
         canceled=True,
     )
+    _record_job_event(job_id, "job_canceled", previous_status=status, reason="Canceled by user")
     return {"status": "canceled", "job_id": job_id, "previous_status": status}
 
 
@@ -506,6 +572,13 @@ async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Re
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     _update_job(job_id, status="accepted", state=state, resume_from=start_at, checkpoint_status=getattr(checkpoint.get("status"), "value", checkpoint.get("status")))
+    _record_job_event(
+        job_id,
+        "resume_requested",
+        checkpoint_id=str(checkpoint_id),
+        checkpoint_status=getattr(checkpoint.get("status"), "value", checkpoint.get("status")),
+        resuming_from=start_at,
+    )
     background_tasks.add_task(_run_hitl_pipeline, job_id, state, start_at)
     return {
         "status": "accepted",
@@ -574,6 +647,19 @@ def get_status_diff(
         from_version_id=from_version_id,
         to_version_id=to_version_id,
     )
+
+
+@app.get(
+    "/status/{job_id}/events",
+    response_model=JobEventsPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_events(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_events_payload(job_id, job)
 
 
 @app.post("/hitl/approve")

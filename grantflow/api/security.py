@@ -18,6 +18,7 @@ PROTECTED_OPERATIONS = {
     ("get", "/status/{job_id}/citations"),
     ("get", "/status/{job_id}/versions"),
     ("get", "/status/{job_id}/diff"),
+    ("get", "/status/{job_id}/events"),
     ("get", "/hitl/pending"),
 }
 

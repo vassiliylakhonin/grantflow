@@ -78,6 +78,26 @@ class JobDiffPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobEventPublicResponse(BaseModel):
+    event_id: str
+    ts: str
+    type: str
+    from_status: Optional[str] = None
+    to_status: Optional[str] = None
+    status: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobEventsPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    event_count: int
+    events: list[JobEventPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class HITLPendingCheckpointPublicResponse(BaseModel):
     id: str
     stage: str

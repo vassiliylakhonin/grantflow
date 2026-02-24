@@ -197,6 +197,19 @@ def test_status_includes_draft_versions_traceability():
     sections = {v.get("section") for v in versions}
     assert "toc" in sections
     assert "logframe" in sections
+    assert "job_events" not in status
+
+    events_resp = client.get(f"/status/{job_id}/events")
+    assert events_resp.status_code == 200
+    events_body = events_resp.json()
+    assert events_body["job_id"] == job_id
+    assert events_body["event_count"] >= 3
+    event_types = [e["type"] for e in events_body["events"]]
+    assert "status_changed" in event_types
+    statuses = [e.get("to_status") for e in events_body["events"] if e["type"] == "status_changed"]
+    assert "accepted" in statuses
+    assert "running" in statuses
+    assert "done" in statuses
 
 
 def test_versions_and_diff_endpoints():
@@ -323,6 +336,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     diff_auth = client.get(f"/status/{job_id}/diff", headers={"X-API-Key": "test-secret"})
     assert diff_auth.status_code == 200
 
+    events_unauth = client.get(f"/status/{job_id}/events")
+    assert events_unauth.status_code == 401
+
+    events_auth = client.get(f"/status/{job_id}/events", headers={"X-API-Key": "test-secret"})
+    assert events_auth.status_code == 200
+
     pending_unauth = client.get("/hitl/pending")
     assert pending_unauth.status_code == 401
 
@@ -354,6 +373,9 @@ def test_openapi_declares_api_key_security_scheme():
     status_diff_security = (
         (((spec.get("paths") or {}).get("/status/{job_id}/diff") or {}).get("get") or {}).get("security")
     )
+    status_events_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/events") or {}).get("get") or {}).get("security")
+    )
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -382,6 +404,13 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    status_events_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/events") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     pending_response_schema = (
         ((((spec.get("paths") or {}).get("/hitl/pending") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -396,10 +425,12 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_citations_security == [{"ApiKeyAuth": []}]
     assert status_versions_security == [{"ApiKeyAuth": []}]
     assert status_diff_security == [{"ApiKeyAuth": []}]
+    assert status_events_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
     assert status_versions_response_schema == {"$ref": "#/components/schemas/JobVersionsPublicResponse"}
     assert status_diff_response_schema == {"$ref": "#/components/schemas/JobDiffPublicResponse"}
+    assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
 
     schemas = (spec.get("components") or {}).get("schemas") or {}
@@ -409,6 +440,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobVersionsPublicResponse" in schemas
     assert "DraftVersionPublicResponse" in schemas
     assert "JobDiffPublicResponse" in schemas
+    assert "JobEventsPublicResponse" in schemas
+    assert "JobEventPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
 
 

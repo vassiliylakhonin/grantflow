@@ -33,7 +33,7 @@ def public_state_snapshot(state: Any) -> Any:
 def public_job_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     public_job: Dict[str, Any] = {}
     for key, value in job.items():
-        if key in {"webhook_url", "webhook_secret"}:
+        if key in {"webhook_url", "webhook_secret", "job_events"}:
             continue
         if key == "state":
             public_job[key] = public_state_snapshot(value)
@@ -184,6 +184,22 @@ def public_job_diff_payload(
         "has_diff": True,
         "diff_text": "\n".join(diff_lines),
         "diff_lines": diff_lines,
+    }
+
+
+def public_job_events_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    raw_events = job.get("job_events")
+    events: list[Dict[str, Any]] = []
+    if isinstance(raw_events, list):
+        for item in raw_events:
+            if not isinstance(item, dict):
+                continue
+            events.append(sanitize_for_public_response(item))
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "event_count": len(events),
+        "events": events,
     }
 
 
