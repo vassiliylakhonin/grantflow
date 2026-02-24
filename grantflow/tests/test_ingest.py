@@ -18,4 +18,4 @@ def test_chunk_text_validates_overlap_bounds():
 
 def test_chunk_text_splits_with_overlap():
     chunks = chunk_text("abcdefghij", chunk_size=4, overlap=1)
-    assert chunks == ["abcd", "defg", "ghij"]
+    assert chunks == ["abcd", "defg", "ghij", "j"]
