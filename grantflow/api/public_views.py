@@ -280,6 +280,76 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
     }
 
 
+def public_portfolio_metrics_payload(
+    jobs_by_id: Dict[str, Dict[str, Any]],
+    *,
+    donor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    hitl_enabled: Optional[bool] = None,
+) -> Dict[str, Any]:
+    filtered: list[tuple[str, Dict[str, Any]]] = []
+    for job_id, job in jobs_by_id.items():
+        if not isinstance(job, dict):
+            continue
+        job_status = str(job.get("status") or "")
+        state = job.get("state") if isinstance(job.get("state"), dict) else {}
+        job_donor = str((state or {}).get("donor_id") or (state or {}).get("donor") or "")
+        job_hitl = bool(job.get("hitl_enabled"))
+
+        if donor_id and job_donor != donor_id:
+            continue
+        if status and job_status != status:
+            continue
+        if hitl_enabled is not None and job_hitl != hitl_enabled:
+            continue
+        filtered.append((str(job_id), job))
+
+    status_counts: Dict[str, int] = {}
+    donor_counts: Dict[str, int] = {}
+    total_pause_count = 0
+    total_resume_count = 0
+    metrics_rows: list[Dict[str, Any]] = []
+
+    for job_id, job in filtered:
+        job_status = str(job.get("status") or "")
+        status_counts[job_status] = status_counts.get(job_status, 0) + 1
+        state = job.get("state") if isinstance(job.get("state"), dict) else {}
+        job_donor = str((state or {}).get("donor_id") or (state or {}).get("donor") or "unknown")
+        donor_counts[job_donor] = donor_counts.get(job_donor, 0) + 1
+
+        m = public_job_metrics_payload(job_id, job)
+        metrics_rows.append(m)
+        total_pause_count += int(m.get("pause_count") or 0)
+        total_resume_count += int(m.get("resume_count") or 0)
+
+    def _avg(key: str) -> Optional[float]:
+        values = [float(m[key]) for m in metrics_rows if isinstance(m.get(key), (int, float))]
+        if not values:
+            return None
+        return round(sum(values) / len(values), 3)
+
+    terminal_statuses = {"done", "error", "canceled"}
+    terminal_rows = [m for m in metrics_rows if str(m.get("terminal_status") or "") in terminal_statuses]
+
+    return {
+        "job_count": len(filtered),
+        "filters": {
+            "donor_id": donor_id,
+            "status": status,
+            "hitl_enabled": hitl_enabled,
+        },
+        "status_counts": status_counts,
+        "donor_counts": donor_counts,
+        "terminal_job_count": len(terminal_rows),
+        "hitl_job_count": sum(1 for _, job in filtered if bool(job.get("hitl_enabled"))),
+        "total_pause_count": total_pause_count,
+        "total_resume_count": total_resume_count,
+        "avg_time_to_first_draft_seconds": _avg("time_to_first_draft_seconds"),
+        "avg_time_to_terminal_seconds": _avg("time_to_terminal_seconds"),
+        "avg_time_in_pending_hitl_seconds": _avg("time_in_pending_hitl_seconds"),
+    }
+
+
 def public_checkpoint_payload(checkpoint: Dict[str, Any]) -> Dict[str, Any]:
     public_checkpoint: Dict[str, Any] = {}
     for key, value in checkpoint.items():

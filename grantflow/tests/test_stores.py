@@ -51,6 +51,18 @@ def test_sqlite_job_store_update_merges_and_restores(tmp_path):
     assert updated["state"]["strategy"].get_rag_collection() == "eu_intpa"
 
 
+def test_sqlite_job_store_list_returns_all_jobs(tmp_path):
+    db_path = tmp_path / "grantflow_state.db"
+    store = SQLiteJobStore(str(db_path))
+    store.set("job-a", {"status": "accepted", "state": {"donor_id": "usaid"}})
+    store.set("job-b", {"status": "done", "state": {"donor_id": "eu"}})
+
+    items = store.list()
+    assert set(items.keys()) == {"job-a", "job-b"}
+    assert items["job-a"]["state"]["strategy"].get_rag_collection() == "usaid_ads201"
+    assert items["job-b"]["state"]["strategy"].get_rag_collection() == "eu_intpa"
+
+
 def test_sqlite_hitl_checkpoint_store_roundtrip(monkeypatch, tmp_path):
     monkeypatch.setenv("GRANTFLOW_HITL_STORE", "sqlite")
     monkeypatch.setenv("GRANTFLOW_SQLITE_PATH", str(tmp_path / "grantflow_state.db"))

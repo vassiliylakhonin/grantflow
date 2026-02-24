@@ -175,6 +175,10 @@ class InMemoryJobStore:
             payload = self._jobs.get(job_id)
             return copy.deepcopy(payload) if payload is not None else None
 
+    def list(self) -> Dict[str, Dict[str, Any]]:
+        with self._lock:
+            return {job_id: copy.deepcopy(payload) for job_id, payload in self._jobs.items()}
+
 
 class SQLiteJobStore:
     SCHEMA_COMPONENT = "jobs"
@@ -243,6 +247,14 @@ class SQLiteJobStore:
             return None
         payload = storage_json_loads(row["payload_json"])
         return restore_job_payload_from_storage(payload)
+
+    def list(self) -> Dict[str, Dict[str, Any]]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT job_id, payload_json FROM jobs ORDER BY updated_at DESC").fetchall()
+        items: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            items[str(row["job_id"])] = restore_job_payload_from_storage(storage_json_loads(row["payload_json"]))
+        return items
 
 
 def create_job_store_from_env() -> InMemoryJobStore | SQLiteJobStore:

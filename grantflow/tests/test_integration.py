@@ -363,6 +363,62 @@ def test_metrics_endpoint_derives_timeline_metrics_from_events():
     assert body["time_in_pending_hitl_seconds"] == 245.0
 
 
+def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
+    api_app_module.JOB_STORE.set(
+        "portfolio-job-1",
+        {
+            "status": "done",
+            "hitl_enabled": True,
+            "state": {"donor_id": "usaid"},
+            "job_events": [
+                {"event_id": "a1", "ts": "2026-02-24T10:00:00+00:00", "type": "status_changed", "to_status": "accepted", "status": "accepted"},
+                {"event_id": "a2", "ts": "2026-02-24T10:00:05+00:00", "type": "status_changed", "to_status": "running", "status": "running"},
+                {"event_id": "a3", "ts": "2026-02-24T10:00:20+00:00", "type": "status_changed", "to_status": "pending_hitl", "status": "pending_hitl"},
+                {"event_id": "a4", "ts": "2026-02-24T10:01:00+00:00", "type": "resume_requested", "status": "accepted"},
+                {"event_id": "a5", "ts": "2026-02-24T10:01:02+00:00", "type": "status_changed", "to_status": "accepted", "status": "accepted"},
+                {"event_id": "a6", "ts": "2026-02-24T10:01:03+00:00", "type": "status_changed", "to_status": "running", "status": "running"},
+                {"event_id": "a7", "ts": "2026-02-24T10:02:00+00:00", "type": "status_changed", "to_status": "done", "status": "done"},
+            ],
+        },
+    )
+    api_app_module.JOB_STORE.set(
+        "portfolio-job-2",
+        {
+            "status": "error",
+            "hitl_enabled": False,
+            "state": {"donor_id": "eu"},
+            "job_events": [
+                {"event_id": "b1", "ts": "2026-02-24T11:00:00+00:00", "type": "status_changed", "to_status": "accepted", "status": "accepted"},
+                {"event_id": "b2", "ts": "2026-02-24T11:00:03+00:00", "type": "status_changed", "to_status": "running", "status": "running"},
+                {"event_id": "b3", "ts": "2026-02-24T11:00:30+00:00", "type": "status_changed", "to_status": "error", "status": "error"},
+            ],
+        },
+    )
+
+    response = client.get("/portfolio/metrics")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["job_count"] >= 2
+    assert body["status_counts"]["done"] >= 1
+    assert body["status_counts"]["error"] >= 1
+    assert body["donor_counts"]["usaid"] >= 1
+    assert body["donor_counts"]["eu"] >= 1
+    assert body["terminal_job_count"] >= 2
+    assert body["hitl_job_count"] >= 1
+    assert body["total_pause_count"] >= 1
+    assert body["total_resume_count"] >= 1
+    assert body["avg_time_to_terminal_seconds"] is not None
+
+    filtered = client.get("/portfolio/metrics", params={"donor_id": "usaid", "status": "done", "hitl_enabled": "true"})
+    assert filtered.status_code == 200
+    filtered_body = filtered.json()
+    assert filtered_body["filters"]["donor_id"] == "usaid"
+    assert filtered_body["filters"]["status"] == "done"
+    assert filtered_body["filters"]["hitl_enabled"] is True
+    assert filtered_body["job_count"] >= 1
+    assert "error" not in filtered_body["status_counts"]
+
+
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
 
@@ -434,6 +490,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     metrics_auth = client.get(f"/status/{job_id}/metrics", headers={"X-API-Key": "test-secret"})
     assert metrics_auth.status_code == 200
 
+    portfolio_metrics_unauth = client.get("/portfolio/metrics")
+    assert portfolio_metrics_unauth.status_code == 401
+
+    portfolio_metrics_auth = client.get("/portfolio/metrics", headers={"X-API-Key": "test-secret"})
+    assert portfolio_metrics_auth.status_code == 200
+
     pending_unauth = client.get("/hitl/pending")
     assert pending_unauth.status_code == 401
 
@@ -470,6 +532,9 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_metrics_security = (
         (((spec.get("paths") or {}).get("/status/{job_id}/metrics") or {}).get("get") or {}).get("security")
+    )
+    portfolio_metrics_security = (
+        (((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get("security")
     )
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
@@ -513,6 +578,13 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    portfolio_metrics_response_schema = (
+        ((((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     pending_response_schema = (
         ((((spec.get("paths") or {}).get("/hitl/pending") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -529,12 +601,14 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_diff_security == [{"ApiKeyAuth": []}]
     assert status_events_security == [{"ApiKeyAuth": []}]
     assert status_metrics_security == [{"ApiKeyAuth": []}]
+    assert portfolio_metrics_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
     assert status_versions_response_schema == {"$ref": "#/components/schemas/JobVersionsPublicResponse"}
     assert status_diff_response_schema == {"$ref": "#/components/schemas/JobDiffPublicResponse"}
     assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
     assert status_metrics_response_schema == {"$ref": "#/components/schemas/JobMetricsPublicResponse"}
+    assert portfolio_metrics_response_schema == {"$ref": "#/components/schemas/PortfolioMetricsPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
 
     schemas = (spec.get("components") or {}).get("schemas") or {}
@@ -547,6 +621,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobEventsPublicResponse" in schemas
     assert "JobEventPublicResponse" in schemas
     assert "JobMetricsPublicResponse" in schemas
+    assert "PortfolioMetricsPublicResponse" in schemas
+    assert "PortfolioMetricsFiltersPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
 
 

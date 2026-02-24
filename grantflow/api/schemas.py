@@ -117,6 +117,30 @@ class JobMetricsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class PortfolioMetricsFiltersPublicResponse(BaseModel):
+    donor_id: Optional[str] = None
+    status: Optional[str] = None
+    hitl_enabled: Optional[bool] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PortfolioMetricsPublicResponse(BaseModel):
+    job_count: int
+    filters: PortfolioMetricsFiltersPublicResponse
+    status_counts: Dict[str, int]
+    donor_counts: Dict[str, int]
+    terminal_job_count: int
+    hitl_job_count: int
+    total_pause_count: int
+    total_resume_count: int
+    avg_time_to_first_draft_seconds: Optional[float] = None
+    avg_time_to_terminal_seconds: Optional[float] = None
+    avg_time_in_pending_hitl_seconds: Optional[float] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 class HITLPendingCheckpointPublicResponse(BaseModel):
     id: str
     stage: str

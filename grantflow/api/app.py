@@ -18,6 +18,7 @@ from grantflow.api.public_views import (
     public_job_diff_payload,
     public_job_events_payload,
     public_job_metrics_payload,
+    public_portfolio_metrics_payload,
     public_job_payload,
     public_job_versions_payload,
 )
@@ -27,6 +28,7 @@ from grantflow.api.schemas import (
     JobDiffPublicResponse,
     JobEventsPublicResponse,
     JobMetricsPublicResponse,
+    PortfolioMetricsPublicResponse,
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
 )
@@ -158,6 +160,15 @@ def _update_job(job_id: str, **patch: Any) -> Dict[str, Any]:
 
 def _get_job(job_id: str) -> Optional[Dict[str, Any]]:
     return JOB_STORE.get(job_id)
+
+
+def _list_jobs() -> Dict[str, Dict[str, Any]]:
+    list_fn = getattr(JOB_STORE, "list", None)
+    if callable(list_fn):
+        result = list_fn()
+        if isinstance(result, dict):
+            return result
+    return {}
 
 
 class GenerateRequest(BaseModel):
@@ -454,6 +465,27 @@ def readiness_check():
 @app.get("/donors")
 def list_donors():
     return {"donors": DonorFactory.list_supported()}
+
+
+@app.get(
+    "/portfolio/metrics",
+    response_model=PortfolioMetricsPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_portfolio_metrics(
+    request: Request,
+    donor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    hitl_enabled: Optional[bool] = Query(default=None),
+):
+    require_api_key_if_configured(request, for_read=True)
+    jobs = _list_jobs()
+    return public_portfolio_metrics_payload(
+        jobs,
+        donor_id=(donor_id or None),
+        status=(status or None),
+        hitl_enabled=hitl_enabled,
+    )
 
 
 @app.post("/generate")
