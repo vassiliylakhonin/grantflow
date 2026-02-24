@@ -92,19 +92,34 @@ Examples:
 
 ```bash
 pip install -r grantflow/requirements.txt
+```
 
-2) (Optional) Configure environment
+### 2) (Optional) Configure environment
+
+```bash
 export OPENAI_API_KEY=your_key_here
 export CHROMA_HOST=localhost
 export CHROMA_PORT=8000
 export CHROMA_COLLECTION_PREFIX=grantflow
-3) Run the API
-uvicorn grantflow.api.app:app --reload
-API will start on http://127.0.0.1:8000.
+```
 
-4) Health check
+### 3) Run the API
+
+```bash
+uvicorn grantflow.api.app:app --reload
+```
+
+API will start on `http://127.0.0.1:8000`.
+
+### 4) Health check
+
+```bash
 curl -s http://127.0.0.1:8000/health
-5) Generate a draft (USAID example)
+```
+
+### 5) Generate a draft (USAID example)
+
+```bash
 curl -s -X POST http://127.0.0.1:8000/generate \
   -H 'Content-Type: application/json' \
   -d '{
@@ -116,9 +131,17 @@ curl -s -X POST http://127.0.0.1:8000/generate \
     "llm_mode": false,
     "hitl_enabled": false
   }'
-6) Check job status
+```
+
+### 6) Check job status
+
+```bash
 curl -s http://127.0.0.1:8000/status/<JOB_ID>
-7) Export artifacts (docx, xlsx, or both)
+```
+
+### 7) Export artifacts (`docx`, `xlsx`, or `both`)
+
+```bash
 curl -s -X POST http://127.0.0.1:8000/export \
   -H 'Content-Type: application/json' \
   -d "{
@@ -126,8 +149,13 @@ curl -s -X POST http://127.0.0.1:8000/export \
     \"format\": \"both\"
   }" \
   -o grantflow_export.zip
-Additional donor examples
-GIZ (specialized strategy)
+```
+
+### Additional donor examples
+
+#### GIZ (specialized strategy)
+
+```bash
 curl -s -X POST http://127.0.0.1:8000/generate \
   -H 'Content-Type: application/json' \
   -d '{
@@ -139,7 +167,11 @@ curl -s -X POST http://127.0.0.1:8000/generate \
     "llm_mode": false,
     "hitl_enabled": false
   }'
-U.S. Department of State (alias: state_department)
+```
+
+#### U.S. Department of State (alias: `state_department`)
+
+```bash
 curl -s -X POST http://127.0.0.1:8000/generate \
   -H 'Content-Type: application/json' \
   -d '{
@@ -151,3 +183,4 @@ curl -s -X POST http://127.0.0.1:8000/generate \
     "llm_mode": false,
     "hitl_enabled": false
   }'
+```
