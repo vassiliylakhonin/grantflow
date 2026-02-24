@@ -8,19 +8,24 @@ from typing import List, Dict, Any, Optional
 from grantflow.memory_bank.vector_store import vector_store
 
 
-def load_pdf_text(pdf_path: str) -> str:
-    """Извлекает текст из PDF. Требует pymupdf."""
+def load_pdf_pages(pdf_path: str) -> List[str]:
+    """Извлекает текст постранично из PDF. Требует pymupdf."""
     try:
         import fitz  # pymupdf
 
         doc = fitz.open(pdf_path)
-        text = ""
+        pages: List[str] = []
         for page in doc:
-            text += page.get_text()
+            pages.append(page.get_text() or "")
         doc.close()
-        return text
+        return pages
     except ImportError as exc:
         raise ImportError("Установите pymupdf: pip install pymupdf") from exc
+
+
+def load_pdf_text(pdf_path: str) -> str:
+    """Извлекает текст из PDF. Требует pymupdf."""
+    return "".join(load_pdf_pages(pdf_path))
 
 
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[str]:
@@ -42,20 +47,73 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> List[st
     return chunks
 
 
+def chunk_pages(
+    pages: List[str],
+    chunk_size: int = 1000,
+    overlap: int = 200,
+) -> List[Dict[str, Any]]:
+    """Разбивает PDF-текст на чанки с trace metadata по страницам."""
+    records: List[Dict[str, Any]] = []
+    chunk_index = 0
+    for page_number, page_text in enumerate(pages, start=1):
+        if not page_text:
+            continue
+        page_chunks = chunk_text(page_text, chunk_size=chunk_size, overlap=overlap)
+        for page_chunk_index, chunk in enumerate(page_chunks):
+            records.append(
+                {
+                    "text": chunk,
+                    "chunk": chunk_index,
+                    "page": page_number,
+                    "page_start": page_number,
+                    "page_end": page_number,
+                    "page_chunk": page_chunk_index,
+                }
+            )
+            chunk_index += 1
+    return records
+
+
 def ingest_pdf_to_namespace(
     pdf_path: str,
     namespace: str,
     metadata: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Загружает PDF в указанную коллекцию (namespace) донора."""
-    text = load_pdf_text(pdf_path)
-    chunks = chunk_text(text)
+    pages = load_pdf_pages(pdf_path)
+    chunk_records = chunk_pages(pages)
 
-    ids = [f"{namespace}_{Path(pdf_path).stem}_{i}" for i in range(len(chunks))]
-    metadatas = [
-        {**{"source": pdf_path, "chunk": i}, **(metadata or {})}
-        for i in range(len(chunks))
-    ]
+    # Fallback for unusual extractors/files that return no per-page chunks but some text.
+    if not chunk_records:
+        text = "".join(pages)
+        for idx, chunk in enumerate(chunk_text(text) if text else []):
+            chunk_records.append({"text": chunk, "chunk": idx})
+
+    ids: List[str] = []
+    chunks: List[str] = []
+    metadatas: List[Dict[str, Any]] = []
+    stem = Path(pdf_path).stem
+    for record in chunk_records:
+        page = record.get("page")
+        page_chunk = record.get("page_chunk")
+        chunk_idx = int(record.get("chunk", len(ids)))
+        if page is not None and page_chunk is not None:
+            doc_id = f"{namespace}_{stem}_p{page}_c{page_chunk}"
+        else:
+            doc_id = f"{namespace}_{stem}_{chunk_idx}"
+        ids.append(doc_id)
+        chunks.append(str(record.get("text", "")))
+        metadatas.append(
+            {
+                **{
+                    "source": pdf_path,
+                    "chunk": chunk_idx,
+                    "chunk_id": doc_id,
+                    **({k: v for k, v in record.items() if k != "text"}),
+                },
+                **(metadata or {}),
+            }
+        )
 
     vector_store.upsert(namespace=namespace, ids=ids, documents=chunks, metadatas=metadatas)
 

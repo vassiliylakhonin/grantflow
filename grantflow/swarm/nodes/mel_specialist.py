@@ -6,6 +6,7 @@ from typing import Dict, Any
 
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
+from grantflow.swarm.citations import append_citations
 
 
 def _build_query_text(state: Dict[str, Any]) -> str:
@@ -30,6 +31,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
     top_k = max(1, min(int(config.rag.default_top_k or 3), 3))
 
     indicators: list[dict[str, Any]] = []
+    citation_records: list[dict[str, Any]] = []
     rag_trace: Dict[str, Any] = {
         "namespace": namespace,
         "query": query_text,
@@ -63,6 +65,22 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                     "evidence_excerpt": str(doc)[:240],
                 }
             )
+            citation_records.append(
+                {
+                    "stage": "mel",
+                    "citation_type": "rag_result",
+                    "namespace": namespace,
+                    "source": meta.get("source"),
+                    "page": meta.get("page"),
+                    "page_start": meta.get("page_start"),
+                    "page_end": meta.get("page_end"),
+                    "chunk": meta.get("chunk"),
+                    "chunk_id": meta.get("chunk_id"),
+                    "label": citation,
+                    "used_for": meta.get("indicator_id", f"IND_{idx+1:03d}"),
+                    "excerpt": str(doc)[:240],
+                }
+            )
         rag_trace["used_results"] = len(indicators)
     except Exception as exc:
         state.setdefault("errors", []).append(f"MEL RAG query failed: {exc}")
@@ -81,8 +99,19 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                 "target": "TBD",
             }
         ]
+        citation_records.append(
+            {
+                "stage": "mel",
+                "citation_type": "fallback_namespace",
+                "namespace": namespace,
+                "label": namespace,
+                "used_for": "IND_001",
+            }
+        )
 
-    mel = {"indicators": indicators, "rag_trace": rag_trace}
+    rag_trace["citation_count"] = len(citation_records)
+    mel = {"indicators": indicators, "rag_trace": rag_trace, "citations": citation_records}
     state["mel"] = mel
     state["logframe_draft"] = mel
+    append_citations(state, citation_records)
     return state

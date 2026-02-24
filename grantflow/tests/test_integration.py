@@ -116,6 +116,57 @@ def test_status_redacts_internal_strategy_objects():
     assert state["toc_draft"]
 
 
+def test_status_includes_citations_traceability(monkeypatch):
+    def fake_query(namespace, query_texts, n_results=5, where=None, top_k=None):
+        return {
+            "documents": [["Official indicator guidance excerpt"]],
+            "metadatas": [[{
+                "source": "/tmp/usaid_guide.pdf",
+                "page": 12,
+                "page_start": 12,
+                "page_end": 12,
+                "chunk": 3,
+                "chunk_id": "usaid_ads201_p12_c0",
+                "indicator_id": "EG.3.2-1",
+                "citation": "USAID ADS 201 p.12",
+                "name": "Households with improved access",
+            }]],
+        }
+
+    monkeypatch.setattr(api_app_module.vector_store, "query", fake_query)
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+    state = status["state"]
+    citations = state.get("citations")
+    assert isinstance(citations, list)
+    assert citations
+
+    mel_citations = [c for c in citations if c.get("stage") == "mel"]
+    assert mel_citations
+    citation = mel_citations[0]
+    assert citation["citation_type"] == "rag_result"
+    assert citation["namespace"] == "usaid_ads201"
+    assert citation["source"] == "/tmp/usaid_guide.pdf"
+    assert citation["page"] == 12
+    assert citation["chunk"] == 3
+    assert citation["chunk_id"] == "usaid_ads201_p12_c0"
+    assert citation["used_for"] == "EG.3.2-1"
+    assert "excerpt" in citation and citation["excerpt"]
+
+
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
 

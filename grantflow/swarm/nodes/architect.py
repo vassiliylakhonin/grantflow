@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Dict, Any
 
+from grantflow.swarm.citations import append_citations
+
 
 def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -45,4 +47,16 @@ def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
         "toc": toc,
         "citation": f"Based on {strategy.get_rag_collection()}",
     }
+    append_citations(
+        state,
+        [
+            {
+                "stage": "architect",
+                "citation_type": "strategy_namespace",
+                "namespace": strategy.get_rag_collection(),
+                "label": f"Based on {strategy.get_rag_collection()}",
+                "used_for": "toc_draft",
+            }
+        ],
+    )
     return state
