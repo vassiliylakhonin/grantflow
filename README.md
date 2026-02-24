@@ -246,6 +246,10 @@ Core endpoints:
 - `GET /status/{job_id}/citations` - retrieve typed citation/traceability records for the job
 - `GET /status/{job_id}/versions` - retrieve typed draft version history snapshots (`toc` / `logframe`)
 - `GET /status/{job_id}/diff` - retrieve a unified diff between draft versions (optionally filtered by section)
+- `GET /status/{job_id}/comments` - retrieve typed reviewer comments (filterable by section/status/version)
+- `POST /status/{job_id}/comments` - add a reviewer comment for `toc`, `logframe`, or `general`
+- `POST /status/{job_id}/comments/{comment_id}/resolve` - mark a reviewer comment as resolved
+- `POST /status/{job_id}/comments/{comment_id}/reopen` - reopen a resolved reviewer comment
 - `GET /status/{job_id}/events` - retrieve typed job timeline/audit trail events
 - `GET /status/{job_id}/metrics` - retrieve derived workflow/ROI metrics from the job timeline
 - `GET /portfolio/metrics` - retrieve aggregated ROI/ops metrics across jobs (with filters)
@@ -352,6 +356,53 @@ Example diff response shape:
   "has_diff": true,
   "diff_text": "--- toc_v1\n+++ toc_v2\n@@ ...",
   "diff_lines": ["--- toc_v1", "+++ toc_v2", "@@ ..."]
+}
+```
+
+### Review comments (optional)
+
+GrantFlow supports lightweight reviewer comments tied to a job and optionally to a specific draft version (`version_id`) for `toc` / `logframe` sections.
+
+If `GRANTFLOW_API_KEY` is configured, send `X-API-Key` on comment write actions (`POST /status/{job_id}/comments`, `resolve`, `reopen`).
+
+List comments (with optional filters):
+
+```bash
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/comments
+curl -s "http://127.0.0.1:8000/status/<JOB_ID>/comments?section=toc&status=open"
+```
+
+Add a comment:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "section": "toc",
+    "message": "Please tighten assumptions and clarify beneficiary targeting.",
+    "author": "reviewer-1",
+    "version_id": "toc_v2"
+  }'
+```
+
+Resolve / reopen a comment:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments/<COMMENT_ID>/resolve
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments/<COMMENT_ID>/reopen
+```
+
+Example comment response shape:
+
+```json
+{
+  "comment_id": "uuid",
+  "ts": "2026-02-24T12:00:00+00:00",
+  "section": "toc",
+  "status": "open",
+  "message": "Please tighten assumptions and clarify beneficiary targeting.",
+  "author": "reviewer-1",
+  "version_id": "toc_v2"
 }
 ```
 
