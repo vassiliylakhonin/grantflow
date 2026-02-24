@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import threading
 import uuid
 import zipfile
 from enum import Enum
@@ -12,6 +11,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from grantflow.core.config import config
+from grantflow.core.stores import create_job_store_from_env
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
@@ -28,28 +28,21 @@ app = FastAPI(
     version="2.0.0",
 )
 
-JOB_STATUS_DB: Dict[str, Dict[str, Any]] = {}
-JOB_LOCK = threading.Lock()
+JOB_STORE = create_job_store_from_env()
 
 HITLStartAt = Literal["start", "architect", "mel", "critic"]
 
 
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
-    with JOB_LOCK:
-        JOB_STATUS_DB[job_id] = payload
+    JOB_STORE.set(job_id, payload)
 
 
 def _update_job(job_id: str, **patch: Any) -> Dict[str, Any]:
-    with JOB_LOCK:
-        current = dict(JOB_STATUS_DB.get(job_id, {}))
-        current.update(patch)
-        JOB_STATUS_DB[job_id] = current
-        return current
+    return JOB_STORE.update(job_id, **patch)
 
 
 def _get_job(job_id: str) -> Optional[Dict[str, Any]]:
-    with JOB_LOCK:
-        return JOB_STATUS_DB.get(job_id)
+    return JOB_STORE.get(job_id)
 
 
 class GenerateRequest(BaseModel):
