@@ -184,3 +184,113 @@ curl -s -X POST http://127.0.0.1:8000/generate \
     "hitl_enabled": false
   }'
 ```
+
+## API Overview
+
+Core endpoints:
+
+- `GET /health` - service health/status
+- `GET /donors` - supported donor catalog and aliases
+- `POST /generate` - start async drafting job
+- `GET /status/{job_id}` - poll job status/state
+- `POST /resume/{job_id}` - resume a HITL-paused job
+- `GET /hitl/pending` - list pending checkpoints
+- `POST /hitl/approve` - approve/reject checkpoint
+- `POST /export` - export outputs as `docx`, `xlsx`, or ZIP
+
+## Human-in-the-Loop Checkpoints (MVP)
+
+GrantFlow supports pause/approve/resume checkpoints in the drafting flow.
+
+- ToC checkpoint after architect step
+- LogFrame checkpoint after MEL step
+- Resume behavior depends on approval vs rejection
+- Job status transitions include `pending_hitl`
+
+## RAG / Knowledge Ingestion
+
+GrantFlow is RAG-ready and uses ChromaDB namespaces for donor knowledge.
+
+- Namespace isolation via collection prefix (`CHROMA_COLLECTION_PREFIX`)
+- Persistent Chroma client by default (`./chroma_db`)
+- In-memory fallback behavior for local/offline smoke tests
+- Donor strategies can map to donor-specific knowledge collections
+
+## Exporters
+
+Current exporters generate:
+
+- `.docx` from ToC content
+- `.xlsx` from LogFrame content
+- ZIP bundle when `format="both"`
+
+## Project Structure
+
+```text
+grantflow/
+  api/              FastAPI app and endpoints
+  core/             config + donor strategy logic
+  exporters/        Word/Excel artifact builders
+  memory_bank/      Chroma wrapper / vector store
+  swarm/            LangGraph pipeline + nodes + HITL
+  tests/            pytest suite
+```
+
+Top-level scripts:
+
+- `deploy.sh` - local/production Docker deployment helper
+- `backup.sh` - ChromaDB backup rotation helper
+
+## Development
+
+Local development loop:
+
+```bash
+pip install -r grantflow/requirements.txt
+uvicorn grantflow.api.app:app --reload
+```
+
+Optional environment variables:
+
+- `OPENAI_API_KEY`
+- `CHROMA_HOST`
+- `CHROMA_PORT`
+- `CHROMA_COLLECTION_PREFIX`
+- `CHROMA_PERSIST_DIRECTORY`
+
+## Testing
+
+Run tests:
+
+```bash
+python -m pytest -c grantflow/pytest.ini grantflow/tests/ -v --tb=short
+```
+
+Shell checks:
+
+```bash
+bash -n deploy.sh
+bash -n backup.sh
+shellcheck deploy.sh backup.sh
+```
+
+CI runs both Python tests and shell script lint/syntax checks.
+
+## Security Notes
+
+- Do not commit real API keys in `.env`
+- Review generated proposal content before external submission
+- Treat donor guidance and uploaded source materials as sensitive
+- Validate exported artifacts in your internal QA/compliance workflow
+
+## Roadmap
+
+- Expand donor-specific strategies and schemas
+- Improve citation grounding and evidence traceability
+- Add richer review UI for HITL checkpoints
+- Strengthen export templates and formatting controls
+- Broaden test coverage for edge cases and failure modes
+
+## License
+
+MIT (as indicated by the repository badge/metadata). Add a `LICENSE` file if you want explicit in-repo license text.
