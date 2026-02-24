@@ -31,10 +31,13 @@ def public_state_snapshot(state: Any) -> Any:
 def public_job_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     public_job: Dict[str, Any] = {}
     for key, value in job.items():
+        if key in {"webhook_url", "webhook_secret"}:
+            continue
         if key == "state":
             public_job[key] = public_state_snapshot(value)
             continue
         public_job[str(key)] = sanitize_for_public_response(value)
+    public_job["webhook_configured"] = bool(job.get("webhook_url"))
     return public_job
 
 

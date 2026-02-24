@@ -177,6 +177,7 @@ def test_openapi_declares_api_key_security_scheme():
 
     generate_security = (((spec.get("paths") or {}).get("/generate") or {}).get("post") or {}).get("security")
     ingest_security = (((spec.get("paths") or {}).get("/ingest") or {}).get("post") or {}).get("security")
+    cancel_security = (((spec.get("paths") or {}).get("/cancel/{job_id}") or {}).get("post") or {}).get("security")
     status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
@@ -194,6 +195,7 @@ def test_openapi_declares_api_key_security_scheme():
     )
     assert generate_security == [{"ApiKeyAuth": []}]
     assert ingest_security == [{"ApiKeyAuth": []}]
+    assert cancel_security == [{"ApiKeyAuth": []}]
     assert status_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
@@ -269,6 +271,97 @@ def test_ingest_endpoint_requires_api_key_when_configured(monkeypatch):
         headers={"X-API-Key": "test-secret"},
     )
     assert response.status_code == 200
+
+
+def test_generate_dispatches_webhook_events(monkeypatch):
+    events = []
+
+    def fake_send_job_webhook_event(**kwargs):
+        events.append(kwargs)
+
+    monkeypatch.setattr(api_app_module, "send_job_webhook_event", fake_send_job_webhook_event)
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Livelihoods", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+            "webhook_url": "https://example.com/webhook",
+            "webhook_secret": "secret123",
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+
+    event_names = [evt["event"] for evt in events]
+    assert "job.started" in event_names
+    assert "job.completed" in event_names
+
+    completed = [evt for evt in events if evt["event"] == "job.completed"][-1]
+    assert completed["job_id"] == job_id
+    assert completed["url"] == "https://example.com/webhook"
+    assert completed["secret"] == "secret123"
+    assert completed["job"]["status"] == "done"
+    assert completed["job"]["webhook_configured"] is True
+    assert "webhook_url" not in completed["job"]
+    assert "webhook_secret" not in completed["job"]
+
+
+def test_cancel_pending_hitl_job_and_cleanup_checkpoint(monkeypatch):
+    events = []
+
+    def fake_send_job_webhook_event(**kwargs):
+        events.append(kwargs)
+
+    monkeypatch.setattr(api_app_module, "send_job_webhook_event", fake_send_job_webhook_event)
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Education", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": True,
+            "webhook_url": "https://example.com/webhook",
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "pending_hitl"
+    checkpoint_id = status["checkpoint_id"]
+
+    cancel = client.post(f"/cancel/{job_id}")
+    assert cancel.status_code == 200
+    assert cancel.json()["status"] == "canceled"
+    assert cancel.json()["previous_status"] == "pending_hitl"
+
+    status_after = client.get(f"/status/{job_id}")
+    assert status_after.status_code == 200
+    body = status_after.json()
+    assert body["status"] == "canceled"
+    assert body["webhook_configured"] is True
+    assert "webhook_url" not in body
+    assert "webhook_secret" not in body
+
+    checkpoint = api_app_module.hitl_manager.get_checkpoint(checkpoint_id)
+    assert checkpoint is not None
+    cp_status = checkpoint["status"]
+    assert getattr(cp_status, "value", cp_status) == "canceled"
+
+    pending = client.get("/hitl/pending")
+    assert pending.status_code == 200
+    assert all(cp["id"] != checkpoint_id for cp in pending.json()["checkpoints"])
+
+    event_names = [evt["event"] for evt in events]
+    assert "job.pending_hitl" in event_names
+    assert "job.canceled" in event_names
 
 
 def test_hitl_pause_resume_flow():

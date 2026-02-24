@@ -26,6 +26,7 @@ class HITLStatus(str, Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     REVISED = "revised"
+    CANCELED = "canceled"
 
 
 class HITLCheckpoint:
@@ -156,6 +157,27 @@ class HITLCheckpoint:
             if checkpoint_id not in self._checkpoints:
                 return False
             self._checkpoints[checkpoint_id]["status"] = HITLStatus.REJECTED
+            self._checkpoints[checkpoint_id]["feedback"] = feedback
+            return True
+
+    def cancel(self, checkpoint_id: str, feedback: Optional[str] = None) -> bool:
+        if self._use_sqlite:
+            with self._lock:
+                with self._connect() as conn:
+                    cur = conn.execute(
+                        """
+                        UPDATE hitl_checkpoints
+                        SET status = ?, feedback = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                        """,
+                        (HITLStatus.CANCELED.value, feedback, checkpoint_id),
+                    )
+                    return cur.rowcount > 0
+
+        with self._lock:
+            if checkpoint_id not in self._checkpoints:
+                return False
+            self._checkpoints[checkpoint_id]["status"] = HITLStatus.CANCELED
             self._checkpoints[checkpoint_id]["feedback"] = feedback
             return True
 

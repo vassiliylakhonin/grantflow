@@ -19,6 +19,7 @@ from grantflow.api.security import (
     read_auth_required,
     require_api_key_if_configured,
 )
+from grantflow.api.webhooks import send_job_webhook_event
 from grantflow.core.config import config
 from grantflow.core.stores import create_job_store_from_env
 from grantflow.core.strategies.factory import DonorFactory
@@ -42,14 +43,38 @@ app = FastAPI(
 JOB_STORE = create_job_store_from_env()
 
 HITLStartAt = Literal["start", "architect", "mel", "critic"]
+TERMINAL_JOB_STATUSES = {"done", "error", "canceled"}
+STATUS_WEBHOOK_EVENTS = {
+    "running": "job.started",
+    "pending_hitl": "job.pending_hitl",
+    "done": "job.completed",
+    "error": "job.failed",
+    "canceled": "job.canceled",
+}
 
 
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
-    JOB_STORE.set(job_id, payload)
+    previous = JOB_STORE.get(job_id)
+    next_payload = dict(payload)
+
+    if previous and previous.get("status") == "canceled" and next_payload.get("status") != "canceled":
+        return
+
+    for key in ("webhook_url", "webhook_secret"):
+        if key not in next_payload and previous and previous.get(key):
+            next_payload[key] = previous.get(key)
+
+    JOB_STORE.set(job_id, next_payload)
+    _dispatch_job_webhook_for_status_change(job_id, previous, next_payload)
 
 
 def _update_job(job_id: str, **patch: Any) -> Dict[str, Any]:
-    return JOB_STORE.update(job_id, **patch)
+    previous = JOB_STORE.get(job_id)
+    if previous and previous.get("status") == "canceled" and patch.get("status") != "canceled":
+        return previous
+    updated = JOB_STORE.update(job_id, **patch)
+    _dispatch_job_webhook_for_status_change(job_id, previous, updated)
+    return updated
 
 
 def _get_job(job_id: str) -> Optional[Dict[str, Any]]:
@@ -61,6 +86,8 @@ class GenerateRequest(BaseModel):
     input_context: Dict[str, Any]
     llm_mode: bool = False
     hitl_enabled: bool = False
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -114,12 +141,58 @@ def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> N
     state["hitl_feedback"] = feedback
 
 
+def _job_is_canceled(job_id: str) -> bool:
+    job = _get_job(job_id)
+    return bool(job and job.get("status") == "canceled")
+
+
+def _dispatch_job_webhook_for_status_change(
+    job_id: str,
+    previous: Optional[Dict[str, Any]],
+    current: Optional[Dict[str, Any]],
+) -> None:
+    if not current:
+        return
+
+    previous_status = (previous or {}).get("status")
+    current_status = current.get("status")
+    if previous_status == current_status:
+        return
+
+    event_name = STATUS_WEBHOOK_EVENTS.get(str(current_status))
+    if not event_name:
+        return
+
+    webhook_url = str(current.get("webhook_url") or (previous or {}).get("webhook_url") or "").strip()
+    if not webhook_url:
+        return
+
+    webhook_secret = current.get("webhook_secret") or (previous or {}).get("webhook_secret")
+    public_payload = public_job_payload(current)
+    try:
+        send_job_webhook_event(
+            url=webhook_url,
+            secret=str(webhook_secret) if webhook_secret else None,
+            event=event_name,
+            job_id=job_id,
+            job=public_payload,
+        )
+    except Exception:
+        # Webhook delivery failures are non-fatal for the job lifecycle.
+        pass
+
+
 install_openapi_api_key_security(app)
 
 
 def _pause_for_hitl(job_id: str, state: dict, stage: Literal["toc", "logframe"], resume_from: HITLStartAt) -> None:
+    if _job_is_canceled(job_id):
+        return
     donor_id = state.get("donor") or state.get("donor_id") or "unknown"
     checkpoint_id = hitl_manager.create_checkpoint(stage, state, donor_id)
+    if _job_is_canceled(job_id):
+        hitl_manager.cancel(checkpoint_id, "Canceled before HITL checkpoint was published")
+        return
     _set_job(
         job_id,
         {
@@ -135,8 +208,14 @@ def _pause_for_hitl(job_id: str, state: dict, stage: Literal["toc", "logframe"],
 
 def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
     try:
+        if _job_is_canceled(job_id):
+            return
         _set_job(job_id, {"status": "running", "state": initial_state, "hitl_enabled": False})
+        if _job_is_canceled(job_id):
+            return
         final_state = grantflow_graph.invoke(initial_state)
+        if _job_is_canceled(job_id):
+            return
         _set_job(job_id, {"status": "done", "state": final_state, "hitl_enabled": False})
     except Exception as exc:
         _set_job(job_id, {"status": "error", "error": str(exc), "hitl_enabled": False})
@@ -144,6 +223,8 @@ def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
 
 def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
     try:
+        if _job_is_canceled(job_id):
+            return
         _set_job(
             job_id,
             {
@@ -153,28 +234,42 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
                 "resume_from": start_at,
             },
         )
+        if _job_is_canceled(job_id):
+            return
 
         if start_at == "start":
             state = validate_input_richness(state)
+            if _job_is_canceled(job_id):
+                return
             state = draft_toc(state)
+            if _job_is_canceled(job_id):
+                return
             _pause_for_hitl(job_id, state, stage="toc", resume_from="mel")
             return
 
         if start_at == "architect":
             state = draft_toc(state)
+            if _job_is_canceled(job_id):
+                return
             _pause_for_hitl(job_id, state, stage="toc", resume_from="mel")
             return
 
         if start_at == "mel":
             state = mel_assign_indicators(state)
+            if _job_is_canceled(job_id):
+                return
             _pause_for_hitl(job_id, state, stage="logframe", resume_from="critic")
             return
 
         if start_at == "critic":
             state = red_team_critic(state)
+            if _job_is_canceled(job_id):
+                return
             if state.get("needs_revision"):
                 # Re-enter review cycle with a fresh ToC checkpoint.
                 state = draft_toc(state)
+                if _job_is_canceled(job_id):
+                    return
                 _pause_for_hitl(job_id, state, stage="toc", resume_from="mel")
                 return
             _set_job(job_id, {"status": "done", "state": state, "hitl_enabled": True})
@@ -285,6 +380,13 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
     if not donor:
         raise HTTPException(status_code=400, detail="Missing donor_id")
 
+    webhook_url = (req.webhook_url or "").strip() or None
+    webhook_secret = (req.webhook_secret or "").strip() or None
+    if webhook_secret and not webhook_url:
+        raise HTTPException(status_code=400, detail="webhook_secret requires webhook_url")
+    if webhook_url and not (webhook_url.startswith("http://") or webhook_url.startswith("https://")):
+        raise HTTPException(status_code=400, detail="webhook_url must start with http:// or https://")
+
     try:
         strategy = DonorFactory.get_strategy(donor)
     except ValueError as exc:
@@ -312,12 +414,49 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         "errors": [],
     }
 
-    _set_job(job_id, {"status": "accepted", "state": initial_state, "hitl_enabled": req.hitl_enabled})
+    _set_job(
+        job_id,
+        {
+            "status": "accepted",
+            "state": initial_state,
+            "hitl_enabled": req.hitl_enabled,
+            "webhook_url": webhook_url,
+            "webhook_secret": webhook_secret,
+        },
+    )
     if req.hitl_enabled:
         background_tasks.add_task(_run_hitl_pipeline, job_id, initial_state, "start")
     else:
         background_tasks.add_task(_run_pipeline_to_completion, job_id, initial_state)
     return {"status": "accepted", "job_id": job_id}
+
+
+@app.post("/cancel/{job_id}")
+def cancel_job(job_id: str, request: Request):
+    require_api_key_if_configured(request)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    status = str(job.get("status") or "")
+    if status == "canceled":
+        return {"status": "canceled", "job_id": job_id, "already_canceled": True}
+    if status in {"done", "error"}:
+        raise HTTPException(status_code=409, detail=f"Job is already terminal: {status}")
+
+    checkpoint_id = job.get("checkpoint_id")
+    if checkpoint_id:
+        checkpoint = hitl_manager.get_checkpoint(str(checkpoint_id))
+        if checkpoint and checkpoint.get("status") == HITLStatus.PENDING:
+            hitl_manager.cancel(str(checkpoint_id), "Canceled by user")
+
+    _update_job(
+        job_id,
+        status="canceled",
+        cancellation_reason="Canceled by user",
+        canceled=True,
+    )
+    return {"status": "canceled", "job_id": job_id, "previous_status": status}
 
 
 @app.post("/resume/{job_id}")
