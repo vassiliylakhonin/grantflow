@@ -1,147 +1,110 @@
 # GrantFlow
 
-**Compliance-aware, agentic proposal drafting engine for institutional funding workflows**
+Compliance-aware, agentic proposal drafting engine for institutional funding workflows (FastAPI + LangGraph + donor strategies + HITL).
 
-GrantFlow is a FastAPI + LangGraph backend that helps proposal teams convert structured project input into donor-aligned draft artifacts for institutional funders.
+[![CI](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml/badge.svg)](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-API-009688.svg)](https://fastapi.tiangolo.com/)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Stateful%20Agents-black.svg)](https://www.langchain.com/langgraph)
 
-It combines donor-specific strategy isolation, stateful orchestration, critique loops, and exportable outputs to reduce proposal preparation time and review cycles.
+GrantFlow helps NGOs, consultants, and program teams convert structured project ideas into donor-aligned drafts (ToC, LogFrame, MEL), with critique loops, citations, exportable artifacts, and human-in-the-loop checkpoints.
 
-## What Problem It Solves
+## Table of Contents
 
-Teams writing grants for major donors often lose time on the same expensive steps:
+- [What GrantFlow Solves](#what-grantflow-solves)
+- [Key Features](#key-features)
+- [Architecture Overview](#architecture-overview)
+- [Donor Coverage](#donor-coverage)
+- [Quick Start](#quick-start)
+- [API Overview](#api-overview)
+- [Human-in-the-Loop Checkpoints (MVP)](#human-in-the-loop-checkpoints-mvp)
+- [RAG / Knowledge Ingestion](#rag--knowledge-ingestion)
+- [Exporters](#exporters)
+- [Project Structure](#project-structure)
+- [Development](#development)
+- [Testing](#testing)
+- [Security Notes](#security-notes)
+- [Roadmap](#roadmap)
+- [License](#license)
 
-- translating raw project ideas into donor-specific structure
-- aligning ToC / LogFrame logic with compliance expectations
-- drafting MEL indicators with traceable justification and citations
-- iterating across reviewers when logic gaps are discovered late
+## What GrantFlow Solves
 
-General-purpose LLMs can draft text, but they often fail on donor-specific structure, auditability, and consistency. GrantFlow is designed to be a **compliance-aware orchestration backend**, not a one-shot text generator.
+GrantFlow reduces the time and effort required to turn a raw project concept into donor-aligned proposal artifacts.
 
-## What GrantFlow Produces
+It is designed for NGOs, consultants, and program teams that need structured, reviewable drafts for institutional funding workflows.
 
-- Theory of Change (ToC) draft
-- LogFrame / MEL indicators draft
-- Export files for review (`docx`, `xlsx`, or ZIP bundle)
+### Outputs
+- Theory of Change (ToC)
+- Logical Framework / LogFrame
+- MEL plan artifacts
+- Exportable `.docx` / `.xlsx` (or both as ZIP)
 
-## Positioning (Product)
+## Key Features
 
-GrantFlow can be described as:
+- Donor strategy isolation (USAID, EU, World Bank, GIZ, U.S. State Department, plus generic donor coverage)
+- Agentic workflow orchestration with LangGraph
+- Critic loop for iterative quality improvement
+- Human-in-the-loop checkpoints (pause/approve/resume)
+- RAG-ready donor knowledge namespaces (ChromaDB)
+- FastAPI backend for integration into web apps or internal tools
 
-- **AI-assisted grant proposal orchestration platform**
-- **Agentic workflow for donor-compliant proposal drafting**
-- **Multi-agent grant drafting backend (LangGraph + FastAPI)**
+## Architecture Overview
 
-Practical note:
-- This is an AI-assisted system with human review, not a claim of fully autonomous proposal writing.
+GrantFlow uses a stateful graph pipeline to orchestrate specialized drafting steps:
 
-## Architecture (MVP)
+`discovery -> architect -> mel -> critic -> (loop if needed)`
 
-- `FastAPI` API for job orchestration and export
-- `LangGraph` workflow: `discovery -> architect -> mel -> critic`
-- Critic loop with quality threshold and max iterations
-- Donor-specific strategy classes for prompt isolation + RAG namespace isolation
-- `ChromaDB` vector store wrapper with namespace isolation
-- Fallback in-memory vector backend when Chroma is unavailable (useful in local/sandboxed environments)
+### Design principles
+- Compliance-aware donor logic via Strategy Pattern
+- Deterministic orchestration via LangGraph
+- Explicit state transitions and job status tracking
+- Review checkpoints for human governance
 
 ## Donor Coverage
 
-GrantFlow currently supports a **catalog of 45 donors / donor groups** via `GET /donors`.
+GrantFlow currently supports a broad donor catalog via canonical `donor_id` values and aliases (see `GET /donors`), with two levels of support:
 
-This includes:
+### Specialized strategies (donor-specific prompts / rules / schemas)
+- `usaid`
+- `eu`
+- `worldbank`
+- `giz`
+- `us_state_department` (alias: `state_department`)
 
-- intergovernmental / supranational donors (EU, UN agencies cluster, World Bank/IFC, AfDB, ADB, IDB, EBRD, Global Fund, Gavi)
-- major bilateral donors and agencies (USAID, U.S. Department of State, FCDO, GIZ, JICA, Sida, Norad, SDC, GAC, AFD, and others)
-- private foundations and philanthropic funders (Gates Foundation, Open Society Foundations, Rockefeller Foundation, Ford Foundation, Wellcome Trust, etc.)
+### Generic strategy coverage (catalog + aliases, shared drafting behavior)
+Examples:
+- `un_agencies` (aliases include `undp`, `unicef`, `unhcr`, `wfp`, `unwomen`, `unfpa`)
+- `fcdo`
+- `gavi`
+- `global_fund`
+- `gates_foundation`
+- and additional bilateral / multilateral / foundation donors from the catalog
 
-### Strategy Types
+### Notes for integrators
+- Use `GET /donors` to fetch the full supported list and aliases at runtime.
+- Prefer canonical `donor_id` values in client integrations.
+- Specialized donors provide stronger donor-specific behavior than generic donors.
 
-GrantFlow supports two levels of donor handling:
+## Quick Start
 
-- **Specialized strategies** (custom prompts/schema today): `usaid`, `eu`, `worldbank`, `giz`, `us_state_department`
-- **Generic donor strategy** (catalog-backed, donor-specific metadata + RAG namespace): all other catalog entries
-
-Canonical donor IDs and aliases are exposed by `GET /donors`.
-
-### Quick Reference for Integrators
-
-| Tier | Canonical `donor_id` | Example aliases | Notes |
-|------|----------------------|-----------------|-------|
-| Specialized | `usaid` | `usaid.gov` | Custom strategy + donor-specific prompts/schema |
-| Specialized | `eu` | `european-union`, `ec` | Custom strategy + EU-specific prompts/schema |
-| Specialized | `worldbank` | `world_bank`, `ifc` | Custom strategy + World Bank prompts/schema |
-| Specialized | `giz` | `deutsche_gesellschaft_fur_internationale_zusammenarbeit` | Custom GIZ strategy |
-| Specialized | `us_state_department` | `state_department`, `us_department_of_state` | Custom U.S. State Department strategy |
-| Generic (catalog-backed) | `un_agencies` | `undp`, `unicef`, `wfp`, `unhcr`, `unwomen`, `unfpa` | Shared UN agencies strategy metadata + namespace |
-| Generic (catalog-backed) | `fcdo` | `ukaid`, `foreign_commonwealth_development_office` | Generic strategy with donor-specific metadata |
-| Generic (catalog-backed) | `gavi` | `gavi_vaccine_alliance` | Generic strategy with donor-specific metadata |
-| Generic (catalog-backed) | `global_fund` | `globalfund`, `the_global_fund` | Generic strategy with donor-specific metadata |
-| Generic (catalog-backed) | `gates_foundation` | `gates`, `bill_and_melinda_gates_foundation` | Generic strategy with donor-specific metadata |
-
-For the complete list (45 records), query `GET /donors`.
-
-## Human-in-the-Loop Checkpoints (MVP)
-
-GrantFlow currently includes **Human-in-the-Loop Checkpoints (MVP)** at the API level:
-
-- checkpoint creation when `hitl_enabled=true`
-- job status transition to `pending_hitl`
-- approval/rejection endpoints for review workflows
-- explicit resume endpoint (`POST /resume/{job_id}`) to continue execution after review
-
-Current scope:
-- staged pause/resume is implemented at the API/job runner level (`/generate` -> `pending_hitl` -> `/resume/{job_id}`)
-- full graph-native pause/resume inside LangGraph itself is still a planned next step
-
-This is the recommended wording for public materials today:
-- **Human-in-the-loop checkpoints (MVP) for review and approval**
-
-## API Contract (Current)
-
-`POST /generate` expects a strict payload:
-
-```json
-{
-  "donor_id": "usaid",
-  "input_context": {
-    "project": "Water Sanitation",
-    "country": "Kenya"
-  },
-  "llm_mode": false,
-  "hitl_enabled": false
-}
-```
-
-Notes:
-
-- `donor_id` + `input_context` are required
-- older shapes such as `donor` / `input` are intentionally rejected (`422`) to keep the public contract stable
-- if `llm_mode=true` but `OPENAI_API_KEY` is not set, the critic falls back to a deterministic local evaluator instead of failing the job
-- donor aliases are supported (for example `state_department`, `undp`, `giz`)
-
-## Quickstart (Local)
+### 1) Install dependencies
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
 pip install -r grantflow/requirements.txt
 
-cp .env.example .env
-# Add OPENAI_API_KEY if you want live LLM critique
-
+2) (Optional) Configure environment
+export OPENAI_API_KEY=your_key_here
+export CHROMA_HOST=localhost
+export CHROMA_PORT=8000
+export CHROMA_COLLECTION_PREFIX=grantflow
+3) Run the API
 uvicorn grantflow.api.app:app --reload
-```
+API will start on http://127.0.0.1:8000.
 
-Health check:
-
-```bash
+4) Health check
 curl -s http://127.0.0.1:8000/health
-```
-
-## Example Flow
-
-Create a generation job:
-
-```bash
+5) Generate a draft (USAID example)
 curl -s -X POST http://127.0.0.1:8000/generate \
   -H 'Content-Type: application/json' \
   -d '{
@@ -153,118 +116,38 @@ curl -s -X POST http://127.0.0.1:8000/generate \
     "llm_mode": false,
     "hitl_enabled": false
   }'
-```
-
-Poll job status:
-
-```bash
+6) Check job status
 curl -s http://127.0.0.1:8000/status/<JOB_ID>
-```
-
-Example (specialized donor: GIZ):
-
-```bash
+7) Export artifacts (docx, xlsx, or both)
+curl -s -X POST http://127.0.0.1:8000/export \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"payload\": $(curl -s http://127.0.0.1:8000/status/<JOB_ID> | python3 -c 'import sys,json; print(json.dumps(json.load(sys.stdin)[\"state\"]))'),
+    \"format\": \"both\"
+  }" \
+  -o grantflow_export.zip
+Additional donor examples
+GIZ (specialized strategy)
 curl -s -X POST http://127.0.0.1:8000/generate \
   -H 'Content-Type: application/json' \
   -d '{
     "donor_id": "giz",
     "input_context": {
-      "project": "TVET and SME support",
-      "country": "Kenya"
+      "project": "Youth Employment and SME Skills",
+      "country": "Jordan"
     },
     "llm_mode": false,
-    "hitl_enabled": true
+    "hitl_enabled": false
   }'
-```
-
-Example (specialized donor via alias: U.S. Department of State):
-
-```bash
+U.S. Department of State (alias: state_department)
 curl -s -X POST http://127.0.0.1:8000/generate \
   -H 'Content-Type: application/json' \
   -d '{
     "donor_id": "state_department",
     "input_context": {
-      "project": "Civil society resilience",
+      "project": "Independent Media Resilience",
       "country": "Georgia"
     },
     "llm_mode": false,
-    "hitl_enabled": true
+    "hitl_enabled": false
   }'
-```
-
-Export both artifacts as ZIP:
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/export \
-  -H 'Content-Type: application/json' \
-  -d '{"payload": {"state": {}}, "format": "both"}'
-```
-
-(For a real export call, pass the `state` object returned by `/status/<JOB_ID>`.)
-
-## Docker / Compose
-
-Minimal local stack (API + Chroma) is provided:
-
-- `Dockerfile`
-- `docker-compose.yml`
-
-Run:
-
-```bash
-docker-compose up --build
-```
-
-API will be available on `:8000`, Chroma on host `:8001`.
-
-## Ingesting Donor Documents (RAG)
-
-Ingest a single PDF into a donor namespace:
-
-```bash
-python -m grantflow.memory_bank.ingest /path/to/file.pdf usaid_ads201
-```
-
-Ingest all PDFs in a folder:
-
-```bash
-python -m grantflow.memory_bank.ingest /path/to/folder usaid_ads201 --folder
-```
-
-## Repository Layout
-
-```text
-grantflow/
-├── api/               # FastAPI app
-├── core/              # config, state, donor strategies
-├── exporters/         # docx/xlsx builders
-├── memory_bank/       # vector store + ingestion tools
-├── swarm/             # LangGraph graph + nodes + HITL
-└── tests/             # integration / strategy / vector store tests
-```
-
-## Security / Publishing Notes
-
-- Do not commit `.env` files or provider keys
-- `OPENAI_API_KEY` is expected from environment variables only
-- generated local data (`chroma_db/`, `backups/`) is ignored by `.gitignore`
-
-## Project Status
-
-This is an actively evolving MVP backend. The current implementation prioritizes:
-
-- stable API contract
-- deterministic workflow execution
-- donor strategy isolation
-- export pipeline reliability
-- staged review checkpoints with resume (HITL MVP)
-- broad donor catalog coverage with incremental specialization
-
-Next likely steps:
-
-- graph-native HITL pause/resume (inside LangGraph runtime)
-- more specialized strategies for priority donors (e.g. UN agencies, FCDO, Gavi, Global Fund, Gates)
-- stronger typed graph state across nodes
-- production job store (Redis/Celery)
-- richer donor-specific RAG + LLM drafting nodes
