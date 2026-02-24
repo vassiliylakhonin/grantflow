@@ -32,7 +32,7 @@ GrantFlow helps NGOs, consultants, and program teams convert structured project 
 
 GrantFlow reduces the time and effort required to turn a raw project concept into donor-aligned proposal artifacts.
 
-It is designed for NGOs, consultants, and program teams that need structured, reviewable drafts for institutional funding workflows.
+It is designed for implementing organizations (e.g. DAI, Chemonics, Tetra Tech), NGOs, and program teams that need structured, reviewable drafts for institutional funding workflows.
 
 ### Outputs
 - Theory of Change (ToC)
@@ -42,7 +42,7 @@ It is designed for NGOs, consultants, and program teams that need structured, re
 
 ## Key Features
 
-- Donor strategy isolation (USAID, EU, World Bank, GIZ, U.S. State Department, plus generic donor coverage)
+- Donor strategy isolation (U.S. State Department, USAID, EU, World Bank, GIZ, plus generic donor coverage)
 - Agentic workflow orchestration with LangGraph
 - Critic loop for iterative quality improvement
 - Human-in-the-loop checkpoints (pause/approve/resume)
@@ -311,4 +311,4 @@ CI runs both Python tests and shell script lint/syntax checks.
 
 ## License
 
-MIT (as indicated by the repository badge/metadata). Add a `LICENSE` file if you want explicit in-repo license text.
+MIT. See `LICENSE` for the full license text.
