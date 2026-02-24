@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Dict, Any
 
 from grantflow.swarm.citations import append_citations
+from grantflow.swarm.versioning import append_draft_version
 
 
 def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -47,6 +48,13 @@ def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
         "toc": toc,
         "citation": f"Based on {strategy.get_rag_collection()}",
     }
+    append_draft_version(
+        state,
+        section="toc",
+        content=state["toc_draft"],
+        node="architect",
+        iteration=iteration + 1,
+    )
     append_citations(
         state,
         [

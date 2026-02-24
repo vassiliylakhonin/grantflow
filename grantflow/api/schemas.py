@@ -44,6 +44,40 @@ class JobCitationsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class DraftVersionPublicResponse(BaseModel):
+    version_id: str
+    sequence: Optional[int] = None
+    section: Optional[str] = None
+    node: Optional[str] = None
+    iteration: Optional[int] = None
+    content: Dict[str, Any] = {}
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobVersionsPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    version_count: int
+    versions: list[DraftVersionPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobDiffPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    section: Optional[str] = None
+    from_version_id: Optional[str] = None
+    to_version_id: Optional[str] = None
+    has_diff: bool
+    error: Optional[str] = None
+    diff_text: str
+    diff_lines: list[str]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class HITLPendingCheckpointPublicResponse(BaseModel):
     id: str
     stage: str

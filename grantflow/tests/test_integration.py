@@ -176,6 +176,94 @@ def test_status_includes_citations_traceability(monkeypatch):
     assert citations_body["citations"][0]["stage"]
 
 
+def test_status_includes_draft_versions_traceability():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Livelihoods", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+    versions = status["state"].get("draft_versions")
+    assert isinstance(versions, list)
+    assert len(versions) >= 2
+    sections = {v.get("section") for v in versions}
+    assert "toc" in sections
+    assert "logframe" in sections
+
+
+def test_versions_and_diff_endpoints():
+    job_id = "test-job-versions-1"
+    api_app_module._set_job(
+        job_id,
+        {
+            "status": "done",
+            "hitl_enabled": False,
+            "state": {
+                "draft_versions": [
+                    {
+                        "version_id": "toc_v1",
+                        "sequence": 1,
+                        "section": "toc",
+                        "node": "architect",
+                        "iteration": 1,
+                        "content": {"toc": {"brief": "v1", "project": "Water"}},
+                        "content_hash": "hash1",
+                    },
+                    {
+                        "version_id": "toc_v2",
+                        "sequence": 2,
+                        "section": "toc",
+                        "node": "architect",
+                        "iteration": 2,
+                        "content": {"toc": {"brief": "v2", "project": "Water"}},
+                        "content_hash": "hash2",
+                    },
+                    {
+                        "version_id": "logframe_v1",
+                        "sequence": 3,
+                        "section": "logframe",
+                        "node": "mel_specialist",
+                        "iteration": 2,
+                        "content": {"indicators": [{"indicator_id": "IND_001"}]},
+                        "content_hash": "hash3",
+                    },
+                ]
+            },
+        },
+    )
+
+    versions_resp = client.get(f"/status/{job_id}/versions")
+    assert versions_resp.status_code == 200
+    versions_body = versions_resp.json()
+    assert versions_body["job_id"] == job_id
+    assert versions_body["version_count"] == 3
+    assert [v["version_id"] for v in versions_body["versions"]] == ["toc_v1", "toc_v2", "logframe_v1"]
+
+    toc_versions_resp = client.get(f"/status/{job_id}/versions", params={"section": "toc"})
+    assert toc_versions_resp.status_code == 200
+    assert toc_versions_resp.json()["version_count"] == 2
+
+    diff_resp = client.get(f"/status/{job_id}/diff", params={"section": "toc"})
+    assert diff_resp.status_code == 200
+    diff_body = diff_resp.json()
+    assert diff_body["job_id"] == job_id
+    assert diff_body["section"] == "toc"
+    assert diff_body["from_version_id"] == "toc_v1"
+    assert diff_body["to_version_id"] == "toc_v2"
+    assert diff_body["has_diff"] is True
+    assert "toc_v1" in diff_body["diff_text"]
+    assert "toc_v2" in diff_body["diff_text"]
+    assert any(line.startswith("-") or line.startswith("+") for line in diff_body["diff_lines"])
+
+
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
 
@@ -223,6 +311,18 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     citations_auth = client.get(f"/status/{job_id}/citations", headers={"X-API-Key": "test-secret"})
     assert citations_auth.status_code == 200
 
+    versions_unauth = client.get(f"/status/{job_id}/versions")
+    assert versions_unauth.status_code == 401
+
+    versions_auth = client.get(f"/status/{job_id}/versions", headers={"X-API-Key": "test-secret"})
+    assert versions_auth.status_code == 200
+
+    diff_unauth = client.get(f"/status/{job_id}/diff")
+    assert diff_unauth.status_code == 401
+
+    diff_auth = client.get(f"/status/{job_id}/diff", headers={"X-API-Key": "test-secret"})
+    assert diff_auth.status_code == 200
+
     pending_unauth = client.get("/hitl/pending")
     assert pending_unauth.status_code == 401
 
@@ -248,6 +348,12 @@ def test_openapi_declares_api_key_security_scheme():
     status_citations_security = (
         (((spec.get("paths") or {}).get("/status/{job_id}/citations") or {}).get("get") or {}).get("security")
     )
+    status_versions_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/versions") or {}).get("get") or {}).get("security")
+    )
+    status_diff_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/diff") or {}).get("get") or {}).get("security")
+    )
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -257,6 +363,20 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_citations_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/citations") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_versions_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/versions") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_diff_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/diff") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
         .get("content", {})
         .get("application/json", {})
@@ -274,14 +394,21 @@ def test_openapi_declares_api_key_security_scheme():
     assert cancel_security == [{"ApiKeyAuth": []}]
     assert status_security == [{"ApiKeyAuth": []}]
     assert status_citations_security == [{"ApiKeyAuth": []}]
+    assert status_versions_security == [{"ApiKeyAuth": []}]
+    assert status_diff_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
+    assert status_versions_response_schema == {"$ref": "#/components/schemas/JobVersionsPublicResponse"}
+    assert status_diff_response_schema == {"$ref": "#/components/schemas/JobDiffPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
 
     schemas = (spec.get("components") or {}).get("schemas") or {}
     assert "JobStatusPublicResponse" in schemas
     assert "JobCitationsPublicResponse" in schemas
     assert "CitationPublicResponse" in schemas
+    assert "JobVersionsPublicResponse" in schemas
+    assert "DraftVersionPublicResponse" in schemas
+    assert "JobDiffPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
 
 

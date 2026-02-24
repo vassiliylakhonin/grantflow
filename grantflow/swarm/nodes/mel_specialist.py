@@ -7,6 +7,7 @@ from typing import Dict, Any
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citations import append_citations
+from grantflow.swarm.versioning import append_draft_version
 
 
 def _build_query_text(state: Dict[str, Any]) -> str:
@@ -113,5 +114,12 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
     mel = {"indicators": indicators, "rag_trace": rag_trace, "citations": citation_records}
     state["mel"] = mel
     state["logframe_draft"] = mel
+    append_draft_version(
+        state,
+        section="logframe",
+        content=state["logframe_draft"],
+        node="mel_specialist",
+        iteration=int(state.get("iteration", state.get("iteration_count", 0)) or 0),
+    )
     append_citations(state, citation_records)
     return state

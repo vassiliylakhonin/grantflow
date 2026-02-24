@@ -7,12 +7,24 @@ import uuid
 import zipfile
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
-from grantflow.api.public_views import public_checkpoint_payload, public_job_citations_payload, public_job_payload
-from grantflow.api.schemas import HITLPendingListPublicResponse, JobCitationsPublicResponse, JobStatusPublicResponse
+from grantflow.api.public_views import (
+    public_checkpoint_payload,
+    public_job_citations_payload,
+    public_job_diff_payload,
+    public_job_payload,
+    public_job_versions_payload,
+)
+from grantflow.api.schemas import (
+    HITLPendingListPublicResponse,
+    JobCitationsPublicResponse,
+    JobDiffPublicResponse,
+    JobStatusPublicResponse,
+    JobVersionsPublicResponse,
+)
 from grantflow.api.security import (
     api_key_configured,
     install_openapi_api_key_security,
@@ -524,6 +536,44 @@ def get_status_citations(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_citations_payload(job_id, job)
+
+
+@app.get(
+    "/status/{job_id}/versions",
+    response_model=JobVersionsPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_versions(job_id: str, request: Request, section: Optional[str] = None):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_versions_payload(job_id, job, section=section)
+
+
+@app.get(
+    "/status/{job_id}/diff",
+    response_model=JobDiffPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_diff(
+    job_id: str,
+    request: Request,
+    section: Optional[str] = None,
+    from_version_id: Optional[str] = Query(default=None),
+    to_version_id: Optional[str] = Query(default=None),
+):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_diff_payload(
+        job_id,
+        job,
+        section=section,
+        from_version_id=from_version_id,
+        to_version_id=to_version_id,
+    )
 
 
 @app.post("/hitl/approve")
