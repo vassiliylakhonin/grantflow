@@ -275,7 +275,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 
 - Generate jobs and poll status
 - HITL approve/reject/resume/cancel actions
-- Critic findings review (fatal flaws, rule checks, citation context)
+- Critic findings review (fatal flaws, rule checks, citation context, confidence filter)
 - Draft versions and diffs (with jump-to-diff shortcuts)
 - Review comments (create, resolve/reopen, list filters)
 - Job events and metrics
@@ -335,6 +335,8 @@ Webhook retries/backoff (optional env vars):
 
 `GET /status/{job_id}/citations` returns a typed, integration-friendly view of citation traces collected during drafting (for example, RAG hits used by the MEL step).
 
+Citation records include confidence metadata (`citation_confidence`, `evidence_score`, `evidence_rank`) to support reviewer triage and integrator UX (for example, highlighting low-confidence evidence links).
+
 Example response shape:
 
 ```json
@@ -353,11 +355,19 @@ Example response shape:
       "chunk_id": "usaid_ads201_p12_c0",
       "used_for": "EG.3.2-1",
       "label": "USAID ADS 201 p.12",
+      "citation_confidence": 0.82,
+      "evidence_score": 0.82,
+      "evidence_rank": 1,
       "excerpt": "..."
     }
   ]
 }
 ```
+
+The same confidence values are also surfaced in:
+
+- `/demo` (`Citation Context` filter: low/high confidence)
+- exported artifacts (`.docx` citation traceability section and `.xlsx` `Citations` sheet)
 
 ### Draft version history and diffs (optional)
 
