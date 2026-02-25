@@ -25,6 +25,7 @@ from grantflow.api.public_views import (
     public_job_quality_payload,
     public_job_payload,
     public_job_versions_payload,
+    public_portfolio_quality_csv_text,
     public_portfolio_quality_payload,
     public_portfolio_metrics_payload,
 )
@@ -799,6 +800,42 @@ def get_portfolio_quality(
         status=(status or None),
         hitl_enabled=hitl_enabled,
     )
+
+
+@app.get("/portfolio/quality/export")
+def export_portfolio_quality(
+    request: Request,
+    donor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    hitl_enabled: Optional[bool] = Query(default=None),
+    format: Literal["csv"] = Query(default="csv"),
+):
+    require_api_key_if_configured(request, for_read=True)
+    jobs = _list_jobs()
+    payload = public_portfolio_quality_payload(
+        jobs,
+        donor_id=(donor_id or None),
+        status=(status or None),
+        hitl_enabled=hitl_enabled,
+    )
+
+    if format == "csv":
+        csv_text = public_portfolio_quality_csv_text(payload)
+        filename_parts = ["grantflow_portfolio_quality"]
+        if donor_id:
+            filename_parts.append(donor_id)
+        if status:
+            filename_parts.append(status)
+        if hitl_enabled is not None:
+            filename_parts.append(f"hitl_{str(hitl_enabled).lower()}")
+        filename = "_".join(filename_parts) + ".csv"
+        return StreamingResponse(
+            io.BytesIO(csv_text.encode("utf-8")),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    raise HTTPException(status_code=400, detail="Unsupported export format")
 
 
 @app.post("/generate")

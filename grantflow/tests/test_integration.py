@@ -1050,6 +1050,22 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert "eu" not in body["donor_counts"]
 
 
+def test_portfolio_quality_export_endpoint_returns_csv():
+    response = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "status": "done", "format": "csv"})
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    disposition = response.headers.get("content-disposition", "")
+    assert "attachment;" in disposition
+    assert "grantflow_portfolio_quality_usaid_done" in disposition
+
+    body = response.text
+    assert body.startswith("field,value\n")
+    assert "filters.donor_id,usaid" in body
+    assert "filters.status,done" in body
+    assert "severity_weighted_risk_score," in body
+    assert "priority_signal_breakdown.high_severity_findings_total.weight," in body
+
+
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
 
@@ -1211,6 +1227,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     portfolio_quality_auth = client.get("/portfolio/quality", headers={"X-API-Key": "test-secret"})
     assert portfolio_quality_auth.status_code == 200
 
+    portfolio_quality_export_unauth = client.get("/portfolio/quality/export")
+    assert portfolio_quality_export_unauth.status_code == 401
+
+    portfolio_quality_export_auth = client.get("/portfolio/quality/export", headers={"X-API-Key": "test-secret"})
+    assert portfolio_quality_export_auth.status_code == 200
+
     pending_unauth = client.get("/hitl/pending")
     assert pending_unauth.status_code == 401
 
@@ -1283,6 +1305,9 @@ def test_openapi_declares_api_key_security_scheme():
     )
     portfolio_quality_security = (((spec.get("paths") or {}).get("/portfolio/quality") or {}).get("get") or {}).get(
         "security"
+    )
+    portfolio_quality_export_security = (
+        (((spec.get("paths") or {}).get("/portfolio/quality/export") or {}).get("get") or {}).get("security")
     )
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
@@ -1461,6 +1486,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_comments_reopen_security == [{"ApiKeyAuth": []}]
     assert portfolio_metrics_security == [{"ApiKeyAuth": []}]
     assert portfolio_quality_security == [{"ApiKeyAuth": []}]
+    assert portfolio_quality_export_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
     assert status_export_payload_response_schema == {"$ref": "#/components/schemas/JobExportPayloadPublicResponse"}
