@@ -46,12 +46,16 @@ def test_demo_console_page_loads():
     assert "GrantFlow Demo Console" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
+    assert "/status/${encodeURIComponent(jobId)}/export-payload" in body
     assert "criticSeverityFilter" in body
     assert "criticCitationConfidenceFilter" in body
     assert "Jump to Diff" in body
     assert "Create Comment" in body
     assert "criticContextList" in body
     assert "conf " in body
+    assert "exportPayloadBtn" in body
+    assert "copyExportPayloadBtn" in body
+    assert "exportPayloadJson" in body
     assert "commentsFilterStatus" in body
     assert "commentsFilterVersionId" in body
     assert "grantflow_demo_diff_section" in body

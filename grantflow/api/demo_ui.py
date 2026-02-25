@@ -420,6 +420,22 @@ def render_demo_ui_html() -> str:
         </div>
 
         <div class="card">
+          <h2>Export Payload</h2>
+          <div class="body">
+            <div class="row">
+              <button id="exportPayloadBtn" class="ghost">Load Export Payload</button>
+              <button id="copyExportPayloadBtn" class="ghost">Copy Payload JSON</button>
+            </div>
+            <div class="footer-note">
+              Review-ready payload for <code>POST /export</code> (<code>state</code> + <code>critic_findings</code> + <code>review_comments</code>).
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="exportPayloadJson">{}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
           <h2>Timeline Events</h2>
           <div class="body">
             <div class="list" id="eventsList"></div>
@@ -555,6 +571,7 @@ def render_demo_ui_html() -> str:
         metricsJson: $("metricsJson"),
         portfolioMetricsJson: $("portfolioMetricsJson"),
         criticJson: $("criticJson"),
+        exportPayloadJson: $("exportPayloadJson"),
         diffPre: $("diffPre"),
         versionsList: $("versionsList"),
         citationsList: $("citationsList"),
@@ -593,6 +610,8 @@ def render_demo_ui_html() -> str:
         versionsBtn: $("versionsBtn"),
         diffBtn: $("diffBtn"),
         citationsBtn: $("citationsBtn"),
+        exportPayloadBtn: $("exportPayloadBtn"),
+        copyExportPayloadBtn: $("copyExportPayloadBtn"),
         eventsBtn: $("eventsBtn"),
         criticBtn: $("criticBtn"),
         portfolioBtn: $("portfolioBtn"),
@@ -1107,6 +1126,14 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshExportPayload() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/export-payload`);
+        setJson(els.exportPayloadJson, body);
+        return body;
+      }
+
       async function refreshVersions() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -1218,11 +1245,25 @@ def render_demo_ui_html() -> str:
           refreshPortfolioMetrics(),
           refreshCritic(),
           refreshCitations(),
+          refreshExportPayload(),
           refreshVersions(),
           refreshDiff(),
           refreshEvents(),
           refreshComments(),
         ]);
+      }
+
+      async function copyExportPayloadJson() {
+        const current = (els.exportPayloadJson?.textContent || "").trim();
+        if (!current || current === "{}") {
+          await refreshExportPayload();
+        }
+        const text = (els.exportPayloadJson?.textContent || "").trim();
+        if (!text || text === "{}") throw new Error("Load export payload first");
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          throw new Error("Clipboard API is not available in this browser");
+        }
+        await navigator.clipboard.writeText(text);
       }
 
       async function approveOrReject(approved) {
@@ -1343,6 +1384,10 @@ def render_demo_ui_html() -> str:
         els.versionsBtn.addEventListener("click", () => refreshVersions().catch(showError));
         els.diffBtn.addEventListener("click", () => refreshDiff().catch(showError));
         els.citationsBtn.addEventListener("click", () => refreshCitations().catch(showError));
+        els.exportPayloadBtn.addEventListener("click", () => refreshExportPayload().catch(showError));
+        els.copyExportPayloadBtn.addEventListener("click", () =>
+          copyExportPayloadJson().catch((err) => showError(err))
+        );
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
         els.portfolioBtn.addEventListener("click", () => refreshPortfolioMetrics().catch(showError));
