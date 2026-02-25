@@ -257,6 +257,7 @@ Core endpoints:
 - `POST /status/{job_id}/comments/{comment_id}/reopen` - reopen a resolved reviewer comment
 - `GET /status/{job_id}/events` - retrieve typed job timeline/audit trail events
 - `GET /status/{job_id}/metrics` - retrieve derived workflow/ROI metrics from the job timeline
+- `GET /status/{job_id}/quality` - retrieve a typed quality summary (critic + citations + architect policy metadata)
 - `GET /portfolio/metrics` - retrieve aggregated ROI/ops metrics across jobs (with filters)
 - `POST /resume/{job_id}` - resume a HITL-paused job
 - `GET /hitl/pending` - list pending checkpoints
@@ -546,6 +547,54 @@ Example metrics response shape:
   "terminal_status": "done"
 }
 ```
+
+Get aggregated quality summary (critic + citations + architect metadata):
+
+```bash
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/quality
+```
+
+Example quality summary response shape:
+
+```json
+{
+  "job_id": "uuid",
+  "status": "done",
+  "quality_score": 9.1,
+  "critic_score": 8.9,
+  "needs_revision": false,
+  "terminal_status": "done",
+  "time_to_first_draft_seconds": 42.7,
+  "critic": {
+    "fatal_flaw_count": 2,
+    "open_finding_count": 1,
+    "high_severity_fatal_flaw_count": 1,
+    "failed_rule_check_count": 1,
+    "warned_rule_check_count": 2
+  },
+  "citations": {
+    "citation_count": 8,
+    "architect_citation_count": 5,
+    "mel_citation_count": 3,
+    "citation_confidence_avg": 0.58,
+    "high_confidence_citation_count": 3,
+    "low_confidence_citation_count": 2,
+    "rag_low_confidence_citation_count": 1,
+    "architect_threshold_hit_rate": 0.6
+  },
+  "architect": {
+    "engine": "fallback:contract_synthesizer",
+    "retrieval_enabled": true,
+    "retrieval_hits_count": 3,
+    "toc_schema_valid": true,
+    "citation_policy": {
+      "threshold_mode": "donor_section"
+    }
+  }
+}
+```
+
+The `/demo` console exposes the same aggregate via the `Quality Summary` panel for reviewer triage.
 
 Example portfolio metrics response shape:
 
