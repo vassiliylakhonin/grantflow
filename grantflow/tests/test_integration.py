@@ -769,10 +769,46 @@ def test_metrics_endpoint_derives_timeline_metrics_from_events():
 
 def test_quality_summary_endpoint_aggregates_quality_signals():
     job_id = "quality-job-1"
+    api_app_module.INGEST_AUDIT_STORE.clear()
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "ing-q-1",
+            "ts": "2026-02-24T09:55:00+00:00",
+            "donor_id": "usaid",
+            "namespace": "usaid_ads201",
+            "filename": "ads-guidance.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "donor_policy", "source_type": "donor_guidance"},
+            "result": {"chunks_ingested": 10},
+        }
+    )
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "ing-q-2",
+            "ts": "2026-02-24T09:56:00+00:00",
+            "donor_id": "usaid",
+            "namespace": "usaid_ads201",
+            "filename": "kz-context.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "country_context", "source_type": "country_context"},
+            "result": {"chunks_ingested": 8},
+        }
+    )
     api_app_module.JOB_STORE.set(
         job_id,
         {
             "status": "done",
+            "client_metadata": {
+                "demo_generate_preset_key": "usaid_gov_ai_kazakhstan",
+                "rag_readiness": {
+                    "expected_doc_families": [
+                        "donor_policy",
+                        "responsible_ai_guidance",
+                        "country_context",
+                    ],
+                    "donor_id": "usaid",
+                },
+            },
             "state": {
                 "donor_id": "usaid",
                 "quality_score": 9.1,
@@ -852,6 +888,20 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["architect"]["retrieval_hits_count"] == 3
     assert body["architect"]["toc_schema_valid"] is True
     assert body["architect"]["citation_policy"]["threshold_mode"] == "donor_section"
+    assert body["readiness"]["preset_key"] == "usaid_gov_ai_kazakhstan"
+    assert body["readiness"]["donor_id"] == "usaid"
+    assert body["readiness"]["expected_doc_families"] == [
+        "donor_policy",
+        "responsible_ai_guidance",
+        "country_context",
+    ]
+    assert body["readiness"]["present_doc_families"] == ["donor_policy", "country_context"]
+    assert body["readiness"]["missing_doc_families"] == ["responsible_ai_guidance"]
+    assert body["readiness"]["expected_count"] == 3
+    assert body["readiness"]["loaded_count"] == 2
+    assert body["readiness"]["coverage_rate"] == 0.6667
+    assert body["readiness"]["inventory_total_uploads"] == 2
+    assert body["readiness"]["inventory_family_count"] == 2
 
 
 def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():

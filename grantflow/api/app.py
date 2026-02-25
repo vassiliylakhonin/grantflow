@@ -258,6 +258,7 @@ class GenerateRequest(BaseModel):
     hitl_enabled: bool = False
     webhook_url: Optional[str] = None
     webhook_secret: Optional[str] = None
+    client_metadata: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -994,6 +995,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     input_payload = req.input_context or {}
+    client_metadata = req.client_metadata if isinstance(req.client_metadata, dict) else None
     job_id = str(uuid.uuid4())
     initial_state = {
         "donor": donor,
@@ -1023,6 +1025,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
             "hitl_enabled": req.hitl_enabled,
             "webhook_url": webhook_url,
             "webhook_secret": webhook_secret,
+            "client_metadata": client_metadata,
         },
     )
     if req.hitl_enabled:
@@ -1224,7 +1227,16 @@ def get_status_quality(job_id: str, request: Request):
     job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return public_job_quality_payload(job_id, job)
+    state = job.get("state")
+    state_dict = state if isinstance(state, dict) else {}
+    donor = str(
+        state_dict.get("donor_id")
+        or state_dict.get("donor")
+        or ((job.get("client_metadata") or {}) if isinstance(job.get("client_metadata"), dict) else {}).get("donor_id")
+        or ""
+    ).strip()
+    inventory_rows = _ingest_inventory(donor_id=donor or None)
+    return public_job_quality_payload(job_id, job, ingest_inventory_rows=inventory_rows)
 
 
 @app.get(

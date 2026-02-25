@@ -51,7 +51,7 @@ def public_state_snapshot(state: Any) -> Any:
 def public_job_payload(job: Dict[str, Any]) -> Dict[str, Any]:
     public_job: Dict[str, Any] = {}
     for key, value in job.items():
-        if key in {"webhook_url", "webhook_secret", "job_events", "review_comments"}:
+        if key in {"webhook_url", "webhook_secret", "job_events", "review_comments", "client_metadata"}:
             continue
         if key == "state":
             public_job[key] = public_state_snapshot(value)
@@ -448,7 +448,75 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
     }
 
 
-def public_job_quality_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+def _public_job_quality_readiness_payload(
+    job: Dict[str, Any],
+    ingest_inventory_rows: Optional[list[Dict[str, Any]]] = None,
+) -> Optional[Dict[str, Any]]:
+    client_metadata = job.get("client_metadata")
+    if not isinstance(client_metadata, dict):
+        return None
+
+    rag_readiness = client_metadata.get("rag_readiness")
+    if not isinstance(rag_readiness, dict):
+        return None
+
+    raw_expected = rag_readiness.get("expected_doc_families")
+    if not isinstance(raw_expected, list):
+        return None
+
+    expected_doc_families: list[str] = []
+    seen: set[str] = set()
+    for item in raw_expected:
+        doc_family = str(item or "").strip()
+        if not doc_family or doc_family in seen:
+            continue
+        expected_doc_families.append(doc_family)
+        seen.add(doc_family)
+    if not expected_doc_families:
+        return None
+
+    state = job.get("state")
+    state_dict: Dict[str, Any] = state if isinstance(state, dict) else {}
+    donor_id = str(
+        rag_readiness.get("donor_id")
+        or client_metadata.get("donor_id")
+        or state_dict.get("donor_id")
+        or state_dict.get("donor")
+        or ""
+    ).strip() or None
+
+    inventory_payload = public_ingest_inventory_payload(ingest_inventory_rows or [], donor_id=donor_id)
+    doc_family_counts_raw = inventory_payload.get("doc_family_counts")
+    doc_family_counts = doc_family_counts_raw if isinstance(doc_family_counts_raw, dict) else {}
+
+    present_doc_families = [doc for doc in expected_doc_families if int(doc_family_counts.get(doc) or 0) > 0]
+    missing_doc_families = [doc for doc in expected_doc_families if int(doc_family_counts.get(doc) or 0) <= 0]
+
+    expected_count = len(expected_doc_families)
+    loaded_count = len(present_doc_families)
+    coverage_rate = round(loaded_count / expected_count, 4) if expected_count else None
+
+    return {
+        "preset_key": sanitize_for_public_response(client_metadata.get("demo_generate_preset_key")),
+        "donor_id": donor_id,
+        "expected_doc_families": expected_doc_families,
+        "present_doc_families": present_doc_families,
+        "missing_doc_families": missing_doc_families,
+        "expected_count": expected_count,
+        "loaded_count": loaded_count,
+        "coverage_rate": coverage_rate,
+        "inventory_total_uploads": sanitize_for_public_response(inventory_payload.get("total_uploads")),
+        "inventory_family_count": sanitize_for_public_response(inventory_payload.get("family_count")),
+        "doc_family_counts": sanitize_for_public_response(doc_family_counts),
+    }
+
+
+def public_job_quality_payload(
+    job_id: str,
+    job: Dict[str, Any],
+    *,
+    ingest_inventory_rows: Optional[list[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     raw_state = job.get("state")
     state_dict: Dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
     critic_payload: Dict[str, Any] = public_job_critic_payload(job_id, job)
@@ -526,6 +594,7 @@ def public_job_quality_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
     architect_retrieval: Dict[str, Any] = (
         cast(Dict[str, Any], raw_architect_retrieval) if isinstance(raw_architect_retrieval, dict) else {}
     )
+    readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
 
     return {
         "job_id": str(job_id),
@@ -578,6 +647,7 @@ def public_job_quality_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
             "toc_schema_valid": sanitize_for_public_response(toc_validation.get("valid")),
             "citation_policy": sanitize_for_public_response(toc_generation_meta.get("citation_policy")),
         },
+        "readiness": readiness_payload,
     }
 
 

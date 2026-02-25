@@ -2018,6 +2018,21 @@ def render_demo_ui_html() -> str:
           llm_mode: els.llmMode.value === "true",
           hitl_enabled: els.hitlEnabled.value === "true",
         };
+        if (readiness.presetKey) {
+          const ingestPreset = INGEST_PRESETS[readiness.presetKey];
+          const checklistItems = Array.isArray(ingestPreset?.checklist_items) ? ingestPreset.checklist_items : [];
+          const expectedDocFamilies = checklistItems
+            .map((item) => String(item?.id || "").trim())
+            .filter((itemId, idx, arr) => itemId && arr.indexOf(itemId) === idx);
+          payload.client_metadata = {
+            demo_generate_preset_key: readiness.presetKey,
+            donor_id: String(els.donorId.value || "").trim() || null,
+            rag_readiness: {
+              expected_doc_families: expectedDocFamilies,
+              donor_id: String(ingestPreset?.donor_id || els.donorId.value || "").trim() || null,
+            },
+          };
+        }
         if (els.webhookUrl.value.trim()) payload.webhook_url = els.webhookUrl.value.trim();
         if (els.webhookSecret.value.trim()) payload.webhook_secret = els.webhookSecret.value.trim();
 

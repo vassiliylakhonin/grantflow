@@ -242,6 +242,22 @@ class JobQualityArchitectSummaryPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobQualityReadinessSummaryPublicResponse(BaseModel):
+    preset_key: Optional[str] = None
+    donor_id: Optional[str] = None
+    expected_doc_families: list[str]
+    present_doc_families: list[str]
+    missing_doc_families: list[str]
+    expected_count: int
+    loaded_count: int
+    coverage_rate: Optional[float] = None
+    inventory_total_uploads: Optional[int] = None
+    inventory_family_count: Optional[int] = None
+    doc_family_counts: Optional[Dict[str, int]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 class JobQualitySummaryPublicResponse(BaseModel):
     job_id: str
     status: str
@@ -254,6 +270,7 @@ class JobQualitySummaryPublicResponse(BaseModel):
     critic: JobQualityCriticSummaryPublicResponse
     citations: JobQualityCitationSummaryPublicResponse
     architect: JobQualityArchitectSummaryPublicResponse
+    readiness: Optional[JobQualityReadinessSummaryPublicResponse] = None
 
     model_config = ConfigDict(extra="allow")
 
