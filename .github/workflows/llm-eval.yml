@@ -11,6 +11,11 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      GRANTFLOW_LLM_BASE_URL: ${{ vars.GRANTFLOW_LLM_BASE_URL }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+      OPENROUTER_HTTP_REFERER: ${{ vars.OPENROUTER_HTTP_REFERER }}
+      OPENROUTER_X_TITLE: ${{ vars.OPENROUTER_X_TITLE }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,9 +34,9 @@ jobs:
       - name: Run LLM evaluation harness (nightly/manual lane)
         run: |
           mkdir -p llm-eval-artifacts
-          if [ -z "${OPENAI_API_KEY:-}" ]; then
-            echo "OPENAI_API_KEY is not configured; skipping LLM eval lane." | tee llm-eval-artifacts/llm-eval-report.txt
-            python -c 'import json, pathlib; pathlib.Path("llm-eval-artifacts/llm-eval-report.json").write_text(json.dumps({"suite_label":"llm-eval","skipped":True,"reason":"OPENAI_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":True}}, indent=2, sort_keys=True), encoding="utf-8")'
+          if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
+            echo "OPENAI_API_KEY / OPENROUTER_API_KEY is not configured; skipping LLM eval lane." | tee llm-eval-artifacts/llm-eval-report.txt
+            python -c 'import json, pathlib; pathlib.Path("llm-eval-artifacts/llm-eval-report.json").write_text(json.dumps({"suite_label":"llm-eval","skipped":True,"reason":"OPENAI_API_KEY / OPENROUTER_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":True}}, indent=2, sort_keys=True), encoding="utf-8")'
             exit 0
           fi
           python -m grantflow.eval.harness \

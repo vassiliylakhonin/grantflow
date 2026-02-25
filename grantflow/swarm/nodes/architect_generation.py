@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import os
 import types
 from typing import Any, Dict, Iterable, Optional, Tuple, Type, Union, get_args, get_origin
 
 from pydantic import BaseModel
 
 from grantflow.core.config import config
+from grantflow.swarm.llm_provider import chat_openai_init_kwargs, openai_compatible_missing_reason
 from grantflow.swarm.nodes.architect_policy import (
     ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES,
     ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD,
@@ -244,8 +244,9 @@ def _llm_structured_toc(
     evidence_hits: Iterable[Dict[str, Any]],
     validation_error_hint: Optional[str] = None,
 ) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[str]]:
-    if not os.getenv("OPENAI_API_KEY"):
-        return None, None, "OPENAI_API_KEY missing"
+    llm_kwargs = chat_openai_init_kwargs(model=config.llm.reasoning_model, temperature=0.1)
+    if llm_kwargs is None:
+        return None, None, openai_compatible_missing_reason()
 
     try:
         from langchain_core.messages import HumanMessage, SystemMessage
@@ -283,7 +284,7 @@ def _llm_structured_toc(
         human_prompt += f"- {architect_donor_prompt_constraints(donor_id)}\n"
         human_prompt += "\nReturn the structured object only."
 
-        llm = ChatOpenAI(model=config.llm.reasoning_model, temperature=0.1)
+        llm = ChatOpenAI(**llm_kwargs)
         structured = llm.with_structured_output(schema_cls)
         result = structured.invoke(
             [

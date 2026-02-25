@@ -120,6 +120,11 @@ pip install -r grantflow/requirements.txt
 
 ```bash
 export OPENAI_API_KEY=your_key_here
+# or use OpenRouter (OpenAI-compatible):
+# export OPENROUTER_API_KEY=your_openrouter_key
+# export GRANTFLOW_LLM_BASE_URL=https://openrouter.ai/api/v1
+# export OPENROUTER_HTTP_REFERER=https://your-app.example
+# export OPENROUTER_X_TITLE=GrantFlow
 export CHROMA_HOST=localhost
 export CHROMA_PORT=8000
 export CHROMA_COLLECTION_PREFIX=grantflow
@@ -894,6 +899,25 @@ The `eval` job fails on metric regressions (for tracked quality/citation/error s
 The text eval artifact (`eval-report.txt`) also includes a donor-level quality breakdown (cases/pass-rate, average quality score, needs-revision rate, high-severity flaws, and low-confidence citation counts) to highlight top-risk donor buckets quickly.
 
 An additional `LLM Eval` workflow (`.github/workflows/llm-eval.yml`) is available as a separate nightly/manual lane (`workflow_dispatch` + `schedule`) that runs the same fixtures with `--force-llm --force-architect-rag` and uploads `llm-eval-report` artifacts. It is intentionally separate from the main CI baseline to avoid destabilizing deterministic regression checks. If `OPENAI_API_KEY` is not configured in repository secrets, the workflow uploads a skipped report artifact instead of failing.
+The workflow also supports `OPENROUTER_API_KEY` (OpenAI-compatible backend) and will run if either `OPENAI_API_KEY` or `OPENROUTER_API_KEY` is configured in repository secrets.
+
+### OpenAI-Compatible Backends (OpenRouter)
+
+GrantFlow's LLM calls use an OpenAI-compatible client path (`langchain_openai`). In addition to `OPENAI_API_KEY`, you can use OpenRouter:
+
+```bash
+export OPENROUTER_API_KEY=your_openrouter_key
+export GRANTFLOW_LLM_BASE_URL=https://openrouter.ai/api/v1
+# Optional but recommended for OpenRouter:
+export OPENROUTER_HTTP_REFERER=https://your-app.example
+export OPENROUTER_X_TITLE=GrantFlow
+```
+
+Notes:
+
+- `OPENAI_API_KEY` takes precedence if both keys are set.
+- If `OPENROUTER_API_KEY` is set and no base URL is provided, GrantFlow defaults to `https://openrouter.ai/api/v1`.
+- You can also use generic envs (`GRANTFLOW_LLM_HTTP_REFERER`, `GRANTFLOW_LLM_APP_NAME`) instead of OpenRouter-specific header envs.
 
 If you intentionally improve scoring/quality behavior and want to refresh the baseline snapshot, regenerate it locally and commit the update with the corresponding code changes:
 

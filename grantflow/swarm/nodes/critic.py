@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-import os
 import uuid
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from grantflow.core.config import config
+from grantflow.swarm.llm_provider import (
+    chat_openai_init_kwargs,
+    openai_compatible_llm_available,
+    openai_compatible_missing_reason,
+)
 from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
 
 
@@ -117,12 +121,15 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     llm_reason: Optional[str] = None
     rule_report = evaluate_rule_based_critic(state)
 
-    if llm_mode and os.getenv("OPENAI_API_KEY"):
+    if llm_mode and openai_compatible_llm_available():
         try:
             from langchain_core.messages import HumanMessage, SystemMessage
             from langchain_openai import ChatOpenAI
 
-            llm = ChatOpenAI(model=config.llm.reasoning_model, temperature=0.1)
+            llm_kwargs = chat_openai_init_kwargs(model=config.llm.reasoning_model, temperature=0.1)
+            if llm_kwargs is None:
+                raise RuntimeError(openai_compatible_missing_reason())
+            llm = ChatOpenAI(**llm_kwargs)
             evaluator_llm = llm.with_structured_output(RedTeamEvaluation)
             system_prompt = donor_strategy.get_system_prompts().get(
                 "Red_Team_Critic", "Evaluate quality and compliance strictly."
@@ -140,7 +147,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         except Exception as exc:
             llm_reason = f"LLM unavailable: {exc}"
     else:
-        llm_reason = "llm_mode=false" if not llm_mode else "OPENAI_API_KEY missing"
+        llm_reason = "llm_mode=false" if not llm_mode else openai_compatible_missing_reason()
 
     iteration = int(state.get("iteration", state.get("iteration_count", 0)) or 0) + 1
     max_iters = int(state.get("max_iterations", 3) or 3)
