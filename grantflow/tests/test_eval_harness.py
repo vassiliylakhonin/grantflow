@@ -77,6 +77,7 @@ def test_eval_harness_cli_writes_json_and_text_reports(tmp_path):
     text = text_out.read_text(encoding="utf-8")
     assert "GrantFlow evaluation suite" in text
     assert "PASS" in text
+    assert "Donor quality breakdown (suite-level)" in text
 
 
 def test_eval_harness_regression_comparison_flags_only_degradations():

@@ -283,7 +283,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 - Review comments (create, resolve/reopen, list filters)
 - Export payload preview/copy and one-click review package export (`ZIP`) via `/export`
 - Job events and metrics
-- Portfolio metrics dashboard (filters + click-to-filter counts)
+- Portfolio metrics dashboard (filters + click-to-filter counts) plus `Portfolio Quality` risk rollups (top donors by needs-revision/open findings)
 
 ### Run and open
 
@@ -804,6 +804,8 @@ CI also runs the evaluation harness as a dedicated `eval` job and compares curre
 - `grantflow/eval/fixtures/baseline_regression_snapshot.json`
 
 The `eval` job fails on metric regressions (for tracked quality/citation/error signals) but does not fail on new/missing cases; those are reported as warnings in the uploaded eval artifact.
+
+The text eval artifact (`eval-report.txt`) also includes a donor-level quality breakdown (cases/pass-rate, average quality score, needs-revision rate, high-severity flaws, and low-confidence citation counts) to highlight top-risk donor buckets quickly.
 
 If you intentionally improve scoring/quality behavior and want to refresh the baseline snapshot, regenerate it locally and commit the update with the corresponding code changes:
 

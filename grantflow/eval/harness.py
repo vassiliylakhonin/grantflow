@@ -284,6 +284,62 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
             lines.append(
                 f"    * {check.get('name')}: expected {check.get('expected')} got {check.get('actual')}"
             )
+
+    donor_rows: dict[str, dict[str, Any]] = {}
+    for case in suite.get("cases") or []:
+        if not isinstance(case, dict):
+            continue
+        donor_id = str(case.get("donor_id") or "unknown")
+        metrics = case.get("metrics") if isinstance(case.get("metrics"), dict) else {}
+        row = donor_rows.setdefault(
+            donor_id,
+            {
+                "case_count": 0,
+                "pass_count": 0,
+                "quality_scores": [],
+                "needs_revision_count": 0,
+                "high_flaw_total": 0,
+                "low_conf_total": 0,
+            },
+        )
+        row["case_count"] = int(row["case_count"]) + 1
+        if bool(case.get("passed")):
+            row["pass_count"] = int(row["pass_count"]) + 1
+        if isinstance(metrics.get("quality_score"), (int, float)):
+            cast_scores = row.get("quality_scores")
+            if isinstance(cast_scores, list):
+                cast_scores.append(float(metrics["quality_score"]))
+        if bool(metrics.get("needs_revision")):
+            row["needs_revision_count"] = int(row["needs_revision_count"]) + 1
+        row["high_flaw_total"] = int(row["high_flaw_total"]) + int(metrics.get("high_severity_fatal_flaw_count") or 0)
+        row["low_conf_total"] = int(row["low_conf_total"]) + int(metrics.get("low_confidence_citation_count") or 0)
+
+    if donor_rows:
+        lines.append("")
+        lines.append("Donor quality breakdown (suite-level)")
+        ordered_donors = sorted(
+            donor_rows.items(),
+            key=lambda item: (
+                -(int(item[1].get("needs_revision_count") or 0)),
+                -(int(item[1].get("high_flaw_total") or 0)),
+                str(item[0]),
+            ),
+        )
+        for donor_id, row in ordered_donors:
+            quality_scores = row.get("quality_scores") if isinstance(row.get("quality_scores"), list) else []
+            avg_quality = round(sum(quality_scores) / len(quality_scores), 3) if quality_scores else None
+            case_count = int(row.get("case_count") or 0)
+            needs_revision_count = int(row.get("needs_revision_count") or 0)
+            needs_revision_rate = (needs_revision_count / case_count) if case_count else 0.0
+            lines.append(
+                (
+                    f"- {donor_id}: cases={case_count} pass={int(row.get('pass_count') or 0)}/{case_count} "
+                    f"avg_q={avg_quality if avg_quality is not None else '-'} "
+                    f"needs_revision={needs_revision_count} ({needs_revision_rate:.0%}) "
+                    f"high_flaws={int(row.get('high_flaw_total') or 0)} "
+                    f"low_conf_citations={int(row.get('low_conf_total') or 0)}"
+                )
+            )
     return "\n".join(lines)
 
 
