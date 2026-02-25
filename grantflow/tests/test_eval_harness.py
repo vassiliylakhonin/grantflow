@@ -4,6 +4,7 @@ import json
 
 from grantflow.eval import harness
 from grantflow.eval.harness import (
+    apply_runtime_overrides_to_cases,
     build_regression_baseline_snapshot,
     compare_suite_to_baseline,
     evaluate_expectations,
@@ -74,11 +75,75 @@ def test_eval_harness_cli_writes_json_and_text_reports(tmp_path):
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert payload["all_passed"] is True
     assert payload["case_count"] >= 1
+    assert payload["suite_label"] == "baseline"
 
     text = text_out.read_text(encoding="utf-8")
     assert "GrantFlow evaluation suite" in text
+    assert "Suite: baseline" in text
     assert "PASS" in text
     assert "Donor quality breakdown (suite-level)" in text
+
+
+def test_eval_harness_runtime_overrides_apply_to_cases_without_mutating_original():
+    source_cases = [
+        {"case_id": "c1", "donor_id": "usaid", "llm_mode": False, "architect_rag_enabled": False},
+        {"case_id": "c2", "donor_id": "eu"},
+    ]
+    overridden = apply_runtime_overrides_to_cases(
+        source_cases,
+        force_llm=True,
+        force_architect_rag=True,
+    )
+    assert overridden is not source_cases
+    assert all(bool(case.get("llm_mode")) is True for case in overridden)
+    assert all(bool(case.get("architect_rag_enabled")) is True for case in overridden)
+    assert source_cases[0]["llm_mode"] is False
+    assert "architect_rag_enabled" not in source_cases[1]
+
+
+def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_path, monkeypatch):
+    json_out = tmp_path / "llm-eval-report.json"
+    text_out = tmp_path / "llm-eval-report.txt"
+
+    monkeypatch.setattr(
+        harness,
+        "load_eval_cases",
+        lambda fixtures_dir=None: [{"case_id": "stub", "donor_id": "usaid", "llm_mode": False, "architect_rag_enabled": False}],
+    )
+
+    captured: dict[str, object] = {}
+
+    def fake_run_eval_suite(cases, *, suite_label=None):
+        captured["cases"] = cases
+        captured["suite_label"] = suite_label
+        return {"suite_label": suite_label or "baseline", "case_count": 1, "passed_count": 1, "failed_count": 0, "all_passed": True, "cases": []}
+
+    monkeypatch.setattr(harness, "run_eval_suite", fake_run_eval_suite)
+
+    exit_code = harness.main(
+        [
+            "--suite-label",
+            "llm-eval",
+            "--force-llm",
+            "--force-architect-rag",
+            "--json-out",
+            str(json_out),
+            "--text-out",
+            str(text_out),
+        ]
+    )
+    assert exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["suite_label"] == "llm-eval"
+    assert payload["runtime_overrides"]["force_llm"] is True
+    assert payload["runtime_overrides"]["force_architect_rag"] is True
+    assert captured["suite_label"] == "llm-eval"
+    captured_cases = captured["cases"]
+    assert isinstance(captured_cases, list) and captured_cases
+    assert captured_cases[0]["llm_mode"] is True
+    assert captured_cases[0]["architect_rag_enabled"] is True
+    text = text_out.read_text(encoding="utf-8")
+    assert "Suite: llm-eval" in text
 
 
 def test_eval_harness_regression_comparison_flags_only_degradations():

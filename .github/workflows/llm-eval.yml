@@ -1,0 +1,50 @@
+name: LLM Eval
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+
+jobs:
+  llm_eval:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: grantflow/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r grantflow/requirements.txt
+
+      - name: Run LLM evaluation harness (nightly/manual lane)
+        run: |
+          mkdir -p llm-eval-artifacts
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "OPENAI_API_KEY is not configured; skipping LLM eval lane." | tee llm-eval-artifacts/llm-eval-report.txt
+            python -c 'import json, pathlib; pathlib.Path("llm-eval-artifacts/llm-eval-report.json").write_text(json.dumps({"suite_label":"llm-eval","skipped":True,"reason":"OPENAI_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":True}}, indent=2, sort_keys=True), encoding="utf-8")'
+            exit 0
+          fi
+          python -m grantflow.eval.harness \
+            --suite-label llm-eval \
+            --force-llm \
+            --force-architect-rag \
+            --text-out llm-eval-artifacts/llm-eval-report.txt \
+            --json-out llm-eval-artifacts/llm-eval-report.json
+
+      - name: Upload LLM evaluation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: llm-eval-report
+          path: llm-eval-artifacts/
+          if-no-files-found: error

@@ -78,6 +78,25 @@ def load_eval_cases(fixtures_dir: Path | None = None) -> list[dict[str, Any]]:
     return cases
 
 
+def apply_runtime_overrides_to_cases(
+    cases: list[dict[str, Any]],
+    *,
+    force_llm: bool = False,
+    force_architect_rag: bool = False,
+) -> list[dict[str, Any]]:
+    if not (force_llm or force_architect_rag):
+        return cases
+    overridden: list[dict[str, Any]] = []
+    for case in cases:
+        next_case = dict(case)
+        if force_llm:
+            next_case["llm_mode"] = True
+        if force_architect_rag:
+            next_case["architect_rag_enabled"] = True
+        overridden.append(next_case)
+    return overridden
+
+
 def build_initial_state(case: dict[str, Any]) -> dict[str, Any]:
     donor_id = str(case.get("donor_id") or "").strip()
     if not donor_id:
@@ -271,10 +290,11 @@ def run_eval_case(case: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def run_eval_suite(cases: list[dict[str, Any]]) -> dict[str, Any]:
+def run_eval_suite(cases: list[dict[str, Any]], *, suite_label: str | None = None) -> dict[str, Any]:
     results = [run_eval_case(case) for case in cases]
     passed_count = sum(1 for r in results if r.get("passed"))
     return {
+        "suite_label": str(suite_label or "baseline"),
         "case_count": len(results),
         "passed_count": passed_count,
         "failed_count": len(results) - passed_count,
@@ -284,8 +304,10 @@ def run_eval_suite(cases: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def format_eval_suite_report(suite: dict[str, Any]) -> str:
+    suite_label = str(suite.get("suite_label") or "baseline")
     lines = [
         "GrantFlow evaluation suite",
+        f"Suite: {suite_label}",
         f"Cases: {suite.get('case_count', 0)} | Passed: {suite.get('passed_count', 0)} | Failed: {suite.get('failed_count', 0)}",
     ]
     for case in suite.get("cases") or []:
@@ -685,6 +707,22 @@ def format_eval_comparison_report(comparison: dict[str, Any]) -> str:
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run GrantFlow baseline evaluation fixtures.")
     parser.add_argument(
+        "--suite-label",
+        type=str,
+        default="baseline",
+        help="Label to include in reports/artifacts (for example: baseline, llm-eval).",
+    )
+    parser.add_argument(
+        "--force-llm",
+        action="store_true",
+        help="Override fixture settings and run all cases with llm_mode=true.",
+    )
+    parser.add_argument(
+        "--force-architect-rag",
+        action="store_true",
+        help="Override fixture settings and run all cases with architect_rag_enabled=true.",
+    )
+    parser.add_argument(
         "--json-out",
         type=Path,
         default=None,
@@ -726,7 +764,16 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
     cases = load_eval_cases()
-    suite = run_eval_suite(cases)
+    cases = apply_runtime_overrides_to_cases(
+        cases,
+        force_llm=bool(args.force_llm),
+        force_architect_rag=bool(args.force_architect_rag),
+    )
+    suite = run_eval_suite(cases, suite_label=args.suite_label)
+    suite["runtime_overrides"] = {
+        "force_llm": bool(args.force_llm),
+        "force_architect_rag": bool(args.force_architect_rag),
+    }
     text_report = format_eval_suite_report(suite)
     print(text_report)
     if args.json_out is not None:
