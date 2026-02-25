@@ -54,6 +54,8 @@ def test_demo_console_page_loads():
     assert "Create Comment" in body
     assert "criticContextList" in body
     assert "conf " in body
+    assert "thr " in body
+    assert "architect_threshold_hit_rate" in body
     assert "exportPayloadBtn" in body
     assert "copyExportPayloadBtn" in body
     assert "exportZipFromPayloadBtn" in body

@@ -735,6 +735,24 @@ def render_demo_ui_html() -> str:
         return `${m}m ${s}s`;
       }
 
+      function computeArchitectThresholdHitRate(citations) {
+        if (!Array.isArray(citations)) return null;
+        let considered = 0;
+        let hits = 0;
+        for (const c of citations) {
+          if (!c || String(c.stage || "") !== "architect") continue;
+          const thresholdRaw = c.confidence_threshold;
+          const confRaw = c.citation_confidence;
+          const threshold = thresholdRaw == null ? null : Number(thresholdRaw);
+          const conf = confRaw == null ? null : Number(confRaw);
+          if (threshold == null || Number.isNaN(threshold)) continue;
+          considered += 1;
+          if (conf != null && !Number.isNaN(conf) && conf >= threshold) hits += 1;
+        }
+        if (!considered) return null;
+        return { hits, considered, rate: hits / considered };
+      }
+
       function renderMetricsCards(metrics) {
         const values = [
           fmtSec(metrics.time_to_first_draft_seconds),
@@ -799,6 +817,18 @@ def render_demo_ui_html() -> str:
           els.citationsList.innerHTML = `<div class="item"><div class="sub">No citations found.</div></div>`;
           return;
         }
+        const thresholdSummary = computeArchitectThresholdHitRate(list);
+        if (thresholdSummary) {
+          const summary = document.createElement("div");
+          summary.className = "item";
+          summary.innerHTML = `
+            <div class="title mono">architect_threshold_hit_rate</div>
+            <div class="sub">${escapeHtml(
+              `${(thresholdSummary.rate * 100).toFixed(1)}% (${thresholdSummary.hits}/${thresholdSummary.considered})`
+            )} · client-side summary from architect citations</div>
+          `;
+          els.citationsList.appendChild(summary);
+        }
         for (const c of list) {
           const div = document.createElement("div");
           div.className = "item";
@@ -809,9 +839,13 @@ def render_demo_ui_html() -> str:
             c.citation_confidence != null && !Number.isNaN(Number(c.citation_confidence))
               ? `conf ${Number(c.citation_confidence).toFixed(2)}`
               : "";
+          const threshold =
+            c.confidence_threshold != null && !Number.isNaN(Number(c.confidence_threshold))
+              ? `thr ${Number(c.confidence_threshold).toFixed(2)}`
+              : "";
           div.innerHTML = `
             <div class="title mono">${escapeHtml(label)}</div>
-            <div class="sub">${escapeHtml(meta || "trace")}${confidence ? ` · ${escapeHtml(confidence)}` : ""}${pageChunk ? ` · ${escapeHtml(pageChunk)}` : ""}</div>
+            <div class="sub">${escapeHtml(meta || "trace")}${confidence ? ` · ${escapeHtml(confidence)}` : ""}${threshold ? ` · ${escapeHtml(threshold)}` : ""}${pageChunk ? ` · ${escapeHtml(pageChunk)}` : ""}</div>
             ${c.excerpt ? `<div class="sub" style="margin-top:6px;">${escapeHtml(String(c.excerpt).slice(0, 240))}</div>` : ""}
           `;
           els.citationsList.appendChild(div);
@@ -1036,9 +1070,13 @@ def render_demo_ui_html() -> str:
             c.citation_confidence != null && !Number.isNaN(Number(c.citation_confidence))
               ? `conf ${Number(c.citation_confidence).toFixed(2)}`
               : "";
+          const threshold =
+            c.confidence_threshold != null && !Number.isNaN(Number(c.confidence_threshold))
+              ? `thr ${Number(c.confidence_threshold).toFixed(2)}`
+              : "";
           div.innerHTML = `
             <div class="title mono">${escapeHtml(label)}</div>
-            <div class="sub">${escapeHtml(meta || "trace")}${confidence ? ` · ${escapeHtml(confidence)}` : ""}</div>
+            <div class="sub">${escapeHtml(meta || "trace")}${confidence ? ` · ${escapeHtml(confidence)}` : ""}${threshold ? ` · ${escapeHtml(threshold)}` : ""}</div>
             ${pageChunk ? `<div class="sub" style="margin-top:6px;">${escapeHtml(pageChunk)}</div>` : ""}
             ${c.excerpt ? `<div class="sub" style="margin-top:6px;">${escapeHtml(String(c.excerpt).slice(0, 180))}</div>` : ""}
           `;

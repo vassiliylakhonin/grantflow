@@ -339,7 +339,7 @@ Webhook retries/backoff (optional env vars):
 
 `GET /status/{job_id}/citations` returns a typed, integration-friendly view of citation traces collected during drafting (for example, RAG hits used by the MEL step).
 
-Citation records include confidence metadata (`citation_confidence`, `evidence_score`, `evidence_rank`) to support reviewer triage and integrator UX (for example, highlighting low-confidence evidence links).
+Citation records include confidence metadata (`citation_confidence`, `confidence_threshold`, `evidence_score`, `evidence_rank`) to support reviewer triage and integrator UX (for example, highlighting low-confidence evidence links and understanding the threshold used for architect claim support classification).
 
 Example response shape:
 
@@ -360,6 +360,7 @@ Example response shape:
       "used_for": "EG.3.2-1",
       "label": "USAID ADS 201 p.12",
       "citation_confidence": 0.82,
+      "confidence_threshold": 0.42,
       "evidence_score": 0.82,
       "evidence_rank": 1,
       "excerpt": "..."
@@ -370,7 +371,7 @@ Example response shape:
 
 The same confidence values are also surfaced in:
 
-- `/demo` (`Citation Context` filter: low/high confidence)
+- `/demo` (`Citation Context` filter: low/high confidence, plus client-side `architect_threshold_hit_rate` summary in `Citations`)
 - exported artifacts (`.docx` citation traceability section and `.xlsx` `Citations` sheet)
 
 ### Draft version history and diffs (optional)
@@ -699,6 +700,7 @@ The bundled evaluation fixtures run deterministic (`llm_mode=false`) draft gener
 - critic / quality scores
 - fatal flaw counts (including high-severity flaws)
 - citation coverage (architect + MEL)
+- citation confidence quality (including `high_confidence_citation_count` and `architect_threshold_hit_rate`)
 - draft version traceability and error count
 
 CI also runs the evaluation harness as a dedicated `eval` job and compares current results against the committed baseline snapshot:
