@@ -659,6 +659,21 @@ Run tests:
 python -m pytest -c grantflow/pytest.ini grantflow/tests/ -v --tb=short
 ```
 
+Evaluation harness (baseline quality regression suite):
+
+```bash
+python -m grantflow.eval.harness
+python -m pytest -c grantflow/pytest.ini grantflow/tests/test_eval_harness.py -v
+```
+
+The bundled evaluation fixtures run deterministic (`llm_mode=false`) draft generation across a small donor mix and check baseline quality signals such as:
+
+- ToC schema validity (`toc_validation`)
+- critic / quality scores
+- fatal flaw counts (including high-severity flaws)
+- citation coverage (architect + MEL)
+- draft version traceability and error count
+
 Shell checks:
 
 ```bash
