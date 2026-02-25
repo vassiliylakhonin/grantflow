@@ -275,8 +275,14 @@ def render_demo_ui_html() -> str:
                 <button id="resetIngestChecklistBtn" class="ghost">Reset Checklist Progress</button>
               </div>
             </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="copyIngestInventoryJsonBtn" class="ghost">Copy Inventory JSON</button>
+              <button id="downloadIngestInventoryJsonBtn" class="ghost">Download Inventory JSON</button>
+              <button id="downloadIngestInventoryCsvBtn" class="secondary">Download Inventory CSV</button>
+            </div>
             <div class="list" id="ingestChecklistProgressList" style="margin-top:10px;"></div>
             <div class="list" id="ingestPresetGuidanceList" style="margin-top:10px;"></div>
+            <pre id="ingestInventoryJson" style="margin-top:10px;">No ingest inventory loaded yet.</pre>
             <pre id="ingestResultJson" style="margin-top:10px;">No ingest upload yet.</pre>
           </div>
         </div>
@@ -687,6 +693,7 @@ def render_demo_ui_html() -> str:
         polling: false,
         lastCritic: null,
         lastCitations: null,
+        lastIngestInventory: null,
         ingestChecklistProgress: {},
       };
       const GENERATE_PRESETS = {
@@ -856,6 +863,10 @@ def render_demo_ui_html() -> str:
         syncIngestChecklistServerBtn: $("syncIngestChecklistServerBtn"),
         resetIngestChecklistBtn: $("resetIngestChecklistBtn"),
         ingestPresetGuidanceList: $("ingestPresetGuidanceList"),
+        ingestInventoryJson: $("ingestInventoryJson"),
+        copyIngestInventoryJsonBtn: $("copyIngestInventoryJsonBtn"),
+        downloadIngestInventoryJsonBtn: $("downloadIngestInventoryJsonBtn"),
+        downloadIngestInventoryCsvBtn: $("downloadIngestInventoryCsvBtn"),
         ingestResultJson: $("ingestResultJson"),
         ingestBtn: $("ingestBtn"),
         diffSection: $("diffSection"),
@@ -1095,6 +1106,8 @@ def render_demo_ui_html() -> str:
         if (!donorId) throw new Error("Missing donor_id for ingest checklist sync");
         const query = new URLSearchParams({ donor_id: donorId });
         const body = await apiFetch(`/ingest/inventory?${query.toString()}`);
+        state.lastIngestInventory = body;
+        if (els.ingestInventoryJson) setJson(els.ingestInventoryJson, body);
         const familyRows = Array.isArray(body?.doc_families) ? body.doc_families : [];
 
         if (!state.ingestChecklistProgress || typeof state.ingestChecklistProgress !== "object") {
@@ -2122,6 +2135,56 @@ def render_demo_ui_html() -> str:
         await navigator.clipboard.writeText(text);
       }
 
+      async function ensureIngestInventoryLoaded() {
+        let text = (els.ingestInventoryJson?.textContent || "").trim();
+        if (!text || text === "{}" || text === "No ingest inventory loaded yet.") {
+          await syncIngestChecklistFromServer();
+          text = (els.ingestInventoryJson?.textContent || "").trim();
+        }
+        if (!text || text === "No ingest inventory loaded yet.") {
+          throw new Error("Load ingest inventory first");
+        }
+        return text;
+      }
+
+      async function copyIngestInventoryJson() {
+        const text = await ensureIngestInventoryLoaded();
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          throw new Error("Clipboard API is not available in this browser");
+        }
+        await navigator.clipboard.writeText(text);
+      }
+
+      async function downloadIngestInventoryJson() {
+        const donorId = String(els.ingestDonorId.value || "").trim();
+        if (!donorId) throw new Error("Missing ingest donor_id");
+        persistBasics();
+        const query = new URLSearchParams({ donor_id: donorId, format: "json" });
+        const res = await fetch(`${apiBase()}/ingest/inventory/export?${query.toString()}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
+        const blob = await res.blob();
+        downloadBlob(blob, `grantflow_ingest_inventory_${donorId}.json`);
+      }
+
+      async function downloadIngestInventoryCsv() {
+        const donorId = String(els.ingestDonorId.value || "").trim();
+        if (!donorId) throw new Error("Missing ingest donor_id");
+        persistBasics();
+        const query = new URLSearchParams({ donor_id: donorId, format: "csv" });
+        const res = await fetch(`${apiBase()}/ingest/inventory/export?${query.toString()}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
+        const blob = await res.blob();
+        downloadBlob(blob, `grantflow_ingest_inventory_${donorId}.csv`);
+      }
+
       async function downloadPortfolioQualityJson() {
         const text = await ensurePortfolioQualityLoaded();
         const blob = new Blob([text.endsWith("\\n") ? text : `${text}\\n`], { type: "application/json" });
@@ -2307,6 +2370,15 @@ def render_demo_ui_html() -> str:
         els.syncIngestDonorBtn.addEventListener("click", syncIngestDonorFromGenerate);
         els.syncIngestChecklistServerBtn.addEventListener("click", () => syncIngestChecklistFromServer().catch(showError));
         els.resetIngestChecklistBtn.addEventListener("click", resetIngestChecklistProgressForCurrentPreset);
+        els.copyIngestInventoryJsonBtn.addEventListener("click", () =>
+          copyIngestInventoryJson().catch((err) => showError(err))
+        );
+        els.downloadIngestInventoryJsonBtn.addEventListener("click", () =>
+          downloadIngestInventoryJson().catch((err) => showError(err))
+        );
+        els.downloadIngestInventoryCsvBtn.addEventListener("click", () =>
+          downloadIngestInventoryCsv().catch((err) => showError(err))
+        );
         els.refreshAllBtn.addEventListener("click", () => refreshAll().catch(showError));
         els.pollToggleBtn.addEventListener("click", togglePolling);
         els.clearFiltersBtn.addEventListener("click", () => clearDemoFilters().catch(showError));

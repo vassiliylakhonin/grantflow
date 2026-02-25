@@ -285,6 +285,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 - Generate jobs and poll status
 - Generate presets for public-sector/governance demos (USAID / EU / World Bank) with editable extra input context JSON
 - Ingest (RAG Prep) panel with donor-specific guidance presets and direct PDF upload to `POST /ingest`
+- Ingest inventory sync/export (`GET /ingest/inventory`, `GET /ingest/inventory/export`) for checklist/readiness snapshots (`Copy JSON`, `Download JSON/CSV`)
 - HITL approve/reject/resume/cancel actions
 - Critic findings review (fatal flaws, rule checks, citation context, confidence filter)
 - Draft versions and diffs (with jump-to-diff shortcuts)
@@ -319,7 +320,7 @@ These presets are editable before submitting and are intended as starting points
 
 The `Ingest (RAG Prep)` panel includes matching presets for these scenarios, suggests what kinds of donor/context PDFs to upload before generation, and tracks a simple metadata-driven checklist (`metadata_json.doc_family`) so you can see which recommended document types are already covered.
 
-It can also sync checklist progress from backend ingest inventory via `GET /ingest/inventory` (aggregated by `doc_family`, useful when uploads happened outside the current browser session/demo tab).
+It can also sync checklist progress from backend ingest inventory via `GET /ingest/inventory` (aggregated by `doc_family`, useful when uploads happened outside the current browser session/demo tab) and export readiness snapshots directly from the panel (`Copy Inventory JSON`, `Download Inventory JSON/CSV`).
 
 You can also export ingest coverage snapshots for automation/reporting:
 

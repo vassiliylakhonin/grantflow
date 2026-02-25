@@ -63,10 +63,15 @@ def test_demo_console_page_loads():
     assert "ingestChecklistProgressList" in body
     assert "resetIngestChecklistBtn" in body
     assert "syncIngestChecklistServerBtn" in body
+    assert "copyIngestInventoryJsonBtn" in body
+    assert "downloadIngestInventoryJsonBtn" in body
+    assert "downloadIngestInventoryCsvBtn" in body
+    assert "ingestInventoryJson" in body
     assert "grantflow_demo_ingest_checklist_progress" in body
     assert "doc_family=" in body
     assert "/ingest" in body
     assert "/ingest/inventory?" in body
+    assert "/ingest/inventory/export?" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/quality" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
