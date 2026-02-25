@@ -22,7 +22,9 @@
       "max_high_severity_fatal_flaws": 0,
       "max_errors": 0,
       "min_citation_confidence_avg": 0.1,
-      "max_low_confidence_citations": 30
+      "max_low_confidence_citations": 30,
+      "min_high_confidence_citations": 0,
+      "max_rag_low_confidence_citations": 0
     }
   },
   {
@@ -48,7 +50,9 @@
       "max_high_severity_fatal_flaws": 0,
       "max_errors": 0,
       "min_citation_confidence_avg": 0.1,
-      "max_low_confidence_citations": 30
+      "max_low_confidence_citations": 30,
+      "min_high_confidence_citations": 0,
+      "max_rag_low_confidence_citations": 0
     }
   },
   {
@@ -74,7 +78,9 @@
       "max_high_severity_fatal_flaws": 0,
       "max_errors": 0,
       "min_citation_confidence_avg": 0.1,
-      "max_low_confidence_citations": 30
+      "max_low_confidence_citations": 30,
+      "min_high_confidence_citations": 0,
+      "max_rag_low_confidence_citations": 0
     }
   },
   {
@@ -100,7 +106,9 @@
       "max_high_severity_fatal_flaws": 0,
       "max_errors": 0,
       "min_citation_confidence_avg": 0.1,
-      "max_low_confidence_citations": 30
+      "max_low_confidence_citations": 30,
+      "min_high_confidence_citations": 0,
+      "max_rag_low_confidence_citations": 0
     }
   },
   {
@@ -126,7 +134,9 @@
       "max_high_severity_fatal_flaws": 0,
       "max_errors": 0,
       "min_citation_confidence_avg": 0.1,
-      "max_low_confidence_citations": 30
+      "max_low_confidence_citations": 30,
+      "min_high_confidence_citations": 0,
+      "max_rag_low_confidence_citations": 0
     }
   },
   {
@@ -152,7 +162,9 @@
       "max_high_severity_fatal_flaws": 0,
       "max_errors": 0,
       "min_citation_confidence_avg": 0.1,
-      "max_low_confidence_citations": 30
+      "max_low_confidence_citations": 30,
+      "min_high_confidence_citations": 0,
+      "max_rag_low_confidence_citations": 0
     }
   }
 ]

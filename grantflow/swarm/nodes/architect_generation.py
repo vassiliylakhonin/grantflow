@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from grantflow.core.config import config
 from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
 
+ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD = 0.35
+
 
 def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> BaseModel:
     validator = getattr(schema_cls, "model_validate", None)
@@ -235,6 +237,7 @@ def _llm_structured_toc(
     country: str,
     revision_hint: str,
     evidence_hits: Iterable[Dict[str, Any]],
+    validation_error_hint: Optional[str] = None,
 ) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[str]]:
     if not os.getenv("OPENAI_API_KEY"):
         return None, None, "OPENAI_API_KEY missing"
@@ -259,6 +262,11 @@ def _llm_structured_toc(
         )
         if revision_hint:
             human_prompt += f"Revision instructions from critic: {revision_hint}\n"
+        if validation_error_hint:
+            human_prompt += (
+                "Previous structured output failed schema validation. "
+                f"Repair the object and satisfy these validation errors: {validation_error_hint[:800]}\n"
+            )
         if evidence_lines:
             human_prompt += (
                 "\nDonor guidance evidence (use as grounding cues, do not fabricate citations):\n"
@@ -335,7 +343,12 @@ def build_architect_claim_citations(
             hit, confidence = pick_best_architect_evidence_hit(statement, hits)
         else:
             hit, confidence = {}, 0.0
-        citation_type = "rag_claim_support" if hit else "fallback_namespace"
+        if hit and confidence >= ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD:
+            citation_type = "rag_claim_support"
+        elif hit:
+            citation_type = "rag_low_confidence"
+        else:
+            citation_type = "fallback_namespace"
         citations.append(
             {
                 "stage": "architect",
@@ -383,6 +396,8 @@ def generate_toc_under_contract(
     llm_error: Optional[str] = None
     raw_payload: Optional[Dict[str, Any]] = None
     engine = "fallback:contract_synthesizer"
+    model: Optional[BaseModel] = None
+    llm_repair_attempted = False
 
     if llm_mode:
         prompts = getattr(strategy, "get_system_prompts", lambda: {})() or {}
@@ -394,9 +409,37 @@ def generate_toc_under_contract(
             country=country,
             revision_hint=revision_hint,
             evidence_hits=evidence_hits,
+            validation_error_hint=None,
         )
         if raw_payload:
             engine = llm_engine or engine
+            try:
+                model = _model_validate(schema_cls, raw_payload)
+            except Exception as exc:
+                llm_validation_error = str(exc)
+                llm_repair_attempted = True
+                raw_payload, llm_engine_retry, llm_error_retry = _llm_structured_toc(
+                    schema_cls,
+                    system_prompt=str(prompts.get("Architect") or ""),
+                    donor_id=donor_id,
+                    project=project,
+                    country=country,
+                    revision_hint=revision_hint,
+                    evidence_hits=evidence_hits,
+                    validation_error_hint=llm_validation_error,
+                )
+                if raw_payload:
+                    engine = llm_engine_retry or engine
+                    try:
+                        model = _model_validate(schema_cls, raw_payload)
+                    except Exception as exc_retry:
+                        llm_error = f"LLM structured output failed validation after retry: {exc_retry}"
+                        raw_payload = None
+                    else:
+                        if llm_error_retry:
+                            llm_error = llm_error_retry
+                else:
+                    llm_error = llm_error_retry or f"LLM structured output failed validation: {llm_validation_error}"
 
     if raw_payload is None:
         raw_payload, engine = _fallback_structured_toc(
@@ -407,8 +450,10 @@ def generate_toc_under_contract(
             revision_hint=revision_hint,
             evidence_hits=evidence_hits,
         )
+        model = None
 
-    model = _model_validate(schema_cls, raw_payload)
+    if model is None:
+        model = _model_validate(schema_cls, raw_payload)
     toc_payload = _model_dump(model)
     namespace = strategy.get_rag_collection()
     claim_citations = build_architect_claim_citations(
@@ -428,7 +473,13 @@ def generate_toc_under_contract(
         "llm_used": engine.startswith("llm:"),
         "retrieval_used": bool(evidence_hits),
         "schema_name": validation["schema_name"],
+        "citation_policy": {
+            "high_confidence_threshold": ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD,
+            "low_confidence_type": "rag_low_confidence",
+        },
     }
     if llm_error:
         generation_meta["llm_fallback_reason"] = llm_error
+    if llm_repair_attempted:
+        generation_meta["llm_validation_repair_attempted"] = True
     return toc_payload, validation, generation_meta, claim_citations

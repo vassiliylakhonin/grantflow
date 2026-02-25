@@ -2,6 +2,12 @@ from __future__ import annotations
 
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.nodes.architect import draft_toc
+from grantflow.swarm.nodes import architect_generation as architect_generation_module
+from grantflow.swarm.nodes.architect_generation import (
+    _fallback_structured_toc,
+    build_architect_claim_citations,
+    generate_toc_under_contract,
+)
 from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
 
 
@@ -63,3 +69,71 @@ def test_architect_evidence_ranking_prefers_more_relevant_hit():
     best_hit, confidence = pick_best_architect_evidence_hit(statement, hits)
     assert best_hit["source"] == "b.pdf"
     assert confidence > 0.3
+
+
+def test_architect_claim_citation_policy_marks_low_confidence_hits():
+    toc_payload = {"project_goal": "Improve water sanitation outcomes", "objectives": []}
+    citations = build_architect_claim_citations(
+        toc_payload=toc_payload,
+        namespace="usaid_ads201",
+        evidence_hits=[
+            {
+                "rank": 1,
+                "label": "Unrelated guidance",
+                "source": "a.pdf",
+                "excerpt": "Procurement templates and financial reporting annexes only",
+            }
+        ],
+    )
+    assert citations
+    assert citations[0]["citation_type"] in {"rag_low_confidence", "fallback_namespace", "rag_claim_support"}
+    assert "citation_confidence" in citations[0]
+    assert 0.0 <= float(citations[0]["citation_confidence"]) <= 1.0
+    if citations[0]["citation_type"] == "rag_low_confidence":
+        assert float(citations[0]["citation_confidence"]) < 0.35
+
+
+def test_architect_llm_validation_failure_retries_once_and_recovers(monkeypatch):
+    strategy = DonorFactory.get_strategy("usaid")
+    schema_cls = strategy.get_toc_schema()
+    valid_payload, _ = _fallback_structured_toc(
+        schema_cls,
+        donor_id="usaid",
+        project="Water Sanitation",
+        country="Kenya",
+        revision_hint="",
+        evidence_hits=[],
+    )
+
+    calls = []
+
+    def fake_llm_structured_toc(*args, **kwargs):
+        calls.append(kwargs.get("validation_error_hint"))
+        if len(calls) == 1:
+            return {"invalid": "payload"}, "llm:mock", None
+        return valid_payload, "llm:mock", None
+
+    monkeypatch.setattr(architect_generation_module, "_llm_structured_toc", fake_llm_structured_toc)
+
+    state = {
+        "donor": "usaid",
+        "donor_id": "usaid",
+        "strategy": strategy,
+        "donor_strategy": strategy,
+        "input": {"project": "Water Sanitation", "country": "Kenya"},
+        "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+        "llm_mode": True,
+        "critic_notes": {},
+    }
+
+    toc, validation, generation_meta, claim_citations = generate_toc_under_contract(
+        state=state, strategy=strategy, evidence_hits=[]
+    )
+    assert toc
+    assert validation["valid"] is True
+    assert generation_meta["llm_used"] is True
+    assert generation_meta.get("llm_validation_repair_attempted") is True
+    assert len(calls) == 2
+    assert calls[0] is None
+    assert isinstance(calls[1], str) and calls[1]
+    assert isinstance(claim_citations, list)
