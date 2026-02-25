@@ -4,10 +4,8 @@ import io
 import gzip
 import json
 import tempfile
-import threading
 import uuid
 import zipfile
-from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional
 
@@ -60,7 +58,7 @@ from grantflow.api.security import (
 )
 from grantflow.api.webhooks import send_job_webhook_event
 from grantflow.core.config import config
-from grantflow.core.stores import create_job_store_from_env
+from grantflow.core.stores import create_ingest_audit_store_from_env, create_job_store_from_env
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
@@ -80,6 +78,7 @@ app = FastAPI(
 )
 
 JOB_STORE = create_job_store_from_env()
+INGEST_AUDIT_STORE = create_ingest_audit_store_from_env()
 
 HITLStartAt = Literal["start", "architect", "mel", "critic"]
 TERMINAL_JOB_STATUSES = {"done", "error", "canceled"}
@@ -92,11 +91,6 @@ STATUS_WEBHOOK_EVENTS = {
     "error": "job.failed",
     "canceled": "job.canceled",
 }
-INGEST_AUDIT_LOG_MAX = 500
-INGEST_AUDIT_LOG: deque[Dict[str, Any]] = deque(maxlen=INGEST_AUDIT_LOG_MAX)
-INGEST_AUDIT_LOCK = threading.Lock()
-
-
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -171,18 +165,11 @@ def _record_ingest_event(
         "metadata": dict(metadata or {}),
         "result": dict(result or {}),
     }
-    with INGEST_AUDIT_LOCK:
-        INGEST_AUDIT_LOG.append(row)
+    INGEST_AUDIT_STORE.append(row)
 
 
 def _list_ingest_events(*, donor_id: Optional[str] = None, limit: int = 50) -> list[Dict[str, Any]]:
-    donor_filter = str(donor_id or "").strip().lower()
-    with INGEST_AUDIT_LOCK:
-        rows = list(INGEST_AUDIT_LOG)
-    rows = list(reversed(rows))
-    if donor_filter:
-        rows = [r for r in rows if str(r.get("donor_id") or "").strip().lower() == donor_filter]
-    return rows[: max(1, min(int(limit or 50), 200))]
+    return INGEST_AUDIT_STORE.list_recent(donor_id=donor_id, limit=limit)
 
 
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
@@ -727,14 +714,18 @@ def _resume_target_from_checkpoint(checkpoint: Dict[str, Any], default_resume_fr
 def _health_diagnostics() -> dict[str, Any]:
     job_store_mode = "sqlite" if getattr(JOB_STORE, "db_path", None) else "inmem"
     hitl_store_mode = "sqlite" if bool(getattr(hitl_manager, "_use_sqlite", False)) else "inmem"
+    ingest_store_mode = "sqlite" if getattr(INGEST_AUDIT_STORE, "db_path", None) else "inmem"
     sqlite_path = getattr(JOB_STORE, "db_path", None) or (
         getattr(hitl_manager, "_sqlite_path", None) if hitl_store_mode == "sqlite" else None
     )
+    if not sqlite_path and ingest_store_mode == "sqlite":
+        sqlite_path = getattr(INGEST_AUDIT_STORE, "db_path", None)
 
     vector_backend = "chroma" if getattr(vector_store, "client", None) is not None else "memory"
     diagnostics: dict[str, Any] = {
         "job_store": {"mode": job_store_mode},
         "hitl_store": {"mode": hitl_store_mode},
+        "ingest_store": {"mode": ingest_store_mode},
         "auth": {
             "api_key_configured": bool(api_key_configured()),
             "read_auth_required": bool(read_auth_required()),
@@ -744,7 +735,7 @@ def _health_diagnostics() -> dict[str, Any]:
             "collection_prefix": getattr(vector_store, "prefix", "grantflow"),
         },
     }
-    if sqlite_path and (job_store_mode == "sqlite" or hitl_store_mode == "sqlite"):
+    if sqlite_path and (job_store_mode == "sqlite" or hitl_store_mode == "sqlite" or ingest_store_mode == "sqlite"):
         diagnostics["sqlite"] = {"path": str(sqlite_path)}
     client_init_error = getattr(vector_store, "_client_init_error", None)
     if client_init_error:

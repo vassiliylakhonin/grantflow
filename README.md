@@ -128,6 +128,7 @@ export CHROMA_COLLECTION_PREFIX=grantflow
 # Optional persistence (default is in-memory)
 # export GRANTFLOW_JOB_STORE=sqlite
 # export GRANTFLOW_HITL_STORE=sqlite
+# export GRANTFLOW_INGEST_STORE=sqlite
 # export GRANTFLOW_SQLITE_PATH=./grantflow_state.db
 ```
 
@@ -834,7 +835,8 @@ Optional environment variables:
 - `GRANTFLOW_REQUIRE_AUTH_FOR_READS` (`true` to require `X-API-Key` for `/status` and `/hitl/pending`)
 - `GRANTFLOW_JOB_STORE` (`inmem` or `sqlite`)
 - `GRANTFLOW_HITL_STORE` (`inmem` or `sqlite`, defaults to job store mode)
-- `GRANTFLOW_SQLITE_PATH` (SQLite file path for job/HITL persistence)
+- `GRANTFLOW_INGEST_STORE` (`inmem` or `sqlite`, defaults to job store mode)
+- `GRANTFLOW_SQLITE_PATH` (SQLite file path for job/HITL/ingest persistence)
 - `GRANTFLOW_WEBHOOK_MAX_ATTEMPTS`
 - `GRANTFLOW_WEBHOOK_TIMEOUT_S`
 - `GRANTFLOW_WEBHOOK_BACKOFF_BASE_MS`

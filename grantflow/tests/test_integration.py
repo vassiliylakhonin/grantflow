@@ -33,6 +33,7 @@ def test_health_endpoint():
     diagnostics = body["diagnostics"]
     assert diagnostics["job_store"]["mode"] in {"inmem", "sqlite"}
     assert diagnostics["hitl_store"]["mode"] in {"inmem", "sqlite"}
+    assert diagnostics["ingest_store"]["mode"] in {"inmem", "sqlite"}
     assert isinstance(diagnostics["auth"]["api_key_configured"], bool)
     assert isinstance(diagnostics["auth"]["read_auth_required"], bool)
     assert diagnostics["vector_store"]["backend"] in {"chroma", "memory"}
@@ -1650,7 +1651,7 @@ def test_openapi_declares_api_key_security_scheme():
 
 
 def test_ingest_endpoint_uploads_to_donor_namespace(monkeypatch):
-    api_app_module.INGEST_AUDIT_LOG.clear()
+    api_app_module.INGEST_AUDIT_STORE.clear()
     calls = {}
 
     def fake_ingest(pdf_path: str, namespace: str, metadata=None):
@@ -1686,7 +1687,7 @@ def test_ingest_endpoint_uploads_to_donor_namespace(monkeypatch):
 
 
 def test_ingest_recent_endpoint_returns_records(monkeypatch):
-    api_app_module.INGEST_AUDIT_LOG.clear()
+    api_app_module.INGEST_AUDIT_STORE.clear()
 
     def fake_ingest(pdf_path: str, namespace: str, metadata=None):
         return {"namespace": namespace, "source": pdf_path, "chunks_ingested": 1, "stats": {}}

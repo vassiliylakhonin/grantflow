@@ -5,6 +5,7 @@ import json
 import os
 import sqlite3
 import threading
+from collections import deque
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -179,6 +180,30 @@ class InMemoryJobStore:
             return {job_id: copy.deepcopy(payload) for job_id, payload in self._jobs.items()}
 
 
+class InMemoryIngestAuditStore:
+    def __init__(self, maxlen: int = 500) -> None:
+        self._rows: deque[Dict[str, Any]] = deque(maxlen=max(1, int(maxlen)))
+        self._lock = threading.Lock()
+
+    def append(self, row: Dict[str, Any]) -> None:
+        with self._lock:
+            self._rows.append(copy.deepcopy(sanitize_jsonable(row)))
+
+    def list_recent(self, donor_id: Optional[str] = None, limit: int = 50) -> list[Dict[str, Any]]:
+        donor_filter = str(donor_id or "").strip().lower()
+        with self._lock:
+            rows = list(self._rows)
+        rows = list(reversed(rows))
+        if donor_filter:
+            rows = [r for r in rows if str(r.get("donor_id") or "").strip().lower() == donor_filter]
+        capped = rows[: max(1, min(int(limit or 50), 200))]
+        return [copy.deepcopy(r) for r in capped]
+
+    def clear(self) -> None:
+        with self._lock:
+            self._rows.clear()
+
+
 class SQLiteJobStore:
     SCHEMA_COMPONENT = "jobs"
     SCHEMA_VERSION = 1
@@ -256,8 +281,118 @@ class SQLiteJobStore:
         return items
 
 
+class SQLiteIngestAuditStore:
+    SCHEMA_COMPONENT = "ingest_audit"
+    SCHEMA_VERSION = 1
+
+    def __init__(self, db_path: Optional[str] = None) -> None:
+        self.db_path = db_path or default_sqlite_path()
+        self._write_lock = threading.Lock()
+        self._init_db()
+
+    def _connect(self) -> sqlite3.Connection:
+        return open_sqlite_connection(self.db_path)
+
+    def _init_db(self) -> None:
+        with self._connect() as conn:
+            ensure_sqlite_component_schema(conn, self.SCHEMA_COMPONENT, self.SCHEMA_VERSION)
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS ingest_audit_events (
+                  event_id TEXT PRIMARY KEY,
+                  ts TEXT NOT NULL,
+                  donor_id TEXT NOT NULL,
+                  namespace TEXT NOT NULL,
+                  filename TEXT NOT NULL,
+                  content_type TEXT NOT NULL,
+                  metadata_json TEXT NOT NULL,
+                  result_json TEXT NOT NULL,
+                  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+
+    def append(self, row: Dict[str, Any]) -> None:
+        item = sanitize_jsonable(dict(row or {}))
+        with self._write_lock:
+            with self._connect() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO ingest_audit_events (
+                      event_id, ts, donor_id, namespace, filename, content_type, metadata_json, result_json, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(event_id) DO UPDATE SET
+                      ts=excluded.ts,
+                      donor_id=excluded.donor_id,
+                      namespace=excluded.namespace,
+                      filename=excluded.filename,
+                      content_type=excluded.content_type,
+                      metadata_json=excluded.metadata_json,
+                      result_json=excluded.result_json,
+                      created_at=CURRENT_TIMESTAMP
+                    """,
+                    (
+                        str(item.get("event_id") or ""),
+                        str(item.get("ts") or ""),
+                        str(item.get("donor_id") or ""),
+                        str(item.get("namespace") or ""),
+                        str(item.get("filename") or ""),
+                        str(item.get("content_type") or ""),
+                        storage_json_dumps(item.get("metadata") or {}),
+                        storage_json_dumps(item.get("result") or {}),
+                    ),
+                )
+
+    def list_recent(self, donor_id: Optional[str] = None, limit: int = 50) -> list[Dict[str, Any]]:
+        cap = max(1, min(int(limit or 50), 200))
+        donor_filter = str(donor_id or "").strip()
+        query = (
+            "SELECT event_id, ts, donor_id, namespace, filename, content_type, metadata_json, result_json "
+            "FROM ingest_audit_events "
+        )
+        params: list[Any] = []
+        if donor_filter:
+            query += "WHERE lower(donor_id) = lower(?) "
+            params.append(donor_filter)
+        query += "ORDER BY ts DESC, created_at DESC LIMIT ?"
+        params.append(cap)
+        with self._connect() as conn:
+            rows = conn.execute(query, tuple(params)).fetchall()
+
+        items: list[Dict[str, Any]] = []
+        for row in rows:
+            items.append(
+                {
+                    "event_id": row["event_id"],
+                    "ts": row["ts"],
+                    "donor_id": row["donor_id"],
+                    "namespace": row["namespace"],
+                    "filename": row["filename"],
+                    "content_type": row["content_type"],
+                    "metadata": storage_json_loads(row["metadata_json"]),
+                    "result": storage_json_loads(row["result_json"]),
+                }
+            )
+        return items
+
+    def clear(self) -> None:
+        with self._write_lock:
+            with self._connect() as conn:
+                conn.execute("DELETE FROM ingest_audit_events")
+
+
 def create_job_store_from_env() -> InMemoryJobStore | SQLiteJobStore:
     mode = storage_mode("GRANTFLOW_JOB_STORE", _env("JOB_STORE", "inmem"))
     if mode == "sqlite":
         return SQLiteJobStore()
     return InMemoryJobStore()
+
+
+def create_ingest_audit_store_from_env() -> InMemoryIngestAuditStore | SQLiteIngestAuditStore:
+    mode = storage_mode(
+        "GRANTFLOW_INGEST_STORE",
+        _env("INGEST_STORE", storage_mode("GRANTFLOW_JOB_STORE", _env("JOB_STORE", "inmem"))),
+    )
+    if mode == "sqlite":
+        return SQLiteIngestAuditStore()
+    return InMemoryIngestAuditStore()

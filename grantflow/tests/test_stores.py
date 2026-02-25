@@ -1,7 +1,7 @@
 import json
 import sqlite3
 
-from grantflow.core.stores import SQLiteJobStore, open_sqlite_connection
+from grantflow.core.stores import SQLiteIngestAuditStore, SQLiteJobStore, open_sqlite_connection
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.hitl import HITLCheckpoint, HITLStatus
 
@@ -94,14 +94,67 @@ def test_sqlite_hitl_checkpoint_store_roundtrip(monkeypatch, tmp_path):
     assert checkpoint["feedback"] == "ok"
 
 
+def test_sqlite_ingest_audit_store_roundtrip_and_filtering(tmp_path):
+    db_path = tmp_path / "grantflow_state.db"
+    store = SQLiteIngestAuditStore(str(db_path))
+
+    store.append(
+        {
+            "event_id": "evt-1",
+            "ts": "2026-02-25T10:00:00+00:00",
+            "donor_id": "usaid",
+            "namespace": "usaid_ads201",
+            "filename": "ads.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "donor_policy"},
+            "result": {"chunks_ingested": 3},
+        }
+    )
+    store.append(
+        {
+            "event_id": "evt-2",
+            "ts": "2026-02-25T10:05:00+00:00",
+            "donor_id": "eu",
+            "namespace": "eu_intpa",
+            "filename": "eu.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "donor_policy"},
+            "result": {"chunks_ingested": 2},
+        }
+    )
+    store.append(
+        {
+            "event_id": "evt-3",
+            "ts": "2026-02-25T10:10:00+00:00",
+            "donor_id": "usaid",
+            "namespace": "usaid_ads201",
+            "filename": "kz-context.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "country_context"},
+            "result": {"chunks_ingested": 4},
+        }
+    )
+
+    usaid_rows = store.list_recent(donor_id="usaid", limit=10)
+    assert [row["filename"] for row in usaid_rows] == ["kz-context.pdf", "ads.pdf"]
+    assert usaid_rows[0]["metadata"]["doc_family"] == "country_context"
+    assert usaid_rows[1]["result"]["chunks_ingested"] == 3
+
+    all_rows = store.list_recent(limit=2)
+    assert len(all_rows) == 2
+    assert [row["event_id"] for row in all_rows] == ["evt-3", "evt-2"]
+
+
 def test_sqlite_stores_initialize_pragmas_and_schema_meta(monkeypatch, tmp_path):
     db_path = tmp_path / "grantflow_state.db"
     monkeypatch.setenv("GRANTFLOW_SQLITE_PATH", str(db_path))
     monkeypatch.setenv("GRANTFLOW_HITL_STORE", "sqlite")
+    monkeypatch.setenv("GRANTFLOW_INGEST_STORE", "sqlite")
     monkeypatch.setenv("GRANTFLOW_SQLITE_BUSY_TIMEOUT_MS", "7000")
 
     SQLiteJobStore(str(db_path))
     HITLCheckpoint()
+    SQLiteIngestAuditStore(str(db_path))
 
     with open_sqlite_connection(str(db_path)) as conn:
         journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
@@ -112,6 +165,7 @@ def test_sqlite_stores_initialize_pragmas_and_schema_meta(monkeypatch, tmp_path)
     assert str(journal_mode).lower() == "wal"
     assert int(busy_timeout) == 7000
     assert ("hitl_checkpoints", 1) in rows
+    assert ("ingest_audit", 1) in rows
     assert ("jobs", 1) in rows
 
 
