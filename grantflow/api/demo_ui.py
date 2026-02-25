@@ -227,6 +227,12 @@ def render_demo_ui_html() -> str:
                 <div id="generatePresetReadinessPill" class="pill"><span class="dot"></span><span id="generatePresetReadinessText">No preset selected</span></div>
               </div>
             </div>
+            <div class="row" style="margin-top:8px;">
+              <label style="display:flex; align-items:center; gap:8px;">
+                <input id="skipZeroReadinessWarningCheckbox" type="checkbox" />
+                <span id="skipZeroReadinessWarningLabel">Don't ask again for this preset</span>
+              </label>
+            </div>
             <div style="margin-top:10px;">
               <label for="inputContextJson">Extra Input Context JSON (optional)</label>
               <textarea id="inputContextJson" class="json" placeholder='{"problem":"...", "target_population":"...", "key_activities":["..."]}'></textarea>
@@ -701,6 +707,7 @@ def render_demo_ui_html() -> str:
         lastCitations: null,
         lastIngestInventory: null,
         ingestChecklistProgress: {},
+        zeroReadinessWarningPrefs: {},
       };
       const GENERATE_PRESETS = {
         usaid_gov_ai_kazakhstan: {
@@ -877,6 +884,8 @@ def render_demo_ui_html() -> str:
         ingestBtn: $("ingestBtn"),
         generatePresetReadinessPill: $("generatePresetReadinessPill"),
         generatePresetReadinessText: $("generatePresetReadinessText"),
+        skipZeroReadinessWarningCheckbox: $("skipZeroReadinessWarningCheckbox"),
+        skipZeroReadinessWarningLabel: $("skipZeroReadinessWarningLabel"),
         diffSection: $("diffSection"),
         fromVersionId: $("fromVersionId"),
         toVersionId: $("toVersionId"),
@@ -960,6 +969,7 @@ def render_demo_ui_html() -> str:
         els.apiKey.value = localStorage.getItem("grantflow_demo_api_key") || "";
         els.jobIdInput.value = localStorage.getItem("grantflow_demo_job_id") || "";
         state.ingestChecklistProgress = loadIngestChecklistProgress();
+        state.zeroReadinessWarningPrefs = loadZeroReadinessWarningPrefs();
         restoreUiState();
         if (!String(els.ingestDonorId.value || "").trim()) {
           els.ingestDonorId.value = String(els.donorId.value || "usaid");
@@ -967,6 +977,7 @@ def render_demo_ui_html() -> str:
         renderIngestPresetGuidance();
         renderIngestChecklistProgress();
         renderGeneratePresetReadiness();
+        renderZeroReadinessWarningPreference();
         if (String(els.ingestPresetSelect.value || "").trim()) {
           syncIngestChecklistFromServer().catch(() => {});
         }
@@ -1032,10 +1043,29 @@ def render_demo_ui_html() -> str:
         return {};
       }
 
+      function loadZeroReadinessWarningPrefs() {
+        const raw = localStorage.getItem("grantflow_demo_zero_readiness_warning_prefs");
+        if (!raw) return {};
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+        } catch (_err) {
+          // ignore malformed local storage
+        }
+        return {};
+      }
+
       function persistIngestChecklistProgress() {
         localStorage.setItem(
           "grantflow_demo_ingest_checklist_progress",
           JSON.stringify(state.ingestChecklistProgress || {})
+        );
+      }
+
+      function persistZeroReadinessWarningPrefs() {
+        localStorage.setItem(
+          "grantflow_demo_zero_readiness_warning_prefs",
+          JSON.stringify(state.zeroReadinessWarningPrefs || {})
         );
       }
 
@@ -1069,17 +1099,42 @@ def render_demo_ui_html() -> str:
         return { presetKey, total: items.length, completed };
       }
 
+      function isZeroReadinessWarningSkippedForPreset(presetKey) {
+        const key = String(presetKey || "").trim();
+        if (!key) return false;
+        const prefs = state.zeroReadinessWarningPrefs && typeof state.zeroReadinessWarningPrefs === "object"
+          ? state.zeroReadinessWarningPrefs
+          : {};
+        return Boolean(prefs[key]);
+      }
+
+      function renderZeroReadinessWarningPreference() {
+        if (!els.skipZeroReadinessWarningCheckbox || !els.skipZeroReadinessWarningLabel) return;
+        const presetKey = String(els.generatePresetSelect.value || "").trim();
+        if (!presetKey) {
+          els.skipZeroReadinessWarningCheckbox.checked = false;
+          els.skipZeroReadinessWarningCheckbox.disabled = true;
+          els.skipZeroReadinessWarningLabel.textContent = "Don't ask again for this preset";
+          return;
+        }
+        els.skipZeroReadinessWarningCheckbox.disabled = false;
+        els.skipZeroReadinessWarningCheckbox.checked = isZeroReadinessWarningSkippedForPreset(presetKey);
+        els.skipZeroReadinessWarningLabel.textContent = "Don't ask again for this preset";
+      }
+
       function renderGeneratePresetReadiness() {
         if (!els.generatePresetReadinessPill || !els.generatePresetReadinessText) return;
         const { presetKey, total, completed } = getGeneratePresetReadinessStats();
         if (!presetKey) {
           els.generatePresetReadinessPill.className = "pill";
           els.generatePresetReadinessText.textContent = "No preset selected";
+          renderZeroReadinessWarningPreference();
           return;
         }
         if (!total) {
           els.generatePresetReadinessPill.className = "pill";
           els.generatePresetReadinessText.textContent = "No checklist for preset";
+          renderZeroReadinessWarningPreference();
           return;
         }
         let cls = "pill";
@@ -1087,6 +1142,7 @@ def render_demo_ui_html() -> str:
         else if (completed > 0) cls += " status-running";
         els.generatePresetReadinessPill.className = cls;
         els.generatePresetReadinessText.textContent = `${completed}/${total} doc families loaded`;
+        renderZeroReadinessWarningPreference();
       }
 
       function renderIngestChecklistProgress() {
@@ -1877,7 +1933,12 @@ def render_demo_ui_html() -> str:
 
       async function generateJob() {
         const readiness = getGeneratePresetReadinessStats();
-        if (readiness.presetKey && readiness.total > 0 && readiness.completed === 0) {
+        if (
+          readiness.presetKey &&
+          readiness.total > 0 &&
+          readiness.completed === 0 &&
+          !isZeroReadinessWarningSkippedForPreset(readiness.presetKey)
+        ) {
           const ok = window.confirm(
             `RAG readiness is 0/${readiness.total} for the selected preset. Generate anyway?`
           );
@@ -2445,6 +2506,16 @@ def render_demo_ui_html() -> str:
         els.refreshAllBtn.addEventListener("click", () => refreshAll().catch(showError));
         els.pollToggleBtn.addEventListener("click", togglePolling);
         els.clearFiltersBtn.addEventListener("click", () => clearDemoFilters().catch(showError));
+        els.skipZeroReadinessWarningCheckbox.addEventListener("change", () => {
+          const presetKey = String(els.generatePresetSelect.value || "").trim();
+          if (!presetKey) return;
+          if (!state.zeroReadinessWarningPrefs || typeof state.zeroReadinessWarningPrefs !== "object") {
+            state.zeroReadinessWarningPrefs = {};
+          }
+          state.zeroReadinessWarningPrefs[presetKey] = Boolean(els.skipZeroReadinessWarningCheckbox.checked);
+          persistZeroReadinessWarningPrefs();
+          renderZeroReadinessWarningPreference();
+        });
         els.approveBtn.addEventListener("click", () => approveOrReject(true).catch(showError));
         els.rejectBtn.addEventListener("click", () => approveOrReject(false).catch(showError));
         els.resumeBtn.addEventListener("click", () => resumeJob().catch(showError));
@@ -2523,6 +2594,7 @@ def render_demo_ui_html() -> str:
         els.generatePresetSelect.addEventListener("change", () => {
           persistUiState();
           renderGeneratePresetReadiness();
+          renderZeroReadinessWarningPreference();
         });
         els.inputContextJson.addEventListener("change", persistUiState);
         els.ingestPresetSelect.addEventListener("change", () => {
