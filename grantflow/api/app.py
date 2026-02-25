@@ -1150,7 +1150,16 @@ def get_status_export_payload(job_id: str, request: Request):
     job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return public_job_export_payload(job_id, job)
+    state = job.get("state")
+    state_dict = state if isinstance(state, dict) else {}
+    donor = str(
+        state_dict.get("donor_id")
+        or state_dict.get("donor")
+        or ((job.get("client_metadata") or {}) if isinstance(job.get("client_metadata"), dict) else {}).get("donor_id")
+        or ""
+    ).strip()
+    inventory_rows = _ingest_inventory(donor_id=donor or None)
+    return public_job_export_payload(job_id, job, ingest_inventory_rows=inventory_rows)
 
 
 @app.get(

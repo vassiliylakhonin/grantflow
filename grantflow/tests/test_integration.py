@@ -335,10 +335,30 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
 
 def test_status_export_payload_endpoint_returns_review_ready_payload():
     job_id = "export-payload-1"
+    api_app_module.INGEST_AUDIT_STORE.clear()
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "ing-exp-1",
+            "ts": "2026-02-24T09:00:00+00:00",
+            "donor_id": "usaid",
+            "namespace": "usaid_ads201",
+            "filename": "ads.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "donor_policy", "source_type": "donor_guidance"},
+            "result": {"chunks_ingested": 4},
+        }
+    )
     api_app_module.JOB_STORE.set(
         job_id,
         {
             "status": "done",
+            "client_metadata": {
+                "demo_generate_preset_key": "usaid_gov_ai_kazakhstan",
+                "rag_readiness": {
+                    "expected_doc_families": ["donor_policy", "country_context"],
+                    "donor_id": "usaid",
+                },
+            },
             "state": {
                 "donor_id": "usaid",
                 "toc_draft": {"toc": {"brief": "Sample ToC"}},
@@ -390,6 +410,11 @@ def test_status_export_payload_endpoint_returns_review_ready_payload():
     assert payload["critic_findings"][0]["linked_comment_ids"] == ["comment-1"]
     assert isinstance(payload["review_comments"], list)
     assert payload["review_comments"][0]["linked_finding_id"] == "finding-1"
+    assert payload["readiness"]["preset_key"] == "usaid_gov_ai_kazakhstan"
+    assert payload["readiness"]["expected_doc_families"] == ["donor_policy", "country_context"]
+    assert payload["readiness"]["present_doc_families"] == ["donor_policy"]
+    assert payload["readiness"]["missing_doc_families"] == ["country_context"]
+    assert payload["readiness"]["coverage_rate"] == 0.5
 
 
 def test_status_includes_citations_traceability(monkeypatch):

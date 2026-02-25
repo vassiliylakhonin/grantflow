@@ -147,7 +147,12 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
     }
 
 
-def public_job_export_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+def public_job_export_payload(
+    job_id: str,
+    job: Dict[str, Any],
+    *,
+    ingest_inventory_rows: Optional[list[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
     state = job.get("state")
     state_payload = public_state_snapshot(state) if isinstance(state, dict) else {}
 
@@ -160,6 +165,7 @@ def public_job_export_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
     review_comments = comments_payload.get("comments") if isinstance(comments_payload, dict) else []
     if not isinstance(review_comments, list):
         review_comments = []
+    readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
 
     return {
         "job_id": str(job_id),
@@ -168,6 +174,7 @@ def public_job_export_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
             "state": state_payload if isinstance(state_payload, dict) else {},
             "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
             "review_comments": [item for item in review_comments if isinstance(item, dict)],
+            "readiness": readiness_payload,
         },
     }
 
