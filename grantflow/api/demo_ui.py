@@ -362,6 +362,29 @@ def render_demo_ui_html() -> str:
           <div class="body">
             <div class="row3">
               <div>
+                <label for="commentsFilterSection">List Filter: Section</label>
+                <select id="commentsFilterSection">
+                  <option value="">all</option>
+                  <option value="general">general</option>
+                  <option value="toc">toc</option>
+                  <option value="logframe">logframe</option>
+                </select>
+              </div>
+              <div>
+                <label for="commentsFilterStatus">List Filter: Status</label>
+                <select id="commentsFilterStatus">
+                  <option value="">all</option>
+                  <option value="open">open</option>
+                  <option value="resolved">resolved</option>
+                </select>
+              </div>
+              <div>
+                <label for="commentsFilterVersionId">List Filter: Version ID</label>
+                <input id="commentsFilterVersionId" placeholder="toc_v2" />
+              </div>
+            </div>
+            <div class="row3">
+              <div>
                 <label for="commentSection">Section</label>
                 <select id="commentSection">
                   <option value="general">general</option>
@@ -448,6 +471,9 @@ def render_demo_ui_html() -> str:
         metricsCards: $("metricsCards"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
+        commentsFilterSection: $("commentsFilterSection"),
+        commentsFilterStatus: $("commentsFilterStatus"),
+        commentsFilterVersionId: $("commentsFilterVersionId"),
         commentSection: $("commentSection"),
         commentAuthor: $("commentAuthor"),
         commentVersionId: $("commentVersionId"),
@@ -879,7 +905,12 @@ def render_demo_ui_html() -> str:
       async function refreshComments() {
         const jobId = currentJobId();
         if (!jobId) return;
-        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/comments`);
+        const params = new URLSearchParams();
+        if (els.commentsFilterSection.value) params.set("section", els.commentsFilterSection.value);
+        if (els.commentsFilterStatus.value) params.set("status", els.commentsFilterStatus.value);
+        if (els.commentsFilterVersionId.value.trim()) params.set("version_id", els.commentsFilterVersionId.value.trim());
+        const q = params.toString() ? `?${params.toString()}` : "";
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/comments${q}`);
         renderComments(body.comments || []);
         return body;
       }
@@ -1020,6 +1051,10 @@ def render_demo_ui_html() -> str:
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
+        [els.commentsFilterSection, els.commentsFilterStatus].forEach((el) =>
+          el.addEventListener("change", () => refreshComments().catch(showError))
+        );
+        els.commentsFilterVersionId.addEventListener("change", () => refreshComments().catch(showError));
         els.criticSectionFilter.addEventListener("change", () => {
           if (state.lastCritic) renderCriticLists(state.lastCritic);
           else refreshCritic().catch(showError);

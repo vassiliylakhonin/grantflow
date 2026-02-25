@@ -50,6 +50,8 @@ def test_demo_console_page_loads():
     assert "Jump to Diff" in body
     assert "Create Comment" in body
     assert "criticContextList" in body
+    assert "commentsFilterStatus" in body
+    assert "commentsFilterVersionId" in body
 
 
 def test_ready_endpoint():
