@@ -284,7 +284,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 
 - Generate jobs and poll status
 - Generate presets for public-sector/governance demos (USAID / EU / World Bank) with editable extra input context JSON
-- Generate preset `RAG Readiness` badge (doc-family checklist coverage) for quick preflight before drafting, with a `0/N` confirmation warning before `Generate Draft` and a per-preset `Don't ask again` toggle
+- Generate preset `RAG Readiness` badge (doc-family checklist coverage) for quick preflight before drafting, with a `Sync Readiness Now` shortcut, a `0/N` confirmation warning before `Generate Draft`, and a per-preset `Don't ask again` toggle
 - Ingest (RAG Prep) panel with donor-specific guidance presets and direct PDF upload to `POST /ingest`
 - Ingest inventory sync/export (`GET /ingest/inventory`, `GET /ingest/inventory/export`) for checklist/readiness snapshots (`Copy JSON`, `Download JSON/CSV`)
 - HITL approve/reject/resume/cancel actions

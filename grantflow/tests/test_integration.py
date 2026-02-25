@@ -51,6 +51,8 @@ def test_demo_console_page_loads():
     assert "clearPresetContextBtn" in body
     assert "generatePresetReadinessPill" in body
     assert "generatePresetReadinessText" in body
+    assert "syncGenerateReadinessBtn" in body
+    assert "Sync Readiness Now" in body
     assert "skipZeroReadinessWarningCheckbox" in body
     assert "grantflow_demo_zero_readiness_warning_prefs" in body
     assert "Don't ask again for this preset" in body

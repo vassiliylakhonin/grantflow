@@ -226,6 +226,9 @@ def render_demo_ui_html() -> str:
                 <label>RAG Readiness (for selected preset)</label>
                 <div id="generatePresetReadinessPill" class="pill"><span class="dot"></span><span id="generatePresetReadinessText">No preset selected</span></div>
               </div>
+              <div style="align-self:end;">
+                <button id="syncGenerateReadinessBtn" class="ghost">Sync Readiness Now</button>
+              </div>
             </div>
             <div class="row" style="margin-top:8px;">
               <label style="display:flex; align-items:center; gap:8px;">
@@ -884,6 +887,7 @@ def render_demo_ui_html() -> str:
         ingestBtn: $("ingestBtn"),
         generatePresetReadinessPill: $("generatePresetReadinessPill"),
         generatePresetReadinessText: $("generatePresetReadinessText"),
+        syncGenerateReadinessBtn: $("syncGenerateReadinessBtn"),
         skipZeroReadinessWarningCheckbox: $("skipZeroReadinessWarningCheckbox"),
         skipZeroReadinessWarningLabel: $("skipZeroReadinessWarningLabel"),
         diffSection: $("diffSection"),
@@ -1333,6 +1337,20 @@ def render_demo_ui_html() -> str:
         els.ingestDonorId.value = String(els.donorId.value || "").trim();
         persistUiState();
         syncIngestChecklistFromServer().catch(() => {});
+      }
+
+      async function syncGeneratePresetReadinessNow() {
+        const generatePresetKey = String(els.generatePresetSelect.value || "").trim();
+        if (!generatePresetKey) throw new Error("Select a Generate Preset first");
+        if (INGEST_PRESETS[generatePresetKey]) {
+          els.ingestPresetSelect.value = generatePresetKey;
+          renderIngestPresetGuidance();
+        }
+        if (!String(els.ingestDonorId.value || "").trim()) {
+          els.ingestDonorId.value = String(els.donorId.value || "").trim();
+        }
+        persistUiState();
+        return syncIngestChecklistFromServer();
       }
 
       async function ingestPdfUpload() {
@@ -2516,6 +2534,9 @@ def render_demo_ui_html() -> str:
           persistZeroReadinessWarningPrefs();
           renderZeroReadinessWarningPreference();
         });
+        els.syncGenerateReadinessBtn.addEventListener("click", () =>
+          syncGeneratePresetReadinessNow().catch((err) => showError(err))
+        );
         els.approveBtn.addEventListener("click", () => approveOrReject(true).catch(showError));
         els.rejectBtn.addEventListener("click", () => approveOrReject(false).catch(showError));
         els.resumeBtn.addEventListener("click", () => resumeJob().catch(showError));
