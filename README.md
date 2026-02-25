@@ -280,6 +280,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 
 - Generate jobs and poll status
 - Generate presets for public-sector/governance demos (USAID / EU / World Bank) with editable extra input context JSON
+- Ingest (RAG Prep) panel with donor-specific guidance presets and direct PDF upload to `POST /ingest`
 - HITL approve/reject/resume/cancel actions
 - Critic findings review (fatal flaws, rule checks, citation context, confidence filter)
 - Draft versions and diffs (with jump-to-diff shortcuts)
@@ -311,6 +312,8 @@ The `Generate` card includes preset examples that prefill `donor_id`, `project`,
 - `World Bank: public sector performance (UZ)` - public sector performance and service delivery capacity strengthening
 
 These presets are editable before submitting and are intended as starting points for demo/pilot conversations rather than final proposal briefs.
+
+The `Ingest (RAG Prep)` panel includes matching presets for these scenarios and suggests what kinds of donor/context PDFs to upload before generation (for better citation grounding and confidence).
 
 ### Webhook events (optional)
 

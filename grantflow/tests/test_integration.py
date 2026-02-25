@@ -51,6 +51,14 @@ def test_demo_console_page_loads():
     assert "inputContextJson" in body
     assert "usaid_gov_ai_kazakhstan" in body
     assert "worldbank_public_sector_uzbekistan" in body
+    assert "ingestPresetSelect" in body
+    assert "applyIngestPresetBtn" in body
+    assert "syncIngestDonorBtn" in body
+    assert "ingestFileInput" in body
+    assert "ingestMetadataJson" in body
+    assert "ingestBtn" in body
+    assert "ingestPresetGuidanceList" in body
+    assert "/ingest" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/quality" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body

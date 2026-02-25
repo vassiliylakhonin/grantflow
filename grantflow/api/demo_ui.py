@@ -234,6 +234,43 @@ def render_demo_ui_html() -> str:
         </div>
 
         <div class="card">
+          <h2>Ingest (RAG Prep)</h2>
+          <div class="body">
+            <div class="row3">
+              <div>
+                <label for="ingestPresetSelect">Ingest Preset</label>
+                <select id="ingestPresetSelect">
+                  <option value="">none</option>
+                  <option value="usaid_gov_ai_kazakhstan">USAID: AI civil service (KZ)</option>
+                  <option value="eu_digital_governance_moldova">EU: digital governance (MD)</option>
+                  <option value="worldbank_public_sector_uzbekistan">World Bank: public sector performance (UZ)</option>
+                </select>
+              </div>
+              <div style="align-self:end;">
+                <button id="applyIngestPresetBtn" class="ghost">Apply Ingest Preset</button>
+              </div>
+              <div style="align-self:end;">
+                <button id="syncIngestDonorBtn" class="ghost">Use Generate Donor</button>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div><label for="ingestDonorId">Ingest Donor ID</label><input id="ingestDonorId" value="usaid" /></div>
+              <div><label for="ingestFileInput">PDF File</label><input id="ingestFileInput" type="file" accept="application/pdf,.pdf" /></div>
+            </div>
+            <div style="margin-top:10px;">
+              <label for="ingestMetadataJson">Ingest Metadata JSON (optional)</label>
+              <textarea id="ingestMetadataJson" class="json" placeholder='{"source_type":"donor_policy","doc_family":"usaid_guidance"}'></textarea>
+            </div>
+            <div style="margin-top:10px;">
+              <button id="ingestBtn" class="secondary">Upload PDF to /ingest</button>
+            </div>
+            <div class="footer-note">Use this before generation to improve citation grounding and confidence. Presets list recommended document types to upload.</div>
+            <div class="list" id="ingestPresetGuidanceList" style="margin-top:10px;"></div>
+            <pre id="ingestResultJson" style="margin-top:10px;">No ingest upload yet.</pre>
+          </div>
+        </div>
+
+        <div class="card">
           <h2>HITL Actions</h2>
           <div class="body">
             <div class="row3">
@@ -630,6 +667,9 @@ def render_demo_ui_html() -> str:
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
         ["generatePresetSelect", "grantflow_demo_generate_preset"],
         ["inputContextJson", "grantflow_demo_input_context_json"],
+        ["ingestPresetSelect", "grantflow_demo_ingest_preset"],
+        ["ingestDonorId", "grantflow_demo_ingest_donor_id"],
+        ["ingestMetadataJson", "grantflow_demo_ingest_metadata_json"],
       ];
       const state = {
         pollTimer: null,
@@ -709,6 +749,53 @@ def render_demo_ui_html() -> str:
           },
         },
       };
+      const INGEST_PRESETS = {
+        usaid_gov_ai_kazakhstan: {
+          donor_id: "usaid",
+          metadata: {
+            source_type: "donor_guidance",
+            sector: "governance",
+            theme: "responsible_ai_public_sector",
+            country_focus: "Kazakhstan",
+          },
+          recommended_docs: [
+            "USAID ADS / policy guidance relevant to digital transformation, governance, or capacity strengthening",
+            "Responsible AI / digital governance guidance approved for your organization",
+            "Kazakhstan public administration or digital government policy/context documents",
+            "Civil service training standards / competency frameworks (if available)",
+          ],
+        },
+        eu_digital_governance_moldova: {
+          donor_id: "eu",
+          metadata: {
+            source_type: "donor_guidance",
+            sector: "governance",
+            theme: "digital_service_delivery",
+            country_focus: "Moldova",
+          },
+          recommended_docs: [
+            "EU intervention logic / results framework guidance relevant to governance and public administration reform",
+            "EU digital governance or service delivery reform policy references",
+            "Moldova public service digitization strategies / standards",
+            "Municipal service quality standards or process management guidance",
+          ],
+        },
+        worldbank_public_sector_uzbekistan: {
+          donor_id: "worldbank",
+          metadata: {
+            source_type: "donor_guidance",
+            sector: "public_sector_reform",
+            theme: "performance_management_service_delivery",
+            country_focus: "Uzbekistan",
+          },
+          recommended_docs: [
+            "World Bank results framework / M&E guidance relevant to governance or public sector reform",
+            "World Bank public sector modernization / service delivery project documents",
+            "Uzbekistan public administration reform strategies / performance frameworks",
+            "Agency service standards, process maps, or reform guidance used for pilots",
+          ],
+        },
+      };
 
       const els = {
         apiBase: $("apiBase"),
@@ -725,6 +812,15 @@ def render_demo_ui_html() -> str:
         applyPresetBtn: $("applyPresetBtn"),
         clearPresetContextBtn: $("clearPresetContextBtn"),
         inputContextJson: $("inputContextJson"),
+        ingestPresetSelect: $("ingestPresetSelect"),
+        applyIngestPresetBtn: $("applyIngestPresetBtn"),
+        syncIngestDonorBtn: $("syncIngestDonorBtn"),
+        ingestDonorId: $("ingestDonorId"),
+        ingestFileInput: $("ingestFileInput"),
+        ingestMetadataJson: $("ingestMetadataJson"),
+        ingestPresetGuidanceList: $("ingestPresetGuidanceList"),
+        ingestResultJson: $("ingestResultJson"),
+        ingestBtn: $("ingestBtn"),
         diffSection: $("diffSection"),
         fromVersionId: $("fromVersionId"),
         toVersionId: $("toVersionId"),
@@ -808,6 +904,10 @@ def render_demo_ui_html() -> str:
         els.apiKey.value = localStorage.getItem("grantflow_demo_api_key") || "";
         els.jobIdInput.value = localStorage.getItem("grantflow_demo_job_id") || "";
         restoreUiState();
+        if (!String(els.ingestDonorId.value || "").trim()) {
+          els.ingestDonorId.value = String(els.donorId.value || "usaid");
+        }
+        renderIngestPresetGuidance();
       }
 
       function persistBasics() {
@@ -879,12 +979,102 @@ def render_demo_ui_html() -> str:
         delete extra.project;
         delete extra.country;
         setGenerateContextJson(extra);
+        if (INGEST_PRESETS[key]) {
+          els.ingestPresetSelect.value = key;
+          applyIngestPreset();
+        }
         persistUiState();
       }
 
       function clearGeneratePresetContext() {
         els.inputContextJson.value = "";
         persistUiState();
+      }
+
+      function renderIngestPresetGuidance() {
+        const key = String(els.ingestPresetSelect.value || "").trim();
+        const preset = key ? INGEST_PRESETS[key] : null;
+        els.ingestPresetGuidanceList.innerHTML = "";
+        if (!preset) {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `<div class="title">No ingest preset selected</div><div class="sub">Choose a preset to see recommended donor/context PDFs to upload before generation.</div>`;
+          els.ingestPresetGuidanceList.appendChild(div);
+          return;
+        }
+        const docs = Array.isArray(preset.recommended_docs) ? preset.recommended_docs : [];
+        docs.forEach((doc, idx) => {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `<div class="title">Recommended upload ${idx + 1}</div><div class="sub">${escapeHtml(String(doc || ""))}</div>`;
+          els.ingestPresetGuidanceList.appendChild(div);
+        });
+      }
+
+      function applyIngestPreset() {
+        const key = String(els.ingestPresetSelect.value || "").trim();
+        if (!key) {
+          renderIngestPresetGuidance();
+          return;
+        }
+        const preset = INGEST_PRESETS[key];
+        if (!preset) {
+          renderIngestPresetGuidance();
+          return;
+        }
+        els.ingestDonorId.value = String(preset.donor_id || "");
+        if (preset.metadata && typeof preset.metadata === "object" && !Array.isArray(preset.metadata)) {
+          els.ingestMetadataJson.value = JSON.stringify(preset.metadata, null, 2);
+        }
+        persistUiState();
+        renderIngestPresetGuidance();
+      }
+
+      function syncIngestDonorFromGenerate() {
+        els.ingestDonorId.value = String(els.donorId.value || "").trim();
+        persistUiState();
+      }
+
+      async function ingestPdfUpload() {
+        const donorId = String(els.ingestDonorId.value || "").trim();
+        if (!donorId) throw new Error("Missing ingest donor_id");
+        const file = (els.ingestFileInput.files && els.ingestFileInput.files[0]) || null;
+        if (!file) throw new Error("Select a PDF file first");
+        const filename = String(file.name || "").toLowerCase();
+        if (!filename.endsWith(".pdf")) throw new Error("Only PDF files are supported");
+
+        const form = new FormData();
+        form.append("donor_id", donorId);
+        form.append("file", file);
+
+        const metadataText = String(els.ingestMetadataJson.value || "").trim();
+        if (metadataText) {
+          let parsed;
+          try {
+            parsed = JSON.parse(metadataText);
+          } catch (err) {
+            throw new Error(`Invalid Ingest Metadata JSON: ${err instanceof Error ? err.message : String(err)}`);
+          }
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new Error("Ingest Metadata JSON must be a JSON object");
+          }
+          form.append("metadata_json", JSON.stringify(parsed));
+        }
+
+        persistBasics();
+        persistUiState();
+        const res = await fetch(`${apiBase()}/ingest`, {
+          method: "POST",
+          headers: headers(),
+          body: form,
+        });
+        const ct = res.headers.get("content-type") || "";
+        const body = ct.includes("application/json") ? await res.json() : await res.text();
+        if (!res.ok) {
+          throw new Error(typeof body === "string" ? body : JSON.stringify(body, null, 2));
+        }
+        setJson(els.ingestResultJson, body);
+        return body;
       }
 
       function apiBase() {
@@ -1911,6 +2101,9 @@ def render_demo_ui_html() -> str:
         els.generateBtn.addEventListener("click", () => generateJob().catch(showError));
         els.applyPresetBtn.addEventListener("click", applyGeneratePreset);
         els.clearPresetContextBtn.addEventListener("click", clearGeneratePresetContext);
+        els.ingestBtn.addEventListener("click", () => ingestPdfUpload().catch(showError));
+        els.applyIngestPresetBtn.addEventListener("click", applyIngestPreset);
+        els.syncIngestDonorBtn.addEventListener("click", syncIngestDonorFromGenerate);
         els.refreshAllBtn.addEventListener("click", () => refreshAll().catch(showError));
         els.pollToggleBtn.addEventListener("click", togglePolling);
         els.clearFiltersBtn.addEventListener("click", () => clearDemoFilters().catch(showError));
@@ -1991,6 +2184,12 @@ def render_demo_ui_html() -> str:
         });
         els.generatePresetSelect.addEventListener("change", persistUiState);
         els.inputContextJson.addEventListener("change", persistUiState);
+        els.ingestPresetSelect.addEventListener("change", () => {
+          persistUiState();
+          renderIngestPresetGuidance();
+        });
+        els.ingestDonorId.addEventListener("change", persistUiState);
+        els.ingestMetadataJson.addEventListener("change", persistUiState);
       }
 
       initDefaults();
