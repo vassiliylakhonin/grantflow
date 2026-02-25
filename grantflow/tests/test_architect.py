@@ -4,11 +4,13 @@ from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes import architect_generation as architect_generation_module
 from grantflow.swarm.nodes.architect_generation import (
-    ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES,
     _fallback_structured_toc,
-    _architect_claim_confidence_threshold,
     build_architect_claim_citations,
     generate_toc_under_contract,
+)
+from grantflow.swarm.nodes.architect_policy import (
+    ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES,
+    architect_claim_confidence_threshold,
 )
 from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
 
@@ -99,9 +101,9 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
 
 
 def test_architect_claim_threshold_is_tuned_by_donor_and_section():
-    default_threshold = _architect_claim_confidence_threshold(donor_id="unknown", statement_path="toc.project_goal")
-    usaid_goal_threshold = _architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.project_goal")
-    usaid_assumption_threshold = _architect_claim_confidence_threshold(
+    default_threshold = architect_claim_confidence_threshold(donor_id="unknown", statement_path="toc.project_goal")
+    usaid_goal_threshold = architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.project_goal")
+    usaid_assumption_threshold = architect_claim_confidence_threshold(
         donor_id="usaid", statement_path="toc.critical_assumptions[0]"
     )
 
