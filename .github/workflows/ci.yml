@@ -77,7 +77,10 @@ jobs:
           mkdir -p eval-artifacts
           python -m grantflow.eval.harness \
             --text-out eval-artifacts/eval-report.txt \
-            --json-out eval-artifacts/eval-report.json
+            --json-out eval-artifacts/eval-report.json \
+            --compare-to-baseline grantflow/eval/fixtures/baseline_regression_snapshot.json \
+            --comparison-text-out eval-artifacts/eval-comparison.txt \
+            --comparison-json-out eval-artifacts/eval-comparison.json
 
       - name: Upload evaluation report
         uses: actions/upload-artifact@v4

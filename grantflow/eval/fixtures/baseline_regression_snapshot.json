@@ -1,0 +1,134 @@
+{
+  "cases": {
+    "eu_youth_employment_jordan": {
+      "donor_id": "eu",
+      "metrics": {
+        "architect_citation_count": 3,
+        "citations_total": 4,
+        "critic_score": 9.25,
+        "draft_version_count": 2,
+        "error_count": 0,
+        "fatal_flaw_count": 0,
+        "has_logframe_draft": true,
+        "has_toc_draft": true,
+        "high_severity_fatal_flaw_count": 0,
+        "mel_citation_count": 1,
+        "needs_revision": false,
+        "quality_score": 9.25,
+        "toc_schema_valid": true
+      }
+    },
+    "generic_un_agencies_education_nepal": {
+      "donor_id": "un_agencies",
+      "metrics": {
+        "architect_citation_count": 7,
+        "citations_total": 8,
+        "critic_score": 9.25,
+        "draft_version_count": 2,
+        "error_count": 0,
+        "fatal_flaw_count": 0,
+        "has_logframe_draft": true,
+        "has_toc_draft": true,
+        "high_severity_fatal_flaw_count": 0,
+        "mel_citation_count": 1,
+        "needs_revision": false,
+        "quality_score": 9.25,
+        "toc_schema_valid": true
+      }
+    },
+    "giz_sme_resilience_ukraine": {
+      "donor_id": "giz",
+      "metrics": {
+        "architect_citation_count": 9,
+        "citations_total": 10,
+        "critic_score": 9.25,
+        "draft_version_count": 2,
+        "error_count": 0,
+        "fatal_flaw_count": 0,
+        "has_logframe_draft": true,
+        "has_toc_draft": true,
+        "high_severity_fatal_flaw_count": 0,
+        "mel_citation_count": 1,
+        "needs_revision": false,
+        "quality_score": 9.25,
+        "toc_schema_valid": true
+      }
+    },
+    "state_department_media_georgia": {
+      "donor_id": "state_department",
+      "metrics": {
+        "architect_citation_count": 7,
+        "citations_total": 8,
+        "critic_score": 9.25,
+        "draft_version_count": 2,
+        "error_count": 0,
+        "fatal_flaw_count": 0,
+        "has_logframe_draft": true,
+        "has_toc_draft": true,
+        "high_severity_fatal_flaw_count": 0,
+        "mel_citation_count": 1,
+        "needs_revision": false,
+        "quality_score": 9.25,
+        "toc_schema_valid": true
+      }
+    },
+    "usaid_water_kenya": {
+      "donor_id": "usaid",
+      "metrics": {
+        "architect_citation_count": 24,
+        "citations_total": 25,
+        "critic_score": 9.25,
+        "draft_version_count": 2,
+        "error_count": 0,
+        "fatal_flaw_count": 0,
+        "has_logframe_draft": true,
+        "has_toc_draft": true,
+        "high_severity_fatal_flaw_count": 0,
+        "mel_citation_count": 1,
+        "needs_revision": false,
+        "quality_score": 9.25,
+        "toc_schema_valid": true
+      }
+    },
+    "worldbank_health_kenya": {
+      "donor_id": "worldbank",
+      "metrics": {
+        "architect_citation_count": 6,
+        "citations_total": 7,
+        "critic_score": 9.25,
+        "draft_version_count": 2,
+        "error_count": 0,
+        "fatal_flaw_count": 0,
+        "has_logframe_draft": true,
+        "has_toc_draft": true,
+        "high_severity_fatal_flaw_count": 0,
+        "mel_citation_count": 1,
+        "needs_revision": false,
+        "quality_score": 9.25,
+        "toc_schema_valid": true
+      }
+    }
+  },
+  "schema_version": 1,
+  "tracked_metrics": {
+    "boolean_guardrails": [
+      "toc_schema_valid",
+      "has_toc_draft",
+      "has_logframe_draft",
+      "needs_revision"
+    ],
+    "higher_is_better": [
+      "quality_score",
+      "critic_score",
+      "citations_total",
+      "architect_citation_count",
+      "mel_citation_count",
+      "draft_version_count"
+    ],
+    "lower_is_better": [
+      "fatal_flaw_count",
+      "high_severity_fatal_flaw_count",
+      "error_count"
+    ]
+  }
+}
