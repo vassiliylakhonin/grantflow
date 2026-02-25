@@ -45,6 +45,7 @@ def test_demo_console_page_loads():
     body = response.text
     assert "GrantFlow Demo Console" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
+    assert "/status/${encodeURIComponent(jobId)}/quality" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
     assert "/status/${encodeURIComponent(jobId)}/export-payload" in body
     assert "/export" in body
@@ -56,6 +57,9 @@ def test_demo_console_page_loads():
     assert "conf " in body
     assert "thr " in body
     assert "architect_threshold_hit_rate" in body
+    assert "qualityBtn" in body
+    assert "qualityCards" in body
+    assert "qualityJson" in body
     assert "exportPayloadBtn" in body
     assert "copyExportPayloadBtn" in body
     assert "exportZipFromPayloadBtn" in body
@@ -713,6 +717,93 @@ def test_metrics_endpoint_derives_timeline_metrics_from_events():
     assert body["time_in_pending_hitl_seconds"] == 245.0
 
 
+def test_quality_summary_endpoint_aggregates_quality_signals():
+    job_id = "quality-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "donor_id": "usaid",
+                "quality_score": 9.1,
+                "critic_score": 8.9,
+                "needs_revision": False,
+                "toc_validation": {"valid": True, "schema_name": "USAID_TOC"},
+                "toc_generation_meta": {
+                    "engine": "fallback:contract_synthesizer",
+                    "llm_used": False,
+                    "retrieval_used": True,
+                    "citation_policy": {"threshold_mode": "donor_section"},
+                },
+                "architect_retrieval": {"enabled": True, "hits_count": 3, "namespace": "usaid_ads201"},
+                "critic_notes": {
+                    "engine": "rules",
+                    "rule_score": 8.9,
+                    "llm_score": None,
+                    "rule_checks": [
+                        {"code": "TOC_SCHEMA_VALID", "status": "pass", "section": "toc"},
+                        {"code": "TOC_CLAIM_CITATIONS", "status": "warn", "section": "toc"},
+                        {"code": "LOGFRAME_CITATIONS_PRESENT", "status": "fail", "section": "logframe"},
+                    ],
+                    "fatal_flaws": [
+                        {"finding_id": "f1", "status": "open", "severity": "high", "section": "toc", "code": "X", "message": "m"},
+                        {"finding_id": "f2", "status": "acknowledged", "severity": "medium", "section": "logframe", "code": "Y", "message": "m"},
+                        {"finding_id": "f3", "status": "resolved", "severity": "low", "section": "toc", "code": "Z", "message": "m"},
+                    ],
+                },
+                "citations": [
+                    {
+                        "stage": "architect",
+                        "citation_type": "rag_claim_support",
+                        "citation_confidence": 0.81,
+                        "confidence_threshold": 0.42,
+                    },
+                    {
+                        "stage": "architect",
+                        "citation_type": "rag_low_confidence",
+                        "citation_confidence": 0.22,
+                        "confidence_threshold": 0.42,
+                    },
+                    {"stage": "mel", "citation_type": "rag_result", "citation_confidence": 0.73},
+                ],
+            },
+            "job_events": [
+                {"event_id": "q1", "ts": "2026-02-24T10:00:00+00:00", "type": "status_changed", "to_status": "accepted", "status": "accepted"},
+                {"event_id": "q2", "ts": "2026-02-24T10:00:05+00:00", "type": "status_changed", "to_status": "running", "status": "running"},
+                {"event_id": "q3", "ts": "2026-02-24T10:01:00+00:00", "type": "status_changed", "to_status": "done", "status": "done"},
+            ],
+        },
+    )
+
+    response = client.get(f"/status/{job_id}/quality")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "done"
+    assert body["quality_score"] == 9.1
+    assert body["critic_score"] == 8.9
+    assert body["needs_revision"] is False
+    assert body["terminal_status"] == "done"
+    assert body["critic"]["fatal_flaw_count"] == 3
+    assert body["critic"]["open_finding_count"] == 1
+    assert body["critic"]["acknowledged_finding_count"] == 1
+    assert body["critic"]["resolved_finding_count"] == 1
+    assert body["critic"]["high_severity_fatal_flaw_count"] == 1
+    assert body["critic"]["failed_rule_check_count"] == 1
+    assert body["critic"]["warned_rule_check_count"] == 1
+    assert body["citations"]["citation_count"] == 3
+    assert body["citations"]["architect_citation_count"] == 2
+    assert body["citations"]["mel_citation_count"] == 1
+    assert body["citations"]["high_confidence_citation_count"] == 2
+    assert body["citations"]["low_confidence_citation_count"] == 1
+    assert body["citations"]["rag_low_confidence_citation_count"] == 1
+    assert body["citations"]["architect_threshold_hit_rate"] == 0.5
+    assert body["architect"]["retrieval_enabled"] is True
+    assert body["architect"]["retrieval_hits_count"] == 3
+    assert body["architect"]["toc_schema_valid"] is True
+    assert body["architect"]["citation_policy"]["threshold_mode"] == "donor_section"
+
+
 def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     api_app_module.JOB_STORE.set(
         "portfolio-job-1",
@@ -900,6 +991,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     metrics_auth = client.get(f"/status/{job_id}/metrics", headers={"X-API-Key": "test-secret"})
     assert metrics_auth.status_code == 200
 
+    quality_unauth = client.get(f"/status/{job_id}/quality")
+    assert quality_unauth.status_code == 401
+
+    quality_auth = client.get(f"/status/{job_id}/quality", headers={"X-API-Key": "test-secret"})
+    assert quality_auth.status_code == 200
+
     critic_unauth = client.get(f"/status/{job_id}/critic")
     assert critic_unauth.status_code == 401
 
@@ -1012,6 +1109,9 @@ def test_openapi_declares_api_key_security_scheme():
     status_metrics_security = (((spec.get("paths") or {}).get("/status/{job_id}/metrics") or {}).get("get") or {}).get(
         "security"
     )
+    status_quality_security = (((spec.get("paths") or {}).get("/status/{job_id}/quality") or {}).get("get") or {}).get(
+        "security"
+    )
     status_critic_security = (((spec.get("paths") or {}).get("/status/{job_id}/critic") or {}).get("get") or {}).get(
         "security"
     )
@@ -1083,6 +1183,13 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_metrics_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/metrics") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_quality_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/quality") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
         .get("content", {})
         .get("application/json", {})
@@ -1192,6 +1299,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_diff_security == [{"ApiKeyAuth": []}]
     assert status_events_security == [{"ApiKeyAuth": []}]
     assert status_metrics_security == [{"ApiKeyAuth": []}]
+    assert status_quality_security == [{"ApiKeyAuth": []}]
     assert status_critic_security == [{"ApiKeyAuth": []}]
     assert status_critic_finding_ack_security == [{"ApiKeyAuth": []}]
     assert status_critic_finding_resolve_security == [{"ApiKeyAuth": []}]
@@ -1207,6 +1315,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_diff_response_schema == {"$ref": "#/components/schemas/JobDiffPublicResponse"}
     assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
     assert status_metrics_response_schema == {"$ref": "#/components/schemas/JobMetricsPublicResponse"}
+    assert status_quality_response_schema == {"$ref": "#/components/schemas/JobQualitySummaryPublicResponse"}
     assert status_critic_response_schema == {"$ref": "#/components/schemas/JobCriticPublicResponse"}
     assert status_critic_finding_ack_response_schema == {"$ref": "#/components/schemas/CriticFatalFlawPublicResponse"}
     assert status_critic_finding_resolve_response_schema == {"$ref": "#/components/schemas/CriticFatalFlawPublicResponse"}
@@ -1228,6 +1337,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobEventsPublicResponse" in schemas
     assert "JobEventPublicResponse" in schemas
     assert "JobMetricsPublicResponse" in schemas
+    assert "JobQualitySummaryPublicResponse" in schemas
     assert "JobCriticPublicResponse" in schemas
     assert "CriticRuleCheckPublicResponse" in schemas
     assert "CriticFatalFlawPublicResponse" in schemas

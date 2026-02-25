@@ -390,6 +390,131 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
     }
 
 
+def public_job_quality_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    state = job.get("state") if isinstance(job.get("state"), dict) else {}
+    critic = public_job_critic_payload(job_id, job)
+    metrics = public_job_metrics_payload(job_id, job)
+    citations_payload = public_job_citations_payload(job_id, job)
+
+    citations = citations_payload.get("citations") if isinstance(citations_payload, dict) else []
+    if not isinstance(citations, list):
+        citations = []
+    critic_flaws = critic.get("fatal_flaws") if isinstance(critic, dict) else []
+    if not isinstance(critic_flaws, list):
+        critic_flaws = []
+    rule_checks = critic.get("rule_checks") if isinstance(critic, dict) else []
+    if not isinstance(rule_checks, list):
+        rule_checks = []
+
+    architect_citations = [c for c in citations if isinstance(c, dict) and str(c.get("stage") or "") == "architect"]
+    mel_citations = [c for c in citations if isinstance(c, dict) and str(c.get("stage") or "") == "mel"]
+
+    confidence_values: list[float] = []
+    high_conf = 0
+    low_conf = 0
+    rag_low_conf = 0
+    architect_threshold_considered = 0
+    architect_threshold_hits = 0
+    for c in citations:
+        if not isinstance(c, dict):
+            continue
+        if str(c.get("citation_type") or "") == "rag_low_confidence":
+            rag_low_conf += 1
+        conf_raw = c.get("citation_confidence")
+        try:
+            conf = float(conf_raw) if conf_raw is not None else None
+        except (TypeError, ValueError):
+            conf = None
+        if conf is not None:
+            confidence_values.append(conf)
+            if conf >= 0.7:
+                high_conf += 1
+            if conf < 0.3:
+                low_conf += 1
+        if str(c.get("stage") or "") == "architect":
+            thr_raw = c.get("confidence_threshold")
+            try:
+                thr = float(thr_raw) if thr_raw is not None else None
+            except (TypeError, ValueError):
+                thr = None
+            if thr is not None:
+                architect_threshold_considered += 1
+                if conf is not None and conf >= thr:
+                    architect_threshold_hits += 1
+
+    flaw_status_counts = {"open": 0, "acknowledged": 0, "resolved": 0}
+    flaw_severity_counts = {"high": 0, "medium": 0, "low": 0}
+    for flaw in critic_flaws:
+        if not isinstance(flaw, dict):
+            continue
+        status = str(flaw.get("status") or "open").lower()
+        severity = str(flaw.get("severity") or "").lower()
+        if status in flaw_status_counts:
+            flaw_status_counts[status] += 1
+        if severity in flaw_severity_counts:
+            flaw_severity_counts[severity] += 1
+
+    failed_checks = sum(1 for c in rule_checks if isinstance(c, dict) and str(c.get("status") or "").lower() == "fail")
+    warned_checks = sum(1 for c in rule_checks if isinstance(c, dict) and str(c.get("status") or "").lower() == "warn")
+
+    toc_validation = state.get("toc_validation") if isinstance(state.get("toc_validation"), dict) else {}
+    toc_generation_meta = state.get("toc_generation_meta") if isinstance(state.get("toc_generation_meta"), dict) else {}
+    architect_retrieval = state.get("architect_retrieval") if isinstance(state.get("architect_retrieval"), dict) else {}
+
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "quality_score": sanitize_for_public_response((state or {}).get("quality_score")),
+        "critic_score": sanitize_for_public_response((state or {}).get("critic_score")),
+        "needs_revision": sanitize_for_public_response((state or {}).get("needs_revision")),
+        "terminal_status": sanitize_for_public_response(metrics.get("terminal_status")),
+        "time_to_first_draft_seconds": sanitize_for_public_response(metrics.get("time_to_first_draft_seconds")),
+        "time_to_terminal_seconds": sanitize_for_public_response(metrics.get("time_to_terminal_seconds")),
+        "critic": {
+            "engine": sanitize_for_public_response(critic.get("engine")),
+            "rule_score": sanitize_for_public_response(critic.get("rule_score")),
+            "llm_score": sanitize_for_public_response(critic.get("llm_score")),
+            "fatal_flaw_count": int(critic.get("fatal_flaw_count") or 0),
+            "open_finding_count": flaw_status_counts["open"],
+            "acknowledged_finding_count": flaw_status_counts["acknowledged"],
+            "resolved_finding_count": flaw_status_counts["resolved"],
+            "high_severity_fatal_flaw_count": flaw_severity_counts["high"],
+            "medium_severity_fatal_flaw_count": flaw_severity_counts["medium"],
+            "low_severity_fatal_flaw_count": flaw_severity_counts["low"],
+            "rule_check_count": int(critic.get("rule_check_count") or 0),
+            "failed_rule_check_count": failed_checks,
+            "warned_rule_check_count": warned_checks,
+        },
+        "citations": {
+            "citation_count": len(citations),
+            "architect_citation_count": len(architect_citations),
+            "mel_citation_count": len(mel_citations),
+            "high_confidence_citation_count": high_conf,
+            "low_confidence_citation_count": low_conf,
+            "rag_low_confidence_citation_count": rag_low_conf,
+            "citation_confidence_avg": (
+                round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else None
+            ),
+            "architect_threshold_hit_rate": (
+                round(architect_threshold_hits / architect_threshold_considered, 4)
+                if architect_threshold_considered
+                else None
+            ),
+        },
+        "architect": {
+            "engine": sanitize_for_public_response(toc_generation_meta.get("engine")),
+            "llm_used": sanitize_for_public_response(toc_generation_meta.get("llm_used")),
+            "retrieval_used": sanitize_for_public_response(toc_generation_meta.get("retrieval_used")),
+            "retrieval_enabled": sanitize_for_public_response(architect_retrieval.get("enabled")),
+            "retrieval_hits_count": sanitize_for_public_response(architect_retrieval.get("hits_count")),
+            "retrieval_namespace": sanitize_for_public_response(architect_retrieval.get("namespace")),
+            "toc_schema_name": sanitize_for_public_response(toc_validation.get("schema_name")),
+            "toc_schema_valid": sanitize_for_public_response(toc_validation.get("valid")),
+            "citation_policy": sanitize_for_public_response(toc_generation_meta.get("citation_policy")),
+        },
+    }
+
+
 def public_portfolio_metrics_payload(
     jobs_by_id: Dict[str, Dict[str, Any]],
     *,

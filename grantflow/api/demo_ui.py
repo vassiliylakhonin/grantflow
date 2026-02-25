@@ -271,6 +271,27 @@ def render_demo_ui_html() -> str:
         </div>
 
         <div class="card">
+          <h2>Quality Summary</h2>
+          <div class="body">
+            <div class="row">
+              <button id="qualityBtn" class="ghost">Load Quality Summary</button>
+              <div class="sub" style="align-self:center;">Critic + citations + architect policy summary for reviewer triage.</div>
+            </div>
+            <div class="kpis" id="qualityCards" style="margin-top:10px;">
+              <div class="kpi"><div class="label">Quality score</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Critic score</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Fatal flaws</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Open findings</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Avg citation conf</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Threshold hit-rate</div><div class="value mono">-</div></div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="qualityJson">{}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
           <h2>Portfolio Metrics</h2>
           <div class="body">
             <div class="row3">
@@ -572,6 +593,7 @@ def render_demo_ui_html() -> str:
         statusPillText: $("statusPillText"),
         statusJson: $("statusJson"),
         metricsJson: $("metricsJson"),
+        qualityJson: $("qualityJson"),
         portfolioMetricsJson: $("portfolioMetricsJson"),
         criticJson: $("criticJson"),
         exportPayloadJson: $("exportPayloadJson"),
@@ -584,6 +606,7 @@ def render_demo_ui_html() -> str:
         criticContextList: $("criticContextList"),
         commentsList: $("commentsList"),
         metricsCards: $("metricsCards"),
+        qualityCards: $("qualityCards"),
         portfolioMetricsCards: $("portfolioMetricsCards"),
         portfolioStatusCountsList: $("portfolioStatusCountsList"),
         portfolioDonorCountsList: $("portfolioDonorCountsList"),
@@ -618,6 +641,7 @@ def render_demo_ui_html() -> str:
         exportZipFromPayloadBtn: $("exportZipFromPayloadBtn"),
         eventsBtn: $("eventsBtn"),
         criticBtn: $("criticBtn"),
+        qualityBtn: $("qualityBtn"),
         portfolioBtn: $("portfolioBtn"),
         portfolioClearBtn: $("portfolioClearBtn"),
         commentsBtn: $("commentsBtn"),
@@ -763,6 +787,24 @@ def render_demo_ui_html() -> str:
           String(metrics.terminal_status ?? metrics.status ?? "-"),
         ];
         [...els.metricsCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
+          node.textContent = values[i] ?? "-";
+        });
+      }
+
+      function renderQualityCards(summary) {
+        const critic = summary?.critic || {};
+        const citations = summary?.citations || {};
+        const values = [
+          typeof summary?.quality_score === "number" ? Number(summary.quality_score).toFixed(2) : "-",
+          typeof summary?.critic_score === "number" ? Number(summary.critic_score).toFixed(2) : "-",
+          String(critic.fatal_flaw_count ?? "-"),
+          String(critic.open_finding_count ?? "-"),
+          typeof citations.citation_confidence_avg === "number" ? Number(citations.citation_confidence_avg).toFixed(2) : "-",
+          typeof citations.architect_threshold_hit_rate === "number"
+            ? `${(Number(citations.architect_threshold_hit_rate) * 100).toFixed(1)}%`
+            : "-",
+        ];
+        [...els.qualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
       }
@@ -1241,6 +1283,15 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshQuality() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/quality`);
+        renderQualityCards(body);
+        setJson(els.qualityJson, body);
+        return body;
+      }
+
       async function refreshPortfolioMetrics() {
         persistUiState();
         const params = new URLSearchParams();
@@ -1284,6 +1335,7 @@ def render_demo_ui_html() -> str:
         await refreshStatus();
         await Promise.allSettled([
           refreshMetrics(),
+          refreshQuality(),
           refreshPortfolioMetrics(),
           refreshCritic(),
           refreshCitations(),
@@ -1485,6 +1537,7 @@ def render_demo_ui_html() -> str:
         );
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
+        els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
         els.portfolioBtn.addEventListener("click", () => refreshPortfolioMetrics().catch(showError));
         els.portfolioClearBtn.addEventListener("click", () => {
           clearPortfolioFilters();

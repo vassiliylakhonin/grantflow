@@ -197,6 +197,67 @@ class JobCriticPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobQualityCitationSummaryPublicResponse(BaseModel):
+    citation_count: int
+    architect_citation_count: int
+    mel_citation_count: int
+    high_confidence_citation_count: int
+    low_confidence_citation_count: int
+    rag_low_confidence_citation_count: int
+    citation_confidence_avg: Optional[float] = None
+    architect_threshold_hit_rate: Optional[float] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobQualityCriticSummaryPublicResponse(BaseModel):
+    engine: Optional[str] = None
+    rule_score: Optional[float] = None
+    llm_score: Optional[float] = None
+    fatal_flaw_count: int
+    open_finding_count: int
+    acknowledged_finding_count: int
+    resolved_finding_count: int
+    high_severity_fatal_flaw_count: int
+    medium_severity_fatal_flaw_count: int
+    low_severity_fatal_flaw_count: int
+    rule_check_count: int
+    failed_rule_check_count: int
+    warned_rule_check_count: int
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobQualityArchitectSummaryPublicResponse(BaseModel):
+    engine: Optional[str] = None
+    llm_used: Optional[bool] = None
+    retrieval_used: Optional[bool] = None
+    retrieval_enabled: Optional[bool] = None
+    retrieval_hits_count: Optional[int] = None
+    retrieval_namespace: Optional[str] = None
+    toc_schema_name: Optional[str] = None
+    toc_schema_valid: Optional[bool] = None
+    citation_policy: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobQualitySummaryPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    quality_score: Optional[float] = None
+    critic_score: Optional[float] = None
+    needs_revision: Optional[bool] = None
+    terminal_status: Optional[str] = None
+    time_to_first_draft_seconds: Optional[float] = None
+    time_to_terminal_seconds: Optional[float] = None
+    critic: JobQualityCriticSummaryPublicResponse
+    citations: JobQualityCitationSummaryPublicResponse
+    architect: JobQualityArchitectSummaryPublicResponse
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioMetricsFiltersPublicResponse(BaseModel):
     donor_id: Optional[str] = None
     status: Optional[str] = None
