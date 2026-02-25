@@ -1,0 +1,271 @@
+from __future__ import annotations
+
+from typing import Any, Callable
+
+
+def normalized_donor_id(state: dict[str, Any]) -> str:
+    donor = state.get("donor_id") or state.get("donor") or ""
+    return str(donor).strip().lower()
+
+
+def apply_donor_specific_toc_checks(
+    *,
+    state: dict[str, Any],
+    toc_payload: Any,
+    check_fn: Callable[..., None],
+    add_flaw_fn: Callable[..., None],
+) -> None:
+    donor = normalized_donor_id(state)
+    if not isinstance(toc_payload, dict):
+        return
+
+    if donor == "usaid":
+        dos = toc_payload.get("development_objectives")
+        if isinstance(dos, list) and dos:
+            check_fn(code="USAID_DO_PRESENT", status="pass", section="toc", detail=f"{len(dos)} DO(s)")
+            ir_count = 0
+            output_count = 0
+            missing_ir = False
+            missing_outputs = False
+            for do in dos:
+                if not isinstance(do, dict):
+                    missing_ir = True
+                    continue
+                irs = do.get("intermediate_results")
+                if not isinstance(irs, list) or not irs:
+                    missing_ir = True
+                    continue
+                ir_count += len(irs)
+                for ir in irs:
+                    if not isinstance(ir, dict):
+                        missing_outputs = True
+                        continue
+                    outputs = ir.get("outputs")
+                    if not isinstance(outputs, list) or not outputs:
+                        missing_outputs = True
+                        continue
+                    output_count += len(outputs)
+
+            if missing_ir:
+                check_fn(code="USAID_IR_HIERARCHY", status="fail", section="toc", detail="One or more DOs missing IRs")
+                add_flaw_fn(
+                    code="USAID_IR_MISSING",
+                    severity="high",
+                    section="toc",
+                    message="USAID ToC hierarchy is incomplete: each Development Objective should include Intermediate Results.",
+                    fix_hint="Populate `development_objectives[].intermediate_results[]` with a clear results cascade.",
+                )
+            else:
+                check_fn(code="USAID_IR_HIERARCHY", status="pass", section="toc", detail=f"{ir_count} IR(s)")
+
+            if missing_outputs:
+                check_fn(
+                    code="USAID_OUTPUT_HIERARCHY",
+                    status="fail",
+                    section="toc",
+                    detail="One or more IRs missing outputs",
+                )
+                add_flaw_fn(
+                    code="USAID_OUTPUTS_MISSING",
+                    severity="high",
+                    section="toc",
+                    message="USAID ToC hierarchy is incomplete: Intermediate Results should include outputs.",
+                    fix_hint="Populate `intermediate_results[].outputs[]` under each USAID IR.",
+                )
+            else:
+                check_fn(code="USAID_OUTPUT_HIERARCHY", status="pass", section="toc", detail=f"{output_count} output(s)")
+        else:
+            check_fn(code="USAID_DO_PRESENT", status="fail", section="toc", detail="No development_objectives")
+            add_flaw_fn(
+                code="USAID_DO_MISSING",
+                severity="high",
+                section="toc",
+                message="USAID ToC is missing Development Objectives.",
+                fix_hint="Add at least one `development_objective` with DO -> IR -> Output hierarchy.",
+            )
+
+        assumptions = toc_payload.get("critical_assumptions")
+        if isinstance(assumptions, list) and assumptions:
+            check_fn(
+                code="USAID_CRITICAL_ASSUMPTIONS_PRESENT",
+                status="pass",
+                section="toc",
+                detail=f"{len(assumptions)} assumptions",
+            )
+        else:
+            check_fn(
+                code="USAID_CRITICAL_ASSUMPTIONS_PRESENT",
+                status="warn",
+                section="toc",
+                detail="No critical_assumptions",
+            )
+            add_flaw_fn(
+                code="USAID_ASSUMPTIONS_MISSING",
+                severity="medium",
+                section="toc",
+                message="USAID ToC should include critical assumptions for the results hierarchy.",
+                fix_hint="Add `critical_assumptions` describing external conditions needed for success.",
+            )
+        return
+
+    if donor == "eu":
+        overall = toc_payload.get("overall_objective")
+        if isinstance(overall, dict):
+            missing = [k for k in ("objective_id", "title", "rationale") if not str(overall.get(k) or "").strip()]
+            if not missing:
+                check_fn(code="EU_OVERALL_OBJECTIVE_COMPLETE", status="pass", section="toc")
+            else:
+                check_fn(
+                    code="EU_OVERALL_OBJECTIVE_COMPLETE",
+                    status="fail",
+                    section="toc",
+                    detail=f"Missing fields: {', '.join(missing)}",
+                )
+                add_flaw_fn(
+                    code="EU_INTERVENTION_LOGIC_INCOMPLETE",
+                    severity="high",
+                    section="toc",
+                    message="EU ToC overall objective is incomplete (ID/title/rationale required).",
+                    fix_hint="Populate `overall_objective.objective_id`, `title`, and `rationale`.",
+                )
+        else:
+            check_fn(code="EU_OVERALL_OBJECTIVE_COMPLETE", status="fail", section="toc", detail="Missing overall_objective")
+            add_flaw_fn(
+                code="EU_OVERALL_OBJECTIVE_MISSING",
+                severity="high",
+                section="toc",
+                message="EU ToC is missing `overall_objective`.",
+                fix_hint="Provide an EU intervention-logic style `overall_objective` with rationale.",
+            )
+        return
+
+    if donor == "giz":
+        outcomes = toc_payload.get("outcomes")
+        if isinstance(outcomes, list) and outcomes:
+            check_fn(code="GIZ_OUTCOMES_PRESENT", status="pass", section="toc", detail=f"{len(outcomes)} outcomes")
+            missing_partner_role = False
+            for row in outcomes:
+                if not isinstance(row, dict) or not str(row.get("partner_role") or "").strip():
+                    missing_partner_role = True
+                    break
+            if missing_partner_role:
+                check_fn(
+                    code="GIZ_PARTNER_ROLE_PRESENT",
+                    status="fail",
+                    section="toc",
+                    detail="One or more outcomes missing partner_role",
+                )
+                add_flaw_fn(
+                    code="GIZ_PARTNER_ROLE_MISSING",
+                    severity="medium",
+                    section="toc",
+                    message="GIZ outcomes should identify partner roles.",
+                    fix_hint="Populate `outcomes[].partner_role` for technical cooperation implementation responsibility.",
+                )
+            else:
+                check_fn(code="GIZ_PARTNER_ROLE_PRESENT", status="pass", section="toc")
+        else:
+            check_fn(code="GIZ_OUTCOMES_PRESENT", status="fail", section="toc", detail="No outcomes")
+            add_flaw_fn(
+                code="GIZ_OUTCOMES_MISSING",
+                severity="high",
+                section="toc",
+                message="GIZ ToC is missing outcomes.",
+                fix_hint="Add practical outcomes aligned with technical cooperation objectives and partners.",
+            )
+
+        sustainability = toc_payload.get("sustainability_factors")
+        if isinstance(sustainability, list) and sustainability:
+            check_fn(
+                code="GIZ_SUSTAINABILITY_FACTORS_PRESENT",
+                status="pass",
+                section="toc",
+                detail=f"{len(sustainability)} factors",
+            )
+        else:
+            check_fn(
+                code="GIZ_SUSTAINABILITY_FACTORS_PRESENT",
+                status="warn",
+                section="toc",
+                detail="No sustainability_factors",
+            )
+            add_flaw_fn(
+                code="GIZ_SUSTAINABILITY_FACTORS_MISSING",
+                severity="medium",
+                section="toc",
+                message="GIZ ToC should include sustainability factors.",
+                fix_hint="Add `sustainability_factors` covering institutionalization and continuation after project support.",
+            )
+        return
+
+    if donor in {"state_department", "us_state_department", "us_state_department_guidance"}:
+        for key, code, msg, hint in [
+            (
+                "strategic_context",
+                "STATE_STRATEGIC_CONTEXT_PRESENT",
+                "State Department ToC should include strategic context.",
+                "Populate `strategic_context` with country/political/program context.",
+            ),
+        ]:
+            if str(toc_payload.get(key) or "").strip():
+                check_fn(code=code, status="pass", section="toc")
+            else:
+                check_fn(code=code, status="fail", section="toc", detail=f"Missing {key}")
+                add_flaw_fn(
+                    code=f"{code}_MISSING",
+                    severity="high",
+                    section="toc",
+                    message=msg,
+                    fix_hint=hint,
+                )
+        for key, code, label in [
+            ("stakeholder_map", "STATE_STAKEHOLDER_MAP_PRESENT", "stakeholder_map"),
+            ("risk_mitigation", "STATE_RISK_MITIGATION_PRESENT", "risk_mitigation"),
+        ]:
+            rows = toc_payload.get(key)
+            if isinstance(rows, list) and rows:
+                check_fn(code=code, status="pass", section="toc", detail=f"{len(rows)} {label} entries")
+            else:
+                check_fn(code=code, status="warn", section="toc", detail=f"No {label}")
+                add_flaw_fn(
+                    code=f"{code}_MISSING",
+                    severity="medium",
+                    section="toc",
+                    message=f"State Department ToC should include {label.replace('_', ' ')}.",
+                    fix_hint=f"Add `{key}` entries for stakeholder logic and risk mitigation planning.",
+                )
+        return
+
+    if donor == "worldbank":
+        objectives = toc_payload.get("objectives")
+        if isinstance(objectives, list) and objectives:
+            check_fn(code="WB_OBJECTIVES_PRESENT", status="pass", section="toc", detail=f"{len(objectives)} objectives")
+            incomplete = False
+            for obj in objectives:
+                if not isinstance(obj, dict):
+                    incomplete = True
+                    break
+                if not all(str(obj.get(k) or "").strip() for k in ("objective_id", "title", "description")):
+                    incomplete = True
+                    break
+            if incomplete:
+                check_fn(code="WB_OBJECTIVES_COMPLETE", status="fail", section="toc", detail="Incomplete objective fields")
+                add_flaw_fn(
+                    code="WB_OBJECTIVE_FIELDS_INCOMPLETE",
+                    severity="high",
+                    section="toc",
+                    message="World Bank ToC objectives should include objective_id, title, and description.",
+                    fix_hint="Complete fields for each `objectives[]` entry in the World Bank ToC schema.",
+                )
+            else:
+                check_fn(code="WB_OBJECTIVES_COMPLETE", status="pass", section="toc")
+        else:
+            check_fn(code="WB_OBJECTIVES_PRESENT", status="fail", section="toc", detail="No objectives")
+            add_flaw_fn(
+                code="WB_OBJECTIVES_MISSING",
+                severity="high",
+                section="toc",
+                message="World Bank ToC is missing objectives.",
+                fix_hint="Add at least one objective with ID, title, and description.",
+            )
+
