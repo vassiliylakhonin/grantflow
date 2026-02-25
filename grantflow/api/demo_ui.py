@@ -204,9 +204,31 @@ def render_demo_ui_html() -> str:
               <div><label for="webhookUrl">Webhook URL (optional)</label><input id="webhookUrl" placeholder="https://example.com/webhook" /></div>
               <div><label for="webhookSecret">Webhook Secret (optional)</label><input id="webhookSecret" placeholder="secret" /></div>
             </div>
+            <div class="row3" style="margin-top:10px;">
+              <div>
+                <label for="generatePresetSelect">Generate Preset</label>
+                <select id="generatePresetSelect">
+                  <option value="">none</option>
+                  <option value="usaid_gov_ai_kazakhstan">USAID: AI civil service (KZ)</option>
+                  <option value="eu_digital_governance_moldova">EU: digital governance (MD)</option>
+                  <option value="worldbank_public_sector_uzbekistan">World Bank: public sector performance (UZ)</option>
+                </select>
+              </div>
+              <div style="align-self:end;">
+                <button id="applyPresetBtn" class="ghost">Apply Preset</button>
+              </div>
+              <div style="align-self:end;">
+                <button id="clearPresetContextBtn" class="ghost">Clear Extra Context</button>
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <label for="inputContextJson">Extra Input Context JSON (optional)</label>
+              <textarea id="inputContextJson" class="json" placeholder='{"problem":"...", "target_population":"...", "key_activities":["..."]}'></textarea>
+            </div>
             <div style="margin-top:10px;">
               <button id="generateBtn" class="primary">Generate Draft</button>
             </div>
+            <div class="footer-note">Tip: presets fill donor/project/country plus extra JSON context. You can edit the JSON before generating.</div>
             <div class="footer-note">Tip: when auth is enabled on the API, set <code>X-API-Key</code> above once and all actions will use it.</div>
           </div>
         </div>
@@ -606,12 +628,86 @@ def render_demo_ui_html() -> str:
         ["commentsFilterVersionId", "grantflow_demo_comments_filter_version_id"],
         ["selectedCommentId", "grantflow_demo_selected_comment_id"],
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
+        ["generatePresetSelect", "grantflow_demo_generate_preset"],
+        ["inputContextJson", "grantflow_demo_input_context_json"],
       ];
       const state = {
         pollTimer: null,
         polling: false,
         lastCritic: null,
         lastCitations: null,
+      };
+      const GENERATE_PRESETS = {
+        usaid_gov_ai_kazakhstan: {
+          donor_id: "usaid",
+          project: "Responsible AI Skills for Civil Service Modernization",
+          country: "Kazakhstan",
+          llm_mode: true,
+          hitl_enabled: true,
+          input_context: {
+            region: "National with pilot cohorts in Astana and Almaty",
+            timeframe: "2026-2027 (24 months)",
+            problem:
+              "Civil servants have uneven practical skills in safe, ethical, and effective AI use for public administration.",
+            target_population:
+              "Mid-level and senior civil servants in policy, service delivery, and digital transformation units.",
+            expected_change:
+              "Agencies improve AI readiness, adopt governance guidance, and demonstrate early workflow efficiency gains.",
+            key_activities: [
+              "Needs assessment and baseline competency mapping",
+              "Responsible AI curriculum design for public administration",
+              "Cohort-based training and training-of-trainers",
+              "Applied labs for policy and service workflows",
+              "SOP and governance guidance drafting support",
+            ],
+          },
+        },
+        eu_digital_governance_moldova: {
+          donor_id: "eu",
+          project: "Digital Governance Service Quality and Administrative Capacity",
+          country: "Moldova",
+          llm_mode: true,
+          hitl_enabled: true,
+          input_context: {
+            region: "National and selected municipalities",
+            timeframe: "2026-2028 (30 months)",
+            problem:
+              "Public institutions face uneven digital service management capacity and inconsistent service quality.",
+            target_population:
+              "Civil servants and municipal service managers in digital transformation and service delivery units.",
+            expected_change:
+              "Institutions adopt stronger service quality procedures and improve processing efficiency.",
+            key_activities: [
+              "Institutional workflow assessments",
+              "Training on service design and process improvement",
+              "Coaching for agency and municipal teams",
+              "Support for SOPs and service quality dashboards",
+            ],
+          },
+        },
+        worldbank_public_sector_uzbekistan: {
+          donor_id: "worldbank",
+          project: "Public Sector Performance and Service Delivery Capacity Strengthening",
+          country: "Uzbekistan",
+          llm_mode: true,
+          hitl_enabled: true,
+          input_context: {
+            region: "National ministries and selected subnational administrations",
+            timeframe: "2026-2028 (36 months)",
+            problem:
+              "Public agencies have uneven capabilities in performance management and evidence-based decision-making.",
+            target_population:
+              "Government managers and civil servants in reform, performance, and service delivery functions.",
+            expected_change:
+              "Participating institutions adopt stronger performance management practices and improve selected services.",
+            key_activities: [
+              "Institutional diagnostics and process mapping",
+              "Capacity development for performance management and data use",
+              "Technical assistance for service improvement plans",
+              "Process optimization pilots and adaptive reviews",
+            ],
+          },
+        },
       };
 
       const els = {
@@ -625,6 +721,10 @@ def render_demo_ui_html() -> str:
         llmMode: $("llmMode"),
         webhookUrl: $("webhookUrl"),
         webhookSecret: $("webhookSecret"),
+        generatePresetSelect: $("generatePresetSelect"),
+        applyPresetBtn: $("applyPresetBtn"),
+        clearPresetContextBtn: $("clearPresetContextBtn"),
+        inputContextJson: $("inputContextJson"),
         diffSection: $("diffSection"),
         fromVersionId: $("fromVersionId"),
         toVersionId: $("toVersionId"),
@@ -754,6 +854,36 @@ def render_demo_ui_html() -> str:
 
       function clearLinkedFindingSelection() {
         els.linkedFindingId.value = "";
+        persistUiState();
+      }
+
+      function setGenerateContextJson(value) {
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          els.inputContextJson.value = JSON.stringify(value, null, 2);
+        } else {
+          els.inputContextJson.value = "";
+        }
+      }
+
+      function applyGeneratePreset() {
+        const key = String(els.generatePresetSelect.value || "").trim();
+        if (!key) return;
+        const preset = GENERATE_PRESETS[key];
+        if (!preset) return;
+        els.donorId.value = String(preset.donor_id || "");
+        els.project.value = String(preset.project || "");
+        els.country.value = String(preset.country || "");
+        els.llmMode.value = preset.llm_mode ? "true" : "false";
+        els.hitlEnabled.value = preset.hitl_enabled ? "true" : "false";
+        const extra = { ...(preset.input_context || {}) };
+        delete extra.project;
+        delete extra.country;
+        setGenerateContextJson(extra);
+        persistUiState();
+      }
+
+      function clearGeneratePresetContext() {
+        els.inputContextJson.value = "";
         persistUiState();
       }
 
@@ -1286,9 +1416,26 @@ def render_demo_ui_html() -> str:
       }
 
       async function generateJob() {
+        let extraContext = {};
+        const extraJsonText = String(els.inputContextJson.value || "").trim();
+        if (extraJsonText) {
+          let parsed;
+          try {
+            parsed = JSON.parse(extraJsonText);
+          } catch (err) {
+            throw new Error(
+              `Invalid Extra Input Context JSON: ${err instanceof Error ? err.message : String(err)}`
+            );
+          }
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new Error("Extra Input Context JSON must be a JSON object");
+          }
+          extraContext = parsed;
+        }
         const payload = {
           donor_id: els.donorId.value.trim(),
           input_context: {
+            ...extraContext,
             project: els.project.value.trim(),
             country: els.country.value.trim(),
           },
@@ -1762,6 +1909,8 @@ def render_demo_ui_html() -> str:
 
       function bind() {
         els.generateBtn.addEventListener("click", () => generateJob().catch(showError));
+        els.applyPresetBtn.addEventListener("click", applyGeneratePreset);
+        els.clearPresetContextBtn.addEventListener("click", clearGeneratePresetContext);
         els.refreshAllBtn.addEventListener("click", () => refreshAll().catch(showError));
         els.pollToggleBtn.addEventListener("click", togglePolling);
         els.clearFiltersBtn.addEventListener("click", () => clearDemoFilters().catch(showError));
@@ -1840,6 +1989,8 @@ def render_demo_ui_html() -> str:
           persistUiState();
           renderCriticContextCitations();
         });
+        els.generatePresetSelect.addEventListener("change", persistUiState);
+        els.inputContextJson.addEventListener("change", persistUiState);
       }
 
       initDefaults();

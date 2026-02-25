@@ -279,6 +279,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 ### What it supports
 
 - Generate jobs and poll status
+- Generate presets for public-sector/governance demos (USAID / EU / World Bank) with editable extra input context JSON
 - HITL approve/reject/resume/cancel actions
 - Critic findings review (fatal flaws, rule checks, citation context, confidence filter)
 - Draft versions and diffs (with jump-to-diff shortcuts)
@@ -300,6 +301,16 @@ uvicorn grantflow.api.app:app --reload
 If API auth is enabled, paste the `X-API-Key` value into the demo toolbar once and all requests will use it.
 
 The `Export Payload` panel can load `GET /status/{job_id}/export-payload`, preview/copy the JSON, and trigger `POST /export` (`format="both"`) to download a review package ZIP directly from the UI.
+
+### Demo Generate Presets (Examples Pack)
+
+The `Generate` card includes preset examples that prefill `donor_id`, `project`, `country`, and `Extra Input Context JSON` for faster demos and pilot walkthroughs:
+
+- `USAID: AI civil service (KZ)` - responsible AI civil service capacity-building / governance modernization
+- `EU: digital governance (MD)` - digital service quality and administrative capacity strengthening
+- `World Bank: public sector performance (UZ)` - public sector performance and service delivery capacity strengthening
+
+These presets are editable before submitting and are intended as starting points for demo/pilot conversations rather than final proposal briefs.
 
 ### Webhook events (optional)
 

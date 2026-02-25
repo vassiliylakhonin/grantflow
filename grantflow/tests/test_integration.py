@@ -45,6 +45,12 @@ def test_demo_console_page_loads():
     assert "text/html" in response.headers["content-type"]
     body = response.text
     assert "GrantFlow Demo Console" in body
+    assert "generatePresetSelect" in body
+    assert "applyPresetBtn" in body
+    assert "clearPresetContextBtn" in body
+    assert "inputContextJson" in body
+    assert "usaid_gov_ai_kazakhstan" in body
+    assert "worldbank_public_sector_uzbekistan" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/quality" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
