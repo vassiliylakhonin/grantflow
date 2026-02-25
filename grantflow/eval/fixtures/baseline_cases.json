@@ -29,6 +29,86 @@
     }
   },
   {
+    "case_id": "usaid_ai_civil_service_kazakhstan",
+    "donor_id": "usaid",
+    "input_context": {
+      "project": "Responsible AI Skills for Civil Service Modernization",
+      "country": "Kazakhstan",
+      "region": "National with pilot cohorts in Astana and Almaty",
+      "timeframe": "2026-2027 (24 months)",
+      "problem": "Civil servants across central and selected regional government bodies have uneven practical skills in safe, ethical, and effective AI use for public administration, limiting service delivery modernization and workflow efficiency.",
+      "target_population": "Mid-level and senior civil servants in policy, service delivery, digital transformation, and administrative units across participating government agencies.",
+      "goal": "Improve public sector efficiency and service quality through responsible, institutionalized AI use in government workflows.",
+      "development_objective": "Strengthen the institutional capacity of participating government agencies in Kazakhstan to safely and effectively apply AI in priority administrative and service delivery functions.",
+      "intermediate_results": [
+        "Civil servants improve practical competencies in responsible AI use for public administration tasks.",
+        "Participating agencies adopt foundational AI governance guidance, SOPs, and oversight practices.",
+        "Pilot units demonstrate measurable improvements in selected workflow efficiency and service delivery processes."
+      ],
+      "key_activities": [
+        "Conduct agency needs assessment and baseline competency mapping",
+        "Develop curriculum on AI literacy, responsible use, ethics, and governance",
+        "Deliver training-of-trainers and cohort-based training programs",
+        "Run applied labs for policy analysis, document workflows, and citizen service use cases",
+        "Support drafting and adoption of AI SOPs and implementation guidance",
+        "Implement MEL framework, adoption tracking, and learning reviews"
+      ],
+      "expected_change": "By the end of 2027, participating agencies have trained staff, basic governance mechanisms, and piloted AI-enabled workflows that improve speed, consistency, and quality of selected public administration functions while maintaining human oversight.",
+      "illustrative_targets": {
+        "trained_civil_servants": "600-1000",
+        "participating_agencies": "5-10",
+        "pilot_use_cases": "15-30",
+        "adopted_sops_or_guidance": "5+"
+      },
+      "cross_cutting_considerations": [
+        "Responsible AI and human oversight",
+        "Data protection and information security compliance",
+        "Equitable access across agencies and regions",
+        "Gender and role-based participation tracking"
+      ],
+      "assumptions": [
+        "Participating agencies authorize training delivery and supervised use of approved AI tools in training and pilot environments.",
+        "Leadership sponsors designate focal points and allocate staff time.",
+        "Access to relevant administrative workflow data and process maps is available for pilot design."
+      ],
+      "risks": [
+        "Restrictions on AI tool access in government IT environments",
+        "Low institutional adoption after training without leadership follow-through",
+        "Staff turnover reduces retention of trained capacity",
+        "Data governance constraints delay pilot implementation"
+      ],
+      "sustainability": "Institutionalize capacity through training-of-trainers, agency focal points, SOPs and guidance, and refresher training embedded in civil service professional development structures.",
+      "mel_priorities": [
+        "Competency improvement (pre/post assessment)",
+        "Adoption of AI governance and SOP practices",
+        "Pilot workflow performance improvements",
+        "Quality and compliance of AI-assisted outputs",
+        "Sustained use after training"
+      ]
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 8.0,
+      "min_critic_score": 8.0,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 0,
+      "max_high_severity_fatal_flaws": 0,
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 50,
+      "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
+      "max_rag_low_confidence_citations": 0
+    }
+  },
+  {
     "case_id": "eu_youth_employment_jordan",
     "donor_id": "eu",
     "input_context": {
