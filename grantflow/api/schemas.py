@@ -140,6 +140,46 @@ class JobCommentsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class CriticRuleCheckPublicResponse(BaseModel):
+    code: str
+    status: str
+    section: str
+    detail: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class CriticFatalFlawPublicResponse(BaseModel):
+    code: str
+    severity: str
+    section: str
+    version_id: Optional[str] = None
+    message: str
+    fix_hint: Optional[str] = None
+    source: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobCriticPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    quality_score: Optional[float] = None
+    critic_score: Optional[float] = None
+    engine: Optional[str] = None
+    rule_score: Optional[float] = None
+    llm_score: Optional[float] = None
+    needs_revision: Optional[bool] = None
+    revision_instructions: Optional[str] = None
+    fatal_flaw_count: int
+    fatal_flaws: list[CriticFatalFlawPublicResponse]
+    fatal_flaw_messages: list[str]
+    rule_check_count: int
+    rule_checks: list[CriticRuleCheckPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioMetricsFiltersPublicResponse(BaseModel):
     donor_id: Optional[str] = None
     status: Optional[str] = None

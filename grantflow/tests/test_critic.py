@@ -61,3 +61,29 @@ def test_red_team_critic_uses_rules_without_llm_and_stores_structured_notes():
     assert isinstance(notes.get("rule_checks"), list)
     assert "revision_instructions" in notes
     assert out.get("next_step") in {"architect", "end"}
+
+
+def test_rule_based_critic_applies_usaid_donor_specific_checks():
+    state = {
+        "donor_id": "usaid",
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "USAIDTOC"},
+        "toc_draft": {"toc": {"project_goal": "Improve services"}},
+        "logframe_draft": {"indicators": [{"indicator_id": "IND_001"}]},
+        "citations": [
+            {"stage": "architect", "statement_path": "toc.project_goal", "label": "doc", "used_for": "toc_claim"},
+            {"stage": "mel", "label": "doc", "used_for": "IND_001"},
+        ],
+    }
+
+    report = evaluate_rule_based_critic(state)
+    checks = [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in report.checks]
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+
+    assert any(c["code"] == "USAID_DO_PRESENT" and c["status"] == "fail" for c in checks)
+    assert any(c["code"] == "USAID_CRITICAL_ASSUMPTIONS_PRESENT" and c["status"] == "warn" for c in checks)
+    assert any(f["code"] == "USAID_DO_MISSING" and f["section"] == "toc" for f in flaws)
+    assert any(f["code"] == "USAID_ASSUMPTIONS_MISSING" and f["section"] == "toc" for f in flaws)

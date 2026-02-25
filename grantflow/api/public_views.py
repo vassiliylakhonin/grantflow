@@ -75,6 +75,39 @@ def public_job_comments_payload(
     }
 
 
+def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    state = job.get("state")
+    critic_notes = (state or {}).get("critic_notes") if isinstance(state, dict) else {}
+    if not isinstance(critic_notes, dict):
+        critic_notes = {}
+
+    raw_flaws = critic_notes.get("fatal_flaws")
+    fatal_flaws = [sanitize_for_public_response(item) for item in raw_flaws if isinstance(item, dict)] if isinstance(raw_flaws, list) else []
+
+    raw_messages = critic_notes.get("fatal_flaw_messages")
+    fatal_flaw_messages = [str(item) for item in raw_messages if isinstance(item, (str, int, float))] if isinstance(raw_messages, list) else []
+
+    raw_checks = critic_notes.get("rule_checks")
+    rule_checks = [sanitize_for_public_response(item) for item in raw_checks if isinstance(item, dict)] if isinstance(raw_checks, list) else []
+
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "quality_score": sanitize_for_public_response((state or {}).get("quality_score") if isinstance(state, dict) else None),
+        "critic_score": sanitize_for_public_response((state or {}).get("critic_score") if isinstance(state, dict) else None),
+        "engine": sanitize_for_public_response(critic_notes.get("engine")),
+        "rule_score": sanitize_for_public_response(critic_notes.get("rule_score")),
+        "llm_score": sanitize_for_public_response(critic_notes.get("llm_score")),
+        "needs_revision": sanitize_for_public_response((state or {}).get("needs_revision") if isinstance(state, dict) else None),
+        "revision_instructions": sanitize_for_public_response(critic_notes.get("revision_instructions")),
+        "fatal_flaw_count": len(fatal_flaws),
+        "fatal_flaws": fatal_flaws,
+        "fatal_flaw_messages": fatal_flaw_messages,
+        "rule_check_count": len(rule_checks),
+        "rule_checks": rule_checks,
+    }
+
+
 def public_job_citations_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
     state = job.get("state")
     citations = []

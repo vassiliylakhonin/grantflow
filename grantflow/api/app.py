@@ -17,6 +17,7 @@ from grantflow.api.public_views import (
     public_checkpoint_payload,
     public_job_citations_payload,
     public_job_comments_payload,
+    public_job_critic_payload,
     public_job_diff_payload,
     public_job_events_payload,
     public_job_metrics_payload,
@@ -28,6 +29,7 @@ from grantflow.api.schemas import (
     HITLPendingListPublicResponse,
     JobCitationsPublicResponse,
     JobCommentsPublicResponse,
+    JobCriticPublicResponse,
     JobDiffPublicResponse,
     JobEventsPublicResponse,
     JobMetricsPublicResponse,
@@ -840,6 +842,19 @@ def get_status_metrics(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_metrics_payload(job_id, job)
+
+
+@app.get(
+    "/status/{job_id}/critic",
+    response_model=JobCriticPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_critic(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_critic_payload(job_id, job)
 
 
 @app.get(

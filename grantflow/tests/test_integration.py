@@ -135,6 +135,47 @@ def test_status_redacts_internal_strategy_objects():
     assert state["toc_draft"]
 
 
+def test_status_critic_endpoint_returns_typed_payload():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Maternal Health", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    terminal = _wait_for_terminal_status(job_id)
+    assert terminal["status"] == "done"
+
+    critic_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_resp.status_code == 200
+    body = critic_resp.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "done"
+    assert isinstance(body["fatal_flaw_count"], int)
+    assert isinstance(body["fatal_flaws"], list)
+    assert isinstance(body["fatal_flaw_messages"], list)
+    assert isinstance(body["rule_check_count"], int)
+    assert isinstance(body["rule_checks"], list)
+    assert body["rule_check_count"] == len(body["rule_checks"])
+    assert body["fatal_flaw_count"] == len(body["fatal_flaws"])
+    if body["rule_checks"]:
+        check = body["rule_checks"][0]
+        assert "code" in check
+        assert "status" in check
+        assert "section" in check
+    if body["fatal_flaws"]:
+        flaw = body["fatal_flaws"][0]
+        assert "code" in flaw
+        assert "severity" in flaw
+        assert "section" in flaw
+        assert "message" in flaw
+
+
 def test_status_includes_citations_traceability(monkeypatch):
     def fake_query(namespace, query_texts, n_results=5, where=None, top_k=None):
         return {
@@ -684,6 +725,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     metrics_auth = client.get(f"/status/{job_id}/metrics", headers={"X-API-Key": "test-secret"})
     assert metrics_auth.status_code == 200
 
+    critic_unauth = client.get(f"/status/{job_id}/critic")
+    assert critic_unauth.status_code == 401
+
+    critic_auth = client.get(f"/status/{job_id}/critic", headers={"X-API-Key": "test-secret"})
+    assert critic_auth.status_code == 200
+
     comments_unauth = client.get(f"/status/{job_id}/comments")
     assert comments_unauth.status_code == 401
 
@@ -765,6 +812,9 @@ def test_openapi_declares_api_key_security_scheme():
     status_metrics_security = (((spec.get("paths") or {}).get("/status/{job_id}/metrics") or {}).get("get") or {}).get(
         "security"
     )
+    status_critic_security = (((spec.get("paths") or {}).get("/status/{job_id}/critic") or {}).get("get") or {}).get(
+        "security"
+    )
     status_comments_get_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}
     ).get("security")
@@ -817,6 +867,13 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_metrics_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/metrics") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_critic_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/critic") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
         .get("content", {})
         .get("application/json", {})
@@ -889,6 +946,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_diff_security == [{"ApiKeyAuth": []}]
     assert status_events_security == [{"ApiKeyAuth": []}]
     assert status_metrics_security == [{"ApiKeyAuth": []}]
+    assert status_critic_security == [{"ApiKeyAuth": []}]
     assert status_comments_get_security == [{"ApiKeyAuth": []}]
     assert status_comments_post_security == [{"ApiKeyAuth": []}]
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
@@ -900,6 +958,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_diff_response_schema == {"$ref": "#/components/schemas/JobDiffPublicResponse"}
     assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
     assert status_metrics_response_schema == {"$ref": "#/components/schemas/JobMetricsPublicResponse"}
+    assert status_critic_response_schema == {"$ref": "#/components/schemas/JobCriticPublicResponse"}
     assert status_comments_response_schema == {"$ref": "#/components/schemas/JobCommentsPublicResponse"}
     assert status_comments_post_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
@@ -917,6 +976,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobEventsPublicResponse" in schemas
     assert "JobEventPublicResponse" in schemas
     assert "JobMetricsPublicResponse" in schemas
+    assert "JobCriticPublicResponse" in schemas
+    assert "CriticRuleCheckPublicResponse" in schemas
+    assert "CriticFatalFlawPublicResponse" in schemas
     assert "JobCommentsPublicResponse" in schemas
     assert "ReviewCommentPublicResponse" in schemas
     assert "PortfolioMetricsPublicResponse" in schemas
