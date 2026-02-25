@@ -28,6 +28,7 @@ def _citation_key(record: Dict[str, Any]) -> tuple[Any, ...]:
         record.get("chunk"),
         record.get("chunk_id"),
         record.get("used_for"),
+        record.get("statement_path"),
         record.get("label"),
     )
 

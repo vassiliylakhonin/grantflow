@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Dict, Any
 
 from grantflow.swarm.citations import append_citations
+from grantflow.swarm.nodes.architect_generation import generate_toc_under_contract
+from grantflow.swarm.nodes.architect_retrieval import retrieve_architect_evidence
 from grantflow.swarm.versioning import append_draft_version
 
 
@@ -28,25 +30,66 @@ def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
     elif isinstance(critic_notes, str):
         revision_hint = critic_notes
 
-    toc = {
-        "brief": f"ToC draft for {donor_id} (pass {iteration + 1})",
-        "project": input_context.get("project", "TBD project"),
-        "country": input_context.get("country", "TBD"),
-        "objectives": [
+    namespace = strategy.get_rag_collection()
+    retrieval_summary, retrieval_hits = retrieve_architect_evidence(state, namespace)
+
+    try:
+        toc, validation, generation_meta, claim_citations = generate_toc_under_contract(
+            state=state,
+            strategy=strategy,
+            evidence_hits=retrieval_hits,
+        )
+    except Exception as exc:
+        state.setdefault("errors", []).append(f"Architect ToC generation failed: {exc}")
+        state["toc_validation"] = {
+            "valid": False,
+            "schema_name": getattr(getattr(strategy, "get_toc_schema", lambda: object)(), "__name__", "TOCSchema"),
+            "error_count": 1,
+            "errors": [str(exc)],
+        }
+        # Keep legacy-shaped fallback to avoid breaking downstream nodes in hard-failure scenarios.
+        toc = {
+            "brief": f"ToC draft for {donor_id} (pass {iteration + 1})",
+            "project": input_context.get("project", "TBD project"),
+            "country": input_context.get("country", "TBD"),
+            "objectives": [
+                {
+                    "title": "Objective 1",
+                    "description": f"Deliver results aligned to {donor_id} guidance.",
+                    "citation": namespace,
+                }
+            ],
+            "revision_basis": revision_hint,
+        }
+        generation_meta = {
+            "engine": "fallback:legacy_template",
+            "llm_used": False,
+            "retrieval_used": bool(retrieval_hits),
+            "llm_fallback_reason": str(exc),
+        }
+        claim_citations = [
             {
-                "title": "Objective 1",
-                "description": f"Deliver results aligned to {donor_id} guidance.",
-                "citation": strategy.get_rag_collection(),
+                "stage": "architect",
+                "citation_type": "strategy_namespace",
+                "namespace": namespace,
+                "label": f"Based on {namespace}",
+                "used_for": "toc_draft",
+                "statement_path": "toc",
             }
-        ],
-        "revision_basis": revision_hint,
-    }
+        ]
+        validation = state["toc_validation"]
 
     state["strategy"] = strategy
     state["toc"] = toc
+    state["toc_validation"] = validation
+    state["architect_retrieval"] = retrieval_summary
+    state["toc_generation_meta"] = generation_meta
     state["toc_draft"] = {
         "toc": toc,
-        "citation": f"Based on {strategy.get_rag_collection()}",
+        "citation": f"Based on {namespace}",
+        "generation_meta": generation_meta,
+        "validation": validation,
+        "architect_retrieval": retrieval_summary,
     }
     append_draft_version(
         state,
@@ -55,16 +98,5 @@ def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
         node="architect",
         iteration=iteration + 1,
     )
-    append_citations(
-        state,
-        [
-            {
-                "stage": "architect",
-                "citation_type": "strategy_namespace",
-                "namespace": strategy.get_rag_collection(),
-                "label": f"Based on {strategy.get_rag_collection()}",
-                "used_for": "toc_draft",
-            }
-        ],
-    )
+    append_citations(state, claim_citations)
     return state

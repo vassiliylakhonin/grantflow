@@ -22,6 +22,8 @@ class CitationPublicResponse(BaseModel):
     stage: Optional[str] = None
     citation_type: Optional[str] = None
     namespace: Optional[str] = None
+    statement_path: Optional[str] = None
+    statement: Optional[str] = None
     source: Optional[str] = None
     page: Optional[int] = None
     page_start: Optional[int] = None

@@ -175,6 +175,11 @@ def test_status_includes_citations_traceability(monkeypatch):
     assert citation["used_for"] == "EG.3.2-1"
     assert "excerpt" in citation and citation["excerpt"]
 
+    architect_citations = [c for c in citations if c.get("stage") == "architect"]
+    assert architect_citations
+    assert any(c.get("statement_path") for c in architect_citations)
+    assert any(c.get("citation_type") in {"rag_claim_support", "fallback_namespace"} for c in architect_citations)
+
     citations_response = client.get(f"/status/{job_id}/citations")
     assert citations_response.status_code == 200
     citations_body = citations_response.json()
@@ -183,6 +188,7 @@ def test_status_includes_citations_traceability(monkeypatch):
     assert citations_body["citation_count"] >= 1
     assert isinstance(citations_body["citations"], list)
     assert citations_body["citations"][0]["stage"]
+    assert any("statement_path" in c for c in citations_body["citations"])
 
 
 def test_status_includes_draft_versions_traceability():
@@ -200,7 +206,15 @@ def test_status_includes_draft_versions_traceability():
 
     status = _wait_for_terminal_status(job_id)
     assert status["status"] == "done"
-    versions = status["state"].get("draft_versions")
+    state = status["state"]
+    assert state.get("toc_validation", {}).get("valid") is True
+    assert state.get("toc_validation", {}).get("schema_name")
+    assert state.get("architect_retrieval", {}).get("namespace")
+    assert "hits_count" in (state.get("architect_retrieval") or {})
+    assert state.get("toc_generation_meta", {}).get("engine")
+    assert isinstance(state.get("toc_draft", {}).get("validation"), dict)
+    assert isinstance(state.get("toc_draft", {}).get("architect_retrieval"), dict)
+    versions = state.get("draft_versions")
     assert isinstance(versions, list)
     assert len(versions) >= 2
     sections = {v.get("section") for v in versions}
