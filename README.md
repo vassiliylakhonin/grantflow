@@ -163,7 +163,7 @@ curl -s -X POST http://127.0.0.1:8000/generate \
   }'
 ```
 
-If `GRANTFLOW_API_KEY` is configured, add `-H 'X-API-Key: <your-key>'` to write requests (`/generate`, `/resume`, `/hitl/approve`, `/export`).
+If `GRANTFLOW_API_KEY` is configured, add `-H 'X-API-Key: <your-key>'` to write requests (for example: `/generate`, `/cancel/{job_id}`, `/resume/{job_id}`, `/hitl/approve`, `/status/{job_id}/comments`, critic finding `ack/resolve`, `/ingest`, `/export`).
 
 ### 5b) Generate with webhooks (optional)
 
@@ -246,7 +246,7 @@ Core endpoints:
 - `POST /cancel/{job_id}` - cancel an accepted/running/pending HITL job (best-effort)
 - `GET /status/{job_id}` - poll job status/state
 - `GET /status/{job_id}/citations` - retrieve typed citation/traceability records for the job
-- `GET /status/{job_id}/export-payload` - retrieve a review-ready payload (`state` + `critic_findings` + `review_comments`) for `/export`
+- `GET /status/{job_id}/export-payload` - retrieve a review-ready payload (`state` + `critic_findings` + `review_comments` + optional `readiness`) for `/export`
 - `GET /status/{job_id}/versions` - retrieve typed draft version history snapshots (`toc` / `logframe`)
 - `GET /status/{job_id}/diff` - retrieve a unified diff between draft versions (optionally filtered by section)
 - `GET /status/{job_id}/critic` - retrieve typed critic findings (fatal flaws + rule checks)
@@ -258,7 +258,7 @@ Core endpoints:
 - `POST /status/{job_id}/comments/{comment_id}/reopen` - reopen a resolved reviewer comment
 - `GET /status/{job_id}/events` - retrieve typed job timeline/audit trail events
 - `GET /status/{job_id}/metrics` - retrieve derived workflow/ROI metrics from the job timeline
-- `GET /status/{job_id}/quality` - retrieve a typed quality summary (critic + citations + architect policy metadata)
+- `GET /status/{job_id}/quality` - retrieve a typed quality summary (critic + citations + architect policy metadata + optional RAG readiness coverage)
 - `GET /portfolio/metrics` - retrieve aggregated ROI/ops metrics across jobs (with filters)
 - `GET /portfolio/metrics/export` - export the aggregated portfolio metrics snapshot (`csv` or `json`, optional `gzip=true`)
 - `GET /portfolio/quality` - retrieve aggregated quality/critic/citation portfolio signals (with filters)
@@ -307,7 +307,7 @@ uvicorn grantflow.api.app:app --reload
 
 If API auth is enabled, paste the `X-API-Key` value into the demo toolbar once and all requests will use it.
 
-The `Export Payload` panel can load `GET /status/{job_id}/export-payload`, preview/copy the JSON, and trigger `POST /export` (`format="both"`) to download a review package ZIP directly from the UI.
+The `Export Payload` panel can load `GET /status/{job_id}/export-payload` (including review-ready `state`, findings/comments, and optional `readiness` coverage), preview/copy the JSON, and trigger `POST /export` (`format="both"`) to download a review package ZIP directly from the UI.
 
 ### Demo Generate Presets (Examples Pack)
 
@@ -843,8 +843,8 @@ Optional environment variables:
 - `CHROMA_PORT`
 - `CHROMA_COLLECTION_PREFIX`
 - `CHROMA_PERSIST_DIRECTORY`
-- `GRANTFLOW_API_KEY` (if set, write endpoints require `X-API-Key`)
-- `GRANTFLOW_REQUIRE_AUTH_FOR_READS` (`true` to require `X-API-Key` for `/status` and `/hitl/pending`)
+- `GRANTFLOW_API_KEY` (if set, protected write endpoints require `X-API-Key`)
+- `GRANTFLOW_REQUIRE_AUTH_FOR_READS` (`true` to require `X-API-Key` for read endpoints such as `/status/*`, `/portfolio/*`, `/ingest/*`, and `/hitl/pending`)
 - `GRANTFLOW_JOB_STORE` (`inmem` or `sqlite`)
 - `GRANTFLOW_HITL_STORE` (`inmem` or `sqlite`, defaults to job store mode)
 - `GRANTFLOW_INGEST_STORE` (`inmem` or `sqlite`, defaults to job store mode)
