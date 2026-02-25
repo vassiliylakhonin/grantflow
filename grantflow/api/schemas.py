@@ -363,3 +363,24 @@ class HITLPendingListPublicResponse(BaseModel):
     checkpoints: list[HITLPendingCheckpointPublicResponse]
 
     model_config = ConfigDict(extra="allow")
+
+
+class IngestRecentRecordPublicResponse(BaseModel):
+    event_id: str
+    ts: str
+    donor_id: str
+    namespace: Optional[str] = None
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    result: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class IngestRecentListPublicResponse(BaseModel):
+    count: int
+    donor_id: Optional[str] = None
+    records: list[IngestRecentRecordPublicResponse]
+
+    model_config = ConfigDict(extra="allow")

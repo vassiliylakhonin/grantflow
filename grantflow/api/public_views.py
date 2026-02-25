@@ -187,6 +187,19 @@ def public_job_citations_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, 
     }
 
 
+def public_ingest_recent_payload(
+    records: list[Dict[str, Any]],
+    *,
+    donor_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    safe_records = [sanitize_for_public_response(item) for item in records if isinstance(item, dict)]
+    return {
+        "count": len(safe_records),
+        "donor_id": donor_id,
+        "records": safe_records,
+    }
+
+
 def _public_versions_from_state(state: Any) -> list[Dict[str, Any]]:
     if not isinstance(state, dict):
         return []

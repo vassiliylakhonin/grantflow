@@ -270,7 +270,8 @@ def render_demo_ui_html() -> str:
                 <label>Checklist Progress</label>
                 <div id="ingestChecklistSummary" class="pill"><span class="dot"></span><span>0/0 complete</span></div>
               </div>
-              <div style="align-self:end;">
+              <div style="align-self:end; display:grid; gap:8px; grid-template-columns: 1fr 1fr;">
+                <button id="syncIngestChecklistServerBtn" class="ghost">Sync from Server</button>
                 <button id="resetIngestChecklistBtn" class="ghost">Reset Checklist Progress</button>
               </div>
             </div>
@@ -852,6 +853,7 @@ def render_demo_ui_html() -> str:
         ingestMetadataJson: $("ingestMetadataJson"),
         ingestChecklistSummary: $("ingestChecklistSummary"),
         ingestChecklistProgressList: $("ingestChecklistProgressList"),
+        syncIngestChecklistServerBtn: $("syncIngestChecklistServerBtn"),
         resetIngestChecklistBtn: $("resetIngestChecklistBtn"),
         ingestPresetGuidanceList: $("ingestPresetGuidanceList"),
         ingestResultJson: $("ingestResultJson"),
@@ -945,6 +947,9 @@ def render_demo_ui_html() -> str:
         }
         renderIngestPresetGuidance();
         renderIngestChecklistProgress();
+        if (String(els.ingestPresetSelect.value || "").trim()) {
+          syncIngestChecklistFromServer().catch(() => {});
+        }
       }
 
       function persistBasics() {
@@ -1080,6 +1085,48 @@ def render_demo_ui_html() -> str:
         renderIngestChecklistProgress();
       }
 
+      async function syncIngestChecklistFromServer() {
+        const { presetKey, preset, items } = getIngestChecklistItemsForSelectedPreset();
+        if (!presetKey || !preset || !items.length) {
+          renderIngestChecklistProgress();
+          return null;
+        }
+        const donorId = String(els.ingestDonorId.value || preset.donor_id || "").trim();
+        if (!donorId) throw new Error("Missing donor_id for ingest checklist sync");
+        const query = new URLSearchParams({ donor_id: donorId, limit: "200" });
+        const body = await apiFetch(`/ingest/recent?${query.toString()}`);
+        const records = Array.isArray(body?.records) ? body.records : [];
+
+        if (!state.ingestChecklistProgress || typeof state.ingestChecklistProgress !== "object") {
+          state.ingestChecklistProgress = {};
+        }
+        const bucket =
+          state.ingestChecklistProgress[presetKey] && typeof state.ingestChecklistProgress[presetKey] === "object"
+            ? state.ingestChecklistProgress[presetKey]
+            : {};
+        state.ingestChecklistProgress[presetKey] = bucket;
+
+        const allowedIds = new Set(items.map((it) => String(it?.id || "").trim()).filter(Boolean));
+        for (const rec of records) {
+          if (!rec || typeof rec !== "object") continue;
+          const recDonor = String(rec.donor_id || "").trim().toLowerCase();
+          if (recDonor !== donorId.toLowerCase()) continue;
+          const metadata = rec.metadata && typeof rec.metadata === "object" ? rec.metadata : {};
+          const docFamily = String(metadata.doc_family || "").trim();
+          if (!docFamily || !allowedIds.has(docFamily)) continue;
+          bucket[docFamily] = {
+            completed: true,
+            filename: String(rec.filename || bucket[docFamily]?.filename || ""),
+            ts: String(rec.ts || bucket[docFamily]?.ts || ""),
+            donor_id: donorId,
+            source: "server",
+          };
+        }
+        persistIngestChecklistProgress();
+        renderIngestChecklistProgress();
+        return body;
+      }
+
       function setGenerateContextJson(value) {
         if (value && typeof value === "object" && !Array.isArray(value)) {
           els.inputContextJson.value = JSON.stringify(value, null, 2);
@@ -1155,11 +1202,13 @@ def render_demo_ui_html() -> str:
         persistUiState();
         renderIngestPresetGuidance();
         renderIngestChecklistProgress();
+        syncIngestChecklistFromServer().catch(() => {});
       }
 
       function syncIngestDonorFromGenerate() {
         els.ingestDonorId.value = String(els.donorId.value || "").trim();
         persistUiState();
+        syncIngestChecklistFromServer().catch(() => {});
       }
 
       async function ingestPdfUpload() {
@@ -1226,6 +1275,7 @@ def render_demo_ui_html() -> str:
           renderIngestChecklistProgress();
         }
         setJson(els.ingestResultJson, body);
+        syncIngestChecklistFromServer().catch(() => {});
         return body;
       }
 
@@ -2256,6 +2306,7 @@ def render_demo_ui_html() -> str:
         els.ingestBtn.addEventListener("click", () => ingestPdfUpload().catch(showError));
         els.applyIngestPresetBtn.addEventListener("click", applyIngestPreset);
         els.syncIngestDonorBtn.addEventListener("click", syncIngestDonorFromGenerate);
+        els.syncIngestChecklistServerBtn.addEventListener("click", () => syncIngestChecklistFromServer().catch(showError));
         els.resetIngestChecklistBtn.addEventListener("click", resetIngestChecklistProgressForCurrentPreset);
         els.refreshAllBtn.addEventListener("click", () => refreshAll().catch(showError));
         els.pollToggleBtn.addEventListener("click", togglePolling);
@@ -2341,6 +2392,7 @@ def render_demo_ui_html() -> str:
           persistUiState();
           renderIngestPresetGuidance();
           renderIngestChecklistProgress();
+          syncIngestChecklistFromServer().catch(() => {});
         });
         els.ingestDonorId.addEventListener("change", persistUiState);
         els.ingestMetadataJson.addEventListener("change", persistUiState);

@@ -266,6 +266,7 @@ Core endpoints:
 - `GET /hitl/pending` - list pending checkpoints
 - `POST /hitl/approve` - approve/reject checkpoint
 - `POST /ingest` - upload PDF donor guidance into donor namespace (RAG ingestion)
+- `GET /ingest/recent` - list recent ingest uploads (filterable by `donor_id`) for RAG prep/checklist sync
 - `POST /export` - export outputs as `docx`, `xlsx`, or ZIP
 
 ## Demo Console (Optional)
@@ -314,6 +315,8 @@ The `Generate` card includes preset examples that prefill `donor_id`, `project`,
 These presets are editable before submitting and are intended as starting points for demo/pilot conversations rather than final proposal briefs.
 
 The `Ingest (RAG Prep)` panel includes matching presets for these scenarios, suggests what kinds of donor/context PDFs to upload before generation, and tracks a simple metadata-driven checklist (`metadata_json.doc_family`) so you can see which recommended document types are already covered.
+
+It can also sync checklist progress from backend ingest history via `GET /ingest/recent` (useful when uploads happened outside the current browser session/demo tab).
 
 ### Webhook events (optional)
 

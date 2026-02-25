@@ -4,8 +4,10 @@ import io
 import gzip
 import json
 import tempfile
+import threading
 import uuid
 import zipfile
+from collections import deque
 from datetime import datetime, timezone
 from typing import Any, Dict, Literal, Optional
 
@@ -26,6 +28,7 @@ from grantflow.api.public_views import (
     public_job_quality_payload,
     public_job_payload,
     public_job_versions_payload,
+    public_ingest_recent_payload,
     public_portfolio_quality_csv_text,
     public_portfolio_quality_payload,
     public_portfolio_metrics_payload,
@@ -34,6 +37,7 @@ from grantflow.api.public_views import (
 from grantflow.api.schemas import (
     CriticFatalFlawPublicResponse,
     HITLPendingListPublicResponse,
+    IngestRecentListPublicResponse,
     JobCitationsPublicResponse,
     JobCommentsPublicResponse,
     JobCriticPublicResponse,
@@ -88,6 +92,9 @@ STATUS_WEBHOOK_EVENTS = {
     "error": "job.failed",
     "canceled": "job.canceled",
 }
+INGEST_AUDIT_LOG_MAX = 500
+INGEST_AUDIT_LOG: deque[Dict[str, Any]] = deque(maxlen=INGEST_AUDIT_LOG_MAX)
+INGEST_AUDIT_LOCK = threading.Lock()
 
 
 def _utcnow_iso() -> str:
@@ -143,6 +150,39 @@ def _record_job_event(job_id: str, event_type: str, **fields: Any) -> None:
         event[str(key)] = value
     events.append(event)
     JOB_STORE.update(job_id, job_events=events[-200:])
+
+
+def _record_ingest_event(
+    *,
+    donor_id: str,
+    namespace: str,
+    filename: str,
+    content_type: str,
+    metadata: Optional[Dict[str, Any]] = None,
+    result: Optional[Dict[str, Any]] = None,
+) -> None:
+    row: Dict[str, Any] = {
+        "event_id": str(uuid.uuid4()),
+        "ts": _utcnow_iso(),
+        "donor_id": str(donor_id or ""),
+        "namespace": str(namespace or ""),
+        "filename": str(filename or ""),
+        "content_type": str(content_type or ""),
+        "metadata": dict(metadata or {}),
+        "result": dict(result or {}),
+    }
+    with INGEST_AUDIT_LOCK:
+        INGEST_AUDIT_LOG.append(row)
+
+
+def _list_ingest_events(*, donor_id: Optional[str] = None, limit: int = 50) -> list[Dict[str, Any]]:
+    donor_filter = str(donor_id or "").strip().lower()
+    with INGEST_AUDIT_LOCK:
+        rows = list(INGEST_AUDIT_LOG)
+    rows = list(reversed(rows))
+    if donor_filter:
+        rows = [r for r in rows if str(r.get("donor_id") or "").strip().lower() == donor_filter]
+    return rows[: max(1, min(int(limit or 50), 200))]
 
 
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
@@ -1311,6 +1351,17 @@ def list_pending_hitl(request: Request, donor_id: Optional[str] = None):
     }
 
 
+@app.get("/ingest/recent", response_model=IngestRecentListPublicResponse, response_model_exclude_none=True)
+def list_recent_ingests(
+    request: Request,
+    donor_id: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+):
+    require_api_key_if_configured(request, for_read=True)
+    rows = _list_ingest_events(donor_id=donor_id, limit=limit)
+    return public_ingest_recent_payload(rows, donor_id=(donor_id or None))
+
+
 @app.post("/ingest")
 async def ingest_pdf(
     request: Request,
@@ -1380,12 +1431,22 @@ async def ingest_pdf(
             except FileNotFoundError:
                 pass
 
+    result_payload = result if isinstance(result, dict) else {"raw_result": str(result)}
+    _record_ingest_event(
+        donor_id=donor,
+        namespace=namespace,
+        filename=filename,
+        content_type=content_type or "application/pdf",
+        metadata=upload_metadata,
+        result=result_payload,
+    )
+
     return {
         "status": "ingested",
         "donor_id": donor,
         "namespace": namespace,
         "filename": filename,
-        "result": result,
+        "result": result_payload,
     }
 
 

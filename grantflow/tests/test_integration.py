@@ -61,9 +61,11 @@ def test_demo_console_page_loads():
     assert "ingestChecklistSummary" in body
     assert "ingestChecklistProgressList" in body
     assert "resetIngestChecklistBtn" in body
+    assert "syncIngestChecklistServerBtn" in body
     assert "grantflow_demo_ingest_checklist_progress" in body
     assert "doc_family=" in body
     assert "/ingest" in body
+    assert "/ingest/recent?" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/quality" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
@@ -1325,6 +1327,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     portfolio_quality_export_auth = client.get("/portfolio/quality/export", headers={"X-API-Key": "test-secret"})
     assert portfolio_quality_export_auth.status_code == 200
 
+    ingest_recent_unauth = client.get("/ingest/recent")
+    assert ingest_recent_unauth.status_code == 401
+
+    ingest_recent_auth = client.get("/ingest/recent", headers={"X-API-Key": "test-secret"})
+    assert ingest_recent_auth.status_code == 200
+
     pending_unauth = client.get("/hitl/pending")
     assert pending_unauth.status_code == 401
 
@@ -1345,6 +1353,7 @@ def test_openapi_declares_api_key_security_scheme():
 
     generate_security = (((spec.get("paths") or {}).get("/generate") or {}).get("post") or {}).get("security")
     ingest_security = (((spec.get("paths") or {}).get("/ingest") or {}).get("post") or {}).get("security")
+    ingest_recent_security = (((spec.get("paths") or {}).get("/ingest/recent") or {}).get("get") or {}).get("security")
     cancel_security = (((spec.get("paths") or {}).get("/cancel/{job_id}") or {}).get("post") or {}).get("security")
     status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
     status_citations_security = (
@@ -1561,8 +1570,16 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    ingest_recent_response_schema = (
+        ((((spec.get("paths") or {}).get("/ingest/recent") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     assert generate_security == [{"ApiKeyAuth": []}]
     assert ingest_security == [{"ApiKeyAuth": []}]
+    assert ingest_recent_security == [{"ApiKeyAuth": []}]
     assert cancel_security == [{"ApiKeyAuth": []}]
     assert status_security == [{"ApiKeyAuth": []}]
     assert status_citations_security == [{"ApiKeyAuth": []}]
@@ -1601,6 +1618,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert portfolio_metrics_response_schema == {"$ref": "#/components/schemas/PortfolioMetricsPublicResponse"}
     assert portfolio_quality_response_schema == {"$ref": "#/components/schemas/PortfolioQualityPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
+    assert ingest_recent_response_schema == {"$ref": "#/components/schemas/IngestRecentListPublicResponse"}
 
     schemas = (spec.get("components") or {}).get("schemas") or {}
     assert "JobStatusPublicResponse" in schemas
@@ -1627,9 +1645,12 @@ def test_openapi_declares_api_key_security_scheme():
     assert "PortfolioQualityCitationSummaryPublicResponse" in schemas
     assert "PortfolioMetricsFiltersPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
+    assert "IngestRecentListPublicResponse" in schemas
+    assert "IngestRecentRecordPublicResponse" in schemas
 
 
 def test_ingest_endpoint_uploads_to_donor_namespace(monkeypatch):
+    api_app_module.INGEST_AUDIT_LOG.clear()
     calls = {}
 
     def fake_ingest(pdf_path: str, namespace: str, metadata=None):
@@ -1662,6 +1683,48 @@ def test_ingest_endpoint_uploads_to_donor_namespace(monkeypatch):
     assert calls["metadata"]["uploaded_filename"] == "sample.pdf"
     assert calls["metadata"]["donor_id"] == "usaid"
     assert calls["metadata"]["source_type"] == "manual_upload"
+
+
+def test_ingest_recent_endpoint_returns_records(monkeypatch):
+    api_app_module.INGEST_AUDIT_LOG.clear()
+
+    def fake_ingest(pdf_path: str, namespace: str, metadata=None):
+        return {"namespace": namespace, "source": pdf_path, "chunks_ingested": 1, "stats": {}}
+
+    monkeypatch.setattr(api_app_module, "ingest_pdf_to_namespace", fake_ingest)
+
+    r1 = client.post(
+        "/ingest",
+        data={"donor_id": "usaid", "metadata_json": json.dumps({"doc_family": "donor_policy", "source_type": "donor_guidance"})},
+        files={"file": ("ads.pdf", b"%PDF-1.4 a", "application/pdf")},
+    )
+    assert r1.status_code == 200
+
+    r2 = client.post(
+        "/ingest",
+        data={"donor_id": "eu", "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"})},
+        files={"file": ("eu-context.pdf", b"%PDF-1.4 b", "application/pdf")},
+    )
+    assert r2.status_code == 200
+
+    r3 = client.post(
+        "/ingest",
+        data={"donor_id": "usaid", "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"})},
+        files={"file": ("kz-context.pdf", b"%PDF-1.4 c", "application/pdf")},
+    )
+    assert r3.status_code == 200
+
+    recent = client.get("/ingest/recent", params={"donor_id": "usaid", "limit": 10})
+    assert recent.status_code == 200
+    body = recent.json()
+    assert body["donor_id"] == "usaid"
+    assert body["count"] == 2
+    assert len(body["records"]) == 2
+    assert body["records"][0]["donor_id"] == "usaid"
+    assert body["records"][0]["filename"] == "kz-context.pdf"
+    assert body["records"][0]["metadata"]["doc_family"] == "country_context"
+    assert body["records"][1]["filename"] == "ads.pdf"
+    assert body["records"][1]["metadata"]["doc_family"] == "donor_policy"
 
 
 def test_ingest_endpoint_validates_pdf_extension():

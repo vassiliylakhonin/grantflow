@@ -9,6 +9,7 @@ from fastapi.openapi.utils import get_openapi
 PROTECTED_OPERATIONS = {
     ("post", "/generate"),
     ("post", "/ingest"),
+    ("get", "/ingest/recent"),
     ("post", "/cancel/{job_id}"),
     ("post", "/resume/{job_id}"),
     ("post", "/hitl/approve"),
