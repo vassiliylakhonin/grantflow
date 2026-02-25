@@ -54,10 +54,12 @@ def test_demo_console_page_loads():
     assert "commentsFilterVersionId" in body
     assert "grantflow_demo_diff_section" in body
     assert "portfolioBtn" in body
+    assert "portfolioClearBtn" in body
     assert "portfolioMetricsCards" in body
     assert "portfolioStatusCountsList" in body
     assert "portfolioDonorCountsList" in body
     assert "Click to filter" in body
+    assert "clearFiltersBtn" in body
 
 
 def test_ready_endpoint():

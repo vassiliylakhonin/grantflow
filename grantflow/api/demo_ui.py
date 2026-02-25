@@ -181,6 +181,9 @@ def render_demo_ui_html() -> str:
       <div style="align-self:end;">
         <button id="pollToggleBtn" class="secondary">Start Poll</button>
       </div>
+      <div style="align-self:end;">
+        <button id="clearFiltersBtn" class="ghost">Clear All Filters</button>
+      </div>
     </section>
 
     <section class="grid">
@@ -298,6 +301,7 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row" style="margin-top:10px;">
               <button id="portfolioBtn" class="ghost">Load Portfolio Metrics</button>
+              <button id="portfolioClearBtn" class="ghost">Clear Portfolio Filters</button>
               <div class="sub" style="align-self:center;">Aggregates across jobs in current store.</div>
             </div>
             <div class="kpis" id="portfolioMetricsCards" style="margin-top:10px;">
@@ -560,6 +564,7 @@ def render_demo_ui_html() -> str:
         generateBtn: $("generateBtn"),
         refreshAllBtn: $("refreshAllBtn"),
         pollToggleBtn: $("pollToggleBtn"),
+        clearFiltersBtn: $("clearFiltersBtn"),
         approveBtn: $("approveBtn"),
         rejectBtn: $("rejectBtn"),
         resumeBtn: $("resumeBtn"),
@@ -570,6 +575,7 @@ def render_demo_ui_html() -> str:
         eventsBtn: $("eventsBtn"),
         criticBtn: $("criticBtn"),
         portfolioBtn: $("portfolioBtn"),
+        portfolioClearBtn: $("portfolioClearBtn"),
         commentsBtn: $("commentsBtn"),
         addCommentBtn: $("addCommentBtn"),
         resolveCommentBtn: $("resolveCommentBtn"),
@@ -605,6 +611,25 @@ def render_demo_ui_html() -> str:
           if (!el) continue;
           localStorage.setItem(storageKey, String(el.value || ""));
         }
+      }
+
+      function clearPortfolioFilters() {
+        els.portfolioDonorFilter.value = "";
+        els.portfolioStatusFilter.value = "";
+        els.portfolioHitlFilter.value = "";
+        persistUiState();
+      }
+
+      async function clearDemoFilters() {
+        for (const [elKey] of uiStateFields) {
+          const el = els[elKey];
+          if (!el) continue;
+          el.value = "";
+        }
+        persistUiState();
+        if (state.lastCritic) renderCriticLists(state.lastCritic);
+        if (state.lastCitations) renderCriticContextCitations();
+        await Promise.allSettled([refreshPortfolioMetrics(), refreshComments(), refreshDiff()]);
       }
 
       function apiBase() {
@@ -1219,6 +1244,7 @@ def render_demo_ui_html() -> str:
         els.generateBtn.addEventListener("click", () => generateJob().catch(showError));
         els.refreshAllBtn.addEventListener("click", () => refreshAll().catch(showError));
         els.pollToggleBtn.addEventListener("click", togglePolling);
+        els.clearFiltersBtn.addEventListener("click", () => clearDemoFilters().catch(showError));
         els.approveBtn.addEventListener("click", () => approveOrReject(true).catch(showError));
         els.rejectBtn.addEventListener("click", () => approveOrReject(false).catch(showError));
         els.resumeBtn.addEventListener("click", () => resumeJob().catch(showError));
@@ -1229,6 +1255,10 @@ def render_demo_ui_html() -> str:
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
         els.portfolioBtn.addEventListener("click", () => refreshPortfolioMetrics().catch(showError));
+        els.portfolioClearBtn.addEventListener("click", () => {
+          clearPortfolioFilters();
+          refreshPortfolioMetrics().catch(showError);
+        });
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
