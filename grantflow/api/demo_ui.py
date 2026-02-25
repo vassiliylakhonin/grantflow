@@ -688,7 +688,7 @@ def render_demo_ui_html() -> str:
         });
       }
 
-      function renderKeyValueList(container, mapping, emptyLabel, topN = 8) {
+      function renderKeyValueList(container, mapping, emptyLabel, topN = 8, onSelect = null) {
         container.innerHTML = "";
         if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
           container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
@@ -709,6 +709,11 @@ def render_demo_ui_html() -> str:
             <div class="title mono">${escapeHtml(key)}</div>
             <div class="sub">count: ${escapeHtml(String(value))}</div>
           `;
+          if (typeof onSelect === "function") {
+            div.style.cursor = "pointer";
+            div.title = "Click to filter";
+            div.addEventListener("click", () => onSelect(key));
+          }
           container.appendChild(div);
         }
       }
@@ -1074,8 +1079,28 @@ def render_demo_ui_html() -> str:
         const q = params.toString() ? `?${params.toString()}` : "";
         const body = await apiFetch(`/portfolio/metrics${q}`);
         renderPortfolioMetricsCards(body);
-        renderKeyValueList(els.portfolioStatusCountsList, body.status_counts, "No status counts yet.");
-        renderKeyValueList(els.portfolioDonorCountsList, body.donor_counts, "No donor counts yet.");
+        renderKeyValueList(
+          els.portfolioStatusCountsList,
+          body.status_counts,
+          "No status counts yet.",
+          8,
+          (statusKey) => {
+            els.portfolioStatusFilter.value = statusKey || "";
+            persistUiState();
+            refreshPortfolioMetrics().catch(showError);
+          }
+        );
+        renderKeyValueList(
+          els.portfolioDonorCountsList,
+          body.donor_counts,
+          "No donor counts yet.",
+          8,
+          (donorKey) => {
+            els.portfolioDonorFilter.value = donorKey || "";
+            persistUiState();
+            refreshPortfolioMetrics().catch(showError);
+          }
+        );
         setJson(els.portfolioMetricsJson, body);
         return body;
       }

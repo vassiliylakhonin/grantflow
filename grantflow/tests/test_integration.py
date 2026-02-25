@@ -57,6 +57,7 @@ def test_demo_console_page_loads():
     assert "portfolioMetricsCards" in body
     assert "portfolioStatusCountsList" in body
     assert "portfolioDonorCountsList" in body
+    assert "Click to filter" in body
 
 
 def test_ready_endpoint():
