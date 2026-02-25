@@ -7,6 +7,7 @@ from grantflow.eval.harness import (
     build_regression_baseline_snapshot,
     compare_suite_to_baseline,
     evaluate_expectations,
+    format_eval_comparison_report,
     format_eval_suite_report,
     load_eval_cases,
     run_eval_suite,
@@ -170,6 +171,13 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
     assert comparison["regression_count"] == 2
     assert {item["metric"] for item in comparison["regressions"]} == {"quality_score", "architect_threshold_hit_rate"}
     assert comparison["warning_count"] >= 2  # new case + missing baseline case
+    assert comparison["donor_breakdown"]["usaid"]["regression_count"] == 2
+    assert comparison["donor_breakdown"]["eu"]["warning_count"] >= 1
+    assert comparison["donor_breakdown"]["giz"]["warning_count"] >= 1
+
+    text = format_eval_comparison_report(comparison)
+    assert "Donor regression breakdown" in text
+    assert "usaid: regressions=2" in text
 
 
 def test_eval_harness_cli_can_write_baseline_and_comparison_reports(tmp_path):
@@ -206,4 +214,5 @@ def test_eval_harness_cli_can_write_baseline_and_comparison_reports(tmp_path):
     assert comparison["has_regressions"] is False
     assert comparison["regression_count"] == 0
     assert regenerated_baseline_out.exists()
-    assert "No regressions detected" in cmp_text_out.read_text(encoding="utf-8")
+    cmp_text = cmp_text_out.read_text(encoding="utf-8")
+    assert "No regressions detected" in cmp_text

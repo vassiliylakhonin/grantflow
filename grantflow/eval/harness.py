@@ -386,7 +386,15 @@ def compare_suite_to_baseline(
     regressions: list[dict[str, Any]] = []
     warnings: list[dict[str, Any]] = []
 
+    def _case_donor_id(case_payload: Any, fallback: str = "unknown") -> str:
+        if isinstance(case_payload, dict):
+            donor = case_payload.get("donor_id")
+            if donor:
+                return str(donor)
+        return fallback
+
     for case_id, current_case in current_cases.items():
+        current_donor_id = _case_donor_id(current_case)
         current_metrics = current_case.get("metrics") if isinstance(current_case.get("metrics"), dict) else {}
         baseline_case = baseline_cases.get(case_id)
         if not isinstance(baseline_case, dict):
@@ -394,6 +402,7 @@ def compare_suite_to_baseline(
                 {
                     "type": "new_case_not_in_baseline",
                     "case_id": case_id,
+                    "donor_id": current_donor_id,
                     "message": "Current eval case is not present in baseline snapshot.",
                 }
             )
@@ -410,6 +419,7 @@ def compare_suite_to_baseline(
                 regressions.append(
                     {
                         "case_id": case_id,
+                        "donor_id": current_donor_id,
                         "metric": metric,
                         "direction": "higher_is_better",
                         "baseline": baseline_value,
@@ -427,6 +437,7 @@ def compare_suite_to_baseline(
                 regressions.append(
                     {
                         "case_id": case_id,
+                        "donor_id": current_donor_id,
                         "metric": metric,
                         "direction": "lower_is_better",
                         "baseline": baseline_value,
@@ -444,6 +455,7 @@ def compare_suite_to_baseline(
                 regressions.append(
                     {
                         "case_id": case_id,
+                        "donor_id": current_donor_id,
                         "metric": metric,
                         "direction": "boolean_guardrail",
                         "baseline": baseline_value,
@@ -459,6 +471,7 @@ def compare_suite_to_baseline(
                 regressions.append(
                     {
                         "case_id": case_id,
+                        "donor_id": current_donor_id,
                         "metric": "needs_revision",
                         "direction": "boolean_guardrail",
                         "baseline": baseline_value,
@@ -473,9 +486,38 @@ def compare_suite_to_baseline(
                 {
                     "type": "baseline_case_missing_in_current_suite",
                     "case_id": case_id,
+                    "donor_id": _case_donor_id(baseline_cases.get(case_id)),
                     "message": "Baseline snapshot contains a case not present in current suite.",
                 }
             )
+
+    donor_breakdown: dict[str, dict[str, Any]] = {}
+    for item in regressions:
+        donor_id = str(item.get("donor_id") or "unknown")
+        row = donor_breakdown.setdefault(
+            donor_id,
+            {
+                "regression_count": 0,
+                "warning_count": 0,
+                "metrics": {},
+            },
+        )
+        row["regression_count"] = int(row.get("regression_count") or 0) + 1
+        metrics_map = row.get("metrics")
+        if isinstance(metrics_map, dict):
+            metric_name = str(item.get("metric") or "unknown")
+            metrics_map[metric_name] = int(metrics_map.get(metric_name) or 0) + 1
+    for item in warnings:
+        donor_id = str(item.get("donor_id") or "unknown")
+        row = donor_breakdown.setdefault(
+            donor_id,
+            {
+                "regression_count": 0,
+                "warning_count": 0,
+                "metrics": {},
+            },
+        )
+        row["warning_count"] = int(row.get("warning_count") or 0) + 1
 
     return {
         "baseline_path": None,
@@ -486,6 +528,7 @@ def compare_suite_to_baseline(
         "has_regressions": bool(regressions),
         "regressions": regressions,
         "warnings": warnings,
+        "donor_breakdown": donor_breakdown,
     }
 
 
@@ -502,13 +545,40 @@ def format_eval_comparison_report(comparison: dict[str, Any]) -> str:
     for item in comparison.get("regressions") or []:
         lines.append(
             (
-                f"- REGRESSION {item.get('case_id')} {item.get('metric')}: "
+                f"- REGRESSION {item.get('case_id')} ({item.get('donor_id') or 'unknown'}) {item.get('metric')}: "
                 f"baseline={item.get('baseline')} current={item.get('current')} "
                 f"({item.get('message')})"
             )
         )
     for item in comparison.get("warnings") or []:
-        lines.append(f"- WARNING {item.get('case_id')}: {item.get('message')}")
+        lines.append(f"- WARNING {item.get('case_id')} ({item.get('donor_id') or 'unknown'}): {item.get('message')}")
+
+    donor_breakdown = comparison.get("donor_breakdown")
+    if isinstance(donor_breakdown, dict) and donor_breakdown:
+        lines.append("")
+        lines.append("Donor regression breakdown")
+        ordered = sorted(
+            donor_breakdown.items(),
+            key=lambda item: (
+                -(int((item[1] or {}).get("regression_count") or 0)),
+                -(int((item[1] or {}).get("warning_count") or 0)),
+                str(item[0]),
+            ),
+        )
+        for donor_id, row in ordered:
+            row_dict = row if isinstance(row, dict) else {}
+            metrics_map = row_dict.get("metrics") if isinstance(row_dict.get("metrics"), dict) else {}
+            top_metrics = sorted(
+                ((str(k), int(v or 0)) for k, v in metrics_map.items()),
+                key=lambda kv: (-kv[1], kv[0]),
+            )[:3]
+            metric_text = ", ".join(f"{name}x{count}" for name, count in top_metrics) if top_metrics else "-"
+            lines.append(
+                (
+                    f"- {donor_id}: regressions={int(row_dict.get('regression_count') or 0)} "
+                    f"warnings={int(row_dict.get('warning_count') or 0)} top_metrics={metric_text}"
+                )
+            )
     if not (comparison.get("regressions") or comparison.get("warnings")):
         lines.append("- No regressions detected against baseline.")
     return "\n".join(lines)
