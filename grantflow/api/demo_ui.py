@@ -660,6 +660,17 @@ def render_demo_ui_html() -> str:
               ${meta ? `<div class="sub" style="margin-top:6px;">${escapeHtml(meta)}</div>` : ""}
             `;
             if (flaw.section === "toc" || flaw.section === "logframe") {
+              const commentBtn = document.createElement("button");
+              commentBtn.className = "ghost";
+              commentBtn.style.marginTop = "8px";
+              commentBtn.style.marginRight = "8px";
+              commentBtn.textContent = "Create Comment";
+              commentBtn.addEventListener("click", (event) => {
+                event.stopPropagation();
+                prefillCommentFromFinding(flaw);
+              });
+              div.appendChild(commentBtn);
+
               const jumpBtn = document.createElement("button");
               jumpBtn.className = "ghost";
               jumpBtn.style.marginTop = "8px";
@@ -688,6 +699,20 @@ def render_demo_ui_html() -> str:
           `;
           els.criticChecksList.appendChild(div);
         }
+      }
+
+      function prefillCommentFromFinding(flaw) {
+        const section = String(flaw?.section || "").trim();
+        if (section && ["general", "toc", "logframe"].includes(section)) {
+          els.commentSection.value = section;
+        }
+        const versionId = String(flaw?.version_id || "").trim();
+        els.commentVersionId.value = versionId;
+        const code = String(flaw?.code || "FINDING").trim();
+        const msg = String(flaw?.message || "").trim();
+        const hint = String(flaw?.fix_hint || "").trim();
+        els.commentMessage.value = `[${code}] ${msg}${hint ? `\\nFix hint: ${hint}` : ""}`;
+        els.commentMessage.focus();
       }
 
       async function jumpToDiffForFinding(flaw) {
