@@ -260,7 +260,7 @@ Core endpoints:
 - `GET /status/{job_id}/quality` - retrieve a typed quality summary (critic + citations + architect policy metadata)
 - `GET /portfolio/metrics` - retrieve aggregated ROI/ops metrics across jobs (with filters)
 - `GET /portfolio/quality` - retrieve aggregated quality/critic/citation portfolio signals (with filters)
-- `GET /portfolio/quality/export` - export the aggregated portfolio quality snapshot (`csv`)
+- `GET /portfolio/quality/export` - export the aggregated portfolio quality snapshot (`csv` or `json`, optional `gzip=true`)
 - `POST /resume/{job_id}` - resume a HITL-paused job
 - `GET /hitl/pending` - list pending checkpoints
 - `POST /hitl/approve` - approve/reject checkpoint
@@ -546,6 +546,16 @@ Export aggregated portfolio quality snapshot (CSV):
 ```bash
 curl -s "http://127.0.0.1:8000/portfolio/quality/export?donor_id=usaid&status=done&hitl_enabled=true&format=csv" \
   -o portfolio_quality.csv
+```
+
+Export aggregated portfolio quality snapshot (JSON or GZip):
+
+```bash
+curl -s "http://127.0.0.1:8000/portfolio/quality/export?donor_id=usaid&format=json" \
+  -o portfolio_quality.json
+
+curl -s "http://127.0.0.1:8000/portfolio/quality/export?donor_id=usaid&status=done&format=csv&gzip=true" \
+  -o portfolio_quality.csv.gz
 ```
 
 Example metrics response shape:

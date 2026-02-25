@@ -1,5 +1,6 @@
 # grantflow/tests/test_integration.py
 
+import gzip
 import json
 import time
 
@@ -1064,6 +1065,36 @@ def test_portfolio_quality_export_endpoint_returns_csv():
     assert "filters.status,done" in body
     assert "severity_weighted_risk_score," in body
     assert "priority_signal_breakdown.high_severity_findings_total.weight," in body
+
+
+def test_portfolio_quality_export_endpoint_supports_json_and_gzip():
+    json_resp = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "format": "json"})
+    assert json_resp.status_code == 200
+    assert json_resp.headers["content-type"].startswith("application/json")
+    json_disposition = json_resp.headers.get("content-disposition", "")
+    assert "grantflow_portfolio_quality_usaid.json" in json_disposition
+    payload = json_resp.json()
+    assert "severity_weighted_risk_score" in payload
+    assert "priority_signal_breakdown" in payload
+
+    csv_gzip_resp = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"})
+    assert csv_gzip_resp.status_code == 200
+    assert csv_gzip_resp.headers["content-type"].startswith("application/gzip")
+    csv_gzip_disposition = csv_gzip_resp.headers.get("content-disposition", "")
+    assert "grantflow_portfolio_quality_usaid.csv.gz" in csv_gzip_disposition
+    csv_text = gzip.decompress(csv_gzip_resp.content).decode("utf-8")
+    assert csv_text.startswith("field,value\n")
+    assert "severity_weighted_risk_score," in csv_text
+
+    json_gzip_resp = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"})
+    assert json_gzip_resp.status_code == 200
+    assert json_gzip_resp.headers["content-type"].startswith("application/gzip")
+    json_gzip_disposition = json_gzip_resp.headers.get("content-disposition", "")
+    assert "grantflow_portfolio_quality_usaid.json.gz" in json_gzip_disposition
+    json_text = gzip.decompress(json_gzip_resp.content).decode("utf-8")
+    parsed = json.loads(json_text)
+    assert "filters" in parsed
+    assert parsed["filters"]["donor_id"] == "usaid"
 
 
 def test_generate_requires_api_key_when_configured(monkeypatch):
