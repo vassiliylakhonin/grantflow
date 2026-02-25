@@ -393,7 +393,10 @@ def test_status_includes_citations_traceability(monkeypatch):
     architect_citations = [c for c in citations if c.get("stage") == "architect"]
     assert architect_citations
     assert any(c.get("statement_path") for c in architect_citations)
-    assert any(c.get("citation_type") in {"rag_claim_support", "fallback_namespace"} for c in architect_citations)
+    assert any(
+        c.get("citation_type") in {"rag_claim_support", "rag_low_confidence", "fallback_namespace"}
+        for c in architect_citations
+    )
 
     citations_response = client.get(f"/status/{job_id}/citations")
     assert citations_response.status_code == 200
