@@ -55,6 +55,20 @@ REGRESSION_PRIORITY_WEIGHTS: dict[str, int] = {
     "rag_low_confidence_citation_count": 2,
     "fallback_namespace_citation_count": 1,
 }
+GROUNDING_RISK_MIN_CITATIONS = 5
+FALLBACK_DOMINANCE_WARN_RATIO = 0.6
+FALLBACK_DOMINANCE_HIGH_RATIO = 0.85
+
+
+def _fallback_dominance_label(*, fallback_count: int, citation_count: int) -> tuple[str | None, float | None]:
+    if citation_count < GROUNDING_RISK_MIN_CITATIONS or citation_count <= 0:
+        return None, None
+    ratio = fallback_count / citation_count
+    if ratio >= FALLBACK_DOMINANCE_HIGH_RATIO:
+        return "high", round(ratio, 4)
+    if ratio >= FALLBACK_DOMINANCE_WARN_RATIO:
+        return "warn", round(ratio, 4)
+    return None, round(ratio, 4)
 
 
 def _looks_like_eval_case(item: Any) -> bool:
@@ -336,12 +350,21 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
     for case in suite.get("cases") or []:
         prefix = "PASS" if case.get("passed") else "FAIL"
         metrics = case.get("metrics") or {}
+        citation_count = int(metrics.get("citations_total") or 0)
+        fallback_count = int(metrics.get("fallback_namespace_citation_count") or 0)
+        grounding_risk_label, fallback_ratio = _fallback_dominance_label(
+            fallback_count=fallback_count,
+            citation_count=citation_count,
+        )
+        grounding_suffix = ""
+        if grounding_risk_label and fallback_ratio is not None:
+            grounding_suffix = f" grounding_risk=fallback_dominant:{grounding_risk_label}({fallback_ratio:.0%})"
         lines.append(
             (
                 f"- {prefix} {case.get('case_id')} ({case.get('donor_id')}): "
                 f"q={metrics.get('quality_score')} critic={metrics.get('critic_score')} "
                 f"toc_valid={metrics.get('toc_schema_valid')} flaws={metrics.get('fatal_flaw_count')} "
-                f"citations={metrics.get('citations_total')}"
+                f"citations={metrics.get('citations_total')}{grounding_suffix}"
             )
         )
         for check in case.get("failed_checks") or []:
@@ -363,6 +386,7 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                 "high_flaw_total": 0,
                 "low_conf_total": 0,
                 "fallback_ns_total": 0,
+                "citation_total": 0,
             },
         )
         row["case_count"] = int(row["case_count"]) + 1
@@ -376,6 +400,7 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
             row["needs_revision_count"] = int(row["needs_revision_count"]) + 1
         row["high_flaw_total"] = int(row["high_flaw_total"]) + int(metrics.get("high_severity_fatal_flaw_count") or 0)
         row["low_conf_total"] = int(row["low_conf_total"]) + int(metrics.get("low_confidence_citation_count") or 0)
+        row["citation_total"] = int(row["citation_total"]) + int(metrics.get("citations_total") or 0)
         row["fallback_ns_total"] = int(row["fallback_ns_total"]) + int(
             metrics.get("fallback_namespace_citation_count") or 0
         )
@@ -407,6 +432,25 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                     f"fallback_ns_citations={int(row.get('fallback_ns_total') or 0)}"
                 )
             )
+        risky_donors: list[tuple[str, dict[str, Any], float, str]] = []
+        for donor_id, row in donor_rows.items():
+            citation_total = int(row.get("citation_total") or 0)
+            fallback_total = int(row.get("fallback_ns_total") or 0)
+            label, ratio = _fallback_dominance_label(fallback_count=fallback_total, citation_count=citation_total)
+            if label and ratio is not None:
+                risky_donors.append((donor_id, row, ratio, label))
+        if risky_donors:
+            lines.append("")
+            lines.append("Grounding risk summary (fallback dominance)")
+            risky_donors.sort(key=lambda item: (-item[2], -int(item[1].get("citation_total") or 0), item[0]))
+            for donor_id, row, ratio, label in risky_donors:
+                lines.append(
+                    (
+                        f"- {donor_id}: fallback_dominance={label} ({ratio:.0%}) "
+                        f"fallback_ns_citations={int(row.get('fallback_ns_total') or 0)}/"
+                        f"{int(row.get('citation_total') or 0)}"
+                    )
+                )
     return "\n".join(lines)
 
 

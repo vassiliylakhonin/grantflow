@@ -87,6 +87,60 @@ def test_eval_harness_cli_writes_json_and_text_reports(tmp_path):
     assert "Donor quality breakdown (suite-level)" in text
 
 
+def test_format_eval_suite_report_highlights_fallback_dominance_signals():
+    suite = {
+        "suite_label": "llm-eval",
+        "expectations_skipped": True,
+        "case_count": 2,
+        "passed_count": 2,
+        "failed_count": 0,
+        "all_passed": True,
+        "cases": [
+            {
+                "case_id": "c1",
+                "donor_id": "usaid",
+                "passed": True,
+                "failed_checks": [],
+                "metrics": {
+                    "quality_score": 7.0,
+                    "critic_score": 7.0,
+                    "toc_schema_valid": True,
+                    "fatal_flaw_count": 2,
+                    "citations_total": 10,
+                    "fallback_namespace_citation_count": 9,
+                    "high_severity_fatal_flaw_count": 0,
+                    "low_confidence_citation_count": 9,
+                    "needs_revision": False,
+                },
+            },
+            {
+                "case_id": "c2",
+                "donor_id": "eu",
+                "passed": True,
+                "failed_checks": [],
+                "metrics": {
+                    "quality_score": 7.0,
+                    "critic_score": 7.0,
+                    "toc_schema_valid": True,
+                    "fatal_flaw_count": 1,
+                    "citations_total": 4,
+                    "fallback_namespace_citation_count": 4,
+                    "high_severity_fatal_flaw_count": 0,
+                    "low_confidence_citation_count": 4,
+                    "needs_revision": False,
+                },
+            },
+        ],
+    }
+
+    text = format_eval_suite_report(suite)
+    assert "grounding_risk=fallback_dominant:high(90%)" in text
+    assert "Grounding risk summary (fallback dominance)" in text
+    assert "usaid: fallback_dominance=high (90%) fallback_ns_citations=9/10" in text
+    # c2 is below minimum citation threshold for dominance reporting
+    assert "eu: fallback_dominance" not in text
+
+
 def test_compute_state_metrics_splits_fallback_namespace_from_rag_low_confidence():
     metrics = compute_state_metrics(
         {
