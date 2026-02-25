@@ -109,6 +109,45 @@
     }
   },
   {
+    "case_id": "usaid_concept_note_ai_governance_kyrgyzstan",
+    "donor_id": "usaid",
+    "input_context": {
+      "project": "Responsible AI Governance and Civil Service Readiness",
+      "country": "Kyrgyzstan",
+      "timeframe": "2026-2027 (18 months)",
+      "problem": "Government institutions are under pressure to modernize administrative processes but lack practical skills, governance guidance, and safe-use standards for responsible AI adoption.",
+      "target_population": "Civil servants and reform units in ministries and public service agencies.",
+      "expected_change": "Public institutions improve readiness for responsible AI adoption through staff training, governance guidance, and pilot use cases.",
+      "key_activities": [
+        "Rapid institutional readiness assessment",
+        "Short-cycle training on responsible AI use for public administration",
+        "Drafting of basic AI governance guidance and SOP templates",
+        "Pilot support for selected administrative workflows"
+      ]
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 8.0,
+      "min_critic_score": 8.0,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 0,
+      "max_high_severity_fatal_flaws": 0,
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 50,
+      "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
+      "max_rag_low_confidence_citations": 0
+    }
+  },
+  {
     "case_id": "eu_youth_employment_jordan",
     "donor_id": "eu",
     "input_context": {

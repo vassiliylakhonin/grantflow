@@ -138,6 +138,29 @@
         "toc_schema_valid": true
       }
     },
+    "usaid_concept_note_ai_governance_kyrgyzstan": {
+      "donor_id": "usaid",
+      "metrics": {
+        "architect_citation_count": 24,
+        "architect_threshold_hit_rate": 0.0,
+        "citation_confidence_avg": 0.1,
+        "citations_total": 25,
+        "critic_score": 9.25,
+        "draft_version_count": 2,
+        "error_count": 0,
+        "fatal_flaw_count": 0,
+        "has_logframe_draft": true,
+        "has_toc_draft": true,
+        "high_confidence_citation_count": 0,
+        "high_severity_fatal_flaw_count": 0,
+        "low_confidence_citation_count": 25,
+        "mel_citation_count": 1,
+        "needs_revision": false,
+        "quality_score": 9.25,
+        "rag_low_confidence_citation_count": 0,
+        "toc_schema_valid": true
+      }
+    },
     "usaid_water_kenya": {
       "donor_id": "usaid",
       "metrics": {
