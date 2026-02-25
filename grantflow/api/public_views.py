@@ -6,6 +6,21 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional, cast
 
+PORTFOLIO_QUALITY_SIGNAL_WEIGHTS: dict[str, int] = {
+    "high_severity_findings_total": 5,
+    "medium_severity_findings_total": 3,
+    "open_findings_total": 4,
+    "needs_revision_job_count": 4,
+    "rag_low_confidence_citation_count": 3,
+    "low_confidence_citation_count": 1,
+}
+PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS = {
+    "high_severity_findings_total",
+    "open_findings_total",
+    "needs_revision_job_count",
+    "rag_low_confidence_citation_count",
+}
+
 
 def sanitize_for_public_response(value: Any) -> Any:
     if value is None or isinstance(value, (str, int, float, bool)):
@@ -621,6 +636,7 @@ def public_portfolio_quality_payload(
     donor_counts: Dict[str, int] = {}
     donor_needs_revision_counts: Dict[str, int] = {}
     donor_open_findings_counts: Dict[str, int] = {}
+    donor_weighted_risk_breakdown: Dict[str, Dict[str, int]] = {}
     quality_rows: list[Dict[str, Any]] = []
 
     for job_id, job in filtered:
@@ -631,6 +647,7 @@ def public_portfolio_quality_payload(
         donor_counts[job_donor] = donor_counts.get(job_donor, 0) + 1
 
         q = public_job_quality_payload(job_id, job)
+        q["_donor_id"] = job_donor
         quality_rows.append(q)
 
         critic_summary: Dict[str, Any] = cast(Dict[str, Any], q.get("critic")) if isinstance(q.get("critic"), dict) else {}
@@ -652,6 +669,7 @@ def public_portfolio_quality_payload(
     critic_open_findings_total = 0
     critic_high_severity_total = 0
     critic_fatal_flaws_total = 0
+    critic_medium_severity_total = 0
     needs_revision_job_count = 0
     citation_count_total = 0
     low_confidence_citation_count = 0
@@ -666,10 +684,70 @@ def public_portfolio_quality_payload(
             needs_revision_job_count += 1
         critic_open_findings_total += int(row_critic.get("open_finding_count") or 0)
         critic_high_severity_total += int(row_critic.get("high_severity_fatal_flaw_count") or 0)
+        critic_medium_severity_total += int(row_critic.get("medium_severity_fatal_flaw_count") or 0)
         critic_fatal_flaws_total += int(row_critic.get("fatal_flaw_count") or 0)
         citation_count_total += int(row_citations.get("citation_count") or 0)
         low_confidence_citation_count += int(row_citations.get("low_confidence_citation_count") or 0)
         rag_low_confidence_citation_count += int(row_citations.get("rag_low_confidence_citation_count") or 0)
+
+        donor_for_row = str(row.get("_donor_id") or "unknown")
+        donor_row = donor_weighted_risk_breakdown.setdefault(
+            donor_for_row,
+            {
+                "weighted_score": 0,
+                "high_priority_signal_count": 0,
+                "open_findings_total": 0,
+                "high_severity_findings_total": 0,
+                "needs_revision_job_count": 0,
+                "low_confidence_citation_count": 0,
+                "rag_low_confidence_citation_count": 0,
+            },
+        )
+        donor_row["open_findings_total"] += int(row_critic.get("open_finding_count") or 0)
+        donor_row["high_severity_findings_total"] += int(row_critic.get("high_severity_fatal_flaw_count") or 0)
+        donor_row["low_confidence_citation_count"] += int(row_citations.get("low_confidence_citation_count") or 0)
+        donor_row["rag_low_confidence_citation_count"] += int(row_citations.get("rag_low_confidence_citation_count") or 0)
+        if bool(row.get("needs_revision")):
+            donor_row["needs_revision_job_count"] += 1
+
+    signal_counts = {
+        "high_severity_findings_total": critic_high_severity_total,
+        "medium_severity_findings_total": critic_medium_severity_total,
+        "open_findings_total": critic_open_findings_total,
+        "needs_revision_job_count": needs_revision_job_count,
+        "rag_low_confidence_citation_count": rag_low_confidence_citation_count,
+        "low_confidence_citation_count": low_confidence_citation_count,
+    }
+    priority_signal_breakdown: Dict[str, Dict[str, int]] = {}
+    severity_weighted_risk_score = 0
+    high_priority_signal_count = 0
+    for signal, count in signal_counts.items():
+        weight = int(PORTFOLIO_QUALITY_SIGNAL_WEIGHTS.get(signal, 1))
+        weighted_score = int(count) * weight
+        priority_signal_breakdown[signal] = {
+            "count": int(count),
+            "weight": weight,
+            "weighted_score": weighted_score,
+        }
+        severity_weighted_risk_score += weighted_score
+        if signal in PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS:
+            high_priority_signal_count += int(count)
+
+    for donor_row in donor_weighted_risk_breakdown.values():
+        donor_row["weighted_score"] = (
+            donor_row["high_severity_findings_total"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["high_severity_findings_total"]
+            + donor_row["open_findings_total"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["open_findings_total"]
+            + donor_row["needs_revision_job_count"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["needs_revision_job_count"]
+            + donor_row["rag_low_confidence_citation_count"]
+            * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["rag_low_confidence_citation_count"]
+            + donor_row["low_confidence_citation_count"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["low_confidence_citation_count"]
+        )
+        donor_row["high_priority_signal_count"] = (
+            donor_row["high_severity_findings_total"]
+            + donor_row["open_findings_total"]
+            + donor_row["needs_revision_job_count"]
+            + donor_row["rag_low_confidence_citation_count"]
+        )
 
     job_count = len(filtered)
     quality_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("quality_score"), (int, float)))
@@ -693,6 +771,8 @@ def public_portfolio_quality_payload(
         "critic_score_job_count": critic_score_job_count,
         "avg_quality_score": _avg(quality_rows, "quality_score"),
         "avg_critic_score": _avg(quality_rows, "critic_score"),
+        "severity_weighted_risk_score": severity_weighted_risk_score,
+        "high_priority_signal_count": high_priority_signal_count,
         "critic": {
             "open_findings_total": critic_open_findings_total,
             "open_findings_per_job_avg": round(critic_open_findings_total / job_count, 4) if job_count else None,
@@ -714,6 +794,8 @@ def public_portfolio_quality_payload(
             ),
             "architect_threshold_hit_rate_avg": _avg(citation_summary_rows, "architect_threshold_hit_rate"),
         },
+        "priority_signal_breakdown": priority_signal_breakdown,
+        "donor_weighted_risk_breakdown": donor_weighted_risk_breakdown,
         "donor_needs_revision_counts": donor_needs_revision_counts,
         "donor_open_findings_counts": donor_open_findings_counts,
     }

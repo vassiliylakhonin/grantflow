@@ -357,6 +357,8 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">High Severity</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Avg Citation Conf</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Threshold Hit-rate</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Weighted Risk</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">High-Priority Signals</div><div class="value mono">-</div></div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -366,6 +368,16 @@ def render_demo_ui_html() -> str:
               <div>
                 <label>Top Donors (Open Findings)</label>
                 <div class="list" id="portfolioQualityOpenFindingsList"></div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Priority Signals (Weighted)</label>
+                <div class="list" id="portfolioQualityPrioritySignalsList"></div>
+              </div>
+              <div>
+                <label>Top Donors (Weighted Risk)</label>
+                <div class="list" id="portfolioQualityWeightedDonorsList"></div>
               </div>
             </div>
             <div style="margin-top:10px;">
@@ -639,6 +651,8 @@ def render_demo_ui_html() -> str:
         portfolioDonorCountsList: $("portfolioDonorCountsList"),
         portfolioQualityRiskList: $("portfolioQualityRiskList"),
         portfolioQualityOpenFindingsList: $("portfolioQualityOpenFindingsList"),
+        portfolioQualityPrioritySignalsList: $("portfolioQualityPrioritySignalsList"),
+        portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
@@ -870,6 +884,8 @@ def render_demo_ui_html() -> str:
           String(critic.high_severity_findings_total ?? "-"),
           typeof citations.citation_confidence_avg === "number" ? Number(citations.citation_confidence_avg).toFixed(2) : "-",
           thresholdHitRate,
+          String(summary?.severity_weighted_risk_score ?? "-"),
+          String(summary?.high_priority_signal_count ?? "-"),
         ];
         [...els.portfolioQualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
@@ -902,6 +918,50 @@ def render_demo_ui_html() -> str:
             div.title = "Click to filter";
             div.addEventListener("click", () => onSelect(key));
           }
+          container.appendChild(div);
+        }
+      }
+
+      function renderWeightedBreakdownList(container, mapping, emptyLabel, topN = 8, scoreKey = "weighted_score") {
+        container.innerHTML = "";
+        if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        const entries = Object.entries(mapping)
+          .map(([k, v]) => {
+            const row = v && typeof v === "object" && !Array.isArray(v) ? v : {};
+            return [String(k), row];
+          })
+          .sort((a, b) => {
+            const aScore = Number((a[1] || {})[scoreKey] || 0);
+            const bScore = Number((b[1] || {})[scoreKey] || 0);
+            return bScore - aScore || a[0].localeCompare(b[0]);
+          })
+          .slice(0, topN);
+        if (entries.length === 0) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        for (const [key, row] of entries) {
+          const count = Number(row.count || row.regression_count || 0);
+          const weight = row.weight != null ? Number(row.weight || 0) : null;
+          const weighted = Number(row[scoreKey] || 0);
+          const highPriority = row.high_priority_signal_count != null ? Number(row.high_priority_signal_count || 0) : null;
+          const details = [
+            `weighted: ${weighted}`,
+            `count: ${count}`,
+            weight !== null ? `w: ${weight}` : null,
+            highPriority !== null ? `high-priority: ${highPriority}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(key)}</div>
+            <div class="sub">${escapeHtml(details)}</div>
+          `;
           container.appendChild(div);
         }
       }
@@ -1394,6 +1454,18 @@ def render_demo_ui_html() -> str:
           els.portfolioQualityOpenFindingsList,
           body.donor_open_findings_counts,
           "No donor open findings yet.",
+          8
+        );
+        renderWeightedBreakdownList(
+          els.portfolioQualityPrioritySignalsList,
+          body.priority_signal_breakdown,
+          "No priority signals yet.",
+          8
+        );
+        renderWeightedBreakdownList(
+          els.portfolioQualityWeightedDonorsList,
+          body.donor_weighted_risk_breakdown,
+          "No weighted donor risk yet.",
           8
         );
         setJson(els.portfolioQualityJson, body);

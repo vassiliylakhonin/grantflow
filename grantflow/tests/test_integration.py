@@ -74,6 +74,8 @@ def test_demo_console_page_loads():
     assert "portfolioQualityCards" in body
     assert "portfolioQualityRiskList" in body
     assert "portfolioQualityOpenFindingsList" in body
+    assert "portfolioQualityPrioritySignalsList" in body
+    assert "portfolioQualityWeightedDonorsList" in body
     assert "portfolioQualityJson" in body
     assert "portfolioStatusCountsList" in body
     assert "portfolioDonorCountsList" in body
@@ -1024,6 +1026,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["job_count"] >= 2
     assert body["avg_quality_score"] is not None
     assert body["avg_critic_score"] is not None
+    assert body["severity_weighted_risk_score"] >= 1
+    assert body["high_priority_signal_count"] >= 1
     assert body["critic"]["open_findings_total"] >= 1
     assert body["critic"]["high_severity_findings_total"] >= 1
     assert body["critic"]["needs_revision_job_count"] >= 1
@@ -1033,6 +1037,10 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["citations"]["low_confidence_citation_count"] >= 1
     assert body["citations"]["rag_low_confidence_citation_count"] >= 1
     assert body["citations"]["architect_threshold_hit_rate_avg"] is not None
+    assert body["priority_signal_breakdown"]["high_severity_findings_total"]["weight"] >= 1
+    assert body["priority_signal_breakdown"]["open_findings_total"]["weighted_score"] >= 1
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["weighted_score"] >= 1
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["high_priority_signal_count"] >= 1
     assert body["donor_needs_revision_counts"]["usaid"] >= 1
     assert body["donor_open_findings_counts"]["usaid"] >= 1
     assert "eu" not in body["donor_counts"]
@@ -1487,6 +1495,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert "ReviewCommentPublicResponse" in schemas
     assert "PortfolioMetricsPublicResponse" in schemas
     assert "PortfolioQualityPublicResponse" in schemas
+    assert "PortfolioQualityWeightedSignalPublicResponse" in schemas
+    assert "PortfolioQualityDonorWeightedRiskPublicResponse" in schemas
     assert "PortfolioQualityCriticSummaryPublicResponse" in schemas
     assert "PortfolioQualityCitationSummaryPublicResponse" in schemas
     assert "PortfolioMetricsFiltersPublicResponse" in schemas

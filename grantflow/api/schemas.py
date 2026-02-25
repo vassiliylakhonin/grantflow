@@ -305,6 +305,26 @@ class PortfolioQualityCitationSummaryPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class PortfolioQualityWeightedSignalPublicResponse(BaseModel):
+    count: int
+    weight: int
+    weighted_score: int
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PortfolioQualityDonorWeightedRiskPublicResponse(BaseModel):
+    weighted_score: int
+    high_priority_signal_count: int
+    open_findings_total: int
+    high_severity_findings_total: int
+    needs_revision_job_count: int
+    low_confidence_citation_count: int
+    rag_low_confidence_citation_count: int
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioQualityPublicResponse(BaseModel):
     job_count: int
     filters: PortfolioMetricsFiltersPublicResponse
@@ -315,8 +335,12 @@ class PortfolioQualityPublicResponse(BaseModel):
     critic_score_job_count: int
     avg_quality_score: Optional[float] = None
     avg_critic_score: Optional[float] = None
+    severity_weighted_risk_score: int
+    high_priority_signal_count: int
     critic: PortfolioQualityCriticSummaryPublicResponse
     citations: PortfolioQualityCitationSummaryPublicResponse
+    priority_signal_breakdown: Dict[str, PortfolioQualityWeightedSignalPublicResponse]
+    donor_weighted_risk_breakdown: Dict[str, PortfolioQualityDonorWeightedRiskPublicResponse]
     donor_needs_revision_counts: Dict[str, int]
     donor_open_findings_counts: Dict[str, int]
 
