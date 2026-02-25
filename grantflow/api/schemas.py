@@ -204,6 +204,7 @@ class JobQualityCitationSummaryPublicResponse(BaseModel):
     high_confidence_citation_count: int
     low_confidence_citation_count: int
     rag_low_confidence_citation_count: int
+    fallback_namespace_citation_count: Optional[int] = None
     citation_confidence_avg: Optional[float] = None
     architect_threshold_hit_rate: Optional[float] = None
 
@@ -317,6 +318,8 @@ class PortfolioQualityCitationSummaryPublicResponse(BaseModel):
     low_confidence_citation_rate: Optional[float] = None
     rag_low_confidence_citation_count: int
     rag_low_confidence_citation_rate: Optional[float] = None
+    fallback_namespace_citation_count: Optional[int] = None
+    fallback_namespace_citation_rate: Optional[float] = None
     architect_threshold_hit_rate_avg: Optional[float] = None
 
     model_config = ConfigDict(extra="allow")
@@ -338,6 +341,7 @@ class PortfolioQualityDonorWeightedRiskPublicResponse(BaseModel):
     needs_revision_job_count: int
     low_confidence_citation_count: int
     rag_low_confidence_citation_count: int
+    fallback_namespace_citation_count: Optional[int] = None
 
     model_config = ConfigDict(extra="allow")
 

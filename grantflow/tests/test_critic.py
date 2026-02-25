@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from grantflow.swarm.critic_rules import evaluate_rule_based_critic
-from grantflow.swarm.nodes.critic import red_team_critic
+from grantflow.swarm.nodes.critic import _citation_grounding_context, _combine_critic_scores, red_team_critic
 
 
 def test_rule_based_critic_emits_structured_flaws_with_section_and_version():
@@ -124,3 +124,60 @@ def test_red_team_critic_marks_sparse_input_brief_for_revision():
     assert any((f or {}).get("code") == "INPUT_BRIEF_TOO_SPARSE" for f in flaws)
     assert out.get("needs_revision") is True
     assert out.get("next_step") == "architect"
+
+
+def test_citation_grounding_context_tracks_fallback_and_weak_grounding():
+    state = {
+        "architect_retrieval": {"enabled": True, "hits_count": 0},
+        "citations": [
+            {"citation_type": "fallback_namespace", "citation_confidence": 0.1},
+            {"citation_type": "fallback_namespace", "citation_confidence": 0.1},
+            {"citation_type": "rag_low_confidence", "citation_confidence": 0.2},
+            {"citation_type": "rag_low_confidence", "citation_confidence": 0.25},
+            {"citation_type": "rag_claim_support", "citation_confidence": 0.9},
+        ],
+    }
+
+    ctx = _citation_grounding_context(state)
+    assert ctx["citation_count"] == 5
+    assert ctx["fallback_namespace_citation_count"] == 2
+    assert ctx["rag_low_confidence_citation_count"] == 2
+    assert ctx["low_confidence_citation_count"] == 4
+    assert ctx["architect_retrieval_hits_count"] == 0
+    assert ctx["weak_grounding"] is True
+    assert "architect_retrieval_no_hits" in ctx["weak_grounding_reasons"]
+
+
+def test_combine_critic_scores_caps_llm_penalty_in_weak_grounding_context():
+    state = {
+        "architect_retrieval": {"enabled": True, "hits_count": 0},
+        "citations": [
+            {"citation_type": "fallback_namespace", "citation_confidence": 0.1},
+            {"citation_type": "fallback_namespace", "citation_confidence": 0.1},
+            {"citation_type": "rag_low_confidence", "citation_confidence": 0.2},
+            {"citation_type": "rag_low_confidence", "citation_confidence": 0.2},
+            {"citation_type": "rag_low_confidence", "citation_confidence": 0.2},
+        ],
+    }
+
+    score, meta = _combine_critic_scores(rule_score=9.25, llm_score=3.0, state=state)
+    assert score == 7.75  # 9.25 - capped 1.5 penalty
+    assert meta is not None
+    assert meta["applied"] is True
+    assert meta["raw_llm_score"] == 3.0
+    assert meta["calibrated_llm_score"] == 7.75
+
+
+def test_combine_critic_scores_keeps_strict_min_when_grounding_is_not_weak():
+    state = {
+        "architect_retrieval": {"enabled": True, "hits_count": 4},
+        "citations": [
+            {"citation_type": "rag_claim_support", "citation_confidence": 0.92},
+            {"citation_type": "rag_claim_support", "citation_confidence": 0.88},
+        ],
+    }
+
+    score, meta = _combine_critic_scores(rule_score=9.25, llm_score=5.0, state=state)
+    assert score == 5.0
+    assert meta is not None
+    assert meta["applied"] is False

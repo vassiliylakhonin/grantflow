@@ -857,9 +857,30 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
                         {"code": "LOGFRAME_CITATIONS_PRESENT", "status": "fail", "section": "logframe"},
                     ],
                     "fatal_flaws": [
-                        {"finding_id": "f1", "status": "open", "severity": "high", "section": "toc", "code": "X", "message": "m"},
-                        {"finding_id": "f2", "status": "acknowledged", "severity": "medium", "section": "logframe", "code": "Y", "message": "m"},
-                        {"finding_id": "f3", "status": "resolved", "severity": "low", "section": "toc", "code": "Z", "message": "m"},
+                        {
+                            "finding_id": "f1",
+                            "status": "open",
+                            "severity": "high",
+                            "section": "toc",
+                            "code": "X",
+                            "message": "m",
+                        },
+                        {
+                            "finding_id": "f2",
+                            "status": "acknowledged",
+                            "severity": "medium",
+                            "section": "logframe",
+                            "code": "Y",
+                            "message": "m",
+                        },
+                        {
+                            "finding_id": "f3",
+                            "status": "resolved",
+                            "severity": "low",
+                            "section": "toc",
+                            "code": "Z",
+                            "message": "m",
+                        },
                     ],
                 },
                 "citations": [
@@ -875,13 +896,37 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
                         "citation_confidence": 0.22,
                         "confidence_threshold": 0.42,
                     },
+                    {
+                        "stage": "architect",
+                        "citation_type": "fallback_namespace",
+                        "citation_confidence": 0.1,
+                        "confidence_threshold": 0.42,
+                    },
                     {"stage": "mel", "citation_type": "rag_result", "citation_confidence": 0.73},
                 ],
             },
             "job_events": [
-                {"event_id": "q1", "ts": "2026-02-24T10:00:00+00:00", "type": "status_changed", "to_status": "accepted", "status": "accepted"},
-                {"event_id": "q2", "ts": "2026-02-24T10:00:05+00:00", "type": "status_changed", "to_status": "running", "status": "running"},
-                {"event_id": "q3", "ts": "2026-02-24T10:01:00+00:00", "type": "status_changed", "to_status": "done", "status": "done"},
+                {
+                    "event_id": "q1",
+                    "ts": "2026-02-24T10:00:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                    "status": "accepted",
+                },
+                {
+                    "event_id": "q2",
+                    "ts": "2026-02-24T10:00:05+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                    "status": "running",
+                },
+                {
+                    "event_id": "q3",
+                    "ts": "2026-02-24T10:01:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "done",
+                    "status": "done",
+                },
             ],
         },
     )
@@ -902,13 +947,14 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["critic"]["high_severity_fatal_flaw_count"] == 1
     assert body["critic"]["failed_rule_check_count"] == 1
     assert body["critic"]["warned_rule_check_count"] == 1
-    assert body["citations"]["citation_count"] == 3
-    assert body["citations"]["architect_citation_count"] == 2
+    assert body["citations"]["citation_count"] == 4
+    assert body["citations"]["architect_citation_count"] == 3
     assert body["citations"]["mel_citation_count"] == 1
     assert body["citations"]["high_confidence_citation_count"] == 2
-    assert body["citations"]["low_confidence_citation_count"] == 1
+    assert body["citations"]["low_confidence_citation_count"] == 2
     assert body["citations"]["rag_low_confidence_citation_count"] == 1
-    assert body["citations"]["architect_threshold_hit_rate"] == 0.5
+    assert body["citations"]["fallback_namespace_citation_count"] == 1
+    assert body["citations"]["architect_threshold_hit_rate"] == 0.3333
     assert body["architect"]["retrieval_enabled"] is True
     assert body["architect"]["retrieval_hits_count"] == 3
     assert body["architect"]["toc_schema_valid"] is True
@@ -1083,9 +1129,24 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                 ],
             },
             "job_events": [
-                {"event_id": "qa1", "ts": "2026-02-24T10:00:00+00:00", "type": "status_changed", "to_status": "accepted"},
-                {"event_id": "qa2", "ts": "2026-02-24T10:00:05+00:00", "type": "status_changed", "to_status": "running"},
-                {"event_id": "qa3", "ts": "2026-02-24T10:00:20+00:00", "type": "status_changed", "to_status": "pending_hitl"},
+                {
+                    "event_id": "qa1",
+                    "ts": "2026-02-24T10:00:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                },
+                {
+                    "event_id": "qa2",
+                    "ts": "2026-02-24T10:00:05+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                },
+                {
+                    "event_id": "qa3",
+                    "ts": "2026-02-24T10:00:20+00:00",
+                    "type": "status_changed",
+                    "to_status": "pending_hitl",
+                },
                 {"event_id": "qa4", "ts": "2026-02-24T10:01:20+00:00", "type": "resume_requested"},
                 {"event_id": "qa5", "ts": "2026-02-24T10:01:30+00:00", "type": "status_changed", "to_status": "done"},
             ],
@@ -1102,7 +1163,9 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                 "critic_score": 6.0,
                 "needs_revision": False,
                 "critic_notes": {
-                    "fatal_flaws": [{"finding_id": "f3", "severity": "medium", "status": "acknowledged", "section": "logframe"}],
+                    "fatal_flaws": [
+                        {"finding_id": "f3", "severity": "medium", "status": "acknowledged", "section": "logframe"}
+                    ],
                     "rule_checks": [{"code": "logframe.complete", "status": "pass"}],
                 },
                 "citations": [
@@ -1115,8 +1178,18 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                 ],
             },
             "job_events": [
-                {"event_id": "qb1", "ts": "2026-02-24T11:00:00+00:00", "type": "status_changed", "to_status": "accepted"},
-                {"event_id": "qb2", "ts": "2026-02-24T11:00:03+00:00", "type": "status_changed", "to_status": "running"},
+                {
+                    "event_id": "qb1",
+                    "ts": "2026-02-24T11:00:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                },
+                {
+                    "event_id": "qb2",
+                    "ts": "2026-02-24T11:00:03+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                },
                 {"event_id": "qb3", "ts": "2026-02-24T11:00:25+00:00", "type": "status_changed", "to_status": "done"},
             ],
         },
@@ -1128,8 +1201,18 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
             "hitl_enabled": False,
             "state": {"donor_id": "eu", "quality_score": 4.0, "critic_score": 3.0, "needs_revision": True},
             "job_events": [
-                {"event_id": "qc1", "ts": "2026-02-24T12:00:00+00:00", "type": "status_changed", "to_status": "accepted"},
-                {"event_id": "qc2", "ts": "2026-02-24T12:00:02+00:00", "type": "status_changed", "to_status": "running"},
+                {
+                    "event_id": "qc1",
+                    "ts": "2026-02-24T12:00:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                },
+                {
+                    "event_id": "qc2",
+                    "ts": "2026-02-24T12:00:02+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                },
                 {"event_id": "qc3", "ts": "2026-02-24T12:00:10+00:00", "type": "status_changed", "to_status": "error"},
             ],
         },
@@ -1154,6 +1237,7 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["citations"]["citation_confidence_avg"] is not None
     assert body["citations"]["low_confidence_citation_count"] >= 1
     assert body["citations"]["rag_low_confidence_citation_count"] >= 1
+    assert "fallback_namespace_citation_count" in body["citations"]
     assert body["citations"]["architect_threshold_hit_rate_avg"] is not None
     assert body["priority_signal_breakdown"]["high_severity_findings_total"]["weight"] >= 1
     assert body["priority_signal_breakdown"]["open_findings_total"]["weighted_score"] >= 1
@@ -1190,7 +1274,9 @@ def test_portfolio_quality_export_endpoint_supports_json_and_gzip():
     assert "severity_weighted_risk_score" in payload
     assert "priority_signal_breakdown" in payload
 
-    csv_gzip_resp = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"})
+    csv_gzip_resp = client.get(
+        "/portfolio/quality/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"}
+    )
     assert csv_gzip_resp.status_code == 200
     assert csv_gzip_resp.headers["content-type"].startswith("application/gzip")
     csv_gzip_disposition = csv_gzip_resp.headers.get("content-disposition", "")
@@ -1199,7 +1285,9 @@ def test_portfolio_quality_export_endpoint_supports_json_and_gzip():
     assert csv_text.startswith("field,value\n")
     assert "severity_weighted_risk_score," in csv_text
 
-    json_gzip_resp = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"})
+    json_gzip_resp = client.get(
+        "/portfolio/quality/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"}
+    )
     assert json_gzip_resp.status_code == 200
     assert json_gzip_resp.headers["content-type"].startswith("application/gzip")
     json_gzip_disposition = json_gzip_resp.headers.get("content-disposition", "")
@@ -1231,14 +1319,18 @@ def test_portfolio_metrics_export_endpoint_supports_csv_json_and_gzip():
     assert "job_count" in payload
     assert payload["filters"]["donor_id"] == "usaid"
 
-    csv_gzip_resp = client.get("/portfolio/metrics/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"})
+    csv_gzip_resp = client.get(
+        "/portfolio/metrics/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"}
+    )
     assert csv_gzip_resp.status_code == 200
     assert csv_gzip_resp.headers["content-type"].startswith("application/gzip")
     assert "grantflow_portfolio_metrics_usaid.csv.gz" in (csv_gzip_resp.headers.get("content-disposition") or "")
     csv_gzip_text = gzip.decompress(csv_gzip_resp.content).decode("utf-8")
     assert "field,value\n" in csv_gzip_text
 
-    json_gzip_resp = client.get("/portfolio/metrics/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"})
+    json_gzip_resp = client.get(
+        "/portfolio/metrics/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"}
+    )
     assert json_gzip_resp.status_code == 200
     assert json_gzip_resp.headers["content-type"].startswith("application/gzip")
     assert "grantflow_portfolio_metrics_usaid.json.gz" in (json_gzip_resp.headers.get("content-disposition") or "")
@@ -1256,12 +1348,18 @@ def test_ingest_inventory_export_endpoint_supports_csv_json_and_gzip(monkeypatch
 
     client.post(
         "/ingest",
-        data={"donor_id": "usaid", "metadata_json": json.dumps({"doc_family": "donor_policy", "source_type": "donor_guidance"})},
+        data={
+            "donor_id": "usaid",
+            "metadata_json": json.dumps({"doc_family": "donor_policy", "source_type": "donor_guidance"}),
+        },
         files={"file": ("ads.pdf", b"%PDF-1.4 a", "application/pdf")},
     )
     client.post(
         "/ingest",
-        data={"donor_id": "usaid", "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"})},
+        data={
+            "donor_id": "usaid",
+            "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"}),
+        },
         files={"file": ("kz-context.pdf", b"%PDF-1.4 b", "application/pdf")},
     )
 
@@ -1283,14 +1381,18 @@ def test_ingest_inventory_export_endpoint_supports_csv_json_and_gzip(monkeypatch
     assert json_body["donor_id"] == "usaid"
     assert json_body["doc_family_counts"]["donor_policy"] == 1
 
-    csv_gzip_resp = client.get("/ingest/inventory/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"})
+    csv_gzip_resp = client.get(
+        "/ingest/inventory/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"}
+    )
     assert csv_gzip_resp.status_code == 200
     assert csv_gzip_resp.headers["content-type"].startswith("application/gzip")
     assert "grantflow_ingest_inventory_usaid.csv.gz" in (csv_gzip_resp.headers.get("content-disposition") or "")
     csv_gzip_text = gzip.decompress(csv_gzip_resp.content).decode("utf-8")
     assert "doc_family_counts.donor_policy,1" in csv_gzip_text
 
-    json_gzip_resp = client.get("/ingest/inventory/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"})
+    json_gzip_resp = client.get(
+        "/ingest/inventory/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"}
+    )
     assert json_gzip_resp.status_code == 200
     assert json_gzip_resp.headers["content-type"].startswith("application/gzip")
     assert "grantflow_ingest_inventory_usaid.json.gz" in (json_gzip_resp.headers.get("content-disposition") or "")
@@ -1514,8 +1616,8 @@ def test_openapi_declares_api_key_security_scheme():
         "security"
     )
     ingest_inventory_export_security = (
-        (((spec.get("paths") or {}).get("/ingest/inventory/export") or {}).get("get") or {}).get("security")
-    )
+        ((spec.get("paths") or {}).get("/ingest/inventory/export") or {}).get("get") or {}
+    ).get("security")
     cancel_security = (((spec.get("paths") or {}).get("/cancel/{job_id}") or {}).get("post") or {}).get("security")
     status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
     status_citations_security = (
@@ -1567,14 +1669,14 @@ def test_openapi_declares_api_key_security_scheme():
         "security"
     )
     portfolio_metrics_export_security = (
-        (((spec.get("paths") or {}).get("/portfolio/metrics/export") or {}).get("get") or {}).get("security")
-    )
+        ((spec.get("paths") or {}).get("/portfolio/metrics/export") or {}).get("get") or {}
+    ).get("security")
     portfolio_quality_security = (((spec.get("paths") or {}).get("/portfolio/quality") or {}).get("get") or {}).get(
         "security"
     )
     portfolio_quality_export_security = (
-        (((spec.get("paths") or {}).get("/portfolio/quality/export") or {}).get("get") or {}).get("security")
-    )
+        ((spec.get("paths") or {}).get("/portfolio/quality/export") or {}).get("get") or {}
+    ).get("security")
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -1590,7 +1692,10 @@ def test_openapi_declares_api_key_security_scheme():
         .get("schema")
     )
     status_export_payload_response_schema = (
-        ((((spec.get("paths") or {}).get("/status/{job_id}/export-payload") or {}).get("get") or {}).get("responses") or {})
+        (
+            (((spec.get("paths") or {}).get("/status/{job_id}/export-payload") or {}).get("get") or {}).get("responses")
+            or {}
+        )
         .get("200", {})
         .get("content", {})
         .get("application/json", {})
@@ -1655,8 +1760,9 @@ def test_openapi_declares_api_key_security_scheme():
         (
             (
                 (
-                    ((spec.get("paths") or {}).get("/status/{job_id}/critic/findings/{finding_id}/resolve") or {})
-                    .get("post")
+                    ((spec.get("paths") or {}).get("/status/{job_id}/critic/findings/{finding_id}/resolve") or {}).get(
+                        "post"
+                    )
                     or {}
                 ).get("responses")
             )
@@ -1781,7 +1887,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_quality_response_schema == {"$ref": "#/components/schemas/JobQualitySummaryPublicResponse"}
     assert status_critic_response_schema == {"$ref": "#/components/schemas/JobCriticPublicResponse"}
     assert status_critic_finding_ack_response_schema == {"$ref": "#/components/schemas/CriticFatalFlawPublicResponse"}
-    assert status_critic_finding_resolve_response_schema == {"$ref": "#/components/schemas/CriticFatalFlawPublicResponse"}
+    assert status_critic_finding_resolve_response_schema == {
+        "$ref": "#/components/schemas/CriticFatalFlawPublicResponse"
+    }
     assert status_comments_response_schema == {"$ref": "#/components/schemas/JobCommentsPublicResponse"}
     assert status_comments_post_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
@@ -1869,21 +1977,30 @@ def test_ingest_recent_endpoint_returns_records(monkeypatch):
 
     r1 = client.post(
         "/ingest",
-        data={"donor_id": "usaid", "metadata_json": json.dumps({"doc_family": "donor_policy", "source_type": "donor_guidance"})},
+        data={
+            "donor_id": "usaid",
+            "metadata_json": json.dumps({"doc_family": "donor_policy", "source_type": "donor_guidance"}),
+        },
         files={"file": ("ads.pdf", b"%PDF-1.4 a", "application/pdf")},
     )
     assert r1.status_code == 200
 
     r2 = client.post(
         "/ingest",
-        data={"donor_id": "eu", "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"})},
+        data={
+            "donor_id": "eu",
+            "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"}),
+        },
         files={"file": ("eu-context.pdf", b"%PDF-1.4 b", "application/pdf")},
     )
     assert r2.status_code == 200
 
     r3 = client.post(
         "/ingest",
-        data={"donor_id": "usaid", "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"})},
+        data={
+            "donor_id": "usaid",
+            "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"}),
+        },
         files={"file": ("kz-context.pdf", b"%PDF-1.4 c", "application/pdf")},
     )
     assert r3.status_code == 200

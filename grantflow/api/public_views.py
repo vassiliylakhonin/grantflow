@@ -99,7 +99,11 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
         critic_notes = {}
 
     raw_flaws = critic_notes.get("fatal_flaws")
-    fatal_flaws = [sanitize_for_public_response(item) for item in raw_flaws if isinstance(item, dict)] if isinstance(raw_flaws, list) else []
+    fatal_flaws = (
+        [sanitize_for_public_response(item) for item in raw_flaws if isinstance(item, dict)]
+        if isinstance(raw_flaws, list)
+        else []
+    )
 
     raw_comments = job.get("review_comments")
     linked_comment_ids_by_finding: dict[str, list[str]] = {}
@@ -124,20 +128,34 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
                 flaw["linked_comment_ids"] = linked
 
     raw_messages = critic_notes.get("fatal_flaw_messages")
-    fatal_flaw_messages = [str(item) for item in raw_messages if isinstance(item, (str, int, float))] if isinstance(raw_messages, list) else []
+    fatal_flaw_messages = (
+        [str(item) for item in raw_messages if isinstance(item, (str, int, float))]
+        if isinstance(raw_messages, list)
+        else []
+    )
 
     raw_checks = critic_notes.get("rule_checks")
-    rule_checks = [sanitize_for_public_response(item) for item in raw_checks if isinstance(item, dict)] if isinstance(raw_checks, list) else []
+    rule_checks = (
+        [sanitize_for_public_response(item) for item in raw_checks if isinstance(item, dict)]
+        if isinstance(raw_checks, list)
+        else []
+    )
 
     return {
         "job_id": str(job_id),
         "status": str(job.get("status") or ""),
-        "quality_score": sanitize_for_public_response((state or {}).get("quality_score") if isinstance(state, dict) else None),
-        "critic_score": sanitize_for_public_response((state or {}).get("critic_score") if isinstance(state, dict) else None),
+        "quality_score": sanitize_for_public_response(
+            (state or {}).get("quality_score") if isinstance(state, dict) else None
+        ),
+        "critic_score": sanitize_for_public_response(
+            (state or {}).get("critic_score") if isinstance(state, dict) else None
+        ),
         "engine": sanitize_for_public_response(critic_notes.get("engine")),
         "rule_score": sanitize_for_public_response(critic_notes.get("rule_score")),
         "llm_score": sanitize_for_public_response(critic_notes.get("llm_score")),
-        "needs_revision": sanitize_for_public_response((state or {}).get("needs_revision") if isinstance(state, dict) else None),
+        "needs_revision": sanitize_for_public_response(
+            (state or {}).get("needs_revision") if isinstance(state, dict) else None
+        ),
         "revision_instructions": sanitize_for_public_response(critic_notes.get("revision_instructions")),
         "fatal_flaw_count": len(fatal_flaws),
         "fatal_flaws": fatal_flaws,
@@ -484,13 +502,16 @@ def _public_job_quality_readiness_payload(
 
     state = job.get("state")
     state_dict: Dict[str, Any] = state if isinstance(state, dict) else {}
-    donor_id = str(
-        rag_readiness.get("donor_id")
-        or client_metadata.get("donor_id")
-        or state_dict.get("donor_id")
-        or state_dict.get("donor")
-        or ""
-    ).strip() or None
+    donor_id = (
+        str(
+            rag_readiness.get("donor_id")
+            or client_metadata.get("donor_id")
+            or state_dict.get("donor_id")
+            or state_dict.get("donor")
+            or ""
+        ).strip()
+        or None
+    )
 
     inventory_payload = public_ingest_inventory_payload(ingest_inventory_rows or [], donor_id=donor_id)
     doc_family_counts_raw = inventory_payload.get("doc_family_counts")
@@ -547,6 +568,7 @@ def public_job_quality_payload(
     high_conf = 0
     low_conf = 0
     rag_low_conf = 0
+    fallback_ns = 0
     architect_threshold_considered = 0
     architect_threshold_hits = 0
     for c in citations:
@@ -554,6 +576,8 @@ def public_job_quality_payload(
             continue
         if str(c.get("citation_type") or "") == "rag_low_confidence":
             rag_low_conf += 1
+        if str(c.get("citation_type") or "") == "fallback_namespace":
+            fallback_ns += 1
         conf_raw = c.get("citation_confidence")
         try:
             conf = float(conf_raw) if conf_raw is not None else None
@@ -592,7 +616,9 @@ def public_job_quality_payload(
     warned_checks = sum(1 for c in rule_checks if isinstance(c, dict) and str(c.get("status") or "").lower() == "warn")
 
     raw_toc_validation = state_dict.get("toc_validation")
-    toc_validation: Dict[str, Any] = cast(Dict[str, Any], raw_toc_validation) if isinstance(raw_toc_validation, dict) else {}
+    toc_validation: Dict[str, Any] = (
+        cast(Dict[str, Any], raw_toc_validation) if isinstance(raw_toc_validation, dict) else {}
+    )
     raw_toc_generation_meta = state_dict.get("toc_generation_meta")
     toc_generation_meta: Dict[str, Any] = (
         cast(Dict[str, Any], raw_toc_generation_meta) if isinstance(raw_toc_generation_meta, dict) else {}
@@ -634,6 +660,7 @@ def public_job_quality_payload(
             "high_confidence_citation_count": high_conf,
             "low_confidence_citation_count": low_conf,
             "rag_low_confidence_citation_count": rag_low_conf,
+            "fallback_namespace_citation_count": fallback_ns,
             "citation_confidence_avg": (
                 round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else None
             ),
@@ -770,7 +797,9 @@ def public_portfolio_quality_payload(
         q["_donor_id"] = job_donor
         quality_rows.append(q)
 
-        critic_summary: Dict[str, Any] = cast(Dict[str, Any], q.get("critic")) if isinstance(q.get("critic"), dict) else {}
+        critic_summary: Dict[str, Any] = (
+            cast(Dict[str, Any], q.get("critic")) if isinstance(q.get("critic"), dict) else {}
+        )
         if bool(q.get("needs_revision")):
             donor_needs_revision_counts[job_donor] = donor_needs_revision_counts.get(job_donor, 0) + 1
         open_findings = int(critic_summary.get("open_finding_count") or 0)
@@ -794,9 +823,12 @@ def public_portfolio_quality_payload(
     citation_count_total = 0
     low_confidence_citation_count = 0
     rag_low_confidence_citation_count = 0
+    fallback_namespace_citation_count = 0
 
     for row in quality_rows:
-        row_critic: Dict[str, Any] = cast(Dict[str, Any], row.get("critic")) if isinstance(row.get("critic"), dict) else {}
+        row_critic: Dict[str, Any] = (
+            cast(Dict[str, Any], row.get("critic")) if isinstance(row.get("critic"), dict) else {}
+        )
         row_citations: Dict[str, Any] = (
             cast(Dict[str, Any], row.get("citations")) if isinstance(row.get("citations"), dict) else {}
         )
@@ -809,6 +841,7 @@ def public_portfolio_quality_payload(
         citation_count_total += int(row_citations.get("citation_count") or 0)
         low_confidence_citation_count += int(row_citations.get("low_confidence_citation_count") or 0)
         rag_low_confidence_citation_count += int(row_citations.get("rag_low_confidence_citation_count") or 0)
+        fallback_namespace_citation_count += int(row_citations.get("fallback_namespace_citation_count") or 0)
 
         donor_for_row = str(row.get("_donor_id") or "unknown")
         donor_row = donor_weighted_risk_breakdown.setdefault(
@@ -821,12 +854,18 @@ def public_portfolio_quality_payload(
                 "needs_revision_job_count": 0,
                 "low_confidence_citation_count": 0,
                 "rag_low_confidence_citation_count": 0,
+                "fallback_namespace_citation_count": 0,
             },
         )
         donor_row["open_findings_total"] += int(row_critic.get("open_finding_count") or 0)
         donor_row["high_severity_findings_total"] += int(row_critic.get("high_severity_fatal_flaw_count") or 0)
         donor_row["low_confidence_citation_count"] += int(row_citations.get("low_confidence_citation_count") or 0)
-        donor_row["rag_low_confidence_citation_count"] += int(row_citations.get("rag_low_confidence_citation_count") or 0)
+        donor_row["rag_low_confidence_citation_count"] += int(
+            row_citations.get("rag_low_confidence_citation_count") or 0
+        )
+        donor_row["fallback_namespace_citation_count"] += int(
+            row_citations.get("fallback_namespace_citation_count") or 0
+        )
         if bool(row.get("needs_revision")):
             donor_row["needs_revision_job_count"] += 1
 
@@ -860,7 +899,8 @@ def public_portfolio_quality_payload(
             + donor_row["needs_revision_job_count"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["needs_revision_job_count"]
             + donor_row["rag_low_confidence_citation_count"]
             * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["rag_low_confidence_citation_count"]
-            + donor_row["low_confidence_citation_count"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["low_confidence_citation_count"]
+            + donor_row["low_confidence_citation_count"]
+            * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["low_confidence_citation_count"]
         )
         donor_row["high_priority_signal_count"] = (
             donor_row["high_severity_findings_total"]
@@ -911,6 +951,10 @@ def public_portfolio_quality_payload(
             "rag_low_confidence_citation_count": rag_low_confidence_citation_count,
             "rag_low_confidence_citation_rate": (
                 round(rag_low_confidence_citation_count / citation_count_total, 4) if citation_count_total else None
+            ),
+            "fallback_namespace_citation_count": fallback_namespace_citation_count,
+            "fallback_namespace_citation_rate": (
+                round(fallback_namespace_citation_count / citation_count_total, 4) if citation_count_total else None
             ),
             "architect_threshold_hit_rate_avg": _avg(citation_summary_rows, "architect_threshold_hit_rate"),
         },

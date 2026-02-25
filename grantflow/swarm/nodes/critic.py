@@ -13,6 +13,11 @@ from grantflow.swarm.llm_provider import (
 )
 from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
 
+WEAK_GROUNDING_LLM_SCORE_MAX_PENALTY = 1.5
+WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION = 5
+WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD = 0.75
+WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD = 0.6
+
 
 class RedTeamEvaluation(BaseModel):
     """Structured evaluation from the Red Team Critic."""
@@ -109,6 +114,108 @@ def _normalize_fatal_flaw_items(
     return normalized
 
 
+def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:
+    citations = state.get("citations") if isinstance(state.get("citations"), list) else []
+    citation_count = 0
+    low_confidence_count = 0
+    rag_low_confidence_count = 0
+    fallback_namespace_count = 0
+    for citation in citations:
+        if not isinstance(citation, dict):
+            continue
+        citation_count += 1
+        citation_type = str(citation.get("citation_type") or "")
+        if citation_type == "rag_low_confidence":
+            rag_low_confidence_count += 1
+        if citation_type == "fallback_namespace":
+            fallback_namespace_count += 1
+        confidence = citation.get("citation_confidence")
+        try:
+            conf_value = float(confidence) if confidence is not None else None
+        except (TypeError, ValueError):
+            conf_value = None
+        if conf_value is not None and conf_value < 0.3:
+            low_confidence_count += 1
+
+    raw_architect_retrieval = state.get("architect_retrieval")
+    architect_retrieval = raw_architect_retrieval if isinstance(raw_architect_retrieval, dict) else {}
+    retrieval_enabled = bool(architect_retrieval.get("enabled")) if architect_retrieval else False
+    try:
+        retrieval_hits_count = (
+            int(architect_retrieval.get("hits_count")) if architect_retrieval.get("hits_count") is not None else None
+        )
+    except (TypeError, ValueError):
+        retrieval_hits_count = None
+
+    low_confidence_ratio = round(low_confidence_count / citation_count, 4) if citation_count else None
+    weak_rag_or_fallback_count = rag_low_confidence_count + fallback_namespace_count
+    weak_rag_or_fallback_ratio = round(weak_rag_or_fallback_count / citation_count, 4) if citation_count else None
+
+    weak_grounding_reasons: list[str] = []
+    if retrieval_enabled and retrieval_hits_count == 0:
+        weak_grounding_reasons.append("architect_retrieval_no_hits")
+    if (
+        citation_count >= WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION
+        and weak_rag_or_fallback_ratio is not None
+        and weak_rag_or_fallback_ratio >= WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD
+    ):
+        weak_grounding_reasons.append("fallback_or_low_rag_citations_dominate")
+    if (
+        citation_count >= WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION
+        and low_confidence_ratio is not None
+        and low_confidence_ratio >= WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD
+    ):
+        weak_grounding_reasons.append("low_confidence_citations_dominate")
+
+    return {
+        "citation_count": citation_count,
+        "low_confidence_citation_count": low_confidence_count,
+        "rag_low_confidence_citation_count": rag_low_confidence_count,
+        "fallback_namespace_citation_count": fallback_namespace_count,
+        "low_confidence_ratio": low_confidence_ratio,
+        "weak_rag_or_fallback_ratio": weak_rag_or_fallback_ratio,
+        "architect_retrieval_enabled": retrieval_enabled,
+        "architect_retrieval_hits_count": retrieval_hits_count,
+        "weak_grounding": bool(weak_grounding_reasons),
+        "weak_grounding_reasons": weak_grounding_reasons,
+    }
+
+
+def _combine_critic_scores(
+    *,
+    rule_score: float,
+    llm_score: Optional[float],
+    state: Dict[str, Any],
+) -> tuple[float, Optional[Dict[str, Any]]]:
+    if llm_score is None:
+        return float(rule_score), None
+
+    base_combined = min(float(rule_score), float(llm_score))
+    grounding_context = _citation_grounding_context(state)
+    if llm_score >= rule_score or not bool(grounding_context.get("weak_grounding")):
+        return round(base_combined, 2), {
+            "applied": False,
+            "rule_score": round(float(rule_score), 2),
+            "raw_llm_score": round(float(llm_score), 2),
+            "combined_score": round(base_combined, 2),
+            "reason": None if llm_score >= rule_score else "no_weak_grounding_context",
+            "grounding_context": grounding_context,
+        }
+
+    capped_llm_score = max(float(llm_score), float(rule_score) - WEAK_GROUNDING_LLM_SCORE_MAX_PENALTY)
+    combined = min(float(rule_score), capped_llm_score)
+    return round(combined, 2), {
+        "applied": True,
+        "reason": "weak_grounding_caps_llm_penalty",
+        "rule_score": round(float(rule_score), 2),
+        "raw_llm_score": round(float(llm_score), 2),
+        "calibrated_llm_score": round(capped_llm_score, 2),
+        "combined_score": round(combined, 2),
+        "max_llm_penalty": WEAK_GROUNDING_LLM_SCORE_MAX_PENALTY,
+        "grounding_context": grounding_context,
+    }
+
+
 def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     """Evaluates the drafted ToC and LogFrame and updates loop-control fields."""
     donor_strategy = state.get("donor_strategy") or state.get("strategy")
@@ -152,7 +259,11 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     iteration = int(state.get("iteration", state.get("iteration_count", 0)) or 0) + 1
     max_iters = int(state.get("max_iterations", 3) or 3)
     llm_score = float(evaluation.score) if evaluation is not None else None
-    score = min(rule_report.score, llm_score) if llm_score is not None else float(rule_report.score)
+    score, llm_score_calibration = _combine_critic_scores(
+        rule_score=float(rule_report.score),
+        llm_score=llm_score,
+        state=state,
+    )
     threshold = float(getattr(config.graph, "critic_threshold", 8.0) or 8.0)
 
     previous_notes = state.get("critic_notes") if isinstance(state.get("critic_notes"), dict) else {}
@@ -192,6 +303,8 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     }
     if llm_reason:
         notes["llm_reason"] = llm_reason
+    if llm_score_calibration is not None:
+        notes["llm_score_calibration"] = llm_score_calibration
 
     state["quality_score"] = score
     state["critic_score"] = score

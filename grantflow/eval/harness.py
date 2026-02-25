@@ -31,6 +31,7 @@ LOWER_IS_BETTER_METRICS = (
     "error_count",
     "low_confidence_citation_count",
     "rag_low_confidence_citation_count",
+    "fallback_namespace_citation_count",
 )
 BOOLEAN_GUARDRAIL_METRICS = (
     "toc_schema_valid",
@@ -52,6 +53,7 @@ REGRESSION_PRIORITY_WEIGHTS: dict[str, int] = {
     "critic_score": 2,
     "low_confidence_citation_count": 2,
     "rag_low_confidence_citation_count": 2,
+    "fallback_namespace_citation_count": 1,
 }
 
 
@@ -148,6 +150,7 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
     low_confidence_count = 0
     high_confidence_count = 0
     rag_low_confidence_count = 0
+    fallback_namespace_count = 0
     architect_threshold_considered = 0
     architect_threshold_hits = 0
     for citation in citations:
@@ -169,6 +172,8 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
                     architect_threshold_hits += 1
         if str(citation.get("citation_type") or "") == "rag_low_confidence":
             rag_low_confidence_count += 1
+        if str(citation.get("citation_type") or "") == "fallback_namespace":
+            fallback_namespace_count += 1
         confidence = citation.get("citation_confidence")
         if confidence is None:
             continue
@@ -200,9 +205,12 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
             if architect_threshold_considered
             else 0.0
         ),
-        "citation_confidence_avg": round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else 0.0,
+        "citation_confidence_avg": (
+            round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else 0.0
+        ),
         "low_confidence_citation_count": low_confidence_count,
         "rag_low_confidence_citation_count": rag_low_confidence_count,
+        "fallback_namespace_citation_count": fallback_namespace_count,
         "draft_version_count": len(draft_versions),
         "error_count": len(errors),
     }
@@ -249,6 +257,7 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
         ("max_high_severity_fatal_flaws", "high_severity_fatal_flaw_count"),
         ("max_low_confidence_citations", "low_confidence_citation_count"),
         ("max_rag_low_confidence_citations", "rag_low_confidence_citation_count"),
+        ("max_fallback_namespace_citations", "fallback_namespace_citation_count"),
         ("max_errors", "error_count"),
     ):
         if key in expectations:
@@ -257,7 +266,9 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
             _add_check(key, float(actual) <= float(expected), expected=expected, actual=actual)
 
     if expectations.get("require_toc_draft"):
-        _add_check("require_toc_draft", bool(metrics.get("has_toc_draft")), expected=True, actual=metrics.get("has_toc_draft"))
+        _add_check(
+            "require_toc_draft", bool(metrics.get("has_toc_draft")), expected=True, actual=metrics.get("has_toc_draft")
+        )
     if expectations.get("require_logframe_draft"):
         _add_check(
             "require_logframe_draft",
@@ -334,9 +345,7 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
             )
         )
         for check in case.get("failed_checks") or []:
-            lines.append(
-                f"    * {check.get('name')}: expected {check.get('expected')} got {check.get('actual')}"
-            )
+            lines.append(f"    * {check.get('name')}: expected {check.get('expected')} got {check.get('actual')}")
 
     donor_rows: dict[str, dict[str, Any]] = {}
     for case in suite.get("cases") or []:
@@ -353,6 +362,7 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                 "needs_revision_count": 0,
                 "high_flaw_total": 0,
                 "low_conf_total": 0,
+                "fallback_ns_total": 0,
             },
         )
         row["case_count"] = int(row["case_count"]) + 1
@@ -366,6 +376,9 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
             row["needs_revision_count"] = int(row["needs_revision_count"]) + 1
         row["high_flaw_total"] = int(row["high_flaw_total"]) + int(metrics.get("high_severity_fatal_flaw_count") or 0)
         row["low_conf_total"] = int(row["low_conf_total"]) + int(metrics.get("low_confidence_citation_count") or 0)
+        row["fallback_ns_total"] = int(row["fallback_ns_total"]) + int(
+            metrics.get("fallback_namespace_citation_count") or 0
+        )
 
     if donor_rows:
         lines.append("")
@@ -390,7 +403,8 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                     f"avg_q={avg_quality if avg_quality is not None else '-'} "
                     f"needs_revision={needs_revision_count} ({needs_revision_rate:.0%}) "
                     f"high_flaws={int(row.get('high_flaw_total') or 0)} "
-                    f"low_conf_citations={int(row.get('low_conf_total') or 0)}"
+                    f"low_conf_citations={int(row.get('low_conf_total') or 0)} "
+                    f"fallback_ns_citations={int(row.get('fallback_ns_total') or 0)}"
                 )
             )
     return "\n".join(lines)

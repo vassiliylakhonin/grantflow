@@ -7,6 +7,7 @@ from grantflow.eval.harness import (
     apply_runtime_overrides_to_cases,
     build_regression_baseline_snapshot,
     compare_suite_to_baseline,
+    compute_state_metrics,
     evaluate_expectations,
     format_eval_comparison_report,
     format_eval_suite_report,
@@ -38,6 +39,7 @@ def test_eval_harness_expectations_detect_regression():
         "citation_confidence_avg": 0.4,
         "low_confidence_citation_count": 1,
         "rag_low_confidence_citation_count": 0,
+        "fallback_namespace_citation_count": 0,
         "draft_version_count": 2,
         "fatal_flaw_count": 0,
         "high_severity_fatal_flaw_count": 0,
@@ -54,6 +56,7 @@ def test_eval_harness_expectations_detect_regression():
             "max_fatal_flaws": 0,
             "max_low_confidence_citations": 0,
             "max_rag_low_confidence_citations": 0,
+            "max_fallback_namespace_citations": 0,
             "require_toc_draft": True,
         },
     )
@@ -84,6 +87,26 @@ def test_eval_harness_cli_writes_json_and_text_reports(tmp_path):
     assert "Donor quality breakdown (suite-level)" in text
 
 
+def test_compute_state_metrics_splits_fallback_namespace_from_rag_low_confidence():
+    metrics = compute_state_metrics(
+        {
+            "toc_validation": {"valid": True},
+            "toc_draft": {"toc": {}},
+            "logframe_draft": {"indicators": []},
+            "critic_notes": {"fatal_flaws": []},
+            "citations": [
+                {"stage": "architect", "citation_type": "fallback_namespace", "citation_confidence": 0.1},
+                {"stage": "architect", "citation_type": "rag_low_confidence", "citation_confidence": 0.2},
+                {"stage": "mel", "citation_type": "rag_result", "citation_confidence": 0.8},
+            ],
+        }
+    )
+    assert metrics["citations_total"] == 3
+    assert metrics["low_confidence_citation_count"] == 2
+    assert metrics["rag_low_confidence_citation_count"] == 1
+    assert metrics["fallback_namespace_citation_count"] == 1
+
+
 def test_eval_harness_runtime_overrides_apply_to_cases_without_mutating_original():
     source_cases = [
         {"case_id": "c1", "donor_id": "usaid", "llm_mode": False, "architect_rag_enabled": False},
@@ -108,7 +131,9 @@ def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_pa
     monkeypatch.setattr(
         harness,
         "load_eval_cases",
-        lambda fixtures_dir=None: [{"case_id": "stub", "donor_id": "usaid", "llm_mode": False, "architect_rag_enabled": False}],
+        lambda fixtures_dir=None: [
+            {"case_id": "stub", "donor_id": "usaid", "llm_mode": False, "architect_rag_enabled": False}
+        ],
     )
 
     captured: dict[str, object] = {}
@@ -163,7 +188,15 @@ def test_run_eval_case_can_skip_expectations(monkeypatch):
     monkeypatch.setattr(
         harness,
         "grantflow_graph",
-        type("StubGraph", (), {"invoke": staticmethod(lambda state: {"toc_validation": {"valid": True}, "toc_draft": {}, "logframe_draft": {}})})(),
+        type(
+            "StubGraph",
+            (),
+            {
+                "invoke": staticmethod(
+                    lambda state: {"toc_validation": {"valid": True}, "toc_draft": {}, "logframe_draft": {}}
+                )
+            },
+        )(),
     )
     result = harness.run_eval_case(
         {
@@ -197,6 +230,7 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
                     "citation_confidence_avg": 0.4,
                     "low_confidence_citation_count": 1,
                     "rag_low_confidence_citation_count": 0,
+                    "fallback_namespace_citation_count": 0,
                     "draft_version_count": 2,
                     "fatal_flaw_count": 0,
                     "high_severity_fatal_flaw_count": 0,
@@ -221,6 +255,7 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
                     "citation_confidence_avg": 0.6,
                     "low_confidence_citation_count": 0,
                     "rag_low_confidence_citation_count": 0,
+                    "fallback_namespace_citation_count": 0,
                     "draft_version_count": 2,
                     "fatal_flaw_count": 0,
                     "high_severity_fatal_flaw_count": 0,
@@ -248,6 +283,7 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
                     "citation_confidence_avg": 0.3,
                     "low_confidence_citation_count": 1,
                     "rag_low_confidence_citation_count": 0,
+                    "fallback_namespace_citation_count": 0,
                     "draft_version_count": 2,
                     "fatal_flaw_count": 0,
                     "high_severity_fatal_flaw_count": 0,
