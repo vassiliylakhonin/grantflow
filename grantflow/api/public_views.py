@@ -130,6 +130,31 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
     }
 
 
+def public_job_export_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    state = job.get("state")
+    state_payload = public_state_snapshot(state) if isinstance(state, dict) else {}
+
+    critic = public_job_critic_payload(job_id, job)
+    critic_findings = critic.get("fatal_flaws") if isinstance(critic, dict) else []
+    if not isinstance(critic_findings, list):
+        critic_findings = []
+
+    comments_payload = public_job_comments_payload(job_id, job)
+    review_comments = comments_payload.get("comments") if isinstance(comments_payload, dict) else []
+    if not isinstance(review_comments, list):
+        review_comments = []
+
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "payload": {
+            "state": state_payload if isinstance(state_payload, dict) else {},
+            "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
+            "review_comments": [item for item in review_comments if isinstance(item, dict)],
+        },
+    }
+
+
 def public_job_citations_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
     state = job.get("state")
     citations = []

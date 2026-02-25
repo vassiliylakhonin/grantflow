@@ -49,6 +49,14 @@ class JobCitationsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobExportPayloadPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    payload: Dict[str, Any]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class DraftVersionPublicResponse(BaseModel):
     version_id: str
     sequence: Optional[int] = None

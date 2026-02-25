@@ -271,6 +271,65 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     assert resolve_body.get("resolved_at")
 
 
+def test_status_export_payload_endpoint_returns_review_ready_payload():
+    job_id = "export-payload-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "donor_id": "usaid",
+                "toc_draft": {"toc": {"brief": "Sample ToC"}},
+                "logframe_draft": {"indicators": [{"indicator_id": "IND_001"}]},
+                "citations": [{"stage": "mel", "label": "USAID ADS 201 p.12"}],
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "finding-1",
+                            "status": "acknowledged",
+                            "severity": "high",
+                            "section": "toc",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "message": "Schema mismatch",
+                            "fix_hint": "Fix objective structure",
+                            "source": "rules",
+                        }
+                    ]
+                },
+                "strategy": object(),
+                "donor_strategy": object(),
+            },
+            "review_comments": [
+                {
+                    "comment_id": "comment-1",
+                    "status": "open",
+                    "section": "toc",
+                    "message": "Please revise objective hierarchy",
+                    "linked_finding_id": "finding-1",
+                    "version_id": "toc_v1",
+                }
+            ],
+        },
+    )
+
+    response = client.get(f"/status/{job_id}/export-payload")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "done"
+    payload = body["payload"]
+    assert isinstance(payload, dict)
+    assert isinstance(payload["state"], dict)
+    assert "strategy" not in payload["state"]
+    assert "donor_strategy" not in payload["state"]
+    assert payload["state"]["toc_draft"]["toc"]["brief"] == "Sample ToC"
+    assert isinstance(payload["critic_findings"], list)
+    assert payload["critic_findings"][0]["finding_id"] == "finding-1"
+    assert payload["critic_findings"][0]["linked_comment_ids"] == ["comment-1"]
+    assert isinstance(payload["review_comments"], list)
+    assert payload["review_comments"][0]["linked_finding_id"] == "finding-1"
+
+
 def test_status_includes_citations_traceability(monkeypatch):
     def fake_query(namespace, query_texts, n_results=5, where=None, top_k=None):
         return {
@@ -800,6 +859,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     citations_auth = client.get(f"/status/{job_id}/citations", headers={"X-API-Key": "test-secret"})
     assert citations_auth.status_code == 200
 
+    export_payload_unauth = client.get(f"/status/{job_id}/export-payload")
+    assert export_payload_unauth.status_code == 401
+
+    export_payload_auth = client.get(f"/status/{job_id}/export-payload", headers={"X-API-Key": "test-secret"})
+    assert export_payload_auth.status_code == 200
+
     versions_unauth = client.get(f"/status/{job_id}/versions")
     assert versions_unauth.status_code == 401
 
@@ -921,6 +986,9 @@ def test_openapi_declares_api_key_security_scheme():
     status_citations_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/citations") or {}).get("get") or {}
     ).get("security")
+    status_export_payload_security = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/export-payload") or {}).get("get") or {}
+    ).get("security")
     status_versions_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/versions") or {}).get("get") or {}
     ).get("security")
@@ -969,6 +1037,13 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_citations_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/citations") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_export_payload_response_schema = (
+        ((((spec.get("paths") or {}).get("/status/{job_id}/export-payload") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
         .get("content", {})
         .get("application/json", {})
@@ -1101,6 +1176,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert cancel_security == [{"ApiKeyAuth": []}]
     assert status_security == [{"ApiKeyAuth": []}]
     assert status_citations_security == [{"ApiKeyAuth": []}]
+    assert status_export_payload_security == [{"ApiKeyAuth": []}]
     assert status_versions_security == [{"ApiKeyAuth": []}]
     assert status_diff_security == [{"ApiKeyAuth": []}]
     assert status_events_security == [{"ApiKeyAuth": []}]
@@ -1115,6 +1191,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert portfolio_metrics_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
+    assert status_export_payload_response_schema == {"$ref": "#/components/schemas/JobExportPayloadPublicResponse"}
     assert status_versions_response_schema == {"$ref": "#/components/schemas/JobVersionsPublicResponse"}
     assert status_diff_response_schema == {"$ref": "#/components/schemas/JobDiffPublicResponse"}
     assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
@@ -1132,6 +1209,7 @@ def test_openapi_declares_api_key_security_scheme():
     schemas = (spec.get("components") or {}).get("schemas") or {}
     assert "JobStatusPublicResponse" in schemas
     assert "JobCitationsPublicResponse" in schemas
+    assert "JobExportPayloadPublicResponse" in schemas
     assert "CitationPublicResponse" in schemas
     assert "JobVersionsPublicResponse" in schemas
     assert "DraftVersionPublicResponse" in schemas

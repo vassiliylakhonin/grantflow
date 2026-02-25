@@ -19,6 +19,7 @@ from grantflow.api.public_views import (
     public_job_comments_payload,
     public_job_critic_payload,
     public_job_diff_payload,
+    public_job_export_payload,
     public_job_events_payload,
     public_job_metrics_payload,
     public_job_payload,
@@ -32,6 +33,7 @@ from grantflow.api.schemas import (
     JobCommentsPublicResponse,
     JobCriticPublicResponse,
     JobDiffPublicResponse,
+    JobExportPayloadPublicResponse,
     JobEventsPublicResponse,
     JobMetricsPublicResponse,
     JobStatusPublicResponse,
@@ -935,6 +937,19 @@ def get_status_citations(job_id: str, request: Request):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_citations_payload(job_id, job)
+
+
+@app.get(
+    "/status/{job_id}/export-payload",
+    response_model=JobExportPayloadPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_export_payload(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_export_payload(job_id, job)
 
 
 @app.get(

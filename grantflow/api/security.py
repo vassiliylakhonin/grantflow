@@ -15,6 +15,7 @@ PROTECTED_OPERATIONS = {
     ("post", "/export"),
     ("get", "/status/{job_id}"),
     ("get", "/status/{job_id}/citations"),
+    ("get", "/status/{job_id}/export-payload"),
     ("get", "/status/{job_id}/versions"),
     ("get", "/status/{job_id}/diff"),
     ("get", "/status/{job_id}/events"),

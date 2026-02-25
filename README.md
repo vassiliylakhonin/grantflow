@@ -245,6 +245,7 @@ Core endpoints:
 - `POST /cancel/{job_id}` - cancel an accepted/running/pending HITL job (best-effort)
 - `GET /status/{job_id}` - poll job status/state
 - `GET /status/{job_id}/citations` - retrieve typed citation/traceability records for the job
+- `GET /status/{job_id}/export-payload` - retrieve a review-ready payload (`state` + `critic_findings` + `review_comments`) for `/export`
 - `GET /status/{job_id}/versions` - retrieve typed draft version history snapshots (`toc` / `logframe`)
 - `GET /status/{job_id}/diff` - retrieve a unified diff between draft versions (optionally filtered by section)
 - `GET /status/{job_id}/critic` - retrieve typed critic findings (fatal flaws + rule checks)
@@ -598,6 +599,14 @@ Review-ready export metadata (optional):
 
 - `Citation Traceability` is included in `.docx` and the `Citations` sheet in `.xlsx`
 - `Critic Findings` and `Review Comments` are included when provided in `/export` payload (`critic_findings[]`, `review_comments[]`) or available in `payload.state.critic_notes.fatal_flaws`
+
+Integrator shortcut:
+
+```bash
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/export-payload | jq .
+```
+
+The returned `payload` can be sent directly into `POST /export` (with optional edits) to produce a review package that includes citations, critic findings, and reviewer comments.
 
 ## Project Structure
 
