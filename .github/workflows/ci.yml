@@ -27,6 +27,32 @@ jobs:
           bash -n deploy.sh
           bash -n backup.sh
 
+  mypy:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            grantflow/requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r grantflow/requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run mypy (targeted baseline)
+        run: |
+          python -m mypy grantflow/api grantflow/core/stores.py grantflow/swarm/versioning.py
+
   test:
     runs-on: ubuntu-latest
     env:

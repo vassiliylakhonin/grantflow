@@ -581,7 +581,7 @@ bash -n backup.sh
 shellcheck deploy.sh backup.sh
 ```
 
-CI runs both Python tests and shell script lint/syntax checks.
+CI runs Python tests, shell script lint/syntax checks, and a targeted `mypy` baseline (`grantflow/api`, `grantflow/core/stores.py`, `grantflow/swarm/versioning.py`).
 
 If you enable local pre-commit hooks, they will also run `ruff`, `isort`, and `black` before commit.
 
