@@ -113,6 +113,39 @@ def apply_runtime_overrides_to_cases(
     return overridden
 
 
+def filter_eval_cases(
+    cases: list[dict[str, Any]],
+    *,
+    donor_ids: list[str] | None = None,
+    case_ids: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    donor_set = {str(v).strip().lower() for v in (donor_ids or []) if str(v).strip()}
+    case_set = {str(v).strip() for v in (case_ids or []) if str(v).strip()}
+    if not donor_set and not case_set:
+        return cases
+
+    filtered: list[dict[str, Any]] = []
+    for case in cases:
+        donor_id = str(case.get("donor_id") or "").strip().lower()
+        case_id = str(case.get("case_id") or "").strip()
+        if donor_set and donor_id not in donor_set:
+            continue
+        if case_set and case_id not in case_set:
+            continue
+        filtered.append(case)
+    return filtered
+
+
+def _split_csv_args(values: list[str] | None) -> list[str]:
+    tokens: list[str] = []
+    for raw in values or []:
+        for part in str(raw or "").split(","):
+            token = part.strip()
+            if token:
+                tokens.append(token)
+    return tokens
+
+
 def build_initial_state(case: dict[str, Any]) -> dict[str, Any]:
     donor_id = str(case.get("donor_id") or "").strip()
     if not donor_id:
@@ -798,6 +831,18 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Skip fixture expectation assertions and collect metrics only (exploratory mode).",
     )
     parser.add_argument(
+        "--donor-id",
+        action="append",
+        default=[],
+        help="Filter suite to one or more donor_ids (repeat flag or use comma-separated values).",
+    )
+    parser.add_argument(
+        "--case-id",
+        action="append",
+        default=[],
+        help="Filter suite to one or more case_ids (repeat flag or use comma-separated values).",
+    )
+    parser.add_argument(
         "--json-out",
         type=Path,
         default=None,
@@ -839,6 +884,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv or sys.argv[1:])
     cases = load_eval_cases()
+    donor_filters = _split_csv_args(args.donor_id)
+    case_filters = _split_csv_args(args.case_id)
+    cases = filter_eval_cases(cases, donor_ids=donor_filters, case_ids=case_filters)
+    if not cases:
+        print("No eval cases matched the provided filters.", file=sys.stderr)
+        return 2
     cases = apply_runtime_overrides_to_cases(
         cases,
         force_llm=bool(args.force_llm),
@@ -850,6 +901,8 @@ def main(argv: list[str] | None = None) -> int:
         "force_architect_rag": bool(args.force_architect_rag),
     }
     suite["runtime_overrides"]["skip_expectations"] = bool(args.skip_expectations)
+    suite["runtime_overrides"]["donor_filters"] = donor_filters
+    suite["runtime_overrides"]["case_filters"] = case_filters
     text_report = format_eval_suite_report(suite)
     print(text_report)
     if args.json_out is not None:

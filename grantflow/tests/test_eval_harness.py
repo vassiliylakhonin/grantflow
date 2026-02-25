@@ -9,6 +9,7 @@ from grantflow.eval.harness import (
     compare_suite_to_baseline,
     compute_state_metrics,
     evaluate_expectations,
+    filter_eval_cases,
     format_eval_comparison_report,
     format_eval_suite_report,
     load_eval_cases,
@@ -178,6 +179,16 @@ def test_eval_harness_runtime_overrides_apply_to_cases_without_mutating_original
     assert "architect_rag_enabled" not in source_cases[1]
 
 
+def test_filter_eval_cases_supports_donor_and_case_filters():
+    source_cases = [
+        {"case_id": "usaid_a", "donor_id": "usaid"},
+        {"case_id": "eu_a", "donor_id": "eu"},
+        {"case_id": "wb_a", "donor_id": "worldbank"},
+    ]
+    filtered = filter_eval_cases(source_cases, donor_ids=["usaid", "eu"], case_ids=["eu_a", "usaid_a"])
+    assert [case["case_id"] for case in filtered] == ["usaid_a", "eu_a"]
+
+
 def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_path, monkeypatch):
     json_out = tmp_path / "llm-eval-report.json"
     text_out = tmp_path / "llm-eval-report.txt"
@@ -214,6 +225,10 @@ def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_pa
             "llm-eval",
             "--force-llm",
             "--skip-expectations",
+            "--donor-id",
+            "usaid",
+            "--case-id",
+            "stub",
             "--json-out",
             str(json_out),
             "--text-out",
@@ -226,6 +241,8 @@ def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_pa
     assert payload["runtime_overrides"]["force_llm"] is True
     assert payload["runtime_overrides"]["force_architect_rag"] is False
     assert payload["runtime_overrides"]["skip_expectations"] is True
+    assert payload["runtime_overrides"]["donor_filters"] == ["usaid"]
+    assert payload["runtime_overrides"]["case_filters"] == ["stub"]
     assert payload["expectations_skipped"] is True
     assert captured["suite_label"] == "llm-eval"
     assert captured["skip_expectations"] is True
@@ -236,6 +253,24 @@ def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_pa
     text = text_out.read_text(encoding="utf-8")
     assert "Suite: llm-eval" in text
     assert "Expectations: skipped" in text
+
+
+def test_eval_harness_cli_returns_nonzero_when_filters_match_no_cases(tmp_path):
+    json_out = tmp_path / "eval-report.json"
+    text_out = tmp_path / "eval-report.txt"
+    exit_code = harness.main(
+        [
+            "--donor-id",
+            "nonexistent_donor",
+            "--json-out",
+            str(json_out),
+            "--text-out",
+            str(text_out),
+        ]
+    )
+    assert exit_code == 2
+    assert not json_out.exists()
+    assert not text_out.exists()
 
 
 def test_run_eval_case_can_skip_expectations(monkeypatch):

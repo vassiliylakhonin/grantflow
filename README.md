@@ -899,6 +899,8 @@ The `eval` job fails on metric regressions (for tracked quality/citation/error s
 The text eval artifact (`eval-report.txt`) also includes a donor-level quality breakdown (cases/pass-rate, average quality score, needs-revision rate, high-severity flaws, and low-confidence citation counts) to highlight top-risk donor buckets quickly.
 
 An additional `LLM Eval` workflow (`.github/workflows/llm-eval.yml`) is available as a separate nightly/manual lane (`workflow_dispatch` + `schedule`) that runs the same fixtures with `--force-llm` in exploratory metrics mode (`--skip-expectations`) and uploads `llm-eval-report` artifacts. It is intentionally separate from the main CI baseline to avoid destabilizing deterministic regression checks. If `OPENAI_API_KEY` is not configured in repository secrets, the workflow uploads a skipped report artifact instead of failing.
+
+For corpus-backed experiments, use the manual `LLM Eval (Grounded)` workflow (`.github/workflows/llm-eval-grounded.yml`). It supports donor/case subset filters (for example `usaid,eu,worldbank`), can force `architect_rag_enabled=true`, reads optional `CHROMA_*` repository variables, and uploads a separate `llm-eval-grounded-report` artifact for comparison against the ungrounded exploratory lane.
 The workflow also supports `OPENROUTER_API_KEY` (OpenAI-compatible backend) and will run if either `OPENAI_API_KEY` or `OPENROUTER_API_KEY` is configured in repository secrets.
 
 ### OpenAI-Compatible Backends (OpenRouter)

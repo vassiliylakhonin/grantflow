@@ -1,0 +1,89 @@
+name: LLM Eval (Grounded)
+
+on:
+  workflow_dispatch:
+    inputs:
+      donor_ids:
+        description: "Optional donor_id filter(s), comma-separated (e.g. usaid,eu,worldbank)"
+        required: false
+        default: "usaid,eu,worldbank"
+        type: string
+      case_ids:
+        description: "Optional case_id filter(s), comma-separated (overrides donor-only broad runs)"
+        required: false
+        default: ""
+        type: string
+      force_architect_rag:
+        description: "Force architect_rag_enabled=true for selected cases"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  llm_eval_grounded:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      GRANTFLOW_LLM_BASE_URL: ${{ vars.GRANTFLOW_LLM_BASE_URL }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+      OPENROUTER_HTTP_REFERER: ${{ vars.OPENROUTER_HTTP_REFERER }}
+      OPENROUTER_X_TITLE: ${{ vars.OPENROUTER_X_TITLE }}
+      CHROMA_HOST: ${{ vars.CHROMA_HOST }}
+      CHROMA_PORT: ${{ vars.CHROMA_PORT }}
+      CHROMA_COLLECTION_PREFIX: ${{ vars.CHROMA_COLLECTION_PREFIX }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: grantflow/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r grantflow/requirements.txt
+
+      - name: Run LLM evaluation harness (grounded subset lane)
+        env:
+          INPUT_DONOR_IDS: ${{ github.event.inputs.donor_ids }}
+          INPUT_CASE_IDS: ${{ github.event.inputs.case_ids }}
+          INPUT_FORCE_ARCH_RAG: ${{ github.event.inputs.force_architect_rag }}
+        run: |
+          mkdir -p llm-eval-grounded-artifacts
+          if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
+            echo "OPENAI_API_KEY / OPENROUTER_API_KEY is not configured; skipping grounded LLM eval lane." | tee llm-eval-grounded-artifacts/llm-eval-grounded-report.txt
+            python -c 'import json, pathlib; pathlib.Path("llm-eval-grounded-artifacts/llm-eval-grounded-report.json").write_text(json.dumps({"suite_label":"llm-eval-grounded","skipped":True,"reason":"OPENAI_API_KEY / OPENROUTER_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":True,"skip_expectations":True}}, indent=2, sort_keys=True), encoding="utf-8")'
+            exit 0
+          fi
+
+          EXTRA_ARGS=()
+          if [ -n "${INPUT_DONOR_IDS:-}" ]; then
+            EXTRA_ARGS+=(--donor-id "$INPUT_DONOR_IDS")
+          fi
+          if [ -n "${INPUT_CASE_IDS:-}" ]; then
+            EXTRA_ARGS+=(--case-id "$INPUT_CASE_IDS")
+          fi
+          if [ "${INPUT_FORCE_ARCH_RAG:-true}" = "true" ]; then
+            EXTRA_ARGS+=(--force-architect-rag)
+          fi
+
+          python -m grantflow.eval.harness \
+            --suite-label llm-eval-grounded \
+            --force-llm \
+            --skip-expectations \
+            "${EXTRA_ARGS[@]}" \
+            --text-out llm-eval-grounded-artifacts/llm-eval-grounded-report.txt \
+            --json-out llm-eval-grounded-artifacts/llm-eval-grounded-report.json
+
+      - name: Upload grounded LLM evaluation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: llm-eval-grounded-report
+          path: llm-eval-grounded-artifacts/
+          if-no-files-found: error
