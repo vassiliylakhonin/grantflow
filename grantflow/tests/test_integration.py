@@ -69,7 +69,12 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_diff_section" in body
     assert "portfolioBtn" in body
     assert "portfolioClearBtn" in body
+    assert "/portfolio/quality" in body
     assert "portfolioMetricsCards" in body
+    assert "portfolioQualityCards" in body
+    assert "portfolioQualityRiskList" in body
+    assert "portfolioQualityOpenFindingsList" in body
+    assert "portfolioQualityJson" in body
     assert "portfolioStatusCountsList" in body
     assert "portfolioDonorCountsList" in body
     assert "Click to filter" in body
@@ -914,6 +919,125 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert "error" not in filtered_body["status_counts"]
 
 
+def test_portfolio_quality_endpoint_aggregates_quality_signals():
+    api_app_module.JOB_STORE.set(
+        "portfolio-quality-job-1",
+        {
+            "status": "done",
+            "hitl_enabled": True,
+            "state": {
+                "donor_id": "usaid",
+                "quality_score": 8.5,
+                "critic_score": 8.0,
+                "needs_revision": True,
+                "toc_validation": {"valid": True, "schema_name": "UsaidTocSchema"},
+                "toc_generation_meta": {
+                    "engine": "fallback:contract_synthesizer",
+                    "citation_policy": {"threshold_mode": "donor_section"},
+                },
+                "architect_retrieval": {"enabled": True, "hits_count": 2, "namespace": "usaid_ads201"},
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {"finding_id": "f1", "severity": "high", "status": "open", "section": "toc"},
+                        {"finding_id": "f2", "severity": "low", "status": "resolved", "section": "general"},
+                    ],
+                    "rule_checks": [
+                        {"code": "toc.complete", "status": "fail"},
+                        {"code": "toc.assumptions", "status": "warn"},
+                    ],
+                },
+                "citations": [
+                    {
+                        "stage": "architect",
+                        "citation_type": "rag_claim_support",
+                        "citation_confidence": 0.9,
+                        "confidence_threshold": 0.7,
+                    },
+                    {
+                        "stage": "architect",
+                        "citation_type": "rag_low_confidence",
+                        "citation_confidence": 0.2,
+                        "confidence_threshold": 0.5,
+                    },
+                    {"stage": "mel", "citation_type": "rag_support", "citation_confidence": 0.6},
+                ],
+            },
+            "job_events": [
+                {"event_id": "qa1", "ts": "2026-02-24T10:00:00+00:00", "type": "status_changed", "to_status": "accepted"},
+                {"event_id": "qa2", "ts": "2026-02-24T10:00:05+00:00", "type": "status_changed", "to_status": "running"},
+                {"event_id": "qa3", "ts": "2026-02-24T10:00:20+00:00", "type": "status_changed", "to_status": "pending_hitl"},
+                {"event_id": "qa4", "ts": "2026-02-24T10:01:20+00:00", "type": "resume_requested"},
+                {"event_id": "qa5", "ts": "2026-02-24T10:01:30+00:00", "type": "status_changed", "to_status": "done"},
+            ],
+        },
+    )
+    api_app_module.JOB_STORE.set(
+        "portfolio-quality-job-2",
+        {
+            "status": "done",
+            "hitl_enabled": True,
+            "state": {
+                "donor_id": "usaid",
+                "quality_score": 6.5,
+                "critic_score": 6.0,
+                "needs_revision": False,
+                "critic_notes": {
+                    "fatal_flaws": [{"finding_id": "f3", "severity": "medium", "status": "acknowledged", "section": "logframe"}],
+                    "rule_checks": [{"code": "logframe.complete", "status": "pass"}],
+                },
+                "citations": [
+                    {
+                        "stage": "architect",
+                        "citation_type": "rag_claim_support",
+                        "citation_confidence": 0.8,
+                        "confidence_threshold": 0.7,
+                    }
+                ],
+            },
+            "job_events": [
+                {"event_id": "qb1", "ts": "2026-02-24T11:00:00+00:00", "type": "status_changed", "to_status": "accepted"},
+                {"event_id": "qb2", "ts": "2026-02-24T11:00:03+00:00", "type": "status_changed", "to_status": "running"},
+                {"event_id": "qb3", "ts": "2026-02-24T11:00:25+00:00", "type": "status_changed", "to_status": "done"},
+            ],
+        },
+    )
+    api_app_module.JOB_STORE.set(
+        "portfolio-quality-job-3",
+        {
+            "status": "error",
+            "hitl_enabled": False,
+            "state": {"donor_id": "eu", "quality_score": 4.0, "critic_score": 3.0, "needs_revision": True},
+            "job_events": [
+                {"event_id": "qc1", "ts": "2026-02-24T12:00:00+00:00", "type": "status_changed", "to_status": "accepted"},
+                {"event_id": "qc2", "ts": "2026-02-24T12:00:02+00:00", "type": "status_changed", "to_status": "running"},
+                {"event_id": "qc3", "ts": "2026-02-24T12:00:10+00:00", "type": "status_changed", "to_status": "error"},
+            ],
+        },
+    )
+
+    response = client.get("/portfolio/quality", params={"donor_id": "usaid", "status": "done", "hitl_enabled": "true"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["filters"]["donor_id"] == "usaid"
+    assert body["filters"]["status"] == "done"
+    assert body["filters"]["hitl_enabled"] is True
+    assert body["job_count"] >= 2
+    assert body["avg_quality_score"] is not None
+    assert body["avg_critic_score"] is not None
+    assert body["critic"]["open_findings_total"] >= 1
+    assert body["critic"]["high_severity_findings_total"] >= 1
+    assert body["critic"]["needs_revision_job_count"] >= 1
+    assert body["critic"]["needs_revision_rate"] is not None
+    assert body["citations"]["citation_count_total"] >= 4
+    assert body["citations"]["citation_confidence_avg"] is not None
+    assert body["citations"]["low_confidence_citation_count"] >= 1
+    assert body["citations"]["rag_low_confidence_citation_count"] >= 1
+    assert body["citations"]["architect_threshold_hit_rate_avg"] is not None
+    assert body["donor_needs_revision_counts"]["usaid"] >= 1
+    assert body["donor_open_findings_counts"]["usaid"] >= 1
+    assert "eu" not in body["donor_counts"]
+
+
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
 
@@ -1069,6 +1193,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     portfolio_metrics_auth = client.get("/portfolio/metrics", headers={"X-API-Key": "test-secret"})
     assert portfolio_metrics_auth.status_code == 200
 
+    portfolio_quality_unauth = client.get("/portfolio/quality")
+    assert portfolio_quality_unauth.status_code == 401
+
+    portfolio_quality_auth = client.get("/portfolio/quality", headers={"X-API-Key": "test-secret"})
+    assert portfolio_quality_auth.status_code == 200
+
     pending_unauth = client.get("/hitl/pending")
     assert pending_unauth.status_code == 401
 
@@ -1137,6 +1267,9 @@ def test_openapi_declares_api_key_security_scheme():
         (((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/reopen") or {}).get("post") or {})
     ).get("security")
     portfolio_metrics_security = (((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get(
+        "security"
+    )
+    portfolio_quality_security = (((spec.get("paths") or {}).get("/portfolio/quality") or {}).get("get") or {}).get(
         "security"
     )
     status_response_schema = (
@@ -1282,6 +1415,13 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    portfolio_quality_response_schema = (
+        ((((spec.get("paths") or {}).get("/portfolio/quality") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     pending_response_schema = (
         ((((spec.get("paths") or {}).get("/hitl/pending") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -1308,6 +1448,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_reopen_security == [{"ApiKeyAuth": []}]
     assert portfolio_metrics_security == [{"ApiKeyAuth": []}]
+    assert portfolio_quality_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}
     assert status_citations_response_schema == {"$ref": "#/components/schemas/JobCitationsPublicResponse"}
     assert status_export_payload_response_schema == {"$ref": "#/components/schemas/JobExportPayloadPublicResponse"}
@@ -1324,6 +1465,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_reopen_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert portfolio_metrics_response_schema == {"$ref": "#/components/schemas/PortfolioMetricsPublicResponse"}
+    assert portfolio_quality_response_schema == {"$ref": "#/components/schemas/PortfolioQualityPublicResponse"}
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
 
     schemas = (spec.get("components") or {}).get("schemas") or {}
@@ -1344,6 +1486,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobCommentsPublicResponse" in schemas
     assert "ReviewCommentPublicResponse" in schemas
     assert "PortfolioMetricsPublicResponse" in schemas
+    assert "PortfolioQualityPublicResponse" in schemas
+    assert "PortfolioQualityCriticSummaryPublicResponse" in schemas
+    assert "PortfolioQualityCitationSummaryPublicResponse" in schemas
     assert "PortfolioMetricsFiltersPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
 

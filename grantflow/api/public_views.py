@@ -593,6 +593,132 @@ def public_portfolio_metrics_payload(
     }
 
 
+def public_portfolio_quality_payload(
+    jobs_by_id: Dict[str, Dict[str, Any]],
+    *,
+    donor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    hitl_enabled: Optional[bool] = None,
+) -> Dict[str, Any]:
+    filtered: list[tuple[str, Dict[str, Any]]] = []
+    for job_id, job in jobs_by_id.items():
+        if not isinstance(job, dict):
+            continue
+        job_status = str(job.get("status") or "")
+        state = job.get("state") if isinstance(job.get("state"), dict) else {}
+        job_donor = str((state or {}).get("donor_id") or (state or {}).get("donor") or "")
+        job_hitl = bool(job.get("hitl_enabled"))
+
+        if donor_id and job_donor != donor_id:
+            continue
+        if status and job_status != status:
+            continue
+        if hitl_enabled is not None and job_hitl != hitl_enabled:
+            continue
+        filtered.append((str(job_id), job))
+
+    status_counts: Dict[str, int] = {}
+    donor_counts: Dict[str, int] = {}
+    donor_needs_revision_counts: Dict[str, int] = {}
+    donor_open_findings_counts: Dict[str, int] = {}
+    quality_rows: list[Dict[str, Any]] = []
+
+    for job_id, job in filtered:
+        job_status = str(job.get("status") or "")
+        status_counts[job_status] = status_counts.get(job_status, 0) + 1
+        state = job.get("state") if isinstance(job.get("state"), dict) else {}
+        job_donor = str((state or {}).get("donor_id") or (state or {}).get("donor") or "unknown")
+        donor_counts[job_donor] = donor_counts.get(job_donor, 0) + 1
+
+        q = public_job_quality_payload(job_id, job)
+        quality_rows.append(q)
+
+        critic_summary: Dict[str, Any] = cast(Dict[str, Any], q.get("critic")) if isinstance(q.get("critic"), dict) else {}
+        if bool(q.get("needs_revision")):
+            donor_needs_revision_counts[job_donor] = donor_needs_revision_counts.get(job_donor, 0) + 1
+        open_findings = int(critic_summary.get("open_finding_count") or 0)
+        if open_findings > 0:
+            donor_open_findings_counts[job_donor] = donor_open_findings_counts.get(job_donor, 0) + open_findings
+
+    def _avg(rows: list[Dict[str, Any]], key: str) -> Optional[float]:
+        values = [float(row[key]) for row in rows if isinstance(row.get(key), (int, float))]
+        if not values:
+            return None
+        return round(sum(values) / len(values), 4)
+
+    terminal_statuses = {"done", "error", "canceled"}
+    terminal_rows = [row for row in quality_rows if str(row.get("terminal_status") or "") in terminal_statuses]
+
+    critic_open_findings_total = 0
+    critic_high_severity_total = 0
+    critic_fatal_flaws_total = 0
+    needs_revision_job_count = 0
+    citation_count_total = 0
+    low_confidence_citation_count = 0
+    rag_low_confidence_citation_count = 0
+
+    for row in quality_rows:
+        row_critic: Dict[str, Any] = cast(Dict[str, Any], row.get("critic")) if isinstance(row.get("critic"), dict) else {}
+        row_citations: Dict[str, Any] = (
+            cast(Dict[str, Any], row.get("citations")) if isinstance(row.get("citations"), dict) else {}
+        )
+        if bool(row.get("needs_revision")):
+            needs_revision_job_count += 1
+        critic_open_findings_total += int(row_critic.get("open_finding_count") or 0)
+        critic_high_severity_total += int(row_critic.get("high_severity_fatal_flaw_count") or 0)
+        critic_fatal_flaws_total += int(row_critic.get("fatal_flaw_count") or 0)
+        citation_count_total += int(row_citations.get("citation_count") or 0)
+        low_confidence_citation_count += int(row_citations.get("low_confidence_citation_count") or 0)
+        rag_low_confidence_citation_count += int(row_citations.get("rag_low_confidence_citation_count") or 0)
+
+    job_count = len(filtered)
+    quality_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("quality_score"), (int, float)))
+    critic_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("critic_score"), (int, float)))
+
+    citation_summary_rows: list[Dict[str, Any]] = [
+        cast(Dict[str, Any], row.get("citations")) for row in quality_rows if isinstance(row.get("citations"), dict)
+    ]
+
+    return {
+        "job_count": job_count,
+        "filters": {
+            "donor_id": donor_id,
+            "status": status,
+            "hitl_enabled": hitl_enabled,
+        },
+        "status_counts": status_counts,
+        "donor_counts": donor_counts,
+        "terminal_job_count": len(terminal_rows),
+        "quality_score_job_count": quality_score_job_count,
+        "critic_score_job_count": critic_score_job_count,
+        "avg_quality_score": _avg(quality_rows, "quality_score"),
+        "avg_critic_score": _avg(quality_rows, "critic_score"),
+        "critic": {
+            "open_findings_total": critic_open_findings_total,
+            "open_findings_per_job_avg": round(critic_open_findings_total / job_count, 4) if job_count else None,
+            "high_severity_findings_total": critic_high_severity_total,
+            "fatal_flaws_total": critic_fatal_flaws_total,
+            "needs_revision_job_count": needs_revision_job_count,
+            "needs_revision_rate": round(needs_revision_job_count / job_count, 4) if job_count else None,
+        },
+        "citations": {
+            "citation_count_total": citation_count_total,
+            "citation_confidence_avg": _avg(citation_summary_rows, "citation_confidence_avg"),
+            "low_confidence_citation_count": low_confidence_citation_count,
+            "low_confidence_citation_rate": (
+                round(low_confidence_citation_count / citation_count_total, 4) if citation_count_total else None
+            ),
+            "rag_low_confidence_citation_count": rag_low_confidence_citation_count,
+            "rag_low_confidence_citation_rate": (
+                round(rag_low_confidence_citation_count / citation_count_total, 4) if citation_count_total else None
+            ),
+            "architect_threshold_hit_rate_avg": _avg(citation_summary_rows, "architect_threshold_hit_rate"),
+        },
+        "donor_needs_revision_counts": donor_needs_revision_counts,
+        "donor_open_findings_counts": donor_open_findings_counts,
+    }
+
+
 def public_checkpoint_payload(checkpoint: Dict[str, Any]) -> Dict[str, Any]:
     public_checkpoint: Dict[str, Any] = {}
     for key, value in checkpoint.items():

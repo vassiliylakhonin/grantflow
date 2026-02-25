@@ -282,6 +282,47 @@ class PortfolioMetricsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class PortfolioQualityCriticSummaryPublicResponse(BaseModel):
+    open_findings_total: int
+    open_findings_per_job_avg: Optional[float] = None
+    high_severity_findings_total: int
+    fatal_flaws_total: int
+    needs_revision_job_count: int
+    needs_revision_rate: Optional[float] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PortfolioQualityCitationSummaryPublicResponse(BaseModel):
+    citation_count_total: int
+    citation_confidence_avg: Optional[float] = None
+    low_confidence_citation_count: int
+    low_confidence_citation_rate: Optional[float] = None
+    rag_low_confidence_citation_count: int
+    rag_low_confidence_citation_rate: Optional[float] = None
+    architect_threshold_hit_rate_avg: Optional[float] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PortfolioQualityPublicResponse(BaseModel):
+    job_count: int
+    filters: PortfolioMetricsFiltersPublicResponse
+    status_counts: Dict[str, int]
+    donor_counts: Dict[str, int]
+    terminal_job_count: int
+    quality_score_job_count: int
+    critic_score_job_count: int
+    avg_quality_score: Optional[float] = None
+    avg_critic_score: Optional[float] = None
+    critic: PortfolioQualityCriticSummaryPublicResponse
+    citations: PortfolioQualityCitationSummaryPublicResponse
+    donor_needs_revision_counts: Dict[str, int]
+    donor_open_findings_counts: Dict[str, int]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class HITLPendingCheckpointPublicResponse(BaseModel):
     id: str
     stage: str

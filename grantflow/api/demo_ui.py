@@ -346,6 +346,31 @@ def render_demo_ui_html() -> str:
             <div style="margin-top:10px;">
               <pre id="portfolioMetricsJson">{}</pre>
             </div>
+            <div style="margin-top:14px;">
+              <label>Portfolio Quality</label>
+              <div class="sub" style="margin-top:4px;">Aggregated quality/critic/citation signals across the filtered portfolio.</div>
+            </div>
+            <div class="kpis" id="portfolioQualityCards" style="margin-top:10px;">
+              <div class="kpi"><div class="label">Avg Quality</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Needs Revision</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Open Findings</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">High Severity</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Avg Citation Conf</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Threshold Hit-rate</div><div class="value mono">-</div></div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Top Donors (Needs Revision)</label>
+                <div class="list" id="portfolioQualityRiskList"></div>
+              </div>
+              <div>
+                <label>Top Donors (Open Findings)</label>
+                <div class="list" id="portfolioQualityOpenFindingsList"></div>
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="portfolioQualityJson">{}</pre>
+            </div>
           </div>
         </div>
 
@@ -595,6 +620,7 @@ def render_demo_ui_html() -> str:
         metricsJson: $("metricsJson"),
         qualityJson: $("qualityJson"),
         portfolioMetricsJson: $("portfolioMetricsJson"),
+        portfolioQualityJson: $("portfolioQualityJson"),
         criticJson: $("criticJson"),
         exportPayloadJson: $("exportPayloadJson"),
         diffPre: $("diffPre"),
@@ -608,8 +634,11 @@ def render_demo_ui_html() -> str:
         metricsCards: $("metricsCards"),
         qualityCards: $("qualityCards"),
         portfolioMetricsCards: $("portfolioMetricsCards"),
+        portfolioQualityCards: $("portfolioQualityCards"),
         portfolioStatusCountsList: $("portfolioStatusCountsList"),
         portfolioDonorCountsList: $("portfolioDonorCountsList"),
+        portfolioQualityRiskList: $("portfolioQualityRiskList"),
+        portfolioQualityOpenFindingsList: $("portfolioQualityOpenFindingsList"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
@@ -698,7 +727,7 @@ def render_demo_ui_html() -> str:
         persistUiState();
         if (state.lastCritic) renderCriticLists(state.lastCritic);
         if (state.lastCitations) renderCriticContextCitations();
-        await Promise.allSettled([refreshPortfolioMetrics(), refreshComments(), refreshDiff()]);
+        await Promise.allSettled([refreshPortfolioBundle(), refreshComments(), refreshDiff()]);
       }
 
       function clearLinkedFindingSelection() {
@@ -819,6 +848,30 @@ def render_demo_ui_html() -> str:
           fmtSec(metrics.avg_time_to_first_draft_seconds),
         ];
         [...els.portfolioMetricsCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
+          node.textContent = values[i] ?? "-";
+        });
+      }
+
+      function renderPortfolioQualityCards(summary) {
+        const critic = summary?.critic || {};
+        const citations = summary?.citations || {};
+        const needsRevisionRate =
+          typeof critic.needs_revision_rate === "number"
+            ? `${(Number(critic.needs_revision_rate) * 100).toFixed(1)}%`
+            : "-";
+        const thresholdHitRate =
+          typeof citations.architect_threshold_hit_rate_avg === "number"
+            ? `${(Number(citations.architect_threshold_hit_rate_avg) * 100).toFixed(1)}%`
+            : "-";
+        const values = [
+          typeof summary?.avg_quality_score === "number" ? Number(summary.avg_quality_score).toFixed(2) : "-",
+          needsRevisionRate,
+          String(critic.open_findings_total ?? "-"),
+          String(critic.high_severity_findings_total ?? "-"),
+          typeof citations.citation_confidence_avg === "number" ? Number(citations.citation_confidence_avg).toFixed(2) : "-",
+          thresholdHitRate,
+        ];
+        [...els.portfolioQualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
       }
@@ -1309,7 +1362,7 @@ def render_demo_ui_html() -> str:
           (statusKey) => {
             els.portfolioStatusFilter.value = statusKey || "";
             persistUiState();
-            refreshPortfolioMetrics().catch(showError);
+            refreshPortfolioBundle().catch(showError);
           }
         );
         renderKeyValueList(
@@ -1320,11 +1373,40 @@ def render_demo_ui_html() -> str:
           (donorKey) => {
             els.portfolioDonorFilter.value = donorKey || "";
             persistUiState();
-            refreshPortfolioMetrics().catch(showError);
+            refreshPortfolioBundle().catch(showError);
           }
         );
         setJson(els.portfolioMetricsJson, body);
         return body;
+      }
+
+      async function refreshPortfolioQuality() {
+        persistUiState();
+        const params = new URLSearchParams();
+        if (els.portfolioDonorFilter.value.trim()) params.set("donor_id", els.portfolioDonorFilter.value.trim());
+        if (els.portfolioStatusFilter.value) params.set("status", els.portfolioStatusFilter.value);
+        if (els.portfolioHitlFilter.value) params.set("hitl_enabled", els.portfolioHitlFilter.value);
+        const q = params.toString() ? `?${params.toString()}` : "";
+        const body = await apiFetch(`/portfolio/quality${q}`);
+        renderPortfolioQualityCards(body);
+        renderKeyValueList(els.portfolioQualityRiskList, body.donor_needs_revision_counts, "No donor revision risks yet.", 8);
+        renderKeyValueList(
+          els.portfolioQualityOpenFindingsList,
+          body.donor_open_findings_counts,
+          "No donor open findings yet.",
+          8
+        );
+        setJson(els.portfolioQualityJson, body);
+        return body;
+      }
+
+      async function refreshPortfolioBundle() {
+        const results = await Promise.allSettled([refreshPortfolioMetrics(), refreshPortfolioQuality()]);
+        const rejected = results.find((result) => result.status === "rejected");
+        if (rejected && rejected.status === "rejected") {
+          throw rejected.reason;
+        }
+        return results;
       }
 
       async function refreshAll() {
@@ -1336,7 +1418,7 @@ def render_demo_ui_html() -> str:
         await Promise.allSettled([
           refreshMetrics(),
           refreshQuality(),
-          refreshPortfolioMetrics(),
+          refreshPortfolioBundle(),
           refreshCritic(),
           refreshCitations(),
           refreshExportPayload(),
@@ -1538,10 +1620,12 @@ def render_demo_ui_html() -> str:
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
         els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
-        els.portfolioBtn.addEventListener("click", () => refreshPortfolioMetrics().catch(showError));
+        els.portfolioBtn.addEventListener("click", () => {
+          refreshPortfolioBundle().catch(showError);
+        });
         els.portfolioClearBtn.addEventListener("click", () => {
           clearPortfolioFilters();
-          refreshPortfolioMetrics().catch(showError);
+          refreshPortfolioBundle().catch(showError);
         });
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
@@ -1554,12 +1638,12 @@ def render_demo_ui_html() -> str:
         [els.portfolioStatusFilter, els.portfolioHitlFilter].forEach((el) =>
           el.addEventListener("change", () => {
             persistUiState();
-            refreshPortfolioMetrics().catch(showError);
+            refreshPortfolioBundle().catch(showError);
           })
         );
         els.portfolioDonorFilter.addEventListener("change", () => {
           persistUiState();
-          refreshPortfolioMetrics().catch(showError);
+          refreshPortfolioBundle().catch(showError);
         });
         [els.commentsFilterSection, els.commentsFilterStatus].forEach((el) =>
           el.addEventListener("change", () => {

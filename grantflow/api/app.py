@@ -25,6 +25,7 @@ from grantflow.api.public_views import (
     public_job_quality_payload,
     public_job_payload,
     public_job_versions_payload,
+    public_portfolio_quality_payload,
     public_portfolio_metrics_payload,
 )
 from grantflow.api.schemas import (
@@ -41,6 +42,7 @@ from grantflow.api.schemas import (
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
     PortfolioMetricsPublicResponse,
+    PortfolioQualityPublicResponse,
     ReviewCommentPublicResponse,
 )
 from grantflow.api.security import (
@@ -771,6 +773,27 @@ def get_portfolio_metrics(
     require_api_key_if_configured(request, for_read=True)
     jobs = _list_jobs()
     return public_portfolio_metrics_payload(
+        jobs,
+        donor_id=(donor_id or None),
+        status=(status or None),
+        hitl_enabled=hitl_enabled,
+    )
+
+
+@app.get(
+    "/portfolio/quality",
+    response_model=PortfolioQualityPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_portfolio_quality(
+    request: Request,
+    donor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    hitl_enabled: Optional[bool] = Query(default=None),
+):
+    require_api_key_if_configured(request, for_read=True)
+    jobs = _list_jobs()
+    return public_portfolio_quality_payload(
         jobs,
         donor_id=(donor_id or None),
         status=(status or None),

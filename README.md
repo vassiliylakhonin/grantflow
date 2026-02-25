@@ -259,6 +259,7 @@ Core endpoints:
 - `GET /status/{job_id}/metrics` - retrieve derived workflow/ROI metrics from the job timeline
 - `GET /status/{job_id}/quality` - retrieve a typed quality summary (critic + citations + architect policy metadata)
 - `GET /portfolio/metrics` - retrieve aggregated ROI/ops metrics across jobs (with filters)
+- `GET /portfolio/quality` - retrieve aggregated quality/critic/citation portfolio signals (with filters)
 - `POST /resume/{job_id}` - resume a HITL-paused job
 - `GET /hitl/pending` - list pending checkpoints
 - `POST /hitl/approve` - approve/reject checkpoint
@@ -531,6 +532,13 @@ curl -s http://127.0.0.1:8000/portfolio/metrics
 curl -s "http://127.0.0.1:8000/portfolio/metrics?donor_id=usaid&status=done&hitl_enabled=true"
 ```
 
+Get aggregated portfolio quality summary (optional filters):
+
+```bash
+curl -s http://127.0.0.1:8000/portfolio/quality
+curl -s "http://127.0.0.1:8000/portfolio/quality?donor_id=usaid&status=done&hitl_enabled=true"
+```
+
 Example metrics response shape:
 
 ```json
@@ -619,6 +627,45 @@ Example portfolio metrics response shape:
   "avg_time_to_first_draft_seconds": 48.2,
   "avg_time_to_terminal_seconds": 210.4,
   "avg_time_in_pending_hitl_seconds": 102.7
+}
+```
+
+Example portfolio quality response shape:
+
+```json
+{
+  "job_count": 24,
+  "filters": {
+    "donor_id": "usaid",
+    "status": "done",
+    "hitl_enabled": true
+  },
+  "terminal_job_count": 24,
+  "avg_quality_score": 8.4,
+  "avg_critic_score": 8.1,
+  "critic": {
+    "open_findings_total": 9,
+    "open_findings_per_job_avg": 0.375,
+    "high_severity_findings_total": 3,
+    "fatal_flaws_total": 21,
+    "needs_revision_job_count": 6,
+    "needs_revision_rate": 0.25
+  },
+  "citations": {
+    "citation_count_total": 132,
+    "citation_confidence_avg": 0.61,
+    "low_confidence_citation_count": 18,
+    "low_confidence_citation_rate": 0.1364,
+    "rag_low_confidence_citation_count": 7,
+    "rag_low_confidence_citation_rate": 0.053,
+    "architect_threshold_hit_rate_avg": 0.72
+  },
+  "donor_needs_revision_counts": {
+    "usaid": 6
+  },
+  "donor_open_findings_counts": {
+    "usaid": 9
+  }
 }
 ```
 
