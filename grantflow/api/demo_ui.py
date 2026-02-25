@@ -431,6 +431,17 @@ def render_demo_ui_html() -> str:
   <script>
     (() => {
       const $ = (id) => document.getElementById(id);
+      const uiStateFields = [
+        ["diffSection", "grantflow_demo_diff_section"],
+        ["fromVersionId", "grantflow_demo_from_version_id"],
+        ["toVersionId", "grantflow_demo_to_version_id"],
+        ["criticSectionFilter", "grantflow_demo_critic_section"],
+        ["criticSeverityFilter", "grantflow_demo_critic_severity"],
+        ["commentsFilterSection", "grantflow_demo_comments_filter_section"],
+        ["commentsFilterStatus", "grantflow_demo_comments_filter_status"],
+        ["commentsFilterVersionId", "grantflow_demo_comments_filter_version_id"],
+        ["selectedCommentId", "grantflow_demo_selected_comment_id"],
+      ];
       const state = {
         pollTimer: null,
         polling: false,
@@ -502,12 +513,30 @@ def render_demo_ui_html() -> str:
         els.apiBase.value = localStorage.getItem("grantflow_demo_api_base") || window.location.origin;
         els.apiKey.value = localStorage.getItem("grantflow_demo_api_key") || "";
         els.jobIdInput.value = localStorage.getItem("grantflow_demo_job_id") || "";
+        restoreUiState();
       }
 
       function persistBasics() {
         localStorage.setItem("grantflow_demo_api_base", els.apiBase.value.trim());
         localStorage.setItem("grantflow_demo_api_key", els.apiKey.value.trim());
         localStorage.setItem("grantflow_demo_job_id", els.jobIdInput.value.trim());
+      }
+
+      function restoreUiState() {
+        for (const [elKey, storageKey] of uiStateFields) {
+          const el = els[elKey];
+          if (!el) continue;
+          const value = localStorage.getItem(storageKey);
+          if (value != null) el.value = value;
+        }
+      }
+
+      function persistUiState() {
+        for (const [elKey, storageKey] of uiStateFields) {
+          const el = els[elKey];
+          if (!el) continue;
+          localStorage.setItem(storageKey, String(el.value || ""));
+        }
       }
 
       function apiBase() {
@@ -614,6 +643,7 @@ def render_demo_ui_html() -> str:
           div.addEventListener("click", () => {
             if (!els.fromVersionId.value) els.fromVersionId.value = v.version_id || "";
             else els.toVersionId.value = v.version_id || "";
+            persistUiState();
           });
           els.versionsList.appendChild(div);
         }
@@ -658,6 +688,7 @@ def render_demo_ui_html() -> str:
             els.selectedCommentId.value = c.comment_id || "";
             if (c.section) els.commentSection.value = c.section;
             if (c.version_id) els.commentVersionId.value = c.version_id;
+            persistUiState();
           });
           els.commentsList.appendChild(div);
         }
@@ -804,6 +835,7 @@ def render_demo_ui_html() -> str:
           els.toVersionId.value = versionId;
           if (els.fromVersionId.value.trim() === versionId) els.fromVersionId.value = "";
         }
+        persistUiState();
         await refreshDiff();
       }
 
@@ -874,6 +906,7 @@ def render_demo_ui_html() -> str:
       async function refreshDiff() {
         const jobId = currentJobId();
         if (!jobId) return;
+        persistUiState();
         const params = new URLSearchParams();
         if (els.diffSection.value) params.set("section", els.diffSection.value);
         if (els.fromVersionId.value.trim()) params.set("from_version_id", els.fromVersionId.value.trim());
@@ -905,6 +938,7 @@ def render_demo_ui_html() -> str:
       async function refreshComments() {
         const jobId = currentJobId();
         if (!jobId) return;
+        persistUiState();
         const params = new URLSearchParams();
         if (els.commentsFilterSection.value) params.set("section", els.commentsFilterSection.value);
         if (els.commentsFilterStatus.value) params.set("status", els.commentsFilterStatus.value);
@@ -994,6 +1028,7 @@ def render_demo_ui_html() -> str:
         });
         els.selectedCommentId.value = created.comment_id || "";
         els.commentMessage.value = "";
+        persistUiState();
         await refreshComments();
         return created;
       }
@@ -1051,15 +1086,24 @@ def render_demo_ui_html() -> str:
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
+        [els.diffSection, els.fromVersionId, els.toVersionId].forEach((el) => el.addEventListener("change", persistUiState));
         [els.commentsFilterSection, els.commentsFilterStatus].forEach((el) =>
-          el.addEventListener("change", () => refreshComments().catch(showError))
+          el.addEventListener("change", () => {
+            persistUiState();
+            refreshComments().catch(showError);
+          })
         );
-        els.commentsFilterVersionId.addEventListener("change", () => refreshComments().catch(showError));
+        els.commentsFilterVersionId.addEventListener("change", () => {
+          persistUiState();
+          refreshComments().catch(showError);
+        });
         els.criticSectionFilter.addEventListener("change", () => {
+          persistUiState();
           if (state.lastCritic) renderCriticLists(state.lastCritic);
           else refreshCritic().catch(showError);
         });
         els.criticSeverityFilter.addEventListener("change", () => {
+          persistUiState();
           if (state.lastCritic) renderCriticLists(state.lastCritic);
           else refreshCritic().catch(showError);
         });

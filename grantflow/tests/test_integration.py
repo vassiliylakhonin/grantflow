@@ -52,6 +52,7 @@ def test_demo_console_page_loads():
     assert "criticContextList" in body
     assert "commentsFilterStatus" in body
     assert "commentsFilterVersionId" in body
+    assert "grantflow_demo_diff_section" in body
 
 
 def test_ready_endpoint():
