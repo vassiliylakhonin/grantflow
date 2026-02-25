@@ -55,10 +55,67 @@ def _add_citation_traceability_section(doc: Document, citations: list[Dict[str, 
             p.add_run(f"Excerpt: {excerpt[:240]}").italic = True
 
 
+def _add_critic_findings_section(doc: Document, critic_findings: list[Dict[str, Any]]) -> None:
+    if not critic_findings:
+        return
+
+    doc.add_heading("Critic Findings", level=1)
+    doc.add_paragraph("Rule-based and/or LLM critic findings captured during review.")
+    for finding in critic_findings:
+        status = finding.get("status") or "open"
+        severity = finding.get("severity") or "unknown"
+        code = finding.get("code") or "FINDING"
+        section = finding.get("section") or "general"
+        title = f"[{status}] [{severity}] {section} · {code}"
+        doc.add_paragraph(title, style="List Bullet")
+        message = str(finding.get("message") or "").strip()
+        if message:
+            doc.add_paragraph(message)
+        fix_hint = str(finding.get("fix_hint") or "").strip()
+        if fix_hint:
+            p = doc.add_paragraph()
+            p.add_run(f"Fix hint: {fix_hint}").italic = True
+        meta_bits = [
+            f"version={finding.get('version_id')}" if finding.get("version_id") else None,
+            f"finding_id={finding.get('finding_id')}" if finding.get("finding_id") else None,
+            f"source={finding.get('source')}" if finding.get("source") else None,
+        ]
+        meta_bits = [m for m in meta_bits if m]
+        if meta_bits:
+            doc.add_paragraph(" · ".join(meta_bits))
+
+
+def _add_review_comments_section(doc: Document, review_comments: list[Dict[str, Any]]) -> None:
+    if not review_comments:
+        return
+
+    doc.add_heading("Review Comments", level=1)
+    doc.add_paragraph("Reviewer notes and resolution workflow comments linked to draft versions/findings.")
+    for comment in review_comments:
+        status = comment.get("status") or "open"
+        section = comment.get("section") or "general"
+        author = comment.get("author") or "reviewer"
+        title = f"[{status}] {section} · {author}"
+        doc.add_paragraph(title, style="List Bullet")
+        message = str(comment.get("message") or "").strip()
+        if message:
+            doc.add_paragraph(message)
+        meta_bits = [
+            f"version={comment.get('version_id')}" if comment.get("version_id") else None,
+            f"linked_finding_id={comment.get('linked_finding_id')}" if comment.get("linked_finding_id") else None,
+            str(comment.get("ts")) if comment.get("ts") else None,
+        ]
+        meta_bits = [m for m in meta_bits if m]
+        if meta_bits:
+            doc.add_paragraph(" · ".join(meta_bits))
+
+
 def build_docx_from_toc(
     toc_draft: Dict[str, Any],
     donor_id: str,
     citations: Optional[List[Dict[str, Any]]] = None,
+    critic_findings: Optional[List[Dict[str, Any]]] = None,
+    review_comments: Optional[List[Dict[str, Any]]] = None,
 ) -> bytes:
     """Конвертирует ToC draft в форматированный .docx."""
     doc = Document()
@@ -94,6 +151,8 @@ def build_docx_from_toc(
                 doc.add_paragraph(f"  Justification: {ind['justification']}", style="Intense Quote")
 
     _add_citation_traceability_section(doc, citations or toc_draft.get("citations") or [])
+    _add_critic_findings_section(doc, critic_findings or [])
+    _add_review_comments_section(doc, review_comments or [])
 
     bio = BytesIO()
     doc.save(bio)
@@ -106,9 +165,17 @@ def save_docx_to_file(
     donor_id: str,
     output_path: str,
     citations: Optional[List[Dict[str, Any]]] = None,
+    critic_findings: Optional[List[Dict[str, Any]]] = None,
+    review_comments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Сохраняет .docx на диск."""
-    content = build_docx_from_toc(toc_draft, donor_id, citations=citations)
+    content = build_docx_from_toc(
+        toc_draft,
+        donor_id,
+        citations=citations,
+        critic_findings=critic_findings,
+        review_comments=review_comments,
+    )
     with open(output_path, "wb") as f:
         f.write(content)
     return output_path

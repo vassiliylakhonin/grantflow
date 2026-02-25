@@ -60,10 +60,67 @@ def _add_citations_sheet(wb: Workbook, citations: list[Dict[str, Any]]) -> None:
     _autosize_columns(ws)
 
 
+def _add_critic_findings_sheet(wb: Workbook, critic_findings: list[Dict[str, Any]]) -> None:
+    if not critic_findings:
+        return
+    ws = wb.create_sheet("Critic Findings")
+    headers = [
+        "Status",
+        "Severity",
+        "Section",
+        "Code",
+        "Message",
+        "Fix Hint",
+        "Version ID",
+        "Finding ID",
+        "Source",
+    ]
+    ws.append(headers)
+    for f in critic_findings:
+        ws.append(
+            [
+                f.get("status", ""),
+                f.get("severity", ""),
+                f.get("section", ""),
+                f.get("code", ""),
+                f.get("message", ""),
+                f.get("fix_hint", ""),
+                f.get("version_id", ""),
+                f.get("finding_id", ""),
+                f.get("source", ""),
+            ]
+        )
+    _autosize_columns(ws)
+
+
+def _add_review_comments_sheet(wb: Workbook, review_comments: list[Dict[str, Any]]) -> None:
+    if not review_comments:
+        return
+    ws = wb.create_sheet("Review Comments")
+    headers = ["Status", "Section", "Author", "Message", "Version ID", "Linked Finding ID", "Timestamp", "Comment ID"]
+    ws.append(headers)
+    for c in review_comments:
+        ws.append(
+            [
+                c.get("status", ""),
+                c.get("section", ""),
+                c.get("author", ""),
+                c.get("message", ""),
+                c.get("version_id", ""),
+                c.get("linked_finding_id", ""),
+                c.get("ts", ""),
+                c.get("comment_id", ""),
+            ]
+        )
+    _autosize_columns(ws)
+
+
 def build_xlsx_from_logframe(
     logframe_draft: Dict[str, Any],
     donor_id: str,
     citations: Optional[List[Dict[str, Any]]] = None,
+    critic_findings: Optional[List[Dict[str, Any]]] = None,
+    review_comments: Optional[List[Dict[str, Any]]] = None,
 ) -> bytes:
     """Конвертирует LogFrame draft в форматированный .xlsx."""
     wb = Workbook()
@@ -99,6 +156,8 @@ def build_xlsx_from_logframe(
 
     _autosize_columns(ws)
     _add_citations_sheet(wb, citations or logframe_draft.get("citations") or [])
+    _add_critic_findings_sheet(wb, critic_findings or [])
+    _add_review_comments_sheet(wb, review_comments or [])
 
     bio = BytesIO()
     wb.save(bio)
@@ -111,9 +170,17 @@ def save_xlsx_to_file(
     donor_id: str,
     output_path: str,
     citations: Optional[List[Dict[str, Any]]] = None,
+    critic_findings: Optional[List[Dict[str, Any]]] = None,
+    review_comments: Optional[List[Dict[str, Any]]] = None,
 ) -> str:
     """Сохраняет .xlsx на диск."""
-    content = build_xlsx_from_logframe(logframe_draft, donor_id, citations=citations)
+    content = build_xlsx_from_logframe(
+        logframe_draft,
+        donor_id,
+        citations=citations,
+        critic_findings=critic_findings,
+        review_comments=review_comments,
+    )
     with open(output_path, "wb") as f:
         f.write(content)
     return output_path

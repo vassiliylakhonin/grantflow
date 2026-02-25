@@ -594,6 +594,11 @@ Current exporters generate:
 - `.xlsx` from LogFrame content
 - ZIP bundle when `format="both"`
 
+Review-ready export metadata (optional):
+
+- `Citation Traceability` is included in `.docx` and the `Citations` sheet in `.xlsx`
+- `Critic Findings` and `Review Comments` are included when provided in `/export` payload (`critic_findings[]`, `review_comments[]`) or available in `payload.state.critic_notes.fatal_flaws`
+
 ## Project Structure
 
 ```text

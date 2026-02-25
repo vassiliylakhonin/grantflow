@@ -202,6 +202,8 @@ class ExportRequest(BaseModel):
     toc_draft: Optional[Dict[str, Any]] = None
     logframe_draft: Optional[Dict[str, Any]] = None
     donor_id: Optional[str] = None
+    review_comments: Optional[list[Dict[str, Any]]] = None
+    critic_findings: Optional[list[Dict[str, Any]]] = None
     format: str = "both"
 
     model_config = ConfigDict(extra="allow")
@@ -217,15 +219,22 @@ class JobCommentCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-def _resolve_export_inputs(req: ExportRequest) -> tuple[dict, dict, str, list[dict[str, Any]]]:
+def _resolve_export_inputs(
+    req: ExportRequest,
+) -> tuple[dict, dict, str, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     payload = req.payload or {}
-    if isinstance(payload.get("state"), dict):
-        payload = payload["state"]
+    payload_root = payload if isinstance(payload, dict) else {}
+    state_payload = payload_root.get("state") if isinstance(payload_root.get("state"), dict) else payload_root
+    payload = state_payload if isinstance(state_payload, dict) else {}
 
     donor_id = req.donor_id or payload.get("donor") or payload.get("donor_id") or "grantflow"
     toc = req.toc_draft or payload.get("toc_draft") or payload.get("toc") or {}
     logframe = req.logframe_draft or payload.get("logframe_draft") or payload.get("mel") or {}
     citations = payload.get("citations") or []
+    critic_notes_raw = payload.get("critic_notes")
+    critic_notes: dict[str, Any] = critic_notes_raw if isinstance(critic_notes_raw, dict) else {}
+    critic_findings = req.critic_findings or critic_notes.get("fatal_flaws") or payload_root.get("critic_findings") or []
+    review_comments = req.review_comments or payload_root.get("review_comments") or payload.get("review_comments") or []
 
     if not isinstance(toc, dict):
         toc = {}
@@ -233,8 +242,14 @@ def _resolve_export_inputs(req: ExportRequest) -> tuple[dict, dict, str, list[di
         logframe = {}
     if not isinstance(citations, list):
         citations = []
+    if not isinstance(critic_findings, list):
+        critic_findings = []
+    if not isinstance(review_comments, list):
+        review_comments = []
     citations = [c for c in citations if isinstance(c, dict)]
-    return toc, logframe, str(donor_id), citations
+    critic_findings = [c for c in critic_findings if isinstance(c, dict)]
+    review_comments = [c for c in review_comments if isinstance(c, dict)]
+    return toc, logframe, str(donor_id), citations, critic_findings, review_comments
 
 
 def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> None:
@@ -1217,7 +1232,7 @@ async def ingest_pdf(
 @app.post("/export")
 def export_artifacts(req: ExportRequest, request: Request):
     require_api_key_if_configured(request)
-    toc_draft, logframe_draft, donor_id, citations = _resolve_export_inputs(req)
+    toc_draft, logframe_draft, donor_id, citations, critic_findings, review_comments = _resolve_export_inputs(req)
     fmt = (req.format or "").lower()
 
     try:
@@ -1225,10 +1240,22 @@ def export_artifacts(req: ExportRequest, request: Request):
         xlsx_bytes: Optional[bytes] = None
 
         if fmt in {"docx", "both"}:
-            docx_bytes = build_docx_from_toc(toc_draft, donor_id, citations=citations)
+            docx_bytes = build_docx_from_toc(
+                toc_draft,
+                donor_id,
+                citations=citations,
+                critic_findings=critic_findings,
+                review_comments=review_comments,
+            )
 
         if fmt in {"xlsx", "both"}:
-            xlsx_bytes = build_xlsx_from_logframe(logframe_draft, donor_id, citations=citations)
+            xlsx_bytes = build_xlsx_from_logframe(
+                logframe_draft,
+                donor_id,
+                citations=citations,
+                critic_findings=critic_findings,
+                review_comments=review_comments,
+            )
 
         if fmt == "docx" and docx_bytes is not None:
             return StreamingResponse(
