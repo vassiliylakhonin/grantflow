@@ -18,6 +18,7 @@ GrantFlow helps NGOs, consultants, and program teams convert structured project 
 - [Donor Coverage](#donor-coverage)
 - [Quick Start](#quick-start)
 - [API Overview](#api-overview)
+- [Demo Console (Optional)](#demo-console-optional)
 - [Human-in-the-Loop Checkpoints (MVP)](#human-in-the-loop-checkpoints-mvp)
 - [RAG / Knowledge Ingestion](#rag--knowledge-ingestion)
 - [Exporters](#exporters)
@@ -258,6 +259,31 @@ Core endpoints:
 - `POST /hitl/approve` - approve/reject checkpoint
 - `POST /ingest` - upload PDF donor guidance into donor namespace (RAG ingestion)
 - `POST /export` - export outputs as `docx`, `xlsx`, or ZIP
+
+## Demo Console (Optional)
+
+GrantFlow includes a built-in operator/demo UI at `GET /demo` for testing the end-to-end workflow in a browser.
+
+### What it supports
+
+- Generate jobs and poll status
+- HITL approve/reject/resume/cancel actions
+- Critic findings review (fatal flaws, rule checks, citation context)
+- Draft versions and diffs (with jump-to-diff shortcuts)
+- Review comments (create, resolve/reopen, list filters)
+- Job events and metrics
+- Portfolio metrics dashboard (filters + click-to-filter counts)
+
+### Run and open
+
+Start the API and open:
+
+```bash
+uvicorn grantflow.api.app:app --reload
+# then open http://127.0.0.1:8000/demo
+```
+
+If API auth is enabled, paste the `X-API-Key` value into the demo toolbar once and all requests will use it.
 
 ### Webhook events (optional)
 
