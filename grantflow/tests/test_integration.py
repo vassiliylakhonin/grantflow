@@ -47,6 +47,7 @@ def test_demo_console_page_loads():
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
     assert "/status/${encodeURIComponent(jobId)}/export-payload" in body
+    assert "/export" in body
     assert "criticSeverityFilter" in body
     assert "criticCitationConfidenceFilter" in body
     assert "Jump to Diff" in body
@@ -55,6 +56,7 @@ def test_demo_console_page_loads():
     assert "conf " in body
     assert "exportPayloadBtn" in body
     assert "copyExportPayloadBtn" in body
+    assert "exportZipFromPayloadBtn" in body
     assert "exportPayloadJson" in body
     assert "commentsFilterStatus" in body
     assert "commentsFilterVersionId" in body

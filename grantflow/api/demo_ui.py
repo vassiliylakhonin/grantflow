@@ -426,6 +426,9 @@ def render_demo_ui_html() -> str:
               <button id="exportPayloadBtn" class="ghost">Load Export Payload</button>
               <button id="copyExportPayloadBtn" class="ghost">Copy Payload JSON</button>
             </div>
+            <div style="margin-top:10px;">
+              <button id="exportZipFromPayloadBtn" class="secondary">Export ZIP from Payload</button>
+            </div>
             <div class="footer-note">
               Review-ready payload for <code>POST /export</code> (<code>state</code> + <code>critic_findings</code> + <code>review_comments</code>).
             </div>
@@ -612,6 +615,7 @@ def render_demo_ui_html() -> str:
         citationsBtn: $("citationsBtn"),
         exportPayloadBtn: $("exportPayloadBtn"),
         copyExportPayloadBtn: $("copyExportPayloadBtn"),
+        exportZipFromPayloadBtn: $("exportZipFromPayloadBtn"),
         eventsBtn: $("eventsBtn"),
         criticBtn: $("criticBtn"),
         portfolioBtn: $("portfolioBtn"),
@@ -1266,6 +1270,56 @@ def render_demo_ui_html() -> str:
         await navigator.clipboard.writeText(text);
       }
 
+      async function exportZipFromPayload() {
+        let currentText = (els.exportPayloadJson?.textContent || "").trim();
+        if (!currentText || currentText === "{}") {
+          await refreshExportPayload();
+          currentText = (els.exportPayloadJson?.textContent || "").trim();
+        }
+        if (!currentText || currentText === "{}") throw new Error("Load export payload first");
+
+        let parsed;
+        try {
+          parsed = JSON.parse(currentText);
+        } catch (err) {
+          throw new Error("Export payload JSON is invalid");
+        }
+        if (!parsed || typeof parsed !== "object" || !parsed.payload) {
+          throw new Error("Export payload response is missing payload");
+        }
+
+        persistBasics();
+        const res = await fetch(`${apiBase()}/export`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers() },
+          body: JSON.stringify({ payload: parsed.payload, format: "both" }),
+        });
+        if (!res.ok) {
+          const ct = res.headers.get("content-type") || "";
+          let errText = "";
+          if (ct.includes("application/json")) {
+            const body = await res.json();
+            errText = JSON.stringify(body, null, 2);
+          } else {
+            errText = await res.text();
+          }
+          throw new Error(errText || `Export failed (${res.status})`);
+        }
+
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          a.download = "grantflow_export.zip";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        } finally {
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        }
+      }
+
       async function approveOrReject(approved) {
         const checkpointId = els.checkpointId.value.trim();
         if (!checkpointId) throw new Error("No checkpoint_id in current status");
@@ -1387,6 +1441,9 @@ def render_demo_ui_html() -> str:
         els.exportPayloadBtn.addEventListener("click", () => refreshExportPayload().catch(showError));
         els.copyExportPayloadBtn.addEventListener("click", () =>
           copyExportPayloadJson().catch((err) => showError(err))
+        );
+        els.exportZipFromPayloadBtn.addEventListener("click", () =>
+          exportZipFromPayload().catch((err) => showError(err))
         );
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
