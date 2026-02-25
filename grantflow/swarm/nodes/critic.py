@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -58,6 +59,52 @@ def _llm_flaws_to_structured(flaws: List[str]) -> List[Dict[str, Any]]:
     return structured
 
 
+def _finding_identity_key(item: Dict[str, Any]) -> tuple[str, str, str, str, str]:
+    return (
+        str(item.get("code") or ""),
+        str(item.get("section") or ""),
+        str(item.get("version_id") or ""),
+        str(item.get("message") or ""),
+        str(item.get("source") or ""),
+    )
+
+
+def _normalize_fatal_flaw_items(
+    items: List[Dict[str, Any]],
+    previous_items: Optional[List[Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
+    previous_by_key: Dict[tuple[str, str, str, str, str], Dict[str, Any]] = {}
+    for old in previous_items or []:
+        if not isinstance(old, dict):
+            continue
+        previous_by_key[_finding_identity_key(old)] = old
+
+    normalized: List[Dict[str, Any]] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        current = dict(item)
+        prior = previous_by_key.get(_finding_identity_key(current))
+        if prior:
+            for key in ("finding_id", "status", "acknowledged_at", "resolved_at"):
+                if prior.get(key) is not None and current.get(key) in (None, ""):
+                    current[key] = prior.get(key)
+
+        if not str(current.get("finding_id") or "").strip():
+            current["finding_id"] = str(uuid.uuid4())
+
+        status = str(current.get("status") or "open").strip().lower()
+        if status not in {"open", "acknowledged", "resolved"}:
+            status = "open"
+        current["status"] = status
+        if status != "acknowledged":
+            current.pop("acknowledged_at", None)
+        if status != "resolved":
+            current.pop("resolved_at", None)
+        normalized.append(current)
+    return normalized
+
+
 def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     """Evaluates the drafted ToC and LogFrame and updates loop-control fields."""
     donor_strategy = state.get("donor_strategy") or state.get("strategy")
@@ -101,9 +148,17 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     score = min(rule_report.score, llm_score) if llm_score is not None else float(rule_report.score)
     threshold = float(getattr(config.graph, "critic_threshold", 8.0) or 8.0)
 
+    previous_notes = state.get("critic_notes") if isinstance(state.get("critic_notes"), dict) else {}
+    previous_fatal_flaws = (
+        [f for f in previous_notes.get("fatal_flaws", []) if isinstance(f, dict)]
+        if isinstance(previous_notes, dict)
+        else []
+    )
+
     fatal_flaw_items: List[Dict[str, Any]] = [_dump_model(item) for item in rule_report.fatal_flaws]
     if evaluation is not None:
         fatal_flaw_items.extend(_llm_flaws_to_structured(list(evaluation.fatal_flaws or [])))
+    fatal_flaw_items = _normalize_fatal_flaw_items(fatal_flaw_items, previous_fatal_flaws)
 
     fatal_flaw_messages = [
         str(item.get("message") or "") for item in fatal_flaw_items if str(item.get("message") or "").strip()

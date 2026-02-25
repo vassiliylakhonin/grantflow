@@ -26,6 +26,7 @@ from grantflow.api.public_views import (
     public_portfolio_metrics_payload,
 )
 from grantflow.api.schemas import (
+    CriticFatalFlawPublicResponse,
     HITLPendingListPublicResponse,
     JobCitationsPublicResponse,
     JobCommentsPublicResponse,
@@ -70,6 +71,7 @@ JOB_STORE = create_job_store_from_env()
 HITLStartAt = Literal["start", "architect", "mel", "critic"]
 TERMINAL_JOB_STATUSES = {"done", "error", "canceled"}
 REVIEW_COMMENT_SECTIONS = {"toc", "logframe", "general"}
+CRITIC_FINDING_STATUSES = {"open", "acknowledged", "resolved"}
 STATUS_WEBHOOK_EVENTS = {
     "running": "job.started",
     "pending_hitl": "job.pending_hitl",
@@ -210,6 +212,7 @@ class JobCommentCreateRequest(BaseModel):
     message: str
     author: Optional[str] = None
     version_id: Optional[str] = None
+    linked_finding_id: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -269,6 +272,141 @@ def _job_draft_version_exists_for_section(job: Dict[str, Any], *, section: str, 
     return False
 
 
+def _normalize_critic_fatal_flaws_for_job(job_id: str) -> Optional[Dict[str, Any]]:
+    job = _get_job(job_id)
+    if not job:
+        return None
+    state = job.get("state")
+    if not isinstance(state, dict):
+        return job
+    critic_notes = state.get("critic_notes")
+    if not isinstance(critic_notes, dict):
+        return job
+    raw_flaws = critic_notes.get("fatal_flaws")
+    if not isinstance(raw_flaws, list):
+        return job
+
+    changed = False
+    normalized: list[Dict[str, Any]] = []
+    for item in raw_flaws:
+        if not isinstance(item, dict):
+            continue
+        current = dict(item)
+        if not str(current.get("finding_id") or "").strip():
+            current["finding_id"] = str(uuid.uuid4())
+            changed = True
+        status = str(current.get("status") or "open").strip().lower()
+        if status not in CRITIC_FINDING_STATUSES:
+            status = "open"
+            changed = True
+        if current.get("status") != status:
+            current["status"] = status
+            changed = True
+        if status != "acknowledged" and "acknowledged_at" in current:
+            current.pop("acknowledged_at", None)
+            changed = True
+        if status != "resolved" and "resolved_at" in current:
+            current.pop("resolved_at", None)
+            changed = True
+        normalized.append(current)
+
+    if not changed:
+        return job
+
+    next_notes = dict(critic_notes)
+    next_notes["fatal_flaws"] = normalized
+    next_state = dict(state)
+    next_state["critic_notes"] = next_notes
+    next_state["critic_fatal_flaws"] = normalized
+    return _update_job(job_id, state=next_state)
+
+
+def _find_critic_fatal_flaw(job: Dict[str, Any], finding_id: str) -> Optional[Dict[str, Any]]:
+    state = job.get("state")
+    if not isinstance(state, dict):
+        return None
+    critic_notes = state.get("critic_notes")
+    if not isinstance(critic_notes, dict):
+        return None
+    raw_flaws = critic_notes.get("fatal_flaws")
+    if not isinstance(raw_flaws, list):
+        return None
+    for item in raw_flaws:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("finding_id") or "") == finding_id:
+            return item
+    return None
+
+
+def _set_critic_fatal_flaw_status(job_id: str, *, finding_id: str, next_status: str) -> Dict[str, Any]:
+    if next_status not in CRITIC_FINDING_STATUSES:
+        raise HTTPException(status_code=400, detail="Unsupported critic finding status")
+
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    state = job.get("state")
+    if not isinstance(state, dict):
+        raise HTTPException(status_code=404, detail="Critic findings not found")
+    critic_notes = state.get("critic_notes")
+    if not isinstance(critic_notes, dict):
+        raise HTTPException(status_code=404, detail="Critic findings not found")
+
+    raw_flaws = critic_notes.get("fatal_flaws")
+    flaws = [f for f in raw_flaws if isinstance(f, dict)] if isinstance(raw_flaws, list) else []
+    if not flaws:
+        raise HTTPException(status_code=404, detail="Critic findings not found")
+
+    changed = False
+    updated_finding: Optional[Dict[str, Any]] = None
+    next_flaws: list[Dict[str, Any]] = []
+    now = _utcnow_iso()
+    for item in flaws:
+        current = dict(item)
+        if str(current.get("finding_id") or "") != finding_id:
+            next_flaws.append(current)
+            continue
+        current_status = str(current.get("status") or "open")
+        if current_status != next_status:
+            current["status"] = next_status
+            current["updated_at"] = now
+            if next_status == "acknowledged":
+                current["acknowledged_at"] = current.get("acknowledged_at") or now
+                current.pop("resolved_at", None)
+            elif next_status == "resolved":
+                current["resolved_at"] = now
+                if not current.get("acknowledged_at"):
+                    current["acknowledged_at"] = now
+            elif next_status == "open":
+                current.pop("acknowledged_at", None)
+                current.pop("resolved_at", None)
+            changed = True
+        updated_finding = current
+        next_flaws.append(current)
+
+    if updated_finding is None:
+        raise HTTPException(status_code=404, detail="Critic finding not found")
+
+    if changed:
+        next_notes = dict(critic_notes)
+        next_notes["fatal_flaws"] = next_flaws
+        next_state = dict(state)
+        next_state["critic_notes"] = next_notes
+        next_state["critic_fatal_flaws"] = next_flaws
+        _update_job(job_id, state=next_state)
+        _record_job_event(
+            job_id,
+            "critic_finding_status_changed",
+            finding_id=finding_id,
+            status=next_status,
+            section=updated_finding.get("section"),
+            severity=updated_finding.get("severity"),
+        )
+
+    return updated_finding
+
+
 def _append_review_comment(
     job_id: str,
     *,
@@ -276,6 +414,7 @@ def _append_review_comment(
     message: str,
     author: Optional[str] = None,
     version_id: Optional[str] = None,
+    linked_finding_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     job = _get_job(job_id)
     if not job:
@@ -294,6 +433,8 @@ def _append_review_comment(
         comment["author"] = author
     if version_id:
         comment["version_id"] = version_id
+    if linked_finding_id:
+        comment["linked_finding_id"] = linked_finding_id
     comments.append(comment)
     _update_job(job_id, review_comments=comments[-500:])
     _record_job_event(
@@ -303,6 +444,7 @@ def _append_review_comment(
         section=section,
         version_id=version_id,
         author=author,
+        linked_finding_id=linked_finding_id,
     )
     return comment
 
@@ -851,10 +993,30 @@ def get_status_metrics(job_id: str, request: Request):
 )
 def get_status_critic(job_id: str, request: Request):
     require_api_key_if_configured(request, for_read=True)
-    job = _get_job(job_id)
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_critic_payload(job_id, job)
+
+
+@app.post(
+    "/status/{job_id}/critic/findings/{finding_id}/ack",
+    response_model=CriticFatalFlawPublicResponse,
+    response_model_exclude_none=True,
+)
+def acknowledge_status_critic_finding(job_id: str, finding_id: str, request: Request):
+    require_api_key_if_configured(request)
+    return _set_critic_fatal_flaw_status(job_id, finding_id=finding_id, next_status="acknowledged")
+
+
+@app.post(
+    "/status/{job_id}/critic/findings/{finding_id}/resolve",
+    response_model=CriticFatalFlawPublicResponse,
+    response_model_exclude_none=True,
+)
+def resolve_status_critic_finding(job_id: str, finding_id: str, request: Request):
+    require_api_key_if_configured(request)
+    return _set_critic_fatal_flaw_status(job_id, finding_id=finding_id, next_status="resolved")
 
 
 @app.get(
@@ -905,8 +1067,19 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
 
     author = (req.author or "").strip() or None
     version_id = (req.version_id or "").strip() or None
+    linked_finding_id = (req.linked_finding_id or "").strip() or None
     if version_id and not _job_draft_version_exists_for_section(job, section=section, version_id=version_id):
         raise HTTPException(status_code=400, detail="Unknown version_id for requested section")
+    if linked_finding_id:
+        normalized_job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+        if not normalized_job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        finding = _find_critic_fatal_flaw(normalized_job, linked_finding_id)
+        if not finding:
+            raise HTTPException(status_code=400, detail="Unknown linked_finding_id")
+        finding_section = str(finding.get("section") or "")
+        if section != "general" and finding_section and section != finding_section:
+            raise HTTPException(status_code=400, detail="linked_finding_id section does not match comment section")
 
     return _append_review_comment(
         job_id,
@@ -914,6 +1087,7 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
         message=message,
         author=author,
         version_id=version_id,
+        linked_finding_id=linked_finding_id,
     )
 
 

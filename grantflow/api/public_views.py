@@ -84,6 +84,28 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
     raw_flaws = critic_notes.get("fatal_flaws")
     fatal_flaws = [sanitize_for_public_response(item) for item in raw_flaws if isinstance(item, dict)] if isinstance(raw_flaws, list) else []
 
+    raw_comments = job.get("review_comments")
+    linked_comment_ids_by_finding: dict[str, list[str]] = {}
+    if isinstance(raw_comments, list):
+        for item in raw_comments:
+            if not isinstance(item, dict):
+                continue
+            finding_id = str(item.get("linked_finding_id") or "").strip()
+            comment_id = str(item.get("comment_id") or "").strip()
+            if not finding_id or not comment_id:
+                continue
+            linked_comment_ids_by_finding.setdefault(finding_id, []).append(comment_id)
+    if linked_comment_ids_by_finding:
+        for flaw in fatal_flaws:
+            if not isinstance(flaw, dict):
+                continue
+            finding_id = str(flaw.get("finding_id") or "").strip()
+            if not finding_id:
+                continue
+            linked = linked_comment_ids_by_finding.get(finding_id) or []
+            if linked:
+                flaw["linked_comment_ids"] = linked
+
     raw_messages = critic_notes.get("fatal_flaw_messages")
     fatal_flaw_messages = [str(item) for item in raw_messages if isinstance(item, (str, int, float))] if isinstance(raw_messages, list) else []
 

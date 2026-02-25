@@ -8,12 +8,16 @@ from grantflow.swarm.versioning import filter_versions
 
 
 class CriticFatalFlaw(BaseModel):
+    finding_id: Optional[str] = Field(default=None, description="Stable finding identifier within a job")
     code: str = Field(description="Stable rule/check code")
     severity: str = Field(description="Severity level: low|medium|high")
     section: str = Field(description="Affected section: toc|logframe|general")
+    status: Optional[str] = Field(default=None, description="open|acknowledged|resolved")
     version_id: Optional[str] = Field(default=None, description="Related draft version id, if available")
     message: str = Field(description="Human-readable issue summary")
     fix_hint: Optional[str] = Field(default=None, description="Suggested fix")
+    acknowledged_at: Optional[str] = Field(default=None, description="Timestamp when acknowledged")
+    resolved_at: Optional[str] = Field(default=None, description="Timestamp when resolved")
     source: str = Field(default="rules", description="rules or llm")
 
 

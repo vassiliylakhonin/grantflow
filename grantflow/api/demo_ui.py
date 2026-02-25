@@ -462,6 +462,15 @@ def render_demo_ui_html() -> str:
                 <input id="commentVersionId" placeholder="toc_v2" />
               </div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label for="linkedFindingId">Linked Finding ID (optional)</label>
+                <input id="linkedFindingId" placeholder="Auto-filled from Critic Findings" />
+              </div>
+              <div style="align-self:end;">
+                <button id="clearLinkedFindingBtn" class="ghost">Clear Linked Finding</button>
+              </div>
+            </div>
             <div style="margin-top:10px;">
               <label for="commentMessage">Comment</label>
               <textarea id="commentMessage" placeholder="Reviewer note for ToC / LogFrame / general workflow issue"></textarea>
@@ -505,6 +514,7 @@ def render_demo_ui_html() -> str:
         ["commentsFilterStatus", "grantflow_demo_comments_filter_status"],
         ["commentsFilterVersionId", "grantflow_demo_comments_filter_version_id"],
         ["selectedCommentId", "grantflow_demo_selected_comment_id"],
+        ["linkedFindingId", "grantflow_demo_linked_finding_id"],
       ];
       const state = {
         pollTimer: null,
@@ -559,6 +569,7 @@ def render_demo_ui_html() -> str:
         commentSection: $("commentSection"),
         commentAuthor: $("commentAuthor"),
         commentVersionId: $("commentVersionId"),
+        linkedFindingId: $("linkedFindingId"),
         commentMessage: $("commentMessage"),
         selectedCommentId: $("selectedCommentId"),
         generateBtn: $("generateBtn"),
@@ -580,6 +591,7 @@ def render_demo_ui_html() -> str:
         addCommentBtn: $("addCommentBtn"),
         resolveCommentBtn: $("resolveCommentBtn"),
         reopenCommentBtn: $("reopenCommentBtn"),
+        clearLinkedFindingBtn: $("clearLinkedFindingBtn"),
         openPendingBtn: $("openPendingBtn"),
       };
 
@@ -630,6 +642,11 @@ def render_demo_ui_html() -> str:
         if (state.lastCritic) renderCriticLists(state.lastCritic);
         if (state.lastCitations) renderCriticContextCitations();
         await Promise.allSettled([refreshPortfolioMetrics(), refreshComments(), refreshDiff()]);
+      }
+
+      function clearLinkedFindingSelection() {
+        els.linkedFindingId.value = "";
+        persistUiState();
       }
 
       function apiBase() {
@@ -815,7 +832,7 @@ def render_demo_ui_html() -> str:
           div.className = "item";
           const titleBits = [`[${c.status || "open"}]`, c.section || "general"];
           if (c.comment_id) titleBits.push(`#${String(c.comment_id).slice(0, 8)}`);
-          const meta = [c.ts, c.author, c.version_id].filter(Boolean).join(" · ");
+          const meta = [c.ts, c.author, c.version_id, c.linked_finding_id ? `finding ${String(c.linked_finding_id).slice(0, 8)}` : null].filter(Boolean).join(" · ");
           div.innerHTML = `
             <div class="title mono">${escapeHtml(titleBits.join(" "))}</div>
             <div class="sub">${escapeHtml(c.message || "")}</div>
@@ -825,6 +842,7 @@ def render_demo_ui_html() -> str:
             els.selectedCommentId.value = c.comment_id || "";
             if (c.section) els.commentSection.value = c.section;
             if (c.version_id) els.commentVersionId.value = c.version_id;
+            els.linkedFindingId.value = c.linked_finding_id || "";
             persistUiState();
           });
           els.commentsList.appendChild(div);
@@ -851,36 +869,64 @@ def render_demo_ui_html() -> str:
             const div = document.createElement("div");
             const flawSeverity = String(flaw.severity || "").toLowerCase();
             div.className = `item${flawSeverity ? ` severity-${flawSeverity}` : ""}`;
-            const titleBits = [flaw.severity || "severity", flaw.section || "section", flaw.code || "FLAW"];
+            const titleBits = [flaw.status || "open", flaw.severity || "severity", flaw.section || "section", flaw.code || "FLAW"];
             const meta = [flaw.version_id, flaw.source].filter(Boolean).join(" · ");
+            const linkedComments = Array.isArray(flaw.linked_comment_ids) ? flaw.linked_comment_ids : [];
             div.innerHTML = `
               <div class="title mono">${escapeHtml(titleBits.join(" · "))}</div>
               <div class="sub">${escapeHtml(flaw.message || "")}</div>
               ${flaw.fix_hint ? `<div class="sub" style="margin-top:6px;">Fix: ${escapeHtml(flaw.fix_hint)}</div>` : ""}
               ${meta ? `<div class="sub" style="margin-top:6px;">${escapeHtml(meta)}</div>` : ""}
+              ${flaw.finding_id ? `<div class="sub" style="margin-top:6px;">finding_id: ${escapeHtml(String(flaw.finding_id).slice(0, 12))}${linkedComments.length ? ` · linked comments: ${escapeHtml(String(linkedComments.length))}` : ""}</div>` : ""}
             `;
-            if (flaw.section === "toc" || flaw.section === "logframe") {
-              const commentBtn = document.createElement("button");
-              commentBtn.className = "ghost";
-              commentBtn.style.marginTop = "8px";
-              commentBtn.style.marginRight = "8px";
-              commentBtn.textContent = "Create Comment";
-              commentBtn.addEventListener("click", (event) => {
-                event.stopPropagation();
-                prefillCommentFromFinding(flaw);
-              });
-              div.appendChild(commentBtn);
+            const actionsRow = document.createElement("div");
+            actionsRow.style.marginTop = "8px";
+            actionsRow.style.display = "flex";
+            actionsRow.style.gap = "8px";
+            actionsRow.style.flexWrap = "wrap";
 
+            if (flaw.finding_id && flaw.status !== "acknowledged" && flaw.status !== "resolved") {
+              const ackBtn = document.createElement("button");
+              ackBtn.className = "ghost";
+              ackBtn.textContent = "Acknowledge";
+              ackBtn.addEventListener("click", (event) => {
+                event.stopPropagation();
+                setFindingStatus(flaw.finding_id, "acknowledged").catch(showError);
+              });
+              actionsRow.appendChild(ackBtn);
+            }
+            if (flaw.finding_id && flaw.status !== "resolved") {
+              const resolveBtn = document.createElement("button");
+              resolveBtn.className = "ghost";
+              resolveBtn.textContent = "Resolve Finding";
+              resolveBtn.addEventListener("click", (event) => {
+                event.stopPropagation();
+                setFindingStatus(flaw.finding_id, "resolved").catch(showError);
+              });
+              actionsRow.appendChild(resolveBtn);
+            }
+
+            const commentBtn = document.createElement("button");
+            commentBtn.className = "ghost";
+            commentBtn.textContent = "Create Comment";
+            commentBtn.addEventListener("click", (event) => {
+              event.stopPropagation();
+              prefillCommentFromFinding(flaw);
+            });
+            actionsRow.appendChild(commentBtn);
+
+            if (flaw.section === "toc" || flaw.section === "logframe") {
               const jumpBtn = document.createElement("button");
               jumpBtn.className = "ghost";
-              jumpBtn.style.marginTop = "8px";
               jumpBtn.textContent = "Jump to Diff";
               jumpBtn.addEventListener("click", (event) => {
                 event.stopPropagation();
                 jumpToDiffForFinding(flaw).catch(showError);
               });
-              div.appendChild(jumpBtn);
+              actionsRow.appendChild(jumpBtn);
             }
+
+            div.appendChild(actionsRow);
             els.criticFlawsList.appendChild(div);
           }
         }
@@ -955,10 +1001,12 @@ def render_demo_ui_html() -> str:
         }
         const versionId = String(flaw?.version_id || "").trim();
         els.commentVersionId.value = versionId;
+        els.linkedFindingId.value = String(flaw?.finding_id || "").trim();
         const code = String(flaw?.code || "FINDING").trim();
         const msg = String(flaw?.message || "").trim();
         const hint = String(flaw?.fix_hint || "").trim();
         els.commentMessage.value = `[${code}] ${msg}${hint ? `\\nFix hint: ${hint}` : ""}`;
+        persistUiState();
         els.commentMessage.focus();
       }
 
@@ -1194,6 +1242,7 @@ def render_demo_ui_html() -> str:
         };
         if (els.commentAuthor.value.trim()) body.author = els.commentAuthor.value.trim();
         if (els.commentVersionId.value.trim()) body.version_id = els.commentVersionId.value.trim();
+        if (els.linkedFindingId.value.trim()) body.linked_finding_id = els.linkedFindingId.value.trim();
         const created = await apiFetch(`/status/${encodeURIComponent(jobId)}/comments`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1204,6 +1253,19 @@ def render_demo_ui_html() -> str:
         persistUiState();
         await refreshComments();
         return created;
+      }
+
+      async function setFindingStatus(findingId, nextStatus) {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        if (!findingId) throw new Error("No finding_id");
+        const action = nextStatus === "acknowledged" ? "ack" : "resolve";
+        const updated = await apiFetch(
+          `/status/${encodeURIComponent(jobId)}/critic/findings/${encodeURIComponent(findingId)}/${action}`,
+          { method: "POST" }
+        );
+        await refreshCritic();
+        return updated;
       }
 
       async function setCommentStatus(nextStatus) {
@@ -1263,6 +1325,7 @@ def render_demo_ui_html() -> str:
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
+        els.clearLinkedFindingBtn.addEventListener("click", clearLinkedFindingSelection);
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
         [els.diffSection, els.fromVersionId, els.toVersionId].forEach((el) => el.addEventListener("change", persistUiState));

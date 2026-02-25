@@ -127,6 +127,7 @@ class ReviewCommentPublicResponse(BaseModel):
     message: str
     author: Optional[str] = None
     version_id: Optional[str] = None
+    linked_finding_id: Optional[str] = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -150,13 +151,18 @@ class CriticRuleCheckPublicResponse(BaseModel):
 
 
 class CriticFatalFlawPublicResponse(BaseModel):
+    finding_id: Optional[str] = None
     code: str
     severity: str
     section: str
+    status: Optional[str] = None
     version_id: Optional[str] = None
     message: str
     fix_hint: Optional[str] = None
     source: Optional[str] = None
+    acknowledged_at: Optional[str] = None
+    resolved_at: Optional[str] = None
+    linked_comment_ids: Optional[list[str]] = None
 
     model_config = ConfigDict(extra="allow")
 

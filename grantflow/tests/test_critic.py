@@ -58,6 +58,10 @@ def test_red_team_critic_uses_rules_without_llm_and_stores_structured_notes():
     notes = out.get("critic_notes") or {}
     assert notes.get("engine") == "rules"
     assert isinstance(notes.get("fatal_flaws"), list)
+    if notes.get("fatal_flaws"):
+        flaw = notes["fatal_flaws"][0]
+        assert flaw.get("finding_id")
+        assert flaw.get("status") in {"open", "acknowledged", "resolved"}
     assert isinstance(notes.get("rule_checks"), list)
     assert "revision_instructions" in notes
     assert out.get("next_step") in {"architect", "end"}

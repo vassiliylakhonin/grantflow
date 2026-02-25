@@ -60,6 +60,9 @@ def test_demo_console_page_loads():
     assert "portfolioDonorCountsList" in body
     assert "Click to filter" in body
     assert "clearFiltersBtn" in body
+    assert "Acknowledge" in body
+    assert "Resolve Finding" in body
+    assert "linkedFindingId" in body
 
 
 def test_ready_endpoint():
@@ -185,10 +188,85 @@ def test_status_critic_endpoint_returns_typed_payload():
         assert "section" in check
     if body["fatal_flaws"]:
         flaw = body["fatal_flaws"][0]
+        assert "finding_id" in flaw and flaw["finding_id"]
+        assert flaw.get("status") in {"open", "acknowledged", "resolved"}
         assert "code" in flaw
         assert "severity" in flaw
         assert "section" in flaw
         assert "message" in flaw
+
+
+def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comments():
+    job_id = "critic-findings-linkage-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "quality_score": 6.5,
+                "critic_score": 6.5,
+                "needs_revision": True,
+                "critic_notes": {
+                    "engine": "rules",
+                    "rule_score": 6.5,
+                    "llm_score": None,
+                    "revision_instructions": "Fix ToC and indicators.",
+                    "fatal_flaws": [
+                        {
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "general",
+                            "message": "Theory of Change draft does not match expected donor schema.",
+                            "fix_hint": "Regenerate ToC with valid structured output.",
+                            "source": "rules",
+                        }
+                    ],
+                    "fatal_flaw_messages": ["Theory of Change draft does not match expected donor schema."],
+                    "rule_checks": [{"code": "TOC_SCHEMA_VALID", "status": "fail", "section": "toc"}],
+                },
+            },
+            "review_comments": [],
+        },
+    )
+
+    critic_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_resp.status_code == 200
+    critic_body = critic_resp.json()
+    assert critic_body["fatal_flaws"]
+    finding = critic_body["fatal_flaws"][0]
+    finding_id = finding["finding_id"]
+
+    ack_resp = client.post(f"/status/{job_id}/critic/findings/{finding_id}/ack")
+    assert ack_resp.status_code == 200
+    ack_body = ack_resp.json()
+    assert ack_body["finding_id"] == finding_id
+    assert ack_body["status"] == "acknowledged"
+    assert ack_body.get("acknowledged_at")
+
+    comment_resp = client.post(
+        f"/status/{job_id}/comments",
+        json={
+            "section": ack_body["section"],
+            "message": "Acknowledged by reviewer; will revise next iteration.",
+            "linked_finding_id": finding_id,
+        },
+    )
+    assert comment_resp.status_code == 200
+    comment_body = comment_resp.json()
+    assert comment_body["linked_finding_id"] == finding_id
+
+    critic_resp_2 = client.get(f"/status/{job_id}/critic")
+    assert critic_resp_2.status_code == 200
+    critic_body_2 = critic_resp_2.json()
+    linked_finding = next(f for f in critic_body_2["fatal_flaws"] if f["finding_id"] == finding_id)
+    assert comment_body["comment_id"] in (linked_finding.get("linked_comment_ids") or [])
+
+    resolve_resp = client.post(f"/status/{job_id}/critic/findings/{finding_id}/resolve")
+    assert resolve_resp.status_code == 200
+    resolve_body = resolve_resp.json()
+    assert resolve_body["finding_id"] == finding_id
+    assert resolve_body["status"] == "resolved"
+    assert resolve_body.get("resolved_at")
 
 
 def test_status_includes_citations_traceability(monkeypatch):
@@ -745,6 +823,28 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
 
     critic_auth = client.get(f"/status/{job_id}/critic", headers={"X-API-Key": "test-secret"})
     assert critic_auth.status_code == 200
+    critic_finding_id = None
+    if critic_auth.json().get("fatal_flaws"):
+        critic_finding_id = critic_auth.json()["fatal_flaws"][0].get("finding_id")
+
+    if critic_finding_id:
+        ack_finding_unauth = client.post(f"/status/{job_id}/critic/findings/{critic_finding_id}/ack")
+        assert ack_finding_unauth.status_code == 401
+
+        ack_finding_auth = client.post(
+            f"/status/{job_id}/critic/findings/{critic_finding_id}/ack",
+            headers={"X-API-Key": "test-secret"},
+        )
+        assert ack_finding_auth.status_code == 200
+
+        resolve_finding_unauth = client.post(f"/status/{job_id}/critic/findings/{critic_finding_id}/resolve")
+        assert resolve_finding_unauth.status_code == 401
+
+        resolve_finding_auth = client.post(
+            f"/status/{job_id}/critic/findings/{critic_finding_id}/resolve",
+            headers={"X-API-Key": "test-secret"},
+        )
+        assert resolve_finding_auth.status_code == 200
 
     comments_unauth = client.get(f"/status/{job_id}/comments")
     assert comments_unauth.status_code == 401
@@ -830,6 +930,15 @@ def test_openapi_declares_api_key_security_scheme():
     status_critic_security = (((spec.get("paths") or {}).get("/status/{job_id}/critic") or {}).get("get") or {}).get(
         "security"
     )
+    status_critic_finding_ack_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/critic/findings/{finding_id}/ack") or {}).get("post") or {})
+    ).get("security")
+    status_critic_finding_resolve_security = (
+        (
+            ((spec.get("paths") or {}).get("/status/{job_id}/critic/findings/{finding_id}/resolve") or {}).get("post")
+            or {}
+        )
+    ).get("security")
     status_comments_get_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}
     ).get("security")
@@ -889,6 +998,35 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_critic_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/critic") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_critic_finding_ack_response_schema = (
+        (
+            (
+                ((spec.get("paths") or {}).get("/status/{job_id}/critic/findings/{finding_id}/ack") or {}).get("post")
+                or {}
+            ).get("responses")
+            or {}
+        )
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_critic_finding_resolve_response_schema = (
+        (
+            (
+                (
+                    ((spec.get("paths") or {}).get("/status/{job_id}/critic/findings/{finding_id}/resolve") or {})
+                    .get("post")
+                    or {}
+                ).get("responses")
+            )
+            or {}
+        )
         .get("200", {})
         .get("content", {})
         .get("application/json", {})
@@ -962,6 +1100,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_events_security == [{"ApiKeyAuth": []}]
     assert status_metrics_security == [{"ApiKeyAuth": []}]
     assert status_critic_security == [{"ApiKeyAuth": []}]
+    assert status_critic_finding_ack_security == [{"ApiKeyAuth": []}]
+    assert status_critic_finding_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_get_security == [{"ApiKeyAuth": []}]
     assert status_comments_post_security == [{"ApiKeyAuth": []}]
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
@@ -974,6 +1114,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
     assert status_metrics_response_schema == {"$ref": "#/components/schemas/JobMetricsPublicResponse"}
     assert status_critic_response_schema == {"$ref": "#/components/schemas/JobCriticPublicResponse"}
+    assert status_critic_finding_ack_response_schema == {"$ref": "#/components/schemas/CriticFatalFlawPublicResponse"}
+    assert status_critic_finding_resolve_response_schema == {"$ref": "#/components/schemas/CriticFatalFlawPublicResponse"}
     assert status_comments_response_schema == {"$ref": "#/components/schemas/JobCommentsPublicResponse"}
     assert status_comments_post_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
