@@ -524,7 +524,7 @@ def _health_diagnostics() -> dict[str, Any]:
     )
 
     vector_backend = "chroma" if getattr(vector_store, "client", None) is not None else "memory"
-    diagnostics = {
+    diagnostics: dict[str, Any] = {
         "job_store": {"mode": job_store_mode},
         "hitl_store": {"mode": hitl_store_mode},
         "auth": {

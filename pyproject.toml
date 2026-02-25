@@ -31,3 +31,12 @@ ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
 "grantflow/tests/*.py" = ["E402"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+follow_imports = "skip"
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+exclude = "(^chroma_db/|^build/|^dist/)"

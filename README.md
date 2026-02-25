@@ -538,6 +538,7 @@ Manual formatting/lint commands (if you prefer running tools directly):
 ruff check grantflow
 isort grantflow
 black grantflow
+mypy grantflow/api grantflow/core/stores.py grantflow/swarm/versioning.py
 ```
 
 Optional environment variables:
