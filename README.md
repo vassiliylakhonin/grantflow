@@ -643,6 +643,8 @@ Example portfolio quality response shape:
   "terminal_job_count": 24,
   "avg_quality_score": 8.4,
   "avg_critic_score": 8.1,
+  "severity_weighted_risk_score": 129,
+  "high_priority_signal_count": 25,
   "critic": {
     "open_findings_total": 9,
     "open_findings_per_job_avg": 0.375,
@@ -660,6 +662,24 @@ Example portfolio quality response shape:
     "rag_low_confidence_citation_rate": 0.053,
     "architect_threshold_hit_rate_avg": 0.72
   },
+  "priority_signal_breakdown": {
+    "high_severity_findings_total": { "count": 3, "weight": 5, "weighted_score": 15 },
+    "open_findings_total": { "count": 9, "weight": 4, "weighted_score": 36 },
+    "needs_revision_job_count": { "count": 6, "weight": 4, "weighted_score": 24 },
+    "rag_low_confidence_citation_count": { "count": 7, "weight": 3, "weighted_score": 21 },
+    "low_confidence_citation_count": { "count": 18, "weight": 1, "weighted_score": 18 }
+  },
+  "donor_weighted_risk_breakdown": {
+    "usaid": {
+      "weighted_score": 96,
+      "high_priority_signal_count": 19,
+      "open_findings_total": 9,
+      "high_severity_findings_total": 3,
+      "needs_revision_job_count": 6,
+      "low_confidence_citation_count": 12,
+      "rag_low_confidence_citation_count": 4
+    }
+  },
   "donor_needs_revision_counts": {
     "usaid": 6
   },
@@ -668,6 +688,8 @@ Example portfolio quality response shape:
   }
 }
 ```
+
+The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards and top-donor weighted-risk lists for quick triage.
 
 ## Human-in-the-Loop Checkpoints (MVP)
 
