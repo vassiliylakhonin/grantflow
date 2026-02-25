@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from pydantic import BaseModel, Field
 
 from grantflow.core.config import config
+from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
 
 
 class RedTeamEvaluation(BaseModel):
@@ -24,24 +25,39 @@ class RedTeamEvaluation(BaseModel):
     )
 
 
-def _fallback_critic(state: Dict[str, Any], reason: str) -> RedTeamEvaluation:
-    toc_ok = bool(state.get("toc_draft"))
-    mel_ok = bool(state.get("logframe_draft") or state.get("mel"))
-    score = 8.5 if toc_ok and mel_ok else 5.5
-    flaws: List[str] = []
-    if not toc_ok:
-        flaws.append("Missing ToC draft")
-    if not mel_ok:
-        flaws.append("Missing MEL/Logframe draft")
-    if not flaws:
-        flaws.append("Minor improvements suggested")
-    return RedTeamEvaluation(
-        score=score,
-        fatal_flaws=flaws,
-        revision_instructions=(
-            f"Fallback critic used ({reason}). Tighten causal logic and make indicators more specific."
-        ),
-    )
+def _dump_model(model: BaseModel) -> Dict[str, Any]:
+    dumper = getattr(model, "model_dump", None)
+    if callable(dumper):
+        return dumper()
+    return model.dict()  # type: ignore[attr-defined]
+
+
+def _llm_flaws_to_structured(flaws: List[str]) -> List[Dict[str, Any]]:
+    structured: List[Dict[str, Any]] = []
+    for idx, text in enumerate(flaws or []):
+        msg = str(text or "").strip()
+        if not msg:
+            continue
+        section = "general"
+        lowered = msg.lower()
+        if any(k in lowered for k in ("indicator", "mel", "logframe")):
+            section = "logframe"
+        elif any(k in lowered for k in ("toc", "objective", "assumption", "causal")):
+            section = "toc"
+        structured.append(
+            _dump_model(
+                CriticFatalFlaw(
+                    code=f"LLM_REVIEW_FLAG_{idx+1}",
+                    severity="medium",
+                    section=section,
+                    version_id=None,
+                    message=msg,
+                    fix_hint="Incorporate this reviewer feedback in the next draft iteration.",
+                    source="llm",
+                )
+            )
+        )
+    return structured
 
 
 def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -50,9 +66,11 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     if not donor_strategy:
         raise ValueError("Critical Error: DonorStrategy not found in state.")
 
-    evaluation: RedTeamEvaluation
+    evaluation: Optional[RedTeamEvaluation] = None
     llm_mode = bool(state.get("llm_mode", False))
-    critic_engine = "fallback"
+    critic_engine = "rules"
+    llm_reason: Optional[str] = None
+    rule_report = evaluate_rule_based_critic(state)
 
     if llm_mode and os.getenv("OPENAI_API_KEY"):
         try:
@@ -73,32 +91,54 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
             evaluation = evaluator_llm.invoke(
                 [SystemMessage(content=system_prompt), HumanMessage(content=human_prompt)]
             )
-            critic_engine = f"llm:{config.llm.reasoning_model}"
+            critic_engine = f"rules+llm:{config.llm.reasoning_model}"
         except Exception as exc:
-            evaluation = _fallback_critic(state, f"LLM unavailable: {exc}")
+            llm_reason = f"LLM unavailable: {exc}"
     else:
-        reason = "llm_mode=false" if not llm_mode else "OPENAI_API_KEY missing"
-        evaluation = _fallback_critic(state, reason)
+        llm_reason = "llm_mode=false" if not llm_mode else "OPENAI_API_KEY missing"
 
     iteration = int(state.get("iteration", state.get("iteration_count", 0)) or 0) + 1
     max_iters = int(state.get("max_iterations", 3) or 3)
-    score = float(evaluation.score)
+    llm_score = float(evaluation.score) if evaluation is not None else None
+    score = min(rule_report.score, llm_score) if llm_score is not None else float(rule_report.score)
     threshold = float(getattr(config.graph, "critic_threshold", 8.0) or 8.0)
+
+    fatal_flaw_items: List[Dict[str, Any]] = [_dump_model(item) for item in rule_report.fatal_flaws]
+    if evaluation is not None:
+        fatal_flaw_items.extend(_llm_flaws_to_structured(list(evaluation.fatal_flaws or [])))
+
+    fatal_flaw_messages = [str(item.get("message") or "") for item in fatal_flaw_items if str(item.get("message") or "").strip()]
+    if not fatal_flaw_messages:
+        fatal_flaw_messages = ["Minor improvements suggested"]
+
+    revision_parts = [rule_report.revision_instructions]
+    if evaluation is not None and str(evaluation.revision_instructions or "").strip():
+        revision_parts.append(f"LLM reviewer notes: {evaluation.revision_instructions}")
+    elif llm_reason and llm_mode:
+        revision_parts.append(f"LLM critic fallback reason: {llm_reason}")
+    revision_instructions = "\n\n".join([p for p in revision_parts if p])
 
     notes = {
         "score": score,
-        "fatal_flaws": evaluation.fatal_flaws,
-        "revision_instructions": evaluation.revision_instructions,
+        "fatal_flaws": fatal_flaw_items,
+        "fatal_flaw_messages": fatal_flaw_messages,
+        "revision_instructions": revision_instructions,
+        "rule_checks": [_dump_model(c) for c in rule_report.checks],
+        "rule_score": float(rule_report.score),
+        "llm_score": llm_score,
         "engine": critic_engine,
     }
+    if llm_reason:
+        notes["llm_reason"] = llm_reason
 
     state["quality_score"] = score
     state["critic_score"] = score
     state["critic_notes"] = notes
+    state["critic_fatal_flaws"] = fatal_flaw_items
 
     history = list(state.get("critic_feedback_history") or [])
     history.append(
-        f"Iteration {iteration}: score={score}; flaws={evaluation.fatal_flaws}; instructions={evaluation.revision_instructions}"
+        f"Iteration {iteration}: score={score}; flaws={fatal_flaw_messages}; instructions={revision_instructions}"
     )
     state["critic_feedback_history"] = history
 

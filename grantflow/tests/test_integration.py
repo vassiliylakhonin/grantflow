@@ -101,6 +101,15 @@ def test_generate_basic_async_job_flow():
     assert state["toc_draft"]
     assert state["logframe_draft"]
     assert state["quality_score"] >= 0
+    critic_notes = state.get("critic_notes") or {}
+    assert isinstance(critic_notes.get("fatal_flaws"), list)
+    if critic_notes.get("fatal_flaws"):
+        flaw = critic_notes["fatal_flaws"][0]
+        assert isinstance(flaw, dict)
+        assert "code" in flaw
+        assert "section" in flaw
+        assert "message" in flaw
+    assert isinstance(critic_notes.get("rule_checks"), list)
 
 
 def test_status_redacts_internal_strategy_objects():
@@ -1057,7 +1066,8 @@ def test_hitl_pause_resume_flow():
     state = status["state"]
     assert state["toc_draft"]
     assert state["logframe_draft"]
-    assert (state.get("critic_notes") or {}).get("engine") in {"fallback", None} or str((state.get("critic_notes") or {}).get("engine", "")).startswith("llm:")
+    engine = str((state.get("critic_notes") or {}).get("engine", "") or "")
+    assert engine in {"rules", ""} or engine.startswith("rules+llm:")
 
 
 def test_generate_rejects_old_contract_shape():
