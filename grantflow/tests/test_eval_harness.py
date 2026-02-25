@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+
+from grantflow.eval import harness
 from grantflow.eval.harness import evaluate_expectations, format_eval_suite_report, load_eval_cases, run_eval_suite
 
 
@@ -41,3 +44,21 @@ def test_eval_harness_expectations_detect_regression():
     assert passed is False
     failing = [c for c in checks if not c["passed"]]
     assert any(c["name"] == "min_quality_score" for c in failing)
+
+
+def test_eval_harness_cli_writes_json_and_text_reports(tmp_path):
+    json_out = tmp_path / "eval-report.json"
+    text_out = tmp_path / "eval-report.txt"
+
+    exit_code = harness.main(["--json-out", str(json_out), "--text-out", str(text_out)])
+    assert exit_code == 0
+    assert json_out.exists()
+    assert text_out.exists()
+
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["all_passed"] is True
+    assert payload["case_count"] >= 1
+
+    text = text_out.read_text(encoding="utf-8")
+    assert "GrantFlow evaluation suite" in text
+    assert "PASS" in text

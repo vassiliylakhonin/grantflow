@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from copy import deepcopy
@@ -205,11 +206,35 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run GrantFlow baseline evaluation fixtures.")
+    parser.add_argument(
+        "--json-out",
+        type=Path,
+        default=None,
+        help="Write raw suite results as JSON to this path.",
+    )
+    parser.add_argument(
+        "--text-out",
+        type=Path,
+        default=None,
+        help="Write formatted text summary to this path.",
+    )
+    return parser.parse_args(argv)
+
+
 def main(argv: list[str] | None = None) -> int:
-    _ = argv or sys.argv[1:]
+    args = _parse_args(argv or sys.argv[1:])
     cases = load_eval_cases()
     suite = run_eval_suite(cases)
-    print(format_eval_suite_report(suite))
+    text_report = format_eval_suite_report(suite)
+    print(text_report)
+    if args.json_out is not None:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(json.dumps(suite, indent=2, sort_keys=True), encoding="utf-8")
+    if args.text_out is not None:
+        args.text_out.parent.mkdir(parents=True, exist_ok=True)
+        args.text_out.write_text(text_report + "\n", encoding="utf-8")
     return 0 if suite.get("all_passed") else 1
 
 

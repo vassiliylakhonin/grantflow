@@ -74,7 +74,18 @@ jobs:
 
       - name: Run evaluation harness (baseline quality suite)
         run: |
-          python -m grantflow.eval.harness
+          mkdir -p eval-artifacts
+          python -m grantflow.eval.harness \
+            --text-out eval-artifacts/eval-report.txt \
+            --json-out eval-artifacts/eval-report.json
+
+      - name: Upload evaluation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-report
+          path: eval-artifacts/
+          if-no-files-found: error
 
   test:
     runs-on: ubuntu-latest
