@@ -2,6 +2,8 @@
 
 Use this template after each manual/nightly `LLM Eval` workflow run to compare `llm-eval-report` artifacts against the deterministic baseline `eval` artifacts.
 
+Note: the default `LLM Eval` workflow runs in exploratory mode (`--skip-expectations`), so `PASS/FAIL` counts are not the primary signal. Focus on metric deltas and donor breakdown.
+
 ## 1) Run Summary
 
 - **Date / Run ID**: `<example: 22395096012>`

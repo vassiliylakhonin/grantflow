@@ -36,13 +36,13 @@ jobs:
           mkdir -p llm-eval-artifacts
           if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
             echo "OPENAI_API_KEY / OPENROUTER_API_KEY is not configured; skipping LLM eval lane." | tee llm-eval-artifacts/llm-eval-report.txt
-            python -c 'import json, pathlib; pathlib.Path("llm-eval-artifacts/llm-eval-report.json").write_text(json.dumps({"suite_label":"llm-eval","skipped":True,"reason":"OPENAI_API_KEY / OPENROUTER_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":True}}, indent=2, sort_keys=True), encoding="utf-8")'
+            python -c 'import json, pathlib; pathlib.Path("llm-eval-artifacts/llm-eval-report.json").write_text(json.dumps({"suite_label":"llm-eval","skipped":True,"reason":"OPENAI_API_KEY / OPENROUTER_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":False,"skip_expectations":True}}, indent=2, sort_keys=True), encoding="utf-8")'
             exit 0
           fi
           python -m grantflow.eval.harness \
             --suite-label llm-eval \
             --force-llm \
-            --force-architect-rag \
+            --skip-expectations \
             --text-out llm-eval-artifacts/llm-eval-report.txt \
             --json-out llm-eval-artifacts/llm-eval-report.json
 

@@ -113,10 +113,19 @@ def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_pa
 
     captured: dict[str, object] = {}
 
-    def fake_run_eval_suite(cases, *, suite_label=None):
+    def fake_run_eval_suite(cases, *, suite_label=None, skip_expectations=False):
         captured["cases"] = cases
         captured["suite_label"] = suite_label
-        return {"suite_label": suite_label or "baseline", "case_count": 1, "passed_count": 1, "failed_count": 0, "all_passed": True, "cases": []}
+        captured["skip_expectations"] = skip_expectations
+        return {
+            "suite_label": suite_label or "baseline",
+            "expectations_skipped": bool(skip_expectations),
+            "case_count": 1,
+            "passed_count": 1,
+            "failed_count": 0,
+            "all_passed": True,
+            "cases": [],
+        }
 
     monkeypatch.setattr(harness, "run_eval_suite", fake_run_eval_suite)
 
@@ -125,7 +134,7 @@ def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_pa
             "--suite-label",
             "llm-eval",
             "--force-llm",
-            "--force-architect-rag",
+            "--skip-expectations",
             "--json-out",
             str(json_out),
             "--text-out",
@@ -136,14 +145,39 @@ def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_pa
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert payload["suite_label"] == "llm-eval"
     assert payload["runtime_overrides"]["force_llm"] is True
-    assert payload["runtime_overrides"]["force_architect_rag"] is True
+    assert payload["runtime_overrides"]["force_architect_rag"] is False
+    assert payload["runtime_overrides"]["skip_expectations"] is True
+    assert payload["expectations_skipped"] is True
     assert captured["suite_label"] == "llm-eval"
+    assert captured["skip_expectations"] is True
     captured_cases = captured["cases"]
     assert isinstance(captured_cases, list) and captured_cases
     assert captured_cases[0]["llm_mode"] is True
-    assert captured_cases[0]["architect_rag_enabled"] is True
+    assert captured_cases[0]["architect_rag_enabled"] is False
     text = text_out.read_text(encoding="utf-8")
     assert "Suite: llm-eval" in text
+    assert "Expectations: skipped" in text
+
+
+def test_run_eval_case_can_skip_expectations(monkeypatch):
+    monkeypatch.setattr(
+        harness,
+        "grantflow_graph",
+        type("StubGraph", (), {"invoke": staticmethod(lambda state: {"toc_validation": {"valid": True}, "toc_draft": {}, "logframe_draft": {}})})(),
+    )
+    result = harness.run_eval_case(
+        {
+            "case_id": "c1",
+            "donor_id": "usaid",
+            "input_context": {"project": "P", "country": "C"},
+            "expectations": {"min_quality_score": 99},
+        },
+        skip_expectations=True,
+    )
+    assert result["passed"] is True
+    assert result["expectations_skipped"] is True
+    assert result["checks"] == []
+    assert result["failed_checks"] == []
 
 
 def test_eval_harness_regression_comparison_flags_only_degradations():

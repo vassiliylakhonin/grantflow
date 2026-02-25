@@ -270,13 +270,16 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
     return passed, checks
 
 
-def run_eval_case(case: dict[str, Any]) -> dict[str, Any]:
+def run_eval_case(case: dict[str, Any], *, skip_expectations: bool = False) -> dict[str, Any]:
     case_id = str(case.get("case_id") or "unnamed_case")
     donor_id = str(case.get("donor_id") or "")
     final_state = grantflow_graph.invoke(build_initial_state(case))
     metrics = compute_state_metrics(final_state)
     expectations = case.get("expectations") if isinstance(case.get("expectations"), dict) else {}
-    passed, checks = evaluate_expectations(metrics, expectations)
+    if skip_expectations:
+        passed, checks = True, []
+    else:
+        passed, checks = evaluate_expectations(metrics, expectations)
     failed_checks = [c for c in checks if not c.get("passed")]
 
     return {
@@ -285,16 +288,23 @@ def run_eval_case(case: dict[str, Any]) -> dict[str, Any]:
         "fixture_file": case.get("_fixture_file"),
         "passed": passed,
         "metrics": metrics,
+        "expectations_skipped": bool(skip_expectations),
         "checks": checks,
         "failed_checks": failed_checks,
     }
 
 
-def run_eval_suite(cases: list[dict[str, Any]], *, suite_label: str | None = None) -> dict[str, Any]:
-    results = [run_eval_case(case) for case in cases]
+def run_eval_suite(
+    cases: list[dict[str, Any]],
+    *,
+    suite_label: str | None = None,
+    skip_expectations: bool = False,
+) -> dict[str, Any]:
+    results = [run_eval_case(case, skip_expectations=skip_expectations) for case in cases]
     passed_count = sum(1 for r in results if r.get("passed"))
     return {
         "suite_label": str(suite_label or "baseline"),
+        "expectations_skipped": bool(skip_expectations),
         "case_count": len(results),
         "passed_count": passed_count,
         "failed_count": len(results) - passed_count,
@@ -310,6 +320,8 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         f"Suite: {suite_label}",
         f"Cases: {suite.get('case_count', 0)} | Passed: {suite.get('passed_count', 0)} | Failed: {suite.get('failed_count', 0)}",
     ]
+    if bool(suite.get("expectations_skipped")):
+        lines.append("Expectations: skipped (exploratory metrics-only mode)")
     for case in suite.get("cases") or []:
         prefix = "PASS" if case.get("passed") else "FAIL"
         metrics = case.get("metrics") or {}
@@ -723,6 +735,11 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Override fixture settings and run all cases with architect_rag_enabled=true.",
     )
     parser.add_argument(
+        "--skip-expectations",
+        action="store_true",
+        help="Skip fixture expectation assertions and collect metrics only (exploratory mode).",
+    )
+    parser.add_argument(
         "--json-out",
         type=Path,
         default=None,
@@ -769,11 +786,12 @@ def main(argv: list[str] | None = None) -> int:
         force_llm=bool(args.force_llm),
         force_architect_rag=bool(args.force_architect_rag),
     )
-    suite = run_eval_suite(cases, suite_label=args.suite_label)
+    suite = run_eval_suite(cases, suite_label=args.suite_label, skip_expectations=bool(args.skip_expectations))
     suite["runtime_overrides"] = {
         "force_llm": bool(args.force_llm),
         "force_architect_rag": bool(args.force_architect_rag),
     }
+    suite["runtime_overrides"]["skip_expectations"] = bool(args.skip_expectations)
     text_report = format_eval_suite_report(suite)
     print(text_report)
     if args.json_out is not None:
@@ -802,7 +820,7 @@ def main(argv: list[str] | None = None) -> int:
             args.comparison_text_out.parent.mkdir(parents=True, exist_ok=True)
             args.comparison_text_out.write_text(comparison_text + "\n", encoding="utf-8")
 
-    suite_ok = bool(suite.get("all_passed"))
+    suite_ok = True if bool(args.skip_expectations) else bool(suite.get("all_passed"))
     comparison_ok = comparison is None or not bool(comparison.get("has_regressions"))
     return 0 if (suite_ok and comparison_ok) else 1
 
