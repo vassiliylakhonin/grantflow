@@ -49,6 +49,9 @@ def test_demo_console_page_loads():
     assert "generatePresetSelect" in body
     assert "applyPresetBtn" in body
     assert "clearPresetContextBtn" in body
+    assert "generatePresetReadinessPill" in body
+    assert "generatePresetReadinessText" in body
+    assert "RAG Readiness (for selected preset)" in body
     assert "inputContextJson" in body
     assert "usaid_gov_ai_kazakhstan" in body
     assert "worldbank_public_sector_uzbekistan" in body

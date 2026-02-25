@@ -221,6 +221,12 @@ def render_demo_ui_html() -> str:
                 <button id="clearPresetContextBtn" class="ghost">Clear Extra Context</button>
               </div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>RAG Readiness (for selected preset)</label>
+                <div id="generatePresetReadinessPill" class="pill"><span class="dot"></span><span id="generatePresetReadinessText">No preset selected</span></div>
+              </div>
+            </div>
             <div style="margin-top:10px;">
               <label for="inputContextJson">Extra Input Context JSON (optional)</label>
               <textarea id="inputContextJson" class="json" placeholder='{"problem":"...", "target_population":"...", "key_activities":["..."]}'></textarea>
@@ -869,6 +875,8 @@ def render_demo_ui_html() -> str:
         downloadIngestInventoryCsvBtn: $("downloadIngestInventoryCsvBtn"),
         ingestResultJson: $("ingestResultJson"),
         ingestBtn: $("ingestBtn"),
+        generatePresetReadinessPill: $("generatePresetReadinessPill"),
+        generatePresetReadinessText: $("generatePresetReadinessText"),
         diffSection: $("diffSection"),
         fromVersionId: $("fromVersionId"),
         toVersionId: $("toVersionId"),
@@ -958,6 +966,7 @@ def render_demo_ui_html() -> str:
         }
         renderIngestPresetGuidance();
         renderIngestChecklistProgress();
+        renderGeneratePresetReadiness();
         if (String(els.ingestPresetSelect.value || "").trim()) {
           syncIngestChecklistFromServer().catch(() => {});
         }
@@ -1002,6 +1011,7 @@ def render_demo_ui_html() -> str:
         persistUiState();
         if (state.lastCritic) renderCriticLists(state.lastCritic);
         if (state.lastCitations) renderCriticContextCitations();
+        renderGeneratePresetReadiness();
         await Promise.allSettled([refreshPortfolioBundle(), refreshComments(), refreshDiff()]);
       }
 
@@ -1036,6 +1046,42 @@ def render_demo_ui_html() -> str:
         return { presetKey: key, preset, items };
       }
 
+      function renderGeneratePresetReadiness() {
+        if (!els.generatePresetReadinessPill || !els.generatePresetReadinessText) return;
+        const presetKey = String(els.generatePresetSelect.value || "").trim();
+        if (!presetKey) {
+          els.generatePresetReadinessPill.className = "pill";
+          els.generatePresetReadinessText.textContent = "No preset selected";
+          return;
+        }
+        const preset = INGEST_PRESETS[presetKey];
+        const items = Array.isArray(preset?.checklist_items) ? preset.checklist_items : [];
+        if (!items.length) {
+          els.generatePresetReadinessPill.className = "pill";
+          els.generatePresetReadinessText.textContent = "No checklist for preset";
+          return;
+        }
+        const progressRoot = state.ingestChecklistProgress && typeof state.ingestChecklistProgress === "object"
+          ? state.ingestChecklistProgress
+          : {};
+        const presetProgress =
+          progressRoot[presetKey] && typeof progressRoot[presetKey] === "object" ? progressRoot[presetKey] : {};
+        let completed = 0;
+        for (const item of items) {
+          const itemId = String(item?.id || "").trim();
+          const row = itemId && presetProgress[itemId] && typeof presetProgress[itemId] === "object"
+            ? presetProgress[itemId]
+            : null;
+          if (row && row.completed) completed += 1;
+        }
+        const total = items.length;
+        let cls = "pill";
+        if (total && completed === total) cls += " status-done";
+        else if (completed > 0) cls += " status-running";
+        els.generatePresetReadinessPill.className = cls;
+        els.generatePresetReadinessText.textContent = `${completed}/${total} doc families loaded`;
+      }
+
       function renderIngestChecklistProgress() {
         const { presetKey, items } = getIngestChecklistItemsForSelectedPreset();
         els.ingestChecklistProgressList.innerHTML = "";
@@ -1053,6 +1099,7 @@ def render_demo_ui_html() -> str:
           div.className = "item";
           div.innerHTML = `<div class="title">No checklist active</div><div class="sub">Select an ingest preset to track recommended document coverage.</div>`;
           els.ingestChecklistProgressList.appendChild(div);
+          renderGeneratePresetReadiness();
           return;
         }
 
@@ -1084,6 +1131,7 @@ def render_demo_ui_html() -> str:
         else if (completed > 0 || ratio > 0) cls += " status-running";
         els.ingestChecklistSummary.className = cls;
         els.ingestChecklistSummary.innerHTML = `<span class="dot"></span><span>${completed}/${total} complete</span>`;
+        renderGeneratePresetReadiness();
       }
 
       function resetIngestChecklistProgressForCurrentPreset() {
@@ -1166,6 +1214,7 @@ def render_demo_ui_html() -> str:
           applyIngestPreset();
         }
         persistUiState();
+        renderGeneratePresetReadiness();
       }
 
       function clearGeneratePresetContext() {
@@ -2457,7 +2506,10 @@ def render_demo_ui_html() -> str:
           persistUiState();
           renderCriticContextCitations();
         });
-        els.generatePresetSelect.addEventListener("change", persistUiState);
+        els.generatePresetSelect.addEventListener("change", () => {
+          persistUiState();
+          renderGeneratePresetReadiness();
+        });
         els.inputContextJson.addEventListener("change", persistUiState);
         els.ingestPresetSelect.addEventListener("change", () => {
           persistUiState();
