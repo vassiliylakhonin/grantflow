@@ -55,6 +55,8 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_diff_section" in body
     assert "portfolioBtn" in body
     assert "portfolioMetricsCards" in body
+    assert "portfolioStatusCountsList" in body
+    assert "portfolioDonorCountsList" in body
 
 
 def test_ready_endpoint():

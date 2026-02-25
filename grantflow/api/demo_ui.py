@@ -308,6 +308,16 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Total Resumes</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Avg TTFD</div><div class="value mono">-</div></div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Portfolio Status Counts</label>
+                <div class="list" id="portfolioStatusCountsList"></div>
+              </div>
+              <div>
+                <label>Top Donors</label>
+                <div class="list" id="portfolioDonorCountsList"></div>
+              </div>
+            </div>
             <div style="margin-top:10px;">
               <pre id="portfolioMetricsJson">{}</pre>
             </div>
@@ -532,6 +542,8 @@ def render_demo_ui_html() -> str:
         commentsList: $("commentsList"),
         metricsCards: $("metricsCards"),
         portfolioMetricsCards: $("portfolioMetricsCards"),
+        portfolioStatusCountsList: $("portfolioStatusCountsList"),
+        portfolioDonorCountsList: $("portfolioDonorCountsList"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
         portfolioDonorFilter: $("portfolioDonorFilter"),
@@ -674,6 +686,31 @@ def render_demo_ui_html() -> str:
         [...els.portfolioMetricsCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
+      }
+
+      function renderKeyValueList(container, mapping, emptyLabel, topN = 8) {
+        container.innerHTML = "";
+        if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        const entries = Object.entries(mapping)
+          .map(([k, v]) => [String(k), Number(v || 0)])
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .slice(0, topN);
+        if (entries.length === 0) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        for (const [key, value] of entries) {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(key)}</div>
+            <div class="sub">count: ${escapeHtml(String(value))}</div>
+          `;
+          container.appendChild(div);
+        }
       }
 
       function renderCitations(list) {
@@ -1037,6 +1074,8 @@ def render_demo_ui_html() -> str:
         const q = params.toString() ? `?${params.toString()}` : "";
         const body = await apiFetch(`/portfolio/metrics${q}`);
         renderPortfolioMetricsCards(body);
+        renderKeyValueList(els.portfolioStatusCountsList, body.status_counts, "No status counts yet.");
+        renderKeyValueList(els.portfolioDonorCountsList, body.donor_counts, "No donor counts yet.");
         setJson(els.portfolioMetricsJson, body);
         return body;
       }
