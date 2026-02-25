@@ -200,6 +200,34 @@ def public_ingest_recent_payload(
     }
 
 
+def public_ingest_inventory_payload(
+    rows: list[Dict[str, Any]],
+    *,
+    donor_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    safe_rows = [sanitize_for_public_response(item) for item in rows if isinstance(item, dict)]
+    doc_family_counts: Dict[str, int] = {}
+    total_uploads = 0
+    for row in safe_rows:
+        doc_family = str(row.get("doc_family") or "").strip()
+        count = row.get("count")
+        try:
+            count_int = int(count)
+        except (TypeError, ValueError):
+            count_int = 0
+        if not doc_family or count_int <= 0:
+            continue
+        doc_family_counts[doc_family] = count_int
+        total_uploads += count_int
+    return {
+        "donor_id": donor_id,
+        "total_uploads": total_uploads,
+        "family_count": len(doc_family_counts),
+        "doc_family_counts": doc_family_counts,
+        "doc_families": safe_rows,
+    }
+
+
 def _public_versions_from_state(state: Any) -> list[Dict[str, Any]]:
     if not isinstance(state, dict):
         return []

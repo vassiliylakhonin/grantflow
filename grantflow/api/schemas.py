@@ -384,3 +384,25 @@ class IngestRecentListPublicResponse(BaseModel):
     records: list[IngestRecentRecordPublicResponse]
 
     model_config = ConfigDict(extra="allow")
+
+
+class IngestInventoryDocFamilyPublicResponse(BaseModel):
+    donor_id: str
+    doc_family: str
+    count: int
+    latest_ts: Optional[str] = None
+    latest_filename: Optional[str] = None
+    latest_event_id: Optional[str] = None
+    latest_source_type: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class IngestInventoryPublicResponse(BaseModel):
+    donor_id: Optional[str] = None
+    total_uploads: int
+    family_count: int
+    doc_family_counts: Dict[str, int]
+    doc_families: list[IngestInventoryDocFamilyPublicResponse]
+
+    model_config = ConfigDict(extra="allow")

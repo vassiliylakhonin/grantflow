@@ -144,6 +144,13 @@ def test_sqlite_ingest_audit_store_roundtrip_and_filtering(tmp_path):
     assert len(all_rows) == 2
     assert [row["event_id"] for row in all_rows] == ["evt-3", "evt-2"]
 
+    inventory = store.inventory(donor_id="usaid")
+    assert len(inventory) == 2
+    by_family = {row["doc_family"]: row for row in inventory}
+    assert by_family["country_context"]["count"] == 1
+    assert by_family["country_context"]["latest_filename"] == "kz-context.pdf"
+    assert by_family["donor_policy"]["count"] == 1
+
 
 def test_sqlite_stores_initialize_pragmas_and_schema_meta(monkeypatch, tmp_path):
     db_path = tmp_path / "grantflow_state.db"

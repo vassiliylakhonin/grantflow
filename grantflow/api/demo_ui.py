@@ -1093,9 +1093,9 @@ def render_demo_ui_html() -> str:
         }
         const donorId = String(els.ingestDonorId.value || preset.donor_id || "").trim();
         if (!donorId) throw new Error("Missing donor_id for ingest checklist sync");
-        const query = new URLSearchParams({ donor_id: donorId, limit: "200" });
-        const body = await apiFetch(`/ingest/recent?${query.toString()}`);
-        const records = Array.isArray(body?.records) ? body.records : [];
+        const query = new URLSearchParams({ donor_id: donorId });
+        const body = await apiFetch(`/ingest/inventory?${query.toString()}`);
+        const familyRows = Array.isArray(body?.doc_families) ? body.doc_families : [];
 
         if (!state.ingestChecklistProgress || typeof state.ingestChecklistProgress !== "object") {
           state.ingestChecklistProgress = {};
@@ -1107,17 +1107,16 @@ def render_demo_ui_html() -> str:
         state.ingestChecklistProgress[presetKey] = bucket;
 
         const allowedIds = new Set(items.map((it) => String(it?.id || "").trim()).filter(Boolean));
-        for (const rec of records) {
+        for (const rec of familyRows) {
           if (!rec || typeof rec !== "object") continue;
           const recDonor = String(rec.donor_id || "").trim().toLowerCase();
-          if (recDonor !== donorId.toLowerCase()) continue;
-          const metadata = rec.metadata && typeof rec.metadata === "object" ? rec.metadata : {};
-          const docFamily = String(metadata.doc_family || "").trim();
+          if (recDonor && recDonor !== donorId.toLowerCase()) continue;
+          const docFamily = String(rec.doc_family || "").trim();
           if (!docFamily || !allowedIds.has(docFamily)) continue;
           bucket[docFamily] = {
             completed: true,
-            filename: String(rec.filename || bucket[docFamily]?.filename || ""),
-            ts: String(rec.ts || bucket[docFamily]?.ts || ""),
+            filename: String(rec.latest_filename || bucket[docFamily]?.filename || ""),
+            ts: String(rec.latest_ts || bucket[docFamily]?.ts || ""),
             donor_id: donorId,
             source: "server",
           };

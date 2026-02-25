@@ -203,6 +203,46 @@ class InMemoryIngestAuditStore:
         with self._lock:
             self._rows.clear()
 
+    def inventory(self, donor_id: Optional[str] = None) -> list[Dict[str, Any]]:
+        donor_filter = str(donor_id or "").strip().lower()
+        with self._lock:
+            rows = list(self._rows)
+
+        grouped: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            row_donor = str(row.get("donor_id") or "").strip()
+            if donor_filter and row_donor.lower() != donor_filter:
+                continue
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            doc_family = str((metadata or {}).get("doc_family") or "").strip()
+            if not doc_family:
+                continue
+            key = f"{row_donor.lower()}::{doc_family}"
+            ts = str(row.get("ts") or "")
+            current = grouped.get(key)
+            if current is None:
+                grouped[key] = {
+                    "donor_id": row_donor,
+                    "doc_family": doc_family,
+                    "count": 1,
+                    "latest_ts": ts,
+                    "latest_filename": str(row.get("filename") or ""),
+                    "latest_event_id": str(row.get("event_id") or ""),
+                    "latest_source_type": str((metadata or {}).get("source_type") or ""),
+                }
+                continue
+            current["count"] = int(current.get("count") or 0) + 1
+            if ts >= str(current.get("latest_ts") or ""):
+                current["latest_ts"] = ts
+                current["latest_filename"] = str(row.get("filename") or "")
+                current["latest_event_id"] = str(row.get("event_id") or "")
+                current["latest_source_type"] = str((metadata or {}).get("source_type") or "")
+
+        return sorted(
+            grouped.values(),
+            key=lambda item: (str(item.get("donor_id") or ""), -int(item.get("count") or 0), str(item.get("doc_family") or "")),
+        )
+
 
 class SQLiteJobStore:
     SCHEMA_COMPONENT = "jobs"
@@ -379,6 +419,49 @@ class SQLiteIngestAuditStore:
         with self._write_lock:
             with self._connect() as conn:
                 conn.execute("DELETE FROM ingest_audit_events")
+
+    def inventory(self, donor_id: Optional[str] = None) -> list[Dict[str, Any]]:
+        donor_filter = str(donor_id or "").strip()
+        query = (
+            "SELECT event_id, ts, donor_id, filename, metadata_json "
+            "FROM ingest_audit_events "
+        )
+        params: list[Any] = []
+        if donor_filter:
+            query += "WHERE lower(donor_id) = lower(?) "
+            params.append(donor_filter)
+        query += "ORDER BY ts DESC, created_at DESC"
+        with self._connect() as conn:
+            rows = conn.execute(query, tuple(params)).fetchall()
+
+        grouped: Dict[str, Dict[str, Any]] = {}
+        for row in rows:
+            row_donor = str(row["donor_id"] or "").strip()
+            metadata = storage_json_loads(row["metadata_json"])
+            metadata = metadata if isinstance(metadata, dict) else {}
+            doc_family = str(metadata.get("doc_family") or "").strip()
+            if not doc_family:
+                continue
+            key = f"{row_donor.lower()}::{doc_family}"
+            ts = str(row["ts"] or "")
+            current = grouped.get(key)
+            if current is None:
+                grouped[key] = {
+                    "donor_id": row_donor,
+                    "doc_family": doc_family,
+                    "count": 1,
+                    "latest_ts": ts,
+                    "latest_filename": str(row["filename"] or ""),
+                    "latest_event_id": str(row["event_id"] or ""),
+                    "latest_source_type": str(metadata.get("source_type") or ""),
+                }
+                continue
+            current["count"] = int(current.get("count") or 0) + 1
+
+        return sorted(
+            grouped.values(),
+            key=lambda item: (str(item.get("donor_id") or ""), -int(item.get("count") or 0), str(item.get("doc_family") or "")),
+        )
 
 
 def create_job_store_from_env() -> InMemoryJobStore | SQLiteJobStore:

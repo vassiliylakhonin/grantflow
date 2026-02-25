@@ -26,6 +26,7 @@ from grantflow.api.public_views import (
     public_job_quality_payload,
     public_job_payload,
     public_job_versions_payload,
+    public_ingest_inventory_payload,
     public_ingest_recent_payload,
     public_portfolio_quality_csv_text,
     public_portfolio_quality_payload,
@@ -35,6 +36,7 @@ from grantflow.api.public_views import (
 from grantflow.api.schemas import (
     CriticFatalFlawPublicResponse,
     HITLPendingListPublicResponse,
+    IngestInventoryPublicResponse,
     IngestRecentListPublicResponse,
     JobCitationsPublicResponse,
     JobCommentsPublicResponse,
@@ -170,6 +172,38 @@ def _record_ingest_event(
 
 def _list_ingest_events(*, donor_id: Optional[str] = None, limit: int = 50) -> list[Dict[str, Any]]:
     return INGEST_AUDIT_STORE.list_recent(donor_id=donor_id, limit=limit)
+
+
+def _ingest_inventory(*, donor_id: Optional[str] = None) -> list[Dict[str, Any]]:
+    inventory_fn = getattr(INGEST_AUDIT_STORE, "inventory", None)
+    if callable(inventory_fn):
+        rows = inventory_fn(donor_id=donor_id)
+        return rows if isinstance(rows, list) else []
+    # Fallback for older store implementations.
+    rows = _list_ingest_events(donor_id=donor_id, limit=200)
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        raw_metadata = row.get("metadata")
+        metadata: Dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
+        doc_family = str((metadata or {}).get("doc_family") or "").strip()
+        donor = str(row.get("donor_id") or "").strip()
+        if not doc_family:
+            continue
+        key = f"{donor.lower()}::{doc_family}"
+        current = grouped.get(key)
+        if current is None:
+            grouped[key] = {
+                "donor_id": donor,
+                "doc_family": doc_family,
+                "count": 1,
+                "latest_ts": row.get("ts"),
+                "latest_filename": row.get("filename"),
+                "latest_event_id": row.get("event_id"),
+                "latest_source_type": metadata.get("source_type"),
+            }
+        else:
+            current["count"] = int(current.get("count") or 0) + 1
+    return list(grouped.values())
 
 
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
@@ -1351,6 +1385,16 @@ def list_recent_ingests(
     require_api_key_if_configured(request, for_read=True)
     rows = _list_ingest_events(donor_id=donor_id, limit=limit)
     return public_ingest_recent_payload(rows, donor_id=(donor_id or None))
+
+
+@app.get("/ingest/inventory", response_model=IngestInventoryPublicResponse, response_model_exclude_none=True)
+def get_ingest_inventory(
+    request: Request,
+    donor_id: Optional[str] = Query(default=None),
+):
+    require_api_key_if_configured(request, for_read=True)
+    rows = _ingest_inventory(donor_id=donor_id)
+    return public_ingest_inventory_payload(rows, donor_id=(donor_id or None))
 
 
 @app.post("/ingest")
