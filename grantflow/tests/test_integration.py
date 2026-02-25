@@ -46,6 +46,8 @@ def test_demo_console_page_loads():
     assert "GrantFlow Demo Console" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
+    assert "criticSeverityFilter" in body
+    assert "Jump to Diff" in body
 
 
 def test_ready_endpoint():

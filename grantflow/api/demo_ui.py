@@ -125,6 +125,9 @@ def render_demo_ui_html() -> str:
     .item {
       border: 1px solid var(--line); background: rgba(255,255,255,.78); border-radius: 12px; padding: 10px;
     }
+    .item.severity-high { border-left: 4px solid var(--bad); }
+    .item.severity-medium { border-left: 4px solid var(--warn); }
+    .item.severity-low { border-left: 4px solid var(--good); }
     .item .title { font-weight: 600; margin-bottom: 4px; }
     .item .sub { color: var(--muted); font-size: .82rem; }
     .footer-note { color: var(--muted); font-size: .8rem; margin-top: 8px; }
@@ -267,7 +270,7 @@ def render_demo_ui_html() -> str:
         <div class="card">
           <h2>Critic Findings</h2>
           <div class="body">
-            <div class="row">
+            <div class="row3">
               <button id="criticBtn" class="ghost">Load Critic</button>
               <div>
                 <label for="criticSectionFilter">Filter Section</label>
@@ -276,6 +279,15 @@ def render_demo_ui_html() -> str:
                   <option value="toc">toc</option>
                   <option value="logframe">logframe</option>
                   <option value="general">general</option>
+                </select>
+              </div>
+              <div>
+                <label for="criticSeverityFilter">Filter Severity</label>
+                <select id="criticSeverityFilter">
+                  <option value="">all</option>
+                  <option value="high">high</option>
+                  <option value="medium">medium</option>
+                  <option value="low">low</option>
                 </select>
               </div>
             </div>
@@ -395,6 +407,7 @@ def render_demo_ui_html() -> str:
       const state = {
         pollTimer: null,
         polling: false,
+        lastCritic: null,
       };
 
       const els = {
@@ -428,6 +441,7 @@ def render_demo_ui_html() -> str:
         commentsList: $("commentsList"),
         metricsCards: $("metricsCards"),
         criticSectionFilter: $("criticSectionFilter"),
+        criticSeverityFilter: $("criticSeverityFilter"),
         commentSection: $("commentSection"),
         commentAuthor: $("commentAuthor"),
         commentVersionId: $("commentVersionId"),
@@ -619,9 +633,14 @@ def render_demo_ui_html() -> str:
 
       function renderCriticLists(body) {
         const section = (els.criticSectionFilter.value || "").trim();
+        const severity = (els.criticSeverityFilter.value || "").trim();
         const flaws = Array.isArray(body?.fatal_flaws) ? body.fatal_flaws : [];
         const checks = Array.isArray(body?.rule_checks) ? body.rule_checks : [];
-        const filteredFlaws = section ? flaws.filter((f) => String(f.section || "") === section) : flaws;
+        const filteredFlaws = flaws.filter((f) => {
+          if (section && String(f.section || "") !== section) return false;
+          if (severity && String(f.severity || "") !== severity) return false;
+          return true;
+        });
         const filteredChecks = section ? checks.filter((c) => String(c.section || "") === section) : checks;
 
         els.criticFlawsList.innerHTML = "";
@@ -630,7 +649,8 @@ def render_demo_ui_html() -> str:
         } else {
           for (const flaw of filteredFlaws) {
             const div = document.createElement("div");
-            div.className = "item";
+            const flawSeverity = String(flaw.severity || "").toLowerCase();
+            div.className = `item${flawSeverity ? ` severity-${flawSeverity}` : ""}`;
             const titleBits = [flaw.severity || "severity", flaw.section || "section", flaw.code || "FLAW"];
             const meta = [flaw.version_id, flaw.source].filter(Boolean).join(" · ");
             div.innerHTML = `
@@ -639,6 +659,17 @@ def render_demo_ui_html() -> str:
               ${flaw.fix_hint ? `<div class="sub" style="margin-top:6px;">Fix: ${escapeHtml(flaw.fix_hint)}</div>` : ""}
               ${meta ? `<div class="sub" style="margin-top:6px;">${escapeHtml(meta)}</div>` : ""}
             `;
+            if (flaw.section === "toc" || flaw.section === "logframe") {
+              const jumpBtn = document.createElement("button");
+              jumpBtn.className = "ghost";
+              jumpBtn.style.marginTop = "8px";
+              jumpBtn.textContent = "Jump to Diff";
+              jumpBtn.addEventListener("click", (event) => {
+                event.stopPropagation();
+                jumpToDiffForFinding(flaw).catch(showError);
+              });
+              div.appendChild(jumpBtn);
+            }
             els.criticFlawsList.appendChild(div);
           }
         }
@@ -657,6 +688,19 @@ def render_demo_ui_html() -> str:
           `;
           els.criticChecksList.appendChild(div);
         }
+      }
+
+      async function jumpToDiffForFinding(flaw) {
+        const section = String(flaw?.section || "").trim();
+        if (section === "toc" || section === "logframe") {
+          els.diffSection.value = section;
+        }
+        const versionId = String(flaw?.version_id || "").trim();
+        if (versionId) {
+          els.toVersionId.value = versionId;
+          if (els.fromVersionId.value.trim() === versionId) els.fromVersionId.value = "";
+        }
+        await refreshDiff();
       }
 
       function escapeHtml(s) {
@@ -746,6 +790,7 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) return;
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/critic`);
+        state.lastCritic = body;
         renderCriticLists(body);
         setJson(els.criticJson, body);
         return body;
@@ -895,7 +940,14 @@ def render_demo_ui_html() -> str:
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
-        els.criticSectionFilter.addEventListener("change", () => refreshCritic().catch(showError));
+        els.criticSectionFilter.addEventListener("change", () => {
+          if (state.lastCritic) renderCriticLists(state.lastCritic);
+          else refreshCritic().catch(showError);
+        });
+        els.criticSeverityFilter.addEventListener("change", () => {
+          if (state.lastCritic) renderCriticLists(state.lastCritic);
+          else refreshCritic().catch(showError);
+        });
       }
 
       initDefaults();
