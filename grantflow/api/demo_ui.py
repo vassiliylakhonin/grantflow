@@ -268,6 +268,53 @@ def render_demo_ui_html() -> str:
         </div>
 
         <div class="card">
+          <h2>Portfolio Metrics</h2>
+          <div class="body">
+            <div class="row3">
+              <div>
+                <label for="portfolioDonorFilter">Donor Filter</label>
+                <input id="portfolioDonorFilter" placeholder="usaid" />
+              </div>
+              <div>
+                <label for="portfolioStatusFilter">Status Filter</label>
+                <select id="portfolioStatusFilter">
+                  <option value="">all</option>
+                  <option value="accepted">accepted</option>
+                  <option value="running">running</option>
+                  <option value="pending_hitl">pending_hitl</option>
+                  <option value="done">done</option>
+                  <option value="error">error</option>
+                  <option value="canceled">canceled</option>
+                </select>
+              </div>
+              <div>
+                <label for="portfolioHitlFilter">HITL Filter</label>
+                <select id="portfolioHitlFilter">
+                  <option value="">all</option>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <button id="portfolioBtn" class="ghost">Load Portfolio Metrics</button>
+              <div class="sub" style="align-self:center;">Aggregates across jobs in current store.</div>
+            </div>
+            <div class="kpis" id="portfolioMetricsCards" style="margin-top:10px;">
+              <div class="kpi"><div class="label">Jobs</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Terminal Jobs</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">HITL Jobs</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Total Pauses</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Total Resumes</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Avg TTFD</div><div class="value mono">-</div></div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="portfolioMetricsJson">{}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
           <h2>Critic Findings</h2>
           <div class="body">
             <div class="row3">
@@ -437,6 +484,9 @@ def render_demo_ui_html() -> str:
         ["toVersionId", "grantflow_demo_to_version_id"],
         ["criticSectionFilter", "grantflow_demo_critic_section"],
         ["criticSeverityFilter", "grantflow_demo_critic_severity"],
+        ["portfolioDonorFilter", "grantflow_demo_portfolio_donor"],
+        ["portfolioStatusFilter", "grantflow_demo_portfolio_status"],
+        ["portfolioHitlFilter", "grantflow_demo_portfolio_hitl"],
         ["commentsFilterSection", "grantflow_demo_comments_filter_section"],
         ["commentsFilterStatus", "grantflow_demo_comments_filter_status"],
         ["commentsFilterVersionId", "grantflow_demo_comments_filter_version_id"],
@@ -470,6 +520,7 @@ def render_demo_ui_html() -> str:
         statusPillText: $("statusPillText"),
         statusJson: $("statusJson"),
         metricsJson: $("metricsJson"),
+        portfolioMetricsJson: $("portfolioMetricsJson"),
         criticJson: $("criticJson"),
         diffPre: $("diffPre"),
         versionsList: $("versionsList"),
@@ -480,8 +531,12 @@ def render_demo_ui_html() -> str:
         criticContextList: $("criticContextList"),
         commentsList: $("commentsList"),
         metricsCards: $("metricsCards"),
+        portfolioMetricsCards: $("portfolioMetricsCards"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
+        portfolioDonorFilter: $("portfolioDonorFilter"),
+        portfolioStatusFilter: $("portfolioStatusFilter"),
+        portfolioHitlFilter: $("portfolioHitlFilter"),
         commentsFilterSection: $("commentsFilterSection"),
         commentsFilterStatus: $("commentsFilterStatus"),
         commentsFilterVersionId: $("commentsFilterVersionId"),
@@ -502,6 +557,7 @@ def render_demo_ui_html() -> str:
         citationsBtn: $("citationsBtn"),
         eventsBtn: $("eventsBtn"),
         criticBtn: $("criticBtn"),
+        portfolioBtn: $("portfolioBtn"),
         commentsBtn: $("commentsBtn"),
         addCommentBtn: $("addCommentBtn"),
         resolveCommentBtn: $("resolveCommentBtn"),
@@ -602,6 +658,20 @@ def render_demo_ui_html() -> str:
           String(metrics.terminal_status ?? metrics.status ?? "-"),
         ];
         [...els.metricsCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
+          node.textContent = values[i] ?? "-";
+        });
+      }
+
+      function renderPortfolioMetricsCards(metrics) {
+        const values = [
+          String(metrics.job_count ?? "-"),
+          String(metrics.terminal_job_count ?? "-"),
+          String(metrics.hitl_job_count ?? "-"),
+          String(metrics.total_pause_count ?? "-"),
+          String(metrics.total_resume_count ?? "-"),
+          fmtSec(metrics.avg_time_to_first_draft_seconds),
+        ];
+        [...els.portfolioMetricsCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
       }
@@ -958,6 +1028,19 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshPortfolioMetrics() {
+        persistUiState();
+        const params = new URLSearchParams();
+        if (els.portfolioDonorFilter.value.trim()) params.set("donor_id", els.portfolioDonorFilter.value.trim());
+        if (els.portfolioStatusFilter.value) params.set("status", els.portfolioStatusFilter.value);
+        if (els.portfolioHitlFilter.value) params.set("hitl_enabled", els.portfolioHitlFilter.value);
+        const q = params.toString() ? `?${params.toString()}` : "";
+        const body = await apiFetch(`/portfolio/metrics${q}`);
+        renderPortfolioMetricsCards(body);
+        setJson(els.portfolioMetricsJson, body);
+        return body;
+      }
+
       async function refreshAll() {
         const jobId = currentJobId();
         if (!jobId) {
@@ -966,6 +1049,7 @@ def render_demo_ui_html() -> str:
         await refreshStatus();
         await Promise.allSettled([
           refreshMetrics(),
+          refreshPortfolioMetrics(),
           refreshCritic(),
           refreshCitations(),
           refreshVersions(),
@@ -1080,6 +1164,7 @@ def render_demo_ui_html() -> str:
         els.citationsBtn.addEventListener("click", () => refreshCitations().catch(showError));
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
+        els.portfolioBtn.addEventListener("click", () => refreshPortfolioMetrics().catch(showError));
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
@@ -1087,6 +1172,16 @@ def render_demo_ui_html() -> str:
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
         [els.diffSection, els.fromVersionId, els.toVersionId].forEach((el) => el.addEventListener("change", persistUiState));
+        [els.portfolioStatusFilter, els.portfolioHitlFilter].forEach((el) =>
+          el.addEventListener("change", () => {
+            persistUiState();
+            refreshPortfolioMetrics().catch(showError);
+          })
+        );
+        els.portfolioDonorFilter.addEventListener("change", () => {
+          persistUiState();
+          refreshPortfolioMetrics().catch(showError);
+        });
         [els.commentsFilterSection, els.commentsFilterStatus].forEach((el) =>
           el.addEventListener("change", () => {
             persistUiState();
