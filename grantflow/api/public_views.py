@@ -831,6 +831,14 @@ def public_portfolio_quality_csv_text(payload: Dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def public_portfolio_metrics_csv_text(payload: Dict[str, Any]) -> str:
+    rows = _flatten_value_rows(payload)
+    lines = ["field,value"]
+    for field, value in rows:
+        lines.append(f"{_csv_escape(field)},{_csv_escape(value)}")
+    return "\n".join(lines) + "\n"
+
+
 def public_checkpoint_payload(checkpoint: Dict[str, Any]) -> Dict[str, Any]:
     public_checkpoint: Dict[str, Any] = {}
     for key, value in checkpoint.items():

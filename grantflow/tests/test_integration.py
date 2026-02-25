@@ -1097,6 +1097,42 @@ def test_portfolio_quality_export_endpoint_supports_json_and_gzip():
     assert parsed["filters"]["donor_id"] == "usaid"
 
 
+def test_portfolio_metrics_export_endpoint_supports_csv_json_and_gzip():
+    csv_resp = client.get("/portfolio/metrics/export", params={"donor_id": "usaid", "status": "done", "format": "csv"})
+    assert csv_resp.status_code == 200
+    assert csv_resp.headers["content-type"].startswith("text/csv")
+    csv_disposition = csv_resp.headers.get("content-disposition", "")
+    assert "grantflow_portfolio_metrics_usaid_done.csv" in csv_disposition
+    csv_text = csv_resp.text
+    assert csv_text.startswith("field,value\n")
+    assert "filters.donor_id,usaid" in csv_text
+    assert "filters.status,done" in csv_text
+    assert "avg_time_to_terminal_seconds," in csv_text
+
+    json_resp = client.get("/portfolio/metrics/export", params={"donor_id": "usaid", "format": "json"})
+    assert json_resp.status_code == 200
+    assert json_resp.headers["content-type"].startswith("application/json")
+    json_disposition = json_resp.headers.get("content-disposition", "")
+    assert "grantflow_portfolio_metrics_usaid.json" in json_disposition
+    payload = json_resp.json()
+    assert "job_count" in payload
+    assert payload["filters"]["donor_id"] == "usaid"
+
+    csv_gzip_resp = client.get("/portfolio/metrics/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"})
+    assert csv_gzip_resp.status_code == 200
+    assert csv_gzip_resp.headers["content-type"].startswith("application/gzip")
+    assert "grantflow_portfolio_metrics_usaid.csv.gz" in (csv_gzip_resp.headers.get("content-disposition") or "")
+    csv_gzip_text = gzip.decompress(csv_gzip_resp.content).decode("utf-8")
+    assert "field,value\n" in csv_gzip_text
+
+    json_gzip_resp = client.get("/portfolio/metrics/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"})
+    assert json_gzip_resp.status_code == 200
+    assert json_gzip_resp.headers["content-type"].startswith("application/gzip")
+    assert "grantflow_portfolio_metrics_usaid.json.gz" in (json_gzip_resp.headers.get("content-disposition") or "")
+    json_gzip_payload = json.loads(gzip.decompress(json_gzip_resp.content).decode("utf-8"))
+    assert json_gzip_payload["filters"]["donor_id"] == "usaid"
+
+
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
 
@@ -1252,6 +1288,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     portfolio_metrics_auth = client.get("/portfolio/metrics", headers={"X-API-Key": "test-secret"})
     assert portfolio_metrics_auth.status_code == 200
 
+    portfolio_metrics_export_unauth = client.get("/portfolio/metrics/export")
+    assert portfolio_metrics_export_unauth.status_code == 401
+
+    portfolio_metrics_export_auth = client.get("/portfolio/metrics/export", headers={"X-API-Key": "test-secret"})
+    assert portfolio_metrics_export_auth.status_code == 200
+
     portfolio_quality_unauth = client.get("/portfolio/quality")
     assert portfolio_quality_unauth.status_code == 401
 
@@ -1333,6 +1375,9 @@ def test_openapi_declares_api_key_security_scheme():
     ).get("security")
     portfolio_metrics_security = (((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get(
         "security"
+    )
+    portfolio_metrics_export_security = (
+        (((spec.get("paths") or {}).get("/portfolio/metrics/export") or {}).get("get") or {}).get("security")
     )
     portfolio_quality_security = (((spec.get("paths") or {}).get("/portfolio/quality") or {}).get("get") or {}).get(
         "security"
@@ -1516,6 +1561,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_reopen_security == [{"ApiKeyAuth": []}]
     assert portfolio_metrics_security == [{"ApiKeyAuth": []}]
+    assert portfolio_metrics_export_security == [{"ApiKeyAuth": []}]
     assert portfolio_quality_security == [{"ApiKeyAuth": []}]
     assert portfolio_quality_export_security == [{"ApiKeyAuth": []}]
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}

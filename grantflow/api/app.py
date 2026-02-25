@@ -29,6 +29,7 @@ from grantflow.api.public_views import (
     public_portfolio_quality_csv_text,
     public_portfolio_quality_payload,
     public_portfolio_metrics_payload,
+    public_portfolio_metrics_csv_text,
 )
 from grantflow.api.schemas import (
     CriticFatalFlawPublicResponse,
@@ -779,6 +780,57 @@ def get_portfolio_metrics(
         donor_id=(donor_id or None),
         status=(status or None),
         hitl_enabled=hitl_enabled,
+    )
+
+
+@app.get("/portfolio/metrics/export")
+def export_portfolio_metrics(
+    request: Request,
+    donor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    hitl_enabled: Optional[bool] = Query(default=None),
+    format: Literal["csv", "json"] = Query(default="csv"),
+    gzip_enabled: bool = Query(default=False, alias="gzip"),
+):
+    require_api_key_if_configured(request, for_read=True)
+    jobs = _list_jobs()
+    payload = public_portfolio_metrics_payload(
+        jobs,
+        donor_id=(donor_id or None),
+        status=(status or None),
+        hitl_enabled=hitl_enabled,
+    )
+
+    filename_parts = ["grantflow_portfolio_metrics"]
+    if donor_id:
+        filename_parts.append(donor_id)
+    if status:
+        filename_parts.append(status)
+    if hitl_enabled is not None:
+        filename_parts.append(f"hitl_{str(hitl_enabled).lower()}")
+
+    if format == "csv":
+        body_text = public_portfolio_metrics_csv_text(payload)
+        media_type = "text/csv; charset=utf-8"
+        extension = "csv"
+    elif format == "json":
+        body_text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+        media_type = "application/json"
+        extension = "json"
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported export format")
+
+    body_bytes = body_text.encode("utf-8")
+    if gzip_enabled:
+        body_bytes = gzip.compress(body_bytes)
+        extension = f"{extension}.gz"
+        media_type = "application/gzip"
+
+    filename = "_".join(filename_parts) + f".{extension}"
+    return StreamingResponse(
+        io.BytesIO(body_bytes),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

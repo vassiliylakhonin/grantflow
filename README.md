@@ -259,6 +259,7 @@ Core endpoints:
 - `GET /status/{job_id}/metrics` - retrieve derived workflow/ROI metrics from the job timeline
 - `GET /status/{job_id}/quality` - retrieve a typed quality summary (critic + citations + architect policy metadata)
 - `GET /portfolio/metrics` - retrieve aggregated ROI/ops metrics across jobs (with filters)
+- `GET /portfolio/metrics/export` - export the aggregated portfolio metrics snapshot (`csv` or `json`, optional `gzip=true`)
 - `GET /portfolio/quality` - retrieve aggregated quality/critic/citation portfolio signals (with filters)
 - `GET /portfolio/quality/export` - export the aggregated portfolio quality snapshot (`csv` or `json`, optional `gzip=true`)
 - `POST /resume/{job_id}` - resume a HITL-paused job
@@ -539,6 +540,19 @@ Get aggregated portfolio quality summary (optional filters):
 ```bash
 curl -s http://127.0.0.1:8000/portfolio/quality
 curl -s "http://127.0.0.1:8000/portfolio/quality?donor_id=usaid&status=done&hitl_enabled=true"
+```
+
+Export aggregated portfolio metrics snapshot (CSV / JSON / GZip):
+
+```bash
+curl -s "http://127.0.0.1:8000/portfolio/metrics/export?donor_id=usaid&status=done&format=csv" \
+  -o portfolio_metrics.csv
+
+curl -s "http://127.0.0.1:8000/portfolio/metrics/export?donor_id=usaid&format=json" \
+  -o portfolio_metrics.json
+
+curl -s "http://127.0.0.1:8000/portfolio/metrics/export?donor_id=usaid&status=done&format=csv&gzip=true" \
+  -o portfolio_metrics.csv.gz
 ```
 
 Export aggregated portfolio quality snapshot (CSV):
