@@ -1,0 +1,146 @@
+[
+  {
+    "case_id": "usaid_water_kenya",
+    "donor_id": "usaid",
+    "input_context": {
+      "project": "Water Sanitation",
+      "country": "Kenya"
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 8.0,
+      "min_critic_score": 8.0,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 0,
+      "max_high_severity_fatal_flaws": 0,
+      "max_errors": 0
+    }
+  },
+  {
+    "case_id": "eu_youth_employment_jordan",
+    "donor_id": "eu",
+    "input_context": {
+      "project": "Youth Employment and SME Skills",
+      "country": "Jordan"
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 8.0,
+      "min_critic_score": 8.0,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 0,
+      "max_high_severity_fatal_flaws": 0,
+      "max_errors": 0
+    }
+  },
+  {
+    "case_id": "giz_sme_resilience_ukraine",
+    "donor_id": "giz",
+    "input_context": {
+      "project": "SME Resilience and Local Jobs",
+      "country": "Ukraine"
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 8.0,
+      "min_critic_score": 8.0,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 0,
+      "max_high_severity_fatal_flaws": 0,
+      "max_errors": 0
+    }
+  },
+  {
+    "case_id": "worldbank_health_kenya",
+    "donor_id": "worldbank",
+    "input_context": {
+      "project": "Health Systems Strengthening",
+      "country": "Kenya"
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 8.0,
+      "min_critic_score": 8.0,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 0,
+      "max_high_severity_fatal_flaws": 0,
+      "max_errors": 0
+    }
+  },
+  {
+    "case_id": "state_department_media_georgia",
+    "donor_id": "state_department",
+    "input_context": {
+      "project": "Independent Media Resilience",
+      "country": "Georgia"
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 8.0,
+      "min_critic_score": 8.0,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 0,
+      "max_high_severity_fatal_flaws": 0,
+      "max_errors": 0
+    }
+  },
+  {
+    "case_id": "generic_un_agencies_education_nepal",
+    "donor_id": "un_agencies",
+    "input_context": {
+      "project": "Inclusive Education Recovery",
+      "country": "Nepal"
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 8.0,
+      "min_critic_score": 8.0,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 0,
+      "max_high_severity_fatal_flaws": 0,
+      "max_errors": 0
+    }
+  }
+]

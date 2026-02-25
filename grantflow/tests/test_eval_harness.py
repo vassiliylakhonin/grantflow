@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+from grantflow.eval.harness import evaluate_expectations, format_eval_suite_report, load_eval_cases, run_eval_suite
+
+
+def test_eval_harness_baseline_cases_pass():
+    cases = load_eval_cases()
+    assert cases, "Expected bundled eval fixtures"
+
+    suite = run_eval_suite(cases)
+    assert suite["case_count"] == len(cases)
+    assert suite["all_passed"], format_eval_suite_report(suite)
+
+
+def test_eval_harness_expectations_detect_regression():
+    metrics = {
+        "toc_schema_valid": True,
+        "needs_revision": False,
+        "quality_score": 8.5,
+        "critic_score": 8.0,
+        "citations_total": 3,
+        "architect_citation_count": 2,
+        "mel_citation_count": 1,
+        "draft_version_count": 2,
+        "fatal_flaw_count": 0,
+        "high_severity_fatal_flaw_count": 0,
+        "error_count": 0,
+        "has_toc_draft": True,
+        "has_logframe_draft": True,
+    }
+    passed, checks = evaluate_expectations(
+        metrics,
+        {
+            "toc_schema_valid": True,
+            "min_quality_score": 9.0,
+            "max_fatal_flaws": 0,
+            "require_toc_draft": True,
+        },
+    )
+
+    assert passed is False
+    failing = [c for c in checks if not c["passed"]]
+    assert any(c["name"] == "min_quality_score" for c in failing)
