@@ -11,6 +11,7 @@ PROTECTED_OPERATIONS = {
     ("post", "/ingest"),
     ("get", "/ingest/recent"),
     ("get", "/ingest/inventory"),
+    ("get", "/ingest/inventory/export"),
     ("post", "/cancel/{job_id}"),
     ("post", "/resume/{job_id}"),
     ("post", "/hitl/approve"),

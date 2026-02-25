@@ -1155,6 +1155,58 @@ def test_portfolio_metrics_export_endpoint_supports_csv_json_and_gzip():
     assert json_gzip_payload["filters"]["donor_id"] == "usaid"
 
 
+def test_ingest_inventory_export_endpoint_supports_csv_json_and_gzip(monkeypatch):
+    api_app_module.INGEST_AUDIT_STORE.clear()
+
+    def fake_ingest(pdf_path: str, namespace: str, metadata=None):
+        return {"namespace": namespace, "source": pdf_path, "chunks_ingested": 1, "stats": {}}
+
+    monkeypatch.setattr(api_app_module, "ingest_pdf_to_namespace", fake_ingest)
+
+    client.post(
+        "/ingest",
+        data={"donor_id": "usaid", "metadata_json": json.dumps({"doc_family": "donor_policy", "source_type": "donor_guidance"})},
+        files={"file": ("ads.pdf", b"%PDF-1.4 a", "application/pdf")},
+    )
+    client.post(
+        "/ingest",
+        data={"donor_id": "usaid", "metadata_json": json.dumps({"doc_family": "country_context", "source_type": "country_context"})},
+        files={"file": ("kz-context.pdf", b"%PDF-1.4 b", "application/pdf")},
+    )
+
+    csv_resp = client.get("/ingest/inventory/export", params={"donor_id": "usaid", "format": "csv"})
+    assert csv_resp.status_code == 200
+    assert csv_resp.headers["content-type"].startswith("text/csv")
+    assert "grantflow_ingest_inventory_usaid.csv" in (csv_resp.headers.get("content-disposition") or "")
+    csv_text = csv_resp.text
+    assert csv_text.startswith("field,value\n")
+    assert "donor_id,usaid" in csv_text
+    assert "doc_family_counts.donor_policy,1" in csv_text
+    assert "doc_family_counts.country_context,1" in csv_text
+
+    json_resp = client.get("/ingest/inventory/export", params={"donor_id": "usaid", "format": "json"})
+    assert json_resp.status_code == 200
+    assert json_resp.headers["content-type"].startswith("application/json")
+    assert "grantflow_ingest_inventory_usaid.json" in (json_resp.headers.get("content-disposition") or "")
+    json_body = json_resp.json()
+    assert json_body["donor_id"] == "usaid"
+    assert json_body["doc_family_counts"]["donor_policy"] == 1
+
+    csv_gzip_resp = client.get("/ingest/inventory/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"})
+    assert csv_gzip_resp.status_code == 200
+    assert csv_gzip_resp.headers["content-type"].startswith("application/gzip")
+    assert "grantflow_ingest_inventory_usaid.csv.gz" in (csv_gzip_resp.headers.get("content-disposition") or "")
+    csv_gzip_text = gzip.decompress(csv_gzip_resp.content).decode("utf-8")
+    assert "doc_family_counts.donor_policy,1" in csv_gzip_text
+
+    json_gzip_resp = client.get("/ingest/inventory/export", params={"donor_id": "usaid", "format": "json", "gzip": "true"})
+    assert json_gzip_resp.status_code == 200
+    assert json_gzip_resp.headers["content-type"].startswith("application/gzip")
+    assert "grantflow_ingest_inventory_usaid.json.gz" in (json_gzip_resp.headers.get("content-disposition") or "")
+    json_gzip_body = json.loads(gzip.decompress(json_gzip_resp.content).decode("utf-8"))
+    assert json_gzip_body["family_count"] == 2
+
+
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
 
@@ -1340,6 +1392,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     ingest_inventory_auth = client.get("/ingest/inventory", headers={"X-API-Key": "test-secret"})
     assert ingest_inventory_auth.status_code == 200
 
+    ingest_inventory_export_unauth = client.get("/ingest/inventory/export")
+    assert ingest_inventory_export_unauth.status_code == 401
+
+    ingest_inventory_export_auth = client.get("/ingest/inventory/export", headers={"X-API-Key": "test-secret"})
+    assert ingest_inventory_export_auth.status_code == 200
+
     pending_unauth = client.get("/hitl/pending")
     assert pending_unauth.status_code == 401
 
@@ -1363,6 +1421,9 @@ def test_openapi_declares_api_key_security_scheme():
     ingest_recent_security = (((spec.get("paths") or {}).get("/ingest/recent") or {}).get("get") or {}).get("security")
     ingest_inventory_security = (((spec.get("paths") or {}).get("/ingest/inventory") or {}).get("get") or {}).get(
         "security"
+    )
+    ingest_inventory_export_security = (
+        (((spec.get("paths") or {}).get("/ingest/inventory/export") or {}).get("get") or {}).get("security")
     )
     cancel_security = (((spec.get("paths") or {}).get("/cancel/{job_id}") or {}).get("post") or {}).get("security")
     status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
@@ -1598,6 +1659,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert ingest_security == [{"ApiKeyAuth": []}]
     assert ingest_recent_security == [{"ApiKeyAuth": []}]
     assert ingest_inventory_security == [{"ApiKeyAuth": []}]
+    assert ingest_inventory_export_security == [{"ApiKeyAuth": []}]
     assert cancel_security == [{"ApiKeyAuth": []}]
     assert status_security == [{"ApiKeyAuth": []}]
     assert status_citations_security == [{"ApiKeyAuth": []}]

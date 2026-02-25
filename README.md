@@ -269,6 +269,7 @@ Core endpoints:
 - `POST /ingest` - upload PDF donor guidance into donor namespace (RAG ingestion)
 - `GET /ingest/recent` - list recent ingest uploads (filterable by `donor_id`) for RAG prep/checklist sync
 - `GET /ingest/inventory` - aggregated ingest inventory by `doc_family` (filterable by `donor_id`) for readiness/checklist coverage
+- `GET /ingest/inventory/export` - export ingest inventory snapshot (`csv` or `json`, optional `gzip=true`)
 - `POST /export` - export outputs as `docx`, `xlsx`, or ZIP
 
 ## Demo Console (Optional)
@@ -319,6 +320,14 @@ These presets are editable before submitting and are intended as starting points
 The `Ingest (RAG Prep)` panel includes matching presets for these scenarios, suggests what kinds of donor/context PDFs to upload before generation, and tracks a simple metadata-driven checklist (`metadata_json.doc_family`) so you can see which recommended document types are already covered.
 
 It can also sync checklist progress from backend ingest inventory via `GET /ingest/inventory` (aggregated by `doc_family`, useful when uploads happened outside the current browser session/demo tab).
+
+You can also export ingest coverage snapshots for automation/reporting:
+
+```bash
+curl -s "http://127.0.0.1:8000/ingest/inventory/export?donor_id=usaid&format=csv" -o ingest_inventory_usaid.csv
+curl -s "http://127.0.0.1:8000/ingest/inventory/export?donor_id=usaid&format=json" -o ingest_inventory_usaid.json
+curl -s "http://127.0.0.1:8000/ingest/inventory/export?donor_id=usaid&format=csv&gzip=true" -o ingest_inventory_usaid.csv.gz
+```
 
 ### Webhook events (optional)
 

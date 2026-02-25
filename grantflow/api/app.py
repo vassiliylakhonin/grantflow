@@ -27,6 +27,7 @@ from grantflow.api.public_views import (
     public_job_payload,
     public_job_versions_payload,
     public_ingest_inventory_payload,
+    public_ingest_inventory_csv_text,
     public_ingest_recent_payload,
     public_portfolio_quality_csv_text,
     public_portfolio_quality_payload,
@@ -1395,6 +1396,28 @@ def get_ingest_inventory(
     require_api_key_if_configured(request, for_read=True)
     rows = _ingest_inventory(donor_id=donor_id)
     return public_ingest_inventory_payload(rows, donor_id=(donor_id or None))
+
+
+@app.get("/ingest/inventory/export")
+def export_ingest_inventory(
+    request: Request,
+    donor_id: Optional[str] = None,
+    format: Literal["csv", "json"] = Query(default="csv"),
+    gzip_enabled: bool = Query(default=False, alias="gzip"),
+):
+    require_api_key_if_configured(request, for_read=True)
+    rows = _ingest_inventory(donor_id=donor_id)
+    payload = public_ingest_inventory_payload(rows, donor_id=(donor_id or None))
+    return _portfolio_export_response(
+        payload=payload,
+        filename_prefix="grantflow_ingest_inventory",
+        donor_id=donor_id,
+        status=None,
+        hitl_enabled=None,
+        export_format=format,
+        gzip_enabled=gzip_enabled,
+        csv_renderer=public_ingest_inventory_csv_text,
+    )
 
 
 @app.post("/ingest")

@@ -852,6 +852,10 @@ def public_portfolio_metrics_csv_text(payload: Dict[str, Any]) -> str:
     return csv_text_from_mapping(payload)
 
 
+def public_ingest_inventory_csv_text(payload: Dict[str, Any]) -> str:
+    return csv_text_from_mapping(payload)
+
+
 def public_checkpoint_payload(checkpoint: Dict[str, Any]) -> Dict[str, Any]:
     public_checkpoint: Dict[str, Any] = {}
     for key, value in checkpoint.items():
