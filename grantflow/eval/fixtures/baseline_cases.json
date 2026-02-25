@@ -148,6 +148,36 @@
     }
   },
   {
+    "case_id": "usaid_concept_note_weak_brief_sparse_input",
+    "donor_id": "usaid",
+    "input_context": {
+      "project": "AI governance readiness"
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": false,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_fatal_flaws": 1,
+      "min_high_severity_fatal_flaws": 1,
+      "max_quality_score": 7.5,
+      "max_critic_score": 7.5,
+      "min_citations_total": 2,
+      "min_architect_citations": 1,
+      "min_mel_citations": 1,
+      "min_draft_versions": 2,
+      "max_fatal_flaws": 5,
+      "max_high_severity_fatal_flaws": 3,
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 60,
+      "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
+      "max_rag_low_confidence_citations": 0
+    }
+  },
+  {
     "case_id": "eu_youth_employment_jordan",
     "donor_id": "eu",
     "input_context": {

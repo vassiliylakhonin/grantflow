@@ -206,6 +206,8 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
         _add_check("needs_revision", actual is expected, expected=expected, actual=actual)
 
     for key, metric_key in (
+        ("min_fatal_flaws", "fatal_flaw_count"),
+        ("min_high_severity_fatal_flaws", "high_severity_fatal_flaw_count"),
         ("min_quality_score", "quality_score"),
         ("min_critic_score", "critic_score"),
         ("min_citations_total", "citations_total"),
@@ -222,6 +224,8 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
             _add_check(key, float(actual) >= float(expected), expected=expected, actual=actual)
 
     for key, metric_key in (
+        ("max_quality_score", "quality_score"),
+        ("max_critic_score", "critic_score"),
         ("max_fatal_flaws", "fatal_flaw_count"),
         ("max_high_severity_fatal_flaws", "high_severity_fatal_flaw_count"),
         ("max_low_confidence_citations", "low_confidence_citation_count"),

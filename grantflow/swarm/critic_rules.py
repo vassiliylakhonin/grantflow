@@ -94,6 +94,52 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
     checks: List[RuleCheckResult] = []
     flaws: List[CriticFatalFlaw] = []
 
+    raw_input_context = state.get("input_context")
+    if not isinstance(raw_input_context, dict):
+        raw_input_context = state.get("input") if isinstance(state.get("input"), dict) else {}
+    non_empty_input_fields = 0
+    if isinstance(raw_input_context, dict):
+        for value in raw_input_context.values():
+            if value is None:
+                continue
+            if isinstance(value, str):
+                if value.strip():
+                    non_empty_input_fields += 1
+                continue
+            if isinstance(value, (list, dict, tuple, set)):
+                if len(value) > 0:
+                    non_empty_input_fields += 1
+                continue
+            non_empty_input_fields += 1
+
+    if non_empty_input_fields >= 2:
+        checks.append(
+            RuleCheckResult(
+                code="INPUT_BRIEF_MINIMUM_CONTEXT",
+                status="pass",
+                section="general",
+                detail=f"{non_empty_input_fields} non-empty input field(s)",
+            )
+        )
+    else:
+        checks.append(
+            RuleCheckResult(
+                code="INPUT_BRIEF_MINIMUM_CONTEXT",
+                status="fail",
+                section="general",
+                detail=f"{non_empty_input_fields} non-empty input field(s); need at least 2",
+            )
+        )
+        _add_flaw(
+            flaws,
+            code="INPUT_BRIEF_TOO_SPARSE",
+            severity="high",
+            section="general",
+            state=state,
+            message="Input brief is too sparse for reliable drafting and review.",
+            fix_hint="Provide at least a project title plus one additional field (for example country, problem, target group, or timeframe).",
+        )
+
     toc_draft = state.get("toc_draft")
     toc_payload = (toc_draft or {}).get("toc") if isinstance(toc_draft, dict) else None
     logframe = state.get("logframe_draft") or state.get("mel")

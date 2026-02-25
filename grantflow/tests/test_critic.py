@@ -91,3 +91,36 @@ def test_rule_based_critic_applies_usaid_donor_specific_checks():
     assert any(c["code"] == "USAID_CRITICAL_ASSUMPTIONS_PRESENT" and c["status"] == "warn" for c in checks)
     assert any(f["code"] == "USAID_DO_MISSING" and f["section"] == "toc" for f in flaws)
     assert any(f["code"] == "USAID_ASSUMPTIONS_MISSING" and f["section"] == "toc" for f in flaws)
+
+
+def test_red_team_critic_marks_sparse_input_brief_for_revision():
+    state = {
+        "donor_strategy": object(),
+        "strategy": object(),
+        "llm_mode": False,
+        "max_iterations": 3,
+        "iteration": 0,
+        "iteration_count": 0,
+        "input_context": {"project": "AI governance training"},
+        "toc_draft": {
+            "toc": {"project_goal": "Improve access", "objectives": [{"title": "Obj", "description": "Desc"}]}
+        },
+        "logframe_draft": {"indicators": [{"indicator_id": "IND_001"}]},
+        "citations": [
+            {"stage": "architect", "statement_path": "toc.project_goal", "label": "doc", "used_for": "toc_claim"},
+            {"stage": "mel", "label": "doc", "used_for": "IND_001"},
+        ],
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "GenericTOC"},
+        "critic_feedback_history": [],
+    }
+
+    out = red_team_critic(state)
+    notes = out.get("critic_notes") or {}
+    flaws = notes.get("fatal_flaws") or []
+    assert any((f or {}).get("code") == "INPUT_BRIEF_TOO_SPARSE" for f in flaws)
+    assert out.get("needs_revision") is True
+    assert out.get("next_step") == "architect"
