@@ -45,6 +45,7 @@ def test_demo_console_page_loads():
     body = response.text
     assert "GrantFlow Demo Console" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
+    assert "/status/${encodeURIComponent(jobId)}/critic" in body
 
 
 def test_ready_endpoint():

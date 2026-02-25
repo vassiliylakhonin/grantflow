@@ -148,7 +148,7 @@ def render_demo_ui_html() -> str:
   <div class="wrap">
     <section class="hero">
       <h1>GrantFlow Demo Console</h1>
-      <p>Minimal operator UI for generate → HITL → review traces (citations, versions, diff, events, metrics).</p>
+      <p>Minimal operator UI for generate → HITL → review traces (citations, versions, diff, critic findings, events, metrics).</p>
     </section>
 
     <section class="toolbar">
@@ -260,6 +260,37 @@ def render_demo_ui_html() -> str:
             </div>
             <div style="margin-top:10px;">
               <pre id="metricsJson">{}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Critic Findings</h2>
+          <div class="body">
+            <div class="row">
+              <button id="criticBtn" class="ghost">Load Critic</button>
+              <div>
+                <label for="criticSectionFilter">Filter Section</label>
+                <select id="criticSectionFilter">
+                  <option value="">all</option>
+                  <option value="toc">toc</option>
+                  <option value="logframe">logframe</option>
+                  <option value="general">general</option>
+                </select>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Fatal Flaws</label>
+                <div class="list" id="criticFlawsList"></div>
+              </div>
+              <div>
+                <label>Rule Checks</label>
+                <div class="list" id="criticChecksList"></div>
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="criticJson">{}</pre>
             </div>
           </div>
         </div>
@@ -387,12 +418,16 @@ def render_demo_ui_html() -> str:
         statusPillText: $("statusPillText"),
         statusJson: $("statusJson"),
         metricsJson: $("metricsJson"),
+        criticJson: $("criticJson"),
         diffPre: $("diffPre"),
         versionsList: $("versionsList"),
         citationsList: $("citationsList"),
         eventsList: $("eventsList"),
+        criticFlawsList: $("criticFlawsList"),
+        criticChecksList: $("criticChecksList"),
         commentsList: $("commentsList"),
         metricsCards: $("metricsCards"),
+        criticSectionFilter: $("criticSectionFilter"),
         commentSection: $("commentSection"),
         commentAuthor: $("commentAuthor"),
         commentVersionId: $("commentVersionId"),
@@ -409,6 +444,7 @@ def render_demo_ui_html() -> str:
         diffBtn: $("diffBtn"),
         citationsBtn: $("citationsBtn"),
         eventsBtn: $("eventsBtn"),
+        criticBtn: $("criticBtn"),
         commentsBtn: $("commentsBtn"),
         addCommentBtn: $("addCommentBtn"),
         resolveCommentBtn: $("resolveCommentBtn"),
@@ -581,6 +617,48 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function renderCriticLists(body) {
+        const section = (els.criticSectionFilter.value || "").trim();
+        const flaws = Array.isArray(body?.fatal_flaws) ? body.fatal_flaws : [];
+        const checks = Array.isArray(body?.rule_checks) ? body.rule_checks : [];
+        const filteredFlaws = section ? flaws.filter((f) => String(f.section || "") === section) : flaws;
+        const filteredChecks = section ? checks.filter((c) => String(c.section || "") === section) : checks;
+
+        els.criticFlawsList.innerHTML = "";
+        if (filteredFlaws.length === 0) {
+          els.criticFlawsList.innerHTML = `<div class="item"><div class="sub">No fatal flaws${section ? ` for ${escapeHtml(section)}` : ""}.</div></div>`;
+        } else {
+          for (const flaw of filteredFlaws) {
+            const div = document.createElement("div");
+            div.className = "item";
+            const titleBits = [flaw.severity || "severity", flaw.section || "section", flaw.code || "FLAW"];
+            const meta = [flaw.version_id, flaw.source].filter(Boolean).join(" · ");
+            div.innerHTML = `
+              <div class="title mono">${escapeHtml(titleBits.join(" · "))}</div>
+              <div class="sub">${escapeHtml(flaw.message || "")}</div>
+              ${flaw.fix_hint ? `<div class="sub" style="margin-top:6px;">Fix: ${escapeHtml(flaw.fix_hint)}</div>` : ""}
+              ${meta ? `<div class="sub" style="margin-top:6px;">${escapeHtml(meta)}</div>` : ""}
+            `;
+            els.criticFlawsList.appendChild(div);
+          }
+        }
+
+        els.criticChecksList.innerHTML = "";
+        if (filteredChecks.length === 0) {
+          els.criticChecksList.innerHTML = `<div class="item"><div class="sub">No rule checks${section ? ` for ${escapeHtml(section)}` : ""}.</div></div>`;
+          return;
+        }
+        for (const check of filteredChecks) {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml([check.status || "status", check.section || "section", check.code || "CHECK"].join(" · "))}</div>
+            <div class="sub">${escapeHtml(check.detail || "")}</div>
+          `;
+          els.criticChecksList.appendChild(div);
+        }
+      }
+
       function escapeHtml(s) {
         return String(s)
           .replaceAll("&", "&amp;")
@@ -664,6 +742,15 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshCritic() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/critic`);
+        renderCriticLists(body);
+        setJson(els.criticJson, body);
+        return body;
+      }
+
       async function refreshComments() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -689,6 +776,7 @@ def render_demo_ui_html() -> str:
         await refreshStatus();
         await Promise.allSettled([
           refreshMetrics(),
+          refreshCritic(),
           refreshCitations(),
           refreshVersions(),
           refreshDiff(),
@@ -800,12 +888,14 @@ def render_demo_ui_html() -> str:
         els.diffBtn.addEventListener("click", () => refreshDiff().catch(showError));
         els.citationsBtn.addEventListener("click", () => refreshCitations().catch(showError));
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
+        els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
+        els.criticSectionFilter.addEventListener("change", () => refreshCritic().catch(showError));
       }
 
       initDefaults();
