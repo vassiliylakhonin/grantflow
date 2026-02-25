@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Type, Union, get_args, 
 from pydantic import BaseModel
 
 from grantflow.core.config import config
+from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
 
 
 def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> BaseModel:
@@ -328,7 +329,12 @@ def build_architect_claim_citations(
         return citations
 
     for idx, (statement_path, statement) in enumerate(claims[:24]):
-        hit = hits[idx % len(hits)] if hits else {}
+        hit: Dict[str, Any]
+        confidence: float
+        if hits:
+            hit, confidence = pick_best_architect_evidence_hit(statement, hits)
+        else:
+            hit, confidence = {}, 0.0
         citation_type = "rag_claim_support" if hit else "fallback_namespace"
         citations.append(
             {
@@ -346,6 +352,9 @@ def build_architect_claim_citations(
                 "statement_path": statement_path,
                 "statement": statement[:240],
                 "excerpt": str(hit.get("excerpt") or "")[:240] if hit else None,
+                "citation_confidence": round(confidence if hit else 0.1, 4),
+                "evidence_score": round(confidence if hit else 0.1, 4),
+                "evidence_rank": hit.get("rank") if hit else None,
             }
         )
     return citations

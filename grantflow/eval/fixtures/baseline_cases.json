@@ -20,7 +20,9 @@
       "min_draft_versions": 2,
       "max_fatal_flaws": 0,
       "max_high_severity_fatal_flaws": 0,
-      "max_errors": 0
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 30
     }
   },
   {
@@ -44,7 +46,9 @@
       "min_draft_versions": 2,
       "max_fatal_flaws": 0,
       "max_high_severity_fatal_flaws": 0,
-      "max_errors": 0
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 30
     }
   },
   {
@@ -68,7 +72,9 @@
       "min_draft_versions": 2,
       "max_fatal_flaws": 0,
       "max_high_severity_fatal_flaws": 0,
-      "max_errors": 0
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 30
     }
   },
   {
@@ -92,7 +98,9 @@
       "min_draft_versions": 2,
       "max_fatal_flaws": 0,
       "max_high_severity_fatal_flaws": 0,
-      "max_errors": 0
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 30
     }
   },
   {
@@ -116,7 +124,9 @@
       "min_draft_versions": 2,
       "max_fatal_flaws": 0,
       "max_high_severity_fatal_flaws": 0,
-      "max_errors": 0
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 30
     }
   },
   {
@@ -140,7 +150,9 @@
       "min_draft_versions": 2,
       "max_fatal_flaws": 0,
       "max_high_severity_fatal_flaws": 0,
-      "max_errors": 0
+      "max_errors": 0,
+      "min_citation_confidence_avg": 0.1,
+      "max_low_confidence_citations": 30
     }
   }
 ]

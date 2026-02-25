@@ -75,6 +75,9 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                     "label": citation,
                     "used_for": meta.get("indicator_id", f"IND_{idx+1:03d}"),
                     "excerpt": str(doc)[:240],
+                    "citation_confidence": 0.8,
+                    "evidence_score": 0.8,
+                    "evidence_rank": idx + 1,
                 }
             )
         rag_trace["used_results"] = len(indicators)
@@ -100,6 +103,8 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                 "namespace": namespace,
                 "label": namespace,
                 "used_for": "IND_001",
+                "citation_confidence": 0.1,
+                "evidence_score": 0.1,
             }
         )
 

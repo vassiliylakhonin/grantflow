@@ -4,6 +4,7 @@
       "donor_id": "eu",
       "metrics": {
         "architect_citation_count": 3,
+        "citation_confidence_avg": 0.1,
         "citations_total": 4,
         "critic_score": 9.25,
         "draft_version_count": 2,
@@ -12,6 +13,7 @@
         "has_logframe_draft": true,
         "has_toc_draft": true,
         "high_severity_fatal_flaw_count": 0,
+        "low_confidence_citation_count": 4,
         "mel_citation_count": 1,
         "needs_revision": false,
         "quality_score": 9.25,
@@ -22,6 +24,7 @@
       "donor_id": "un_agencies",
       "metrics": {
         "architect_citation_count": 7,
+        "citation_confidence_avg": 0.1,
         "citations_total": 8,
         "critic_score": 9.25,
         "draft_version_count": 2,
@@ -30,6 +33,7 @@
         "has_logframe_draft": true,
         "has_toc_draft": true,
         "high_severity_fatal_flaw_count": 0,
+        "low_confidence_citation_count": 8,
         "mel_citation_count": 1,
         "needs_revision": false,
         "quality_score": 9.25,
@@ -40,6 +44,7 @@
       "donor_id": "giz",
       "metrics": {
         "architect_citation_count": 9,
+        "citation_confidence_avg": 0.1,
         "citations_total": 10,
         "critic_score": 9.25,
         "draft_version_count": 2,
@@ -48,6 +53,7 @@
         "has_logframe_draft": true,
         "has_toc_draft": true,
         "high_severity_fatal_flaw_count": 0,
+        "low_confidence_citation_count": 10,
         "mel_citation_count": 1,
         "needs_revision": false,
         "quality_score": 9.25,
@@ -58,6 +64,7 @@
       "donor_id": "state_department",
       "metrics": {
         "architect_citation_count": 7,
+        "citation_confidence_avg": 0.1,
         "citations_total": 8,
         "critic_score": 9.25,
         "draft_version_count": 2,
@@ -66,6 +73,7 @@
         "has_logframe_draft": true,
         "has_toc_draft": true,
         "high_severity_fatal_flaw_count": 0,
+        "low_confidence_citation_count": 8,
         "mel_citation_count": 1,
         "needs_revision": false,
         "quality_score": 9.25,
@@ -76,6 +84,7 @@
       "donor_id": "usaid",
       "metrics": {
         "architect_citation_count": 24,
+        "citation_confidence_avg": 0.1,
         "citations_total": 25,
         "critic_score": 9.25,
         "draft_version_count": 2,
@@ -84,6 +93,7 @@
         "has_logframe_draft": true,
         "has_toc_draft": true,
         "high_severity_fatal_flaw_count": 0,
+        "low_confidence_citation_count": 25,
         "mel_citation_count": 1,
         "needs_revision": false,
         "quality_score": 9.25,
@@ -94,6 +104,7 @@
       "donor_id": "worldbank",
       "metrics": {
         "architect_citation_count": 6,
+        "citation_confidence_avg": 0.1,
         "citations_total": 7,
         "critic_score": 9.25,
         "draft_version_count": 2,
@@ -102,6 +113,7 @@
         "has_logframe_draft": true,
         "has_toc_draft": true,
         "high_severity_fatal_flaw_count": 0,
+        "low_confidence_citation_count": 7,
         "mel_citation_count": 1,
         "needs_revision": false,
         "quality_score": 9.25,
@@ -123,12 +135,14 @@
       "citations_total",
       "architect_citation_count",
       "mel_citation_count",
-      "draft_version_count"
+      "draft_version_count",
+      "citation_confidence_avg"
     ],
     "lower_is_better": [
       "fatal_flaw_count",
       "high_severity_fatal_flaw_count",
-      "error_count"
+      "error_count",
+      "low_confidence_citation_count"
     ]
   }
 }

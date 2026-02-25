@@ -21,11 +21,13 @@ HIGHER_IS_BETTER_METRICS = (
     "architect_citation_count",
     "mel_citation_count",
     "draft_version_count",
+    "citation_confidence_avg",
 )
 LOWER_IS_BETTER_METRICS = (
     "fatal_flaw_count",
     "high_severity_fatal_flaw_count",
     "error_count",
+    "low_confidence_citation_count",
 )
 BOOLEAN_GUARDRAIL_METRICS = (
     "toc_schema_valid",
@@ -105,6 +107,21 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
     high_flaws = sum(
         1 for flaw in fatal_flaws if isinstance(flaw, dict) and str(flaw.get("severity") or "").lower() == "high"
     )
+    confidence_values: list[float] = []
+    low_confidence_count = 0
+    for citation in citations:
+        if not isinstance(citation, dict):
+            continue
+        confidence = citation.get("citation_confidence")
+        if confidence is None:
+            continue
+        try:
+            conf_value = float(confidence)
+        except (TypeError, ValueError):
+            continue
+        confidence_values.append(conf_value)
+        if conf_value < 0.3:
+            low_confidence_count += 1
     return {
         "toc_schema_valid": bool(toc_validation.get("valid")),
         "toc_schema_name": toc_validation.get("schema_name"),
@@ -118,6 +135,8 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
         "citations_total": len(citations),
         "architect_citation_count": _count_stage_citations(citations, "architect"),
         "mel_citation_count": _count_stage_citations(citations, "mel"),
+        "citation_confidence_avg": round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else 0.0,
+        "low_confidence_citation_count": low_confidence_count,
         "draft_version_count": len(draft_versions),
         "error_count": len(errors),
     }
@@ -145,6 +164,7 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
         ("min_citations_total", "citations_total"),
         ("min_architect_citations", "architect_citation_count"),
         ("min_mel_citations", "mel_citation_count"),
+        ("min_citation_confidence_avg", "citation_confidence_avg"),
         ("min_draft_versions", "draft_version_count"),
     ):
         if key in expectations:
@@ -155,6 +175,7 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
     for key, metric_key in (
         ("max_fatal_flaws", "fatal_flaw_count"),
         ("max_high_severity_fatal_flaws", "high_severity_fatal_flaw_count"),
+        ("max_low_confidence_citations", "low_confidence_citation_count"),
         ("max_errors", "error_count"),
     ):
         if key in expectations:

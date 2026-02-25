@@ -20,6 +20,7 @@ def _sample_citations():
             "used_for": "EG.3.2-1",
             "label": "USAID ADS 201 p.12",
             "excerpt": "Official indicator guidance excerpt",
+            "citation_confidence": 0.82,
         }
     ]
 
@@ -37,6 +38,7 @@ def test_word_export_includes_citation_traceability_section():
     assert "Citation Traceability" in text
     assert "USAID ADS 201 p.12" in text
     assert "Official indicator guidance excerpt" in text
+    assert "conf 0.82" in text
 
 
 def test_excel_export_includes_citations_sheet():
@@ -59,5 +61,6 @@ def test_excel_export_includes_citations_sheet():
 
     ws = wb["Citations"]
     rows = list(ws.iter_rows(values_only=True))
-    assert rows[0][:4] == ("Stage", "Type", "Used For", "Label")
+    assert rows[0][:5] == ("Stage", "Type", "Used For", "Label", "Confidence")
     assert any(row[3] == "USAID ADS 201 p.12" for row in rows[1:])
+    assert any(abs(float(row[4]) - 0.82) < 1e-9 for row in rows[1:] if row[4] is not None)

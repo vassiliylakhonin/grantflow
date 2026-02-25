@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.nodes.architect import draft_toc
+from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
 
 
 def test_architect_generates_contract_validated_toc_with_optional_retrieval_disabled():
@@ -43,3 +44,22 @@ def test_architect_generates_contract_validated_toc_with_optional_retrieval_disa
     architect_citations = [c for c in citations if isinstance(c, dict) and c.get("stage") == "architect"]
     assert architect_citations
     assert any(c.get("statement_path") for c in architect_citations)
+    assert any("citation_confidence" in c for c in architect_citations)
+    assert all(0.0 <= float(c.get("citation_confidence", 0.0)) <= 1.0 for c in architect_citations)
+
+
+def test_architect_evidence_ranking_prefers_more_relevant_hit():
+    statement = "Improve water sanitation outcomes in Kenya through community systems"
+    hits = [
+        {"rank": 1, "label": "Generic donor guide", "excerpt": "Procurement and reporting templates", "source": "a.pdf"},
+        {
+            "rank": 2,
+            "label": "WASH technical guidance",
+            "excerpt": "Kenya water sanitation outcomes and community systems strengthening guidance",
+            "source": "b.pdf",
+            "page": 12,
+        },
+    ]
+    best_hit, confidence = pick_best_architect_evidence_hit(statement, hits)
+    assert best_hit["source"] == "b.pdf"
+    assert confidence > 0.3

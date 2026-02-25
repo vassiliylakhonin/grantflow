@@ -33,6 +33,9 @@ class CitationPublicResponse(BaseModel):
     used_for: Optional[str] = None
     label: Optional[str] = None
     excerpt: Optional[str] = None
+    citation_confidence: Optional[float] = None
+    evidence_score: Optional[float] = None
+    evidence_rank: Optional[int] = None
 
     model_config = ConfigDict(extra="allow")
 

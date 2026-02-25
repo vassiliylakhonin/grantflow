@@ -337,6 +337,10 @@ def test_status_includes_citations_traceability(monkeypatch):
     assert isinstance(citations_body["citations"], list)
     assert citations_body["citations"][0]["stage"]
     assert any("statement_path" in c for c in citations_body["citations"])
+    assert any("citation_confidence" in c for c in citations_body["citations"])
+    for c in citations_body["citations"]:
+        if c.get("citation_confidence") is not None:
+            assert 0.0 <= float(c["citation_confidence"]) <= 1.0
 
 
 def test_status_includes_draft_versions_traceability():

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Tuple
 
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
+
+
+_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 
 
 def build_architect_query_text(state: Dict[str, Any]) -> str:
@@ -21,6 +25,43 @@ def build_architect_query_text(state: Dict[str, Any]) -> str:
 
     parts = [project, country, donor_id, revision_hint]
     return " | ".join([p for p in parts if p])
+
+
+def _tokenize(text: Any) -> set[str]:
+    return {m.group(0).lower() for m in _TOKEN_RE.finditer(str(text or "")) if len(m.group(0)) >= 3}
+
+
+def score_architect_evidence_hit(statement: str, hit: Dict[str, Any]) -> float:
+    statement_tokens = _tokenize(statement)
+    if not statement_tokens:
+        return 0.0
+
+    excerpt_tokens = _tokenize(hit.get("excerpt"))
+    label_tokens = _tokenize(hit.get("label") or hit.get("source"))
+
+    excerpt_overlap = len(statement_tokens & excerpt_tokens) / max(1, len(statement_tokens))
+    label_overlap = len(statement_tokens & label_tokens) / max(1, len(statement_tokens))
+
+    rank = int(hit.get("rank") or 999)
+    rank_bonus = max(0.0, 1.0 - (rank - 1) * 0.15)
+    page_bonus = 0.05 if hit.get("page") is not None else 0.0
+    source_bonus = 0.05 if hit.get("source") else 0.0
+
+    score = (0.65 * excerpt_overlap) + (0.15 * label_overlap) + (0.15 * rank_bonus) + page_bonus + source_bonus
+    return max(0.0, min(1.0, round(score, 4)))
+
+
+def pick_best_architect_evidence_hit(statement: str, hits: List[Dict[str, Any]]) -> tuple[Dict[str, Any], float]:
+    if not hits:
+        return {}, 0.0
+    best_hit = hits[0]
+    best_score = score_architect_evidence_hit(statement, best_hit)
+    for hit in hits[1:]:
+        score = score_architect_evidence_hit(statement, hit)
+        if score > best_score:
+            best_hit = hit
+            best_score = score
+    return best_hit, best_score
 
 
 def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
@@ -63,6 +104,8 @@ def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[
             )
         summary["hits_count"] = len(hits)
         summary["used_results"] = len(hits)
+        if hits:
+            summary["hit_labels"] = [str(h.get("label") or "") for h in hits[:3]]
     except Exception as exc:
         summary["error"] = str(exc)
     return summary, hits

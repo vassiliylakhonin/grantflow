@@ -16,6 +16,7 @@ def _citation_summary_line(citation: Dict[str, Any]) -> str:
     label = citation.get("label") or citation.get("source") or citation.get("namespace") or ""
     page = citation.get("page")
     chunk = citation.get("chunk")
+    confidence = citation.get("citation_confidence")
 
     parts = []
     if stage:
@@ -26,6 +27,11 @@ def _citation_summary_line(citation: Dict[str, Any]) -> str:
         parts.append(f"for {used_for}")
     if label:
         parts.append(f"- {label}")
+    if confidence is not None:
+        try:
+            parts.append(f"(conf {float(confidence):.2f})")
+        except (TypeError, ValueError):
+            parts.append(f"(conf {confidence})")
     if page is not None:
         parts.append(f"(p.{page})")
     if chunk is not None:
