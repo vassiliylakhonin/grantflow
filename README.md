@@ -524,6 +524,22 @@ pip install -r grantflow/requirements.txt
 uvicorn grantflow.api.app:app --reload
 ```
 
+Optional dev tooling (format/lint hooks):
+
+```bash
+pip install -r requirements-dev.txt
+pre-commit install
+pre-commit run --all-files
+```
+
+Manual formatting/lint commands (if you prefer running tools directly):
+
+```bash
+ruff check grantflow
+isort grantflow
+black grantflow
+```
+
 Optional environment variables:
 
 - `OPENAI_API_KEY`
@@ -565,6 +581,8 @@ shellcheck deploy.sh backup.sh
 ```
 
 CI runs both Python tests and shell script lint/syntax checks.
+
+If you enable local pre-commit hooks, they will also run `ruff`, `isort`, and `black` before commit.
 
 ## Security Notes
 

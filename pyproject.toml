@@ -1,0 +1,33 @@
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | env
+  | chroma_db
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 120
+py_version = 311
+known_first_party = ["grantflow"]
+skip = ["chroma_db", ".venv", "venv", "env"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["chroma_db"]
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"grantflow/tests/*.py" = ["E402"]
