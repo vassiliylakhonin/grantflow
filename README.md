@@ -674,6 +674,19 @@ The bundled evaluation fixtures run deterministic (`llm_mode=false`) draft gener
 - citation coverage (architect + MEL)
 - draft version traceability and error count
 
+CI also runs the evaluation harness as a dedicated `eval` job and compares current results against the committed baseline snapshot:
+
+- `grantflow/eval/fixtures/baseline_regression_snapshot.json`
+
+The `eval` job fails on metric regressions (for tracked quality/citation/error signals) but does not fail on new/missing cases; those are reported as warnings in the uploaded eval artifact.
+
+If you intentionally improve scoring/quality behavior and want to refresh the baseline snapshot, regenerate it locally and commit the update with the corresponding code changes:
+
+```bash
+python -m grantflow.eval.harness \
+  --baseline-snapshot-out grantflow/eval/fixtures/baseline_regression_snapshot.json
+```
+
 Shell checks:
 
 ```bash
