@@ -247,6 +247,9 @@ Core endpoints:
 - `GET /status/{job_id}/citations` - retrieve typed citation/traceability records for the job
 - `GET /status/{job_id}/versions` - retrieve typed draft version history snapshots (`toc` / `logframe`)
 - `GET /status/{job_id}/diff` - retrieve a unified diff between draft versions (optionally filtered by section)
+- `GET /status/{job_id}/critic` - retrieve typed critic findings (fatal flaws + rule checks)
+- `POST /status/{job_id}/critic/findings/{finding_id}/ack` - acknowledge a critic finding
+- `POST /status/{job_id}/critic/findings/{finding_id}/resolve` - resolve a critic finding
 - `GET /status/{job_id}/comments` - retrieve typed reviewer comments (filterable by section/status/version)
 - `POST /status/{job_id}/comments` - add a reviewer comment for `toc`, `logframe`, or `general`
 - `POST /status/{job_id}/comments/{comment_id}/resolve` - mark a reviewer comment as resolved
@@ -393,6 +396,8 @@ Example diff response shape:
 
 GrantFlow supports lightweight reviewer comments tied to a job and optionally to a specific draft version (`version_id`) for `toc` / `logframe` sections.
 
+Comments can also be linked to a critic finding via `linked_finding_id` (for example, when triaging a fatal flaw).
+
 If `GRANTFLOW_API_KEY` is configured, send `X-API-Key` on comment write actions (`POST /status/{job_id}/comments`, `resolve`, `reopen`).
 
 List comments (with optional filters):
@@ -411,8 +416,16 @@ curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments \
     "section": "toc",
     "message": "Please tighten assumptions and clarify beneficiary targeting.",
     "author": "reviewer-1",
-    "version_id": "toc_v2"
+    "version_id": "toc_v2",
+    "linked_finding_id": "<FINDING_ID>"
   }'
+```
+
+Manage critic finding status (optional reviewer triage workflow):
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/critic/findings/<FINDING_ID>/ack
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/critic/findings/<FINDING_ID>/resolve
 ```
 
 Resolve / reopen a comment:
@@ -432,7 +445,8 @@ Example comment response shape:
   "status": "open",
   "message": "Please tighten assumptions and clarify beneficiary targeting.",
   "author": "reviewer-1",
-  "version_id": "toc_v2"
+  "version_id": "toc_v2",
+  "linked_finding_id": "uuid"
 }
 ```
 
