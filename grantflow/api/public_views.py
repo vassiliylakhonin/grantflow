@@ -4,7 +4,7 @@ import difflib
 import json
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 
 def sanitize_for_public_response(value: Any) -> Any:
@@ -391,18 +391,19 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
 
 
 def public_job_quality_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
-    state = job.get("state") if isinstance(job.get("state"), dict) else {}
-    critic = public_job_critic_payload(job_id, job)
-    metrics = public_job_metrics_payload(job_id, job)
+    raw_state = job.get("state")
+    state_dict: Dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
+    critic_payload: Dict[str, Any] = public_job_critic_payload(job_id, job)
+    metrics_payload: Dict[str, Any] = public_job_metrics_payload(job_id, job)
     citations_payload = public_job_citations_payload(job_id, job)
 
     citations = citations_payload.get("citations") if isinstance(citations_payload, dict) else []
     if not isinstance(citations, list):
         citations = []
-    critic_flaws = critic.get("fatal_flaws") if isinstance(critic, dict) else []
+    critic_flaws = critic_payload.get("fatal_flaws") if isinstance(critic_payload, dict) else []
     if not isinstance(critic_flaws, list):
         critic_flaws = []
-    rule_checks = critic.get("rule_checks") if isinstance(critic, dict) else []
+    rule_checks = critic_payload.get("rule_checks") if isinstance(critic_payload, dict) else []
     if not isinstance(rule_checks, list):
         rule_checks = []
 
@@ -457,31 +458,38 @@ def public_job_quality_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
     failed_checks = sum(1 for c in rule_checks if isinstance(c, dict) and str(c.get("status") or "").lower() == "fail")
     warned_checks = sum(1 for c in rule_checks if isinstance(c, dict) and str(c.get("status") or "").lower() == "warn")
 
-    toc_validation = state.get("toc_validation") if isinstance(state.get("toc_validation"), dict) else {}
-    toc_generation_meta = state.get("toc_generation_meta") if isinstance(state.get("toc_generation_meta"), dict) else {}
-    architect_retrieval = state.get("architect_retrieval") if isinstance(state.get("architect_retrieval"), dict) else {}
+    raw_toc_validation = state_dict.get("toc_validation")
+    toc_validation: Dict[str, Any] = cast(Dict[str, Any], raw_toc_validation) if isinstance(raw_toc_validation, dict) else {}
+    raw_toc_generation_meta = state_dict.get("toc_generation_meta")
+    toc_generation_meta: Dict[str, Any] = (
+        cast(Dict[str, Any], raw_toc_generation_meta) if isinstance(raw_toc_generation_meta, dict) else {}
+    )
+    raw_architect_retrieval = state_dict.get("architect_retrieval")
+    architect_retrieval: Dict[str, Any] = (
+        cast(Dict[str, Any], raw_architect_retrieval) if isinstance(raw_architect_retrieval, dict) else {}
+    )
 
     return {
         "job_id": str(job_id),
         "status": str(job.get("status") or ""),
-        "quality_score": sanitize_for_public_response((state or {}).get("quality_score")),
-        "critic_score": sanitize_for_public_response((state or {}).get("critic_score")),
-        "needs_revision": sanitize_for_public_response((state or {}).get("needs_revision")),
-        "terminal_status": sanitize_for_public_response(metrics.get("terminal_status")),
-        "time_to_first_draft_seconds": sanitize_for_public_response(metrics.get("time_to_first_draft_seconds")),
-        "time_to_terminal_seconds": sanitize_for_public_response(metrics.get("time_to_terminal_seconds")),
+        "quality_score": sanitize_for_public_response(state_dict.get("quality_score")),
+        "critic_score": sanitize_for_public_response(state_dict.get("critic_score")),
+        "needs_revision": sanitize_for_public_response(state_dict.get("needs_revision")),
+        "terminal_status": sanitize_for_public_response(metrics_payload.get("terminal_status")),
+        "time_to_first_draft_seconds": sanitize_for_public_response(metrics_payload.get("time_to_first_draft_seconds")),
+        "time_to_terminal_seconds": sanitize_for_public_response(metrics_payload.get("time_to_terminal_seconds")),
         "critic": {
-            "engine": sanitize_for_public_response(critic.get("engine")),
-            "rule_score": sanitize_for_public_response(critic.get("rule_score")),
-            "llm_score": sanitize_for_public_response(critic.get("llm_score")),
-            "fatal_flaw_count": int(critic.get("fatal_flaw_count") or 0),
+            "engine": sanitize_for_public_response(critic_payload.get("engine")),
+            "rule_score": sanitize_for_public_response(critic_payload.get("rule_score")),
+            "llm_score": sanitize_for_public_response(critic_payload.get("llm_score")),
+            "fatal_flaw_count": int(critic_payload.get("fatal_flaw_count") or 0),
             "open_finding_count": flaw_status_counts["open"],
             "acknowledged_finding_count": flaw_status_counts["acknowledged"],
             "resolved_finding_count": flaw_status_counts["resolved"],
             "high_severity_fatal_flaw_count": flaw_severity_counts["high"],
             "medium_severity_fatal_flaw_count": flaw_severity_counts["medium"],
             "low_severity_fatal_flaw_count": flaw_severity_counts["low"],
-            "rule_check_count": int(critic.get("rule_check_count") or 0),
+            "rule_check_count": int(critic_payload.get("rule_check_count") or 0),
             "failed_rule_check_count": failed_checks,
             "warned_rule_check_count": warned_checks,
         },
