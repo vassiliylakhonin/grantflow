@@ -32,6 +32,7 @@ def test_eval_harness_expectations_detect_regression():
         "architect_citation_count": 2,
         "mel_citation_count": 1,
         "high_confidence_citation_count": 1,
+        "architect_threshold_hit_rate": 0.5,
         "citation_confidence_avg": 0.4,
         "low_confidence_citation_count": 1,
         "rag_low_confidence_citation_count": 0,
@@ -47,6 +48,7 @@ def test_eval_harness_expectations_detect_regression():
         {
             "toc_schema_valid": True,
             "min_quality_score": 9.0,
+            "min_architect_threshold_hit_rate": 0.8,
             "max_fatal_flaws": 0,
             "max_low_confidence_citations": 0,
             "max_rag_low_confidence_citations": 0,
@@ -90,6 +92,7 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
                     "architect_citation_count": 3,
                     "mel_citation_count": 1,
                     "high_confidence_citation_count": 1,
+                    "architect_threshold_hit_rate": 0.5,
                     "citation_confidence_avg": 0.4,
                     "low_confidence_citation_count": 1,
                     "rag_low_confidence_citation_count": 0,
@@ -113,6 +116,7 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
                     "architect_citation_count": 4,
                     "mel_citation_count": 1,
                     "high_confidence_citation_count": 2,
+                    "architect_threshold_hit_rate": 0.8,
                     "citation_confidence_avg": 0.6,
                     "low_confidence_citation_count": 0,
                     "rag_low_confidence_citation_count": 0,
@@ -139,6 +143,7 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
                     "architect_citation_count": 2,
                     "mel_citation_count": 1,
                     "high_confidence_citation_count": 0,
+                    "architect_threshold_hit_rate": 0.6,
                     "citation_confidence_avg": 0.3,
                     "low_confidence_citation_count": 1,
                     "rag_low_confidence_citation_count": 0,
@@ -161,8 +166,8 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
 
     comparison = compare_suite_to_baseline(suite, baseline)
     assert comparison["has_regressions"] is True
-    assert comparison["regression_count"] == 1
-    assert comparison["regressions"][0]["metric"] == "quality_score"
+    assert comparison["regression_count"] == 2
+    assert {item["metric"] for item in comparison["regressions"]} == {"quality_score", "architect_threshold_hit_rate"}
     assert comparison["warning_count"] >= 2  # new case + missing baseline case
 
 

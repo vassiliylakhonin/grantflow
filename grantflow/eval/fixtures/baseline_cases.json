@@ -24,6 +24,7 @@
       "min_citation_confidence_avg": 0.1,
       "max_low_confidence_citations": 30,
       "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
       "max_rag_low_confidence_citations": 0
     }
   },
@@ -52,6 +53,7 @@
       "min_citation_confidence_avg": 0.1,
       "max_low_confidence_citations": 30,
       "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
       "max_rag_low_confidence_citations": 0
     }
   },
@@ -80,6 +82,7 @@
       "min_citation_confidence_avg": 0.1,
       "max_low_confidence_citations": 30,
       "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
       "max_rag_low_confidence_citations": 0
     }
   },
@@ -108,6 +111,7 @@
       "min_citation_confidence_avg": 0.1,
       "max_low_confidence_citations": 30,
       "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
       "max_rag_low_confidence_citations": 0
     }
   },
@@ -136,6 +140,7 @@
       "min_citation_confidence_avg": 0.1,
       "max_low_confidence_citations": 30,
       "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
       "max_rag_low_confidence_citations": 0
     }
   },
@@ -164,6 +169,7 @@
       "min_citation_confidence_avg": 0.1,
       "max_low_confidence_citations": 30,
       "min_high_confidence_citations": 0,
+      "min_architect_threshold_hit_rate": 0.0,
       "max_rag_low_confidence_citations": 0
     }
   }

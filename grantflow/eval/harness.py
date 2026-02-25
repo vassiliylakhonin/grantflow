@@ -21,6 +21,7 @@ HIGHER_IS_BETTER_METRICS = (
     "architect_citation_count",
     "mel_citation_count",
     "high_confidence_citation_count",
+    "architect_threshold_hit_rate",
     "draft_version_count",
     "citation_confidence_avg",
 )
@@ -113,9 +114,25 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
     low_confidence_count = 0
     high_confidence_count = 0
     rag_low_confidence_count = 0
+    architect_threshold_considered = 0
+    architect_threshold_hits = 0
     for citation in citations:
         if not isinstance(citation, dict):
             continue
+        if str(citation.get("stage") or "") == "architect":
+            threshold = citation.get("confidence_threshold")
+            try:
+                threshold_value = float(threshold) if threshold is not None else None
+            except (TypeError, ValueError):
+                threshold_value = None
+            if threshold_value is not None:
+                architect_threshold_considered += 1
+                try:
+                    conf_for_threshold = float(citation.get("citation_confidence") or 0.0)
+                except (TypeError, ValueError):
+                    conf_for_threshold = 0.0
+                if conf_for_threshold >= threshold_value:
+                    architect_threshold_hits += 1
         if str(citation.get("citation_type") or "") == "rag_low_confidence":
             rag_low_confidence_count += 1
         confidence = citation.get("citation_confidence")
@@ -144,6 +161,11 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
         "architect_citation_count": _count_stage_citations(citations, "architect"),
         "mel_citation_count": _count_stage_citations(citations, "mel"),
         "high_confidence_citation_count": high_confidence_count,
+        "architect_threshold_hit_rate": (
+            round(architect_threshold_hits / architect_threshold_considered, 4)
+            if architect_threshold_considered
+            else 0.0
+        ),
         "citation_confidence_avg": round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else 0.0,
         "low_confidence_citation_count": low_confidence_count,
         "rag_low_confidence_citation_count": rag_low_confidence_count,
@@ -175,6 +197,7 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
         ("min_architect_citations", "architect_citation_count"),
         ("min_mel_citations", "mel_citation_count"),
         ("min_high_confidence_citations", "high_confidence_citation_count"),
+        ("min_architect_threshold_hit_rate", "architect_threshold_hit_rate"),
         ("min_citation_confidence_avg", "citation_confidence_avg"),
         ("min_draft_versions", "draft_version_count"),
     ):

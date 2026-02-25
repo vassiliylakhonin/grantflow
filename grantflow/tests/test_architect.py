@@ -4,7 +4,9 @@ from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes import architect_generation as architect_generation_module
 from grantflow.swarm.nodes.architect_generation import (
+    ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES,
     _fallback_structured_toc,
+    _architect_claim_confidence_threshold,
     build_architect_claim_citations,
     generate_toc_under_contract,
 )
@@ -76,6 +78,7 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
     citations = build_architect_claim_citations(
         toc_payload=toc_payload,
         namespace="usaid_ads201",
+        donor_id="usaid",
         evidence_hits=[
             {
                 "rank": 1,
@@ -88,9 +91,23 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
     assert citations
     assert citations[0]["citation_type"] in {"rag_low_confidence", "fallback_namespace", "rag_claim_support"}
     assert "citation_confidence" in citations[0]
+    assert "confidence_threshold" in citations[0]
     assert 0.0 <= float(citations[0]["citation_confidence"]) <= 1.0
+    assert 0.0 < float(citations[0]["confidence_threshold"]) < 1.0
     if citations[0]["citation_type"] == "rag_low_confidence":
-        assert float(citations[0]["citation_confidence"]) < 0.35
+        assert float(citations[0]["citation_confidence"]) < float(citations[0]["confidence_threshold"])
+
+
+def test_architect_claim_threshold_is_tuned_by_donor_and_section():
+    default_threshold = _architect_claim_confidence_threshold(donor_id="unknown", statement_path="toc.project_goal")
+    usaid_goal_threshold = _architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.project_goal")
+    usaid_assumption_threshold = _architect_claim_confidence_threshold(
+        donor_id="usaid", statement_path="toc.critical_assumptions[0]"
+    )
+
+    assert default_threshold >= 0.35
+    assert usaid_goal_threshold >= ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES["usaid"]
+    assert usaid_assumption_threshold > usaid_goal_threshold
 
 
 def test_architect_llm_validation_failure_retries_once_and_recovers(monkeypatch):

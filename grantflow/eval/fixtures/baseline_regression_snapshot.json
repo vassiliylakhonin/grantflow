@@ -4,6 +4,7 @@
       "donor_id": "eu",
       "metrics": {
         "architect_citation_count": 3,
+        "architect_threshold_hit_rate": 0.0,
         "citation_confidence_avg": 0.1,
         "citations_total": 4,
         "critic_score": 9.25,
@@ -26,6 +27,7 @@
       "donor_id": "un_agencies",
       "metrics": {
         "architect_citation_count": 7,
+        "architect_threshold_hit_rate": 0.0,
         "citation_confidence_avg": 0.1,
         "citations_total": 8,
         "critic_score": 9.25,
@@ -48,6 +50,7 @@
       "donor_id": "giz",
       "metrics": {
         "architect_citation_count": 9,
+        "architect_threshold_hit_rate": 0.0,
         "citation_confidence_avg": 0.1,
         "citations_total": 10,
         "critic_score": 9.25,
@@ -70,6 +73,7 @@
       "donor_id": "state_department",
       "metrics": {
         "architect_citation_count": 7,
+        "architect_threshold_hit_rate": 0.0,
         "citation_confidence_avg": 0.1,
         "citations_total": 8,
         "critic_score": 9.25,
@@ -92,6 +96,7 @@
       "donor_id": "usaid",
       "metrics": {
         "architect_citation_count": 24,
+        "architect_threshold_hit_rate": 0.0,
         "citation_confidence_avg": 0.1,
         "citations_total": 25,
         "critic_score": 9.25,
@@ -114,6 +119,7 @@
       "donor_id": "worldbank",
       "metrics": {
         "architect_citation_count": 6,
+        "architect_threshold_hit_rate": 0.0,
         "citation_confidence_avg": 0.1,
         "citations_total": 7,
         "critic_score": 9.25,
@@ -148,6 +154,7 @@
       "architect_citation_count",
       "mel_citation_count",
       "high_confidence_citation_count",
+      "architect_threshold_hit_rate",
       "draft_version_count",
       "citation_confidence_avg"
     ],
