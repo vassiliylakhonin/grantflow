@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,9 +20,7 @@ class RedTeamEvaluation(BaseModel):
     fatal_flaws: List[str] = Field(
         description="List of critical logical gaps, missing indicators, or unrealistic assumptions."
     )
-    revision_instructions: str = Field(
-        description="Clear, actionable instructions for follow-up revision."
-    )
+    revision_instructions: str = Field(description="Clear, actionable instructions for follow-up revision.")
 
 
 def _dump_model(model: BaseModel) -> Dict[str, Any]:
@@ -107,7 +105,9 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     if evaluation is not None:
         fatal_flaw_items.extend(_llm_flaws_to_structured(list(evaluation.fatal_flaws or [])))
 
-    fatal_flaw_messages = [str(item.get("message") or "") for item in fatal_flaw_items if str(item.get("message") or "").strip()]
+    fatal_flaw_messages = [
+        str(item.get("message") or "") for item in fatal_flaw_items if str(item.get("message") or "").strip()
+    ]
     if not fatal_flaw_messages:
         fatal_flaw_messages = ["Minor improvements suggested"]
 

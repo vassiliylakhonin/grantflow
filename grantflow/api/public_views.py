@@ -261,7 +261,6 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
     terminal_event = next((e for e in reversed(status_events) if e.get("to_status") in terminal_statuses), None)
 
     created_at = _parse_event_ts((created_event or {}).get("ts"))
-    started_at = _parse_event_ts((started_event or {}).get("ts"))
     first_pending_at = _parse_event_ts((first_pending_event or {}).get("ts"))
     terminal_at = _parse_event_ts((terminal_event or {}).get("ts"))
 

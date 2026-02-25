@@ -10,7 +10,6 @@ from typing import Any, Dict, Optional
 
 from grantflow.core.strategies.factory import DonorFactory
 
-
 RUNTIME_STATE_KEYS = {"strategy", "donor_strategy"}
 DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000
 

@@ -1,10 +1,13 @@
 # grantflow/core/state.py
 from __future__ import annotations
-from typing import TypedDict, Optional, Any, List, Annotated
+
 import operator
+from typing import Annotated, List, Optional, TypedDict
+
 
 class GrantFlowState(TypedDict):
     """Full LangGraph state for GrantFlow."""
+
     # 1. Базовые поля (Перезаписываются при каждом обновлении)
     donor_id: str
     input_context: dict

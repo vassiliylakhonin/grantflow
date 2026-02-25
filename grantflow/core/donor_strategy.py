@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Type
+
 from pydantic import BaseModel
+
 
 class DonorStrategy(ABC):
     """Abstract base class for donor strategies."""
+
     donor_id: str
 
     @abstractmethod

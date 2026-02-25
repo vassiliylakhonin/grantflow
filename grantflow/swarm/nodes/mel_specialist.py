@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
@@ -47,18 +47,13 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
 
         for idx, doc in enumerate(docs):
             meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
-            citation = (
-                meta.get("citation")
-                or meta.get("source")
-                or f"{namespace}"
-            )
+            citation = meta.get("citation") or meta.get("source") or f"{namespace}"
             indicators.append(
                 {
                     "indicator_id": meta.get("indicator_id", f"IND_{idx+1:03d}"),
                     "name": meta.get("name", f"Indicator from {namespace} #{idx+1}"),
                     "justification": (
-                        "Selected from donor-specific RAG collection "
-                        f"'{namespace}' based on project query."
+                        "Selected from donor-specific RAG collection " f"'{namespace}' based on project query."
                     ),
                     "citation": citation,
                     "baseline": meta.get("baseline", "TBD"),
@@ -92,9 +87,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
             {
                 "indicator_id": "IND_001",
                 "name": "Project Output Indicator",
-                "justification": (
-                    "Fallback indicator used because donor-specific RAG collection returned no results."
-                ),
+                "justification": ("Fallback indicator used because donor-specific RAG collection returned no results."),
                 "citation": namespace,
                 "baseline": "TBD",
                 "target": "TBD",

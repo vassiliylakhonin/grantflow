@@ -6,7 +6,6 @@ import secrets
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.openapi.utils import get_openapi
 
-
 PROTECTED_OPERATIONS = {
     ("post", "/generate"),
     ("post", "/ingest"),

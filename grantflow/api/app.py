@@ -15,26 +15,26 @@ from pydantic import BaseModel, ConfigDict
 from grantflow.api.demo_ui import render_demo_ui_html
 from grantflow.api.public_views import (
     public_checkpoint_payload,
-    public_job_comments_payload,
     public_job_citations_payload,
+    public_job_comments_payload,
     public_job_diff_payload,
     public_job_events_payload,
     public_job_metrics_payload,
-    public_portfolio_metrics_payload,
     public_job_payload,
     public_job_versions_payload,
+    public_portfolio_metrics_payload,
 )
 from grantflow.api.schemas import (
     HITLPendingListPublicResponse,
-    JobCommentsPublicResponse,
     JobCitationsPublicResponse,
+    JobCommentsPublicResponse,
     JobDiffPublicResponse,
     JobEventsPublicResponse,
     JobMetricsPublicResponse,
-    PortfolioMetricsPublicResponse,
-    ReviewCommentPublicResponse,
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
+    PortfolioMetricsPublicResponse,
+    ReviewCommentPublicResponse,
 )
 from grantflow.api.security import (
     api_key_configured,
@@ -519,7 +519,9 @@ def _resume_target_from_checkpoint(checkpoint: Dict[str, Any], default_resume_fr
 def _health_diagnostics() -> dict[str, Any]:
     job_store_mode = "sqlite" if getattr(JOB_STORE, "db_path", None) else "inmem"
     hitl_store_mode = "sqlite" if bool(getattr(hitl_manager, "_use_sqlite", False)) else "inmem"
-    sqlite_path = getattr(JOB_STORE, "db_path", None) or (getattr(hitl_manager, "_sqlite_path", None) if hitl_store_mode == "sqlite" else None)
+    sqlite_path = getattr(JOB_STORE, "db_path", None) or (
+        getattr(hitl_manager, "_sqlite_path", None) if hitl_store_mode == "sqlite" else None
+    )
 
     vector_backend = "chroma" if getattr(vector_store, "client", None) is not None else "memory"
     diagnostics = {
@@ -730,7 +732,13 @@ async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Re
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
-    _update_job(job_id, status="accepted", state=state, resume_from=start_at, checkpoint_status=getattr(checkpoint.get("status"), "value", checkpoint.get("status")))
+    _update_job(
+        job_id,
+        status="accepted",
+        state=state,
+        resume_from=start_at,
+        checkpoint_status=getattr(checkpoint.get("status"), "value", checkpoint.get("status")),
+    )
     _record_job_event(
         job_id,
         "resume_requested",

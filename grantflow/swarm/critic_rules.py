@@ -144,7 +144,9 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
             )
         else:
             checks.append(
-                RuleCheckResult(code="TOC_CLAIM_CITATIONS", status="warn", section="toc", detail="No statement_path citations")
+                RuleCheckResult(
+                    code="TOC_CLAIM_CITATIONS", status="warn", section="toc", detail="No statement_path citations"
+                )
             )
             _add_flaw(
                 flaws,
@@ -156,7 +158,9 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                 fix_hint="Attach architect citations with statement_path to key objectives and assumptions.",
             )
     else:
-        checks.append(RuleCheckResult(code="TOC_CLAIM_CITATIONS", status="fail", section="toc", detail="No architect citations"))
+        checks.append(
+            RuleCheckResult(code="TOC_CLAIM_CITATIONS", status="fail", section="toc", detail="No architect citations")
+        )
         _add_flaw(
             flaws,
             code="TOC_CITATIONS_MISSING",
@@ -207,7 +211,9 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
         )
     else:
         checks.append(
-            RuleCheckResult(code="LOGFRAME_CITATIONS_PRESENT", status="warn", section="logframe", detail="No MEL citations")
+            RuleCheckResult(
+                code="LOGFRAME_CITATIONS_PRESENT", status="warn", section="logframe", detail="No MEL citations"
+            )
         )
         _add_flaw(
             flaws,
@@ -231,7 +237,9 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
         ]
         revision_instructions = "\n".join(instruction_lines)
     else:
-        revision_instructions = "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible."
+        revision_instructions = (
+            "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible."
+        )
 
     return RuleCriticReport(
         score=score,

@@ -2,6 +2,7 @@
 
 import json
 import time
+
 from fastapi.testclient import TestClient
 
 import grantflow.api.app as api_app_module
@@ -138,17 +139,21 @@ def test_status_includes_citations_traceability(monkeypatch):
     def fake_query(namespace, query_texts, n_results=5, where=None, top_k=None):
         return {
             "documents": [["Official indicator guidance excerpt"]],
-            "metadatas": [[{
-                "source": "/tmp/usaid_guide.pdf",
-                "page": 12,
-                "page_start": 12,
-                "page_end": 12,
-                "chunk": 3,
-                "chunk_id": "usaid_ads201_p12_c0",
-                "indicator_id": "EG.3.2-1",
-                "citation": "USAID ADS 201 p.12",
-                "name": "Households with improved access",
-            }]],
+            "metadatas": [
+                [
+                    {
+                        "source": "/tmp/usaid_guide.pdf",
+                        "page": 12,
+                        "page_start": 12,
+                        "page_end": 12,
+                        "chunk": 3,
+                        "chunk_id": "usaid_ads201_p12_c0",
+                        "indicator_id": "EG.3.2-1",
+                        "citation": "USAID ADS 201 p.12",
+                        "name": "Households with improved access",
+                    }
+                ]
+            ],
         }
 
     monkeypatch.setattr(api_app_module.vector_store, "query", fake_query)
@@ -506,13 +511,49 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
             "hitl_enabled": True,
             "state": {"donor_id": "usaid"},
             "job_events": [
-                {"event_id": "a1", "ts": "2026-02-24T10:00:00+00:00", "type": "status_changed", "to_status": "accepted", "status": "accepted"},
-                {"event_id": "a2", "ts": "2026-02-24T10:00:05+00:00", "type": "status_changed", "to_status": "running", "status": "running"},
-                {"event_id": "a3", "ts": "2026-02-24T10:00:20+00:00", "type": "status_changed", "to_status": "pending_hitl", "status": "pending_hitl"},
+                {
+                    "event_id": "a1",
+                    "ts": "2026-02-24T10:00:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                    "status": "accepted",
+                },
+                {
+                    "event_id": "a2",
+                    "ts": "2026-02-24T10:00:05+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                    "status": "running",
+                },
+                {
+                    "event_id": "a3",
+                    "ts": "2026-02-24T10:00:20+00:00",
+                    "type": "status_changed",
+                    "to_status": "pending_hitl",
+                    "status": "pending_hitl",
+                },
                 {"event_id": "a4", "ts": "2026-02-24T10:01:00+00:00", "type": "resume_requested", "status": "accepted"},
-                {"event_id": "a5", "ts": "2026-02-24T10:01:02+00:00", "type": "status_changed", "to_status": "accepted", "status": "accepted"},
-                {"event_id": "a6", "ts": "2026-02-24T10:01:03+00:00", "type": "status_changed", "to_status": "running", "status": "running"},
-                {"event_id": "a7", "ts": "2026-02-24T10:02:00+00:00", "type": "status_changed", "to_status": "done", "status": "done"},
+                {
+                    "event_id": "a5",
+                    "ts": "2026-02-24T10:01:02+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                    "status": "accepted",
+                },
+                {
+                    "event_id": "a6",
+                    "ts": "2026-02-24T10:01:03+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                    "status": "running",
+                },
+                {
+                    "event_id": "a7",
+                    "ts": "2026-02-24T10:02:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "done",
+                    "status": "done",
+                },
             ],
         },
     )
@@ -523,9 +564,27 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
             "hitl_enabled": False,
             "state": {"donor_id": "eu"},
             "job_events": [
-                {"event_id": "b1", "ts": "2026-02-24T11:00:00+00:00", "type": "status_changed", "to_status": "accepted", "status": "accepted"},
-                {"event_id": "b2", "ts": "2026-02-24T11:00:03+00:00", "type": "status_changed", "to_status": "running", "status": "running"},
-                {"event_id": "b3", "ts": "2026-02-24T11:00:30+00:00", "type": "status_changed", "to_status": "error", "status": "error"},
+                {
+                    "event_id": "b1",
+                    "ts": "2026-02-24T11:00:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                    "status": "accepted",
+                },
+                {
+                    "event_id": "b2",
+                    "ts": "2026-02-24T11:00:03+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                    "status": "running",
+                },
+                {
+                    "event_id": "b3",
+                    "ts": "2026-02-24T11:00:30+00:00",
+                    "type": "status_changed",
+                    "to_status": "error",
+                    "status": "error",
+                },
             ],
         },
     )
@@ -681,7 +740,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert response.status_code == 200
     spec = response.json()
 
-    schemes = ((spec.get("components") or {}).get("securitySchemes") or {})
+    schemes = (spec.get("components") or {}).get("securitySchemes") or {}
     assert "ApiKeyAuth" in schemes
     assert schemes["ApiKeyAuth"]["type"] == "apiKey"
     assert schemes["ApiKeyAuth"]["in"] == "header"
@@ -692,36 +751,34 @@ def test_openapi_declares_api_key_security_scheme():
     cancel_security = (((spec.get("paths") or {}).get("/cancel/{job_id}") or {}).get("post") or {}).get("security")
     status_security = (((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("security")
     status_citations_security = (
-        (((spec.get("paths") or {}).get("/status/{job_id}/citations") or {}).get("get") or {}).get("security")
-    )
+        ((spec.get("paths") or {}).get("/status/{job_id}/citations") or {}).get("get") or {}
+    ).get("security")
     status_versions_security = (
-        (((spec.get("paths") or {}).get("/status/{job_id}/versions") or {}).get("get") or {}).get("security")
+        ((spec.get("paths") or {}).get("/status/{job_id}/versions") or {}).get("get") or {}
+    ).get("security")
+    status_diff_security = (((spec.get("paths") or {}).get("/status/{job_id}/diff") or {}).get("get") or {}).get(
+        "security"
     )
-    status_diff_security = (
-        (((spec.get("paths") or {}).get("/status/{job_id}/diff") or {}).get("get") or {}).get("security")
+    status_events_security = (((spec.get("paths") or {}).get("/status/{job_id}/events") or {}).get("get") or {}).get(
+        "security"
     )
-    status_events_security = (
-        (((spec.get("paths") or {}).get("/status/{job_id}/events") or {}).get("get") or {}).get("security")
-    )
-    status_metrics_security = (
-        (((spec.get("paths") or {}).get("/status/{job_id}/metrics") or {}).get("get") or {}).get("security")
+    status_metrics_security = (((spec.get("paths") or {}).get("/status/{job_id}/metrics") or {}).get("get") or {}).get(
+        "security"
     )
     status_comments_get_security = (
-        (((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}).get("security")
-    )
+        ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}
+    ).get("security")
     status_comments_post_security = (
-        (((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}).get("security")
-    )
+        ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}
+    ).get("security")
     status_comments_resolve_security = (
-        ((((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/resolve") or {}).get("post") or {}))
-        .get("security")
-    )
+        (((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/resolve") or {}).get("post") or {})
+    ).get("security")
     status_comments_reopen_security = (
-        ((((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/reopen") or {}).get("post") or {}))
-        .get("security")
-    )
-    portfolio_metrics_security = (
-        (((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get("security")
+        (((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/reopen") or {}).get("post") or {})
+    ).get("security")
+    portfolio_metrics_security = (((spec.get("paths") or {}).get("/portfolio/metrics") or {}).get("get") or {}).get(
+        "security"
     )
     status_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}") or {}).get("get") or {}).get("responses") or {})
@@ -781,8 +838,12 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_comments_resolve_response_schema = (
         (
-            ((((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/resolve") or {}).get("post") or {})
-             .get("responses"))
+            (
+                (
+                    ((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/resolve") or {}).get("post")
+                    or {}
+                ).get("responses")
+            )
             or {}
         )
         .get("200", {})
@@ -792,8 +853,12 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_comments_reopen_response_schema = (
         (
-            ((((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/reopen") or {}).get("post") or {})
-             .get("responses"))
+            (
+                (
+                    ((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/reopen") or {}).get("post")
+                    or {}
+                ).get("responses")
+            )
             or {}
         )
         .get("200", {})

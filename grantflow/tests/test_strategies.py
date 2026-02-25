@@ -3,12 +3,12 @@
 import pytest
 
 from grantflow.core.strategies.catalog import list_supported_donors
-from grantflow.core.strategies.factory import DonorFactory, strategy_factory
-from grantflow.core.strategies.usaid import USAIDStrategy
 from grantflow.core.strategies.eu import EUStrategy
-from grantflow.core.strategies.worldbank import WorldBankStrategy
+from grantflow.core.strategies.factory import DonorFactory, strategy_factory
 from grantflow.core.strategies.giz import GIZStrategy
 from grantflow.core.strategies.state_department import StateDepartmentStrategy
+from grantflow.core.strategies.usaid import USAIDStrategy
+from grantflow.core.strategies.worldbank import WorldBankStrategy
 
 
 def test_usaid_strategy():

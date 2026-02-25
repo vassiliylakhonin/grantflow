@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any, List, Optional
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from io import BytesIO
+from typing import Any, Dict, List, Optional
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 
 def _autosize_columns(ws) -> None:
@@ -66,28 +67,25 @@ def build_xlsx_from_logframe(
     wb = Workbook()
     ws = wb.active
     ws.title = "LogFrame"
-    
+
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
     header_alignment = Alignment(horizontal="center", vertical="center")
-    
+
     thin_border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
+        left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin")
     )
-    
+
     headers = ["Indicator ID", "Name", "Justification", "Citation", "Baseline", "Target"]
     ws.append(headers)
-    
+
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col)
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = header_alignment
         cell.border = thin_border
-    
+
     indicators = logframe_draft.get("indicators", []) if logframe_draft else []
     for row, ind in enumerate(indicators, 2):
         ws.cell(row=row, column=1, value=ind.get("indicator_id", "")).border = thin_border
@@ -96,14 +94,15 @@ def build_xlsx_from_logframe(
         ws.cell(row=row, column=4, value=ind.get("citation", "")).border = thin_border
         ws.cell(row=row, column=5, value=ind.get("baseline", "TBD")).border = thin_border
         ws.cell(row=row, column=6, value=ind.get("target", "TBD")).border = thin_border
-    
+
     _autosize_columns(ws)
     _add_citations_sheet(wb, citations or logframe_draft.get("citations") or [])
-    
+
     bio = BytesIO()
     wb.save(bio)
     bio.seek(0)
     return bio.read()
+
 
 def save_xlsx_to_file(
     logframe_draft: Dict[str, Any],
@@ -113,6 +112,6 @@ def save_xlsx_to_file(
 ) -> str:
     """Сохраняет .xlsx на диск."""
     content = build_xlsx_from_logframe(logframe_draft, donor_id, citations=citations)
-    with open(output_path, 'wb') as f:
+    with open(output_path, "wb") as f:
         f.write(content)
     return output_path

@@ -259,7 +259,11 @@ def _llm_structured_toc(
         if revision_hint:
             human_prompt += f"Revision instructions from critic: {revision_hint}\n"
         if evidence_lines:
-            human_prompt += "\nDonor guidance evidence (use as grounding cues, do not fabricate citations):\n" + "\n".join(evidence_lines) + "\n"
+            human_prompt += (
+                "\nDonor guidance evidence (use as grounding cues, do not fabricate citations):\n"
+                + "\n".join(evidence_lines)
+                + "\n"
+            )
         human_prompt += "\nReturn the structured object only."
 
         llm = ChatOpenAI(model=config.llm.reasoning_model, temperature=0.1)

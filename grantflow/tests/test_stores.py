@@ -106,9 +106,7 @@ def test_sqlite_stores_initialize_pragmas_and_schema_meta(monkeypatch, tmp_path)
     with open_sqlite_connection(str(db_path)) as conn:
         journal_mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
         busy_timeout = conn.execute("PRAGMA busy_timeout").fetchone()[0]
-        rows = conn.execute(
-            "SELECT component, version FROM schema_meta ORDER BY component"
-        ).fetchall()
+        rows = conn.execute("SELECT component, version FROM schema_meta ORDER BY component").fetchall()
         rows = [(row["component"], row["version"]) for row in rows]
 
     assert str(journal_mode).lower() == "wal"

@@ -31,6 +31,7 @@ class HITLStatus(str, Enum):
 
 class HITLCheckpoint:
     """In-memory manager for Human-in-the-Loop checkpoints."""
+
     SCHEMA_COMPONENT = "hitl_checkpoints"
     SCHEMA_VERSION = 1
 

@@ -9,7 +9,9 @@ from grantflow.core.donor_strategy import DonorStrategy
 
 class StateDeptObjective(BaseModel):
     objective: str = Field(description="Program objective aligned to foreign assistance priorities")
-    line_of_effort: str = Field(description="Diplomacy / governance / rights / security / public affairs line of effort")
+    line_of_effort: str = Field(
+        description="Diplomacy / governance / rights / security / public affairs line of effort"
+    )
     expected_change: str = Field(description="Expected measurable change")
 
 

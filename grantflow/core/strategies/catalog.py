@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 from typing import Any, Dict, Optional
 
-
 DonorRecord = Dict[str, Any]
 
 
@@ -175,7 +174,12 @@ DONOR_CATALOG: list[DonorRecord] = [
         "profile": "Governance, health, education, humanitarian and development programming.",
         "rag_namespace": _ns("fcdo"),
         "strategy": "generic",
-        "aliases": ["ukaid", "uk_aid", "uk_foeign_commonwealth_development_office", "foreign_commonwealth_development_office"],
+        "aliases": [
+            "ukaid",
+            "uk_aid",
+            "uk_foeign_commonwealth_development_office",
+            "foreign_commonwealth_development_office",
+        ],
     },
     {
         "id": "bii",
@@ -395,7 +399,15 @@ DONOR_CATALOG: list[DonorRecord] = [
         "profile": "Country development agencies funding grants aligned with OECD DAC priorities.",
         "rag_namespace": _ns("oecd_dac_europe_agencies"),
         "strategy": "generic",
-        "aliases": ["oecd_dac", "european_dac_agencies", "danida", "finland_mfa_dev", "ada_austria", "enabel", "irish_aid"],
+        "aliases": [
+            "oecd_dac",
+            "european_dac_agencies",
+            "danida",
+            "finland_mfa_dev",
+            "ada_austria",
+            "enabel",
+            "irish_aid",
+        ],
     },
     {
         "id": "gates_foundation",

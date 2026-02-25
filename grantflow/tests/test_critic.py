@@ -19,7 +19,9 @@ def test_rule_based_critic_emits_structured_flaws_with_section_and_version():
 
     assert report.fatal_flaws
     flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
-    assert any(f["code"] == "TOC_SCHEMA_INVALID" and f["section"] == "toc" and f["version_id"] == "toc_v1" for f in flaws)
+    assert any(
+        f["code"] == "TOC_SCHEMA_INVALID" and f["section"] == "toc" and f["version_id"] == "toc_v1" for f in flaws
+    )
     assert any(
         f["code"] == "LOGFRAME_INDICATORS_MISSING" and f["section"] == "logframe" and f["version_id"] == "logframe_v1"
         for f in flaws
@@ -36,7 +38,9 @@ def test_red_team_critic_uses_rules_without_llm_and_stores_structured_notes():
         "max_iterations": 3,
         "iteration": 0,
         "iteration_count": 0,
-        "toc_draft": {"toc": {"project_goal": "Improve access", "objectives": [{"title": "Obj", "description": "Desc"}]}},
+        "toc_draft": {
+            "toc": {"project_goal": "Improve access", "objectives": [{"title": "Obj", "description": "Desc"}]}
+        },
         "logframe_draft": {"indicators": [{"indicator_id": "IND_001"}]},
         "citations": [
             {"stage": "architect", "statement_path": "toc.project_goal", "label": "doc", "used_for": "toc_claim"},

@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 from typing import Type
+
 from pydantic import BaseModel
+
 from grantflow.core.donor_strategy import DonorStrategy
+
 
 class EU_OverallObjective(BaseModel):
     objective_id: str
     title: str
     rationale: str
 
+
 class EU_TOC(BaseModel):
     overall_objective: EU_OverallObjective
+
 
 class EUStrategy(DonorStrategy):
     donor_id: str = "EU"
@@ -27,5 +32,5 @@ class EUStrategy(DonorStrategy):
         return {
             "Architect": "Draft ToC with EU Intervention Logic.",
             "MEL_Specialist": "Anchor indicators to EU logframe expectations.",
-            "Red_Team_Critic": "Find gaps with EU-specific rules."
+            "Red_Team_Critic": "Find gaps with EU-specific rules.",
         }

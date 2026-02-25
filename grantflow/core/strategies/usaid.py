@@ -1,7 +1,11 @@
 from __future__ import annotations
-from typing import Type, List
+
+from typing import List, Type
+
 from pydantic import BaseModel, Field
+
 from grantflow.core.donor_strategy import DonorStrategy
+
 
 # --- 1. Strict Hierarchical Pydantic Models for USAID ---
 class USAID_Indicator(BaseModel):
@@ -11,33 +15,41 @@ class USAID_Indicator(BaseModel):
     justification: str = Field(description="Logical reasoning for choosing this indicator for this specific result")
     citation: str = Field(description="Exact reference from USAID ADS 201 or standard indicator handbook")
 
+
 class USAID_Output(BaseModel):
     output_id: str = Field(description="e.g., Output 1.1.1")
     description: str = Field(description="Tangible product or service delivered")
     indicators: List[USAID_Indicator]
+
 
 class USAID_IntermediateResult(BaseModel):
     ir_id: str = Field(description="e.g., IR 1.1")
     description: str = Field(description="Lower-level result contributing to the DO")
     outputs: List[USAID_Output]
 
+
 class USAID_DevelopmentObjective(BaseModel):
     do_id: str = Field(description="e.g., DO 1")
     description: str = Field(description="Highest-level strategic objective")
     intermediate_results: List[USAID_IntermediateResult]
+
 
 class USAID_TOC(BaseModel):
     project_goal: str = Field(description="The ultimate impact goal of the project")
     development_objectives: List[USAID_DevelopmentObjective]
     critical_assumptions: List[str] = Field(description="External conditions necessary for success")
 
+
 # --- 2. The Strategy Implementation ---
 class USAIDStrategy(DonorStrategy):
     donor_id: str = "USAID"
+
     def get_toc_schema(self) -> Type[USAID_TOC]:
         return USAID_TOC
+
     def get_rag_collection(self) -> str:
         return "usaid_ads201"
+
     def get_system_prompts(self) -> dict:
         return {
             "Architect": (
@@ -60,5 +72,5 @@ class USAIDStrategy(DonorStrategy):
                 "3) Missing cross-cutting themes (Gender equality, Climate resilience). "
                 "If the score is below 8, output specific actionable feedback for the Architect to fix. "
                 "Do not be polite; be bureaucratically precise."
-            )
+            ),
         }

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 
-from grantflow.swarm.nodes.discovery import validate_input_richness
 from grantflow.swarm.nodes.architect import draft_toc
-from grantflow.swarm.nodes.mel_specialist import mel_assign_indicators
 from grantflow.swarm.nodes.critic import red_team_critic
+from grantflow.swarm.nodes.discovery import validate_input_richness
+from grantflow.swarm.nodes.mel_specialist import mel_assign_indicators
 
 
 def build_graph():

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 from grantflow.swarm.citations import append_citations
 from grantflow.swarm.nodes.architect_generation import generate_toc_under_contract
