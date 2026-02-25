@@ -291,7 +291,7 @@ def render_demo_ui_html() -> str:
                 </select>
               </div>
             </div>
-            <div class="row" style="margin-top:10px;">
+            <div class="row3" style="margin-top:10px;">
               <div>
                 <label>Fatal Flaws</label>
                 <div class="list" id="criticFlawsList"></div>
@@ -299,6 +299,10 @@ def render_demo_ui_html() -> str:
               <div>
                 <label>Rule Checks</label>
                 <div class="list" id="criticChecksList"></div>
+              </div>
+              <div>
+                <label>Citation Context</label>
+                <div class="list" id="criticContextList"></div>
               </div>
             </div>
             <div style="margin-top:10px;">
@@ -408,6 +412,7 @@ def render_demo_ui_html() -> str:
         pollTimer: null,
         polling: false,
         lastCritic: null,
+        lastCitations: null,
       };
 
       const els = {
@@ -438,6 +443,7 @@ def render_demo_ui_html() -> str:
         eventsList: $("eventsList"),
         criticFlawsList: $("criticFlawsList"),
         criticChecksList: $("criticChecksList"),
+        criticContextList: $("criticContextList"),
         commentsList: $("commentsList"),
         metricsCards: $("metricsCards"),
         criticSectionFilter: $("criticSectionFilter"),
@@ -699,6 +705,53 @@ def render_demo_ui_html() -> str:
           `;
           els.criticChecksList.appendChild(div);
         }
+
+        renderCriticContextCitations();
+      }
+
+      function renderCriticContextCitations() {
+        if (!els.criticContextList) return;
+        const section = (els.criticSectionFilter.value || "").trim();
+        const citations = Array.isArray(state.lastCitations) ? state.lastCitations : [];
+        let filtered = citations;
+        if (section) {
+          filtered = citations.filter((c) => {
+            const path = String(c.statement_path || "").toLowerCase();
+            const usedFor = String(c.used_for || "").toLowerCase();
+            const stage = String(c.stage || "").toLowerCase();
+            if (section === "toc") {
+              return path.startsWith("toc.") || stage === "architect";
+            }
+            if (section === "logframe") {
+              return stage === "mel" || usedFor.includes("indicator") || usedFor.includes("logframe");
+            }
+            if (section === "general") {
+              return !path && !["architect", "mel"].includes(stage);
+            }
+            return true;
+          });
+        }
+        filtered = filtered.slice(0, 8);
+
+        els.criticContextList.innerHTML = "";
+        if (filtered.length === 0) {
+          els.criticContextList.innerHTML = `<div class="item"><div class="sub">No citation context${section ? ` for ${escapeHtml(section)}` : ""}.</div></div>`;
+          return;
+        }
+        for (const c of filtered) {
+          const div = document.createElement("div");
+          div.className = "item";
+          const label = c.label || c.source || c.namespace || "Citation";
+          const meta = [c.stage, c.citation_type, c.statement_path || c.used_for].filter(Boolean).join(" · ");
+          const pageChunk = [c.page != null ? `p.${c.page}` : null, c.chunk_id || null].filter(Boolean).join(" · ");
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(label)}</div>
+            <div class="sub">${escapeHtml(meta || "trace")}</div>
+            ${pageChunk ? `<div class="sub" style="margin-top:6px;">${escapeHtml(pageChunk)}</div>` : ""}
+            ${c.excerpt ? `<div class="sub" style="margin-top:6px;">${escapeHtml(String(c.excerpt).slice(0, 180))}</div>` : ""}
+          `;
+          els.criticContextList.appendChild(div);
+        }
       }
 
       function prefillCommentFromFinding(flaw) {
@@ -776,7 +829,9 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) return;
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/citations`);
+        state.lastCitations = Array.isArray(body.citations) ? body.citations : [];
         renderCitations(body.citations || []);
+        renderCriticContextCitations();
         return body;
       }
 

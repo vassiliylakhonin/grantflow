@@ -49,6 +49,7 @@ def test_demo_console_page_loads():
     assert "criticSeverityFilter" in body
     assert "Jump to Diff" in body
     assert "Create Comment" in body
+    assert "criticContextList" in body
 
 
 def test_ready_endpoint():
