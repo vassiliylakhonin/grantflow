@@ -392,6 +392,48 @@ Example diff response shape:
 }
 ```
 
+### Critic Findings Workflow (optional)
+
+GrantFlow exposes typed critic findings (`fatal_flaws`) with stable `finding_id` values and reviewer lifecycle status (`open`, `acknowledged`, `resolved`).
+
+Typical reviewer workflow:
+
+1. Read findings from `GET /status/{job_id}/critic`
+2. Acknowledge a finding being triaged
+3. Create a reviewer comment linked via `linked_finding_id`
+4. Resolve the finding after the issue is addressed (or accepted)
+
+Get critic findings:
+
+```bash
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/critic
+```
+
+Acknowledge / resolve a finding:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/critic/findings/<FINDING_ID>/ack
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/critic/findings/<FINDING_ID>/resolve
+```
+
+Example critic finding response shape (single item from `fatal_flaws[]`):
+
+```json
+{
+  "finding_id": "uuid",
+  "code": "TOC_SCHEMA_INVALID",
+  "severity": "high",
+  "section": "toc",
+  "status": "acknowledged",
+  "version_id": "toc_v2",
+  "message": "ToC does not match donor-specific schema contract.",
+  "fix_hint": "Revise architect output to satisfy schema validation errors.",
+  "source": "rules",
+  "acknowledged_at": "2026-02-25T10:15:00+00:00",
+  "linked_comment_ids": ["uuid"]
+}
+```
+
 ### Review comments (optional)
 
 GrantFlow supports lightweight reviewer comments tied to a job and optionally to a specific draft version (`version_id`) for `toc` / `logframe` sections.
