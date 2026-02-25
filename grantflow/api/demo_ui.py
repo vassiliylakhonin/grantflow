@@ -265,6 +265,16 @@ def render_demo_ui_html() -> str:
               <button id="ingestBtn" class="secondary">Upload PDF to /ingest</button>
             </div>
             <div class="footer-note">Use this before generation to improve citation grounding and confidence. Presets list recommended document types to upload.</div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Checklist Progress</label>
+                <div id="ingestChecklistSummary" class="pill"><span class="dot"></span><span>0/0 complete</span></div>
+              </div>
+              <div style="align-self:end;">
+                <button id="resetIngestChecklistBtn" class="ghost">Reset Checklist Progress</button>
+              </div>
+            </div>
+            <div class="list" id="ingestChecklistProgressList" style="margin-top:10px;"></div>
             <div class="list" id="ingestPresetGuidanceList" style="margin-top:10px;"></div>
             <pre id="ingestResultJson" style="margin-top:10px;">No ingest upload yet.</pre>
           </div>
@@ -676,6 +686,7 @@ def render_demo_ui_html() -> str:
         polling: false,
         lastCritic: null,
         lastCitations: null,
+        ingestChecklistProgress: {},
       };
       const GENERATE_PRESETS = {
         usaid_gov_ai_kazakhstan: {
@@ -757,7 +768,14 @@ def render_demo_ui_html() -> str:
             sector: "governance",
             theme: "responsible_ai_public_sector",
             country_focus: "Kazakhstan",
+            doc_family: "donor_policy",
           },
+          checklist_items: [
+            { id: "donor_policy", label: "USAID donor policy / ADS guidance", source_type: "donor_guidance" },
+            { id: "responsible_ai_guidance", label: "Responsible AI / digital governance guidance", source_type: "reference_guidance" },
+            { id: "country_context", label: "Kazakhstan public administration / digital government context", source_type: "country_context" },
+            { id: "competency_framework", label: "Civil service competency / training framework", source_type: "training_framework" },
+          ],
           recommended_docs: [
             "USAID ADS / policy guidance relevant to digital transformation, governance, or capacity strengthening",
             "Responsible AI / digital governance guidance approved for your organization",
@@ -772,7 +790,14 @@ def render_demo_ui_html() -> str:
             sector: "governance",
             theme: "digital_service_delivery",
             country_focus: "Moldova",
+            doc_family: "donor_results_guidance",
           },
+          checklist_items: [
+            { id: "donor_results_guidance", label: "EU intervention logic / results framework guidance", source_type: "donor_guidance" },
+            { id: "digital_governance_guidance", label: "EU digital governance / service delivery references", source_type: "reference_guidance" },
+            { id: "country_context", label: "Moldova digitization policy / service standards", source_type: "country_context" },
+            { id: "municipal_process_guidance", label: "Municipal service process / quality guidance", source_type: "implementation_reference" },
+          ],
           recommended_docs: [
             "EU intervention logic / results framework guidance relevant to governance and public administration reform",
             "EU digital governance or service delivery reform policy references",
@@ -787,7 +812,14 @@ def render_demo_ui_html() -> str:
             sector: "public_sector_reform",
             theme: "performance_management_service_delivery",
             country_focus: "Uzbekistan",
+            doc_family: "donor_results_guidance",
           },
+          checklist_items: [
+            { id: "donor_results_guidance", label: "World Bank RF / M&E guidance", source_type: "donor_guidance" },
+            { id: "project_reference_docs", label: "World Bank public sector modernization project references", source_type: "reference_guidance" },
+            { id: "country_context", label: "Uzbekistan public administration reform context", source_type: "country_context" },
+            { id: "agency_process_docs", label: "Agency service standards / process maps", source_type: "implementation_reference" },
+          ],
           recommended_docs: [
             "World Bank results framework / M&E guidance relevant to governance or public sector reform",
             "World Bank public sector modernization / service delivery project documents",
@@ -818,6 +850,9 @@ def render_demo_ui_html() -> str:
         ingestDonorId: $("ingestDonorId"),
         ingestFileInput: $("ingestFileInput"),
         ingestMetadataJson: $("ingestMetadataJson"),
+        ingestChecklistSummary: $("ingestChecklistSummary"),
+        ingestChecklistProgressList: $("ingestChecklistProgressList"),
+        resetIngestChecklistBtn: $("resetIngestChecklistBtn"),
         ingestPresetGuidanceList: $("ingestPresetGuidanceList"),
         ingestResultJson: $("ingestResultJson"),
         ingestBtn: $("ingestBtn"),
@@ -903,11 +938,13 @@ def render_demo_ui_html() -> str:
         els.apiBase.value = localStorage.getItem("grantflow_demo_api_base") || window.location.origin;
         els.apiKey.value = localStorage.getItem("grantflow_demo_api_key") || "";
         els.jobIdInput.value = localStorage.getItem("grantflow_demo_job_id") || "";
+        state.ingestChecklistProgress = loadIngestChecklistProgress();
         restoreUiState();
         if (!String(els.ingestDonorId.value || "").trim()) {
           els.ingestDonorId.value = String(els.donorId.value || "usaid");
         }
         renderIngestPresetGuidance();
+        renderIngestChecklistProgress();
       }
 
       function persistBasics() {
@@ -957,6 +994,92 @@ def render_demo_ui_html() -> str:
         persistUiState();
       }
 
+      function loadIngestChecklistProgress() {
+        const raw = localStorage.getItem("grantflow_demo_ingest_checklist_progress");
+        if (!raw) return {};
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+        } catch (_err) {
+          // ignore malformed local storage
+        }
+        return {};
+      }
+
+      function persistIngestChecklistProgress() {
+        localStorage.setItem(
+          "grantflow_demo_ingest_checklist_progress",
+          JSON.stringify(state.ingestChecklistProgress || {})
+        );
+      }
+
+      function getIngestChecklistItemsForSelectedPreset() {
+        const key = String(els.ingestPresetSelect.value || "").trim();
+        const preset = key ? INGEST_PRESETS[key] : null;
+        const items = Array.isArray(preset?.checklist_items) ? preset.checklist_items : [];
+        return { presetKey: key, preset, items };
+      }
+
+      function renderIngestChecklistProgress() {
+        const { presetKey, items } = getIngestChecklistItemsForSelectedPreset();
+        els.ingestChecklistProgressList.innerHTML = "";
+        const progressRoot = state.ingestChecklistProgress && typeof state.ingestChecklistProgress === "object"
+          ? state.ingestChecklistProgress
+          : {};
+        const presetProgress = presetKey && progressRoot[presetKey] && typeof progressRoot[presetKey] === "object"
+          ? progressRoot[presetKey]
+          : {};
+
+        if (!presetKey || !items.length) {
+          els.ingestChecklistSummary.className = "pill";
+          els.ingestChecklistSummary.innerHTML = `<span class="dot"></span><span>0/0 complete</span>`;
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `<div class="title">No checklist active</div><div class="sub">Select an ingest preset to track recommended document coverage.</div>`;
+          els.ingestChecklistProgressList.appendChild(div);
+          return;
+        }
+
+        let completed = 0;
+        for (const item of items) {
+          const itemId = String(item?.id || "").trim();
+          const row = itemId && presetProgress[itemId] && typeof presetProgress[itemId] === "object"
+            ? presetProgress[itemId]
+            : null;
+          const done = Boolean(row && row.completed);
+          if (done) completed += 1;
+
+          const div = document.createElement("div");
+          div.className = `item${done ? " severity-low" : ""}`;
+          const filename = row && row.filename ? ` · ${String(row.filename)}` : "";
+          const ts = row && row.ts ? ` · ${String(row.ts)}` : "";
+          div.innerHTML = `
+            <div class="title">${done ? "✓" : "○"} ${escapeHtml(String(item?.label || itemId || "Checklist item"))}</div>
+            <div class="sub mono">doc_family=${escapeHtml(itemId || "-")}${filename}</div>
+            <div class="sub">${done ? "Uploaded and matched via metadata_json.doc_family" : "Pending"}${done ? ts : ""}</div>
+          `;
+          els.ingestChecklistProgressList.appendChild(div);
+        }
+
+        const total = items.length;
+        const ratio = total ? completed / total : 0;
+        let cls = "pill";
+        if (total && completed === total) cls += " status-done";
+        else if (completed > 0 || ratio > 0) cls += " status-running";
+        els.ingestChecklistSummary.className = cls;
+        els.ingestChecklistSummary.innerHTML = `<span class="dot"></span><span>${completed}/${total} complete</span>`;
+      }
+
+      function resetIngestChecklistProgressForCurrentPreset() {
+        const { presetKey } = getIngestChecklistItemsForSelectedPreset();
+        if (!presetKey) return;
+        if (state.ingestChecklistProgress && typeof state.ingestChecklistProgress === "object") {
+          delete state.ingestChecklistProgress[presetKey];
+        }
+        persistIngestChecklistProgress();
+        renderIngestChecklistProgress();
+      }
+
       function setGenerateContextJson(value) {
         if (value && typeof value === "object" && !Array.isArray(value)) {
           els.inputContextJson.value = JSON.stringify(value, null, 2);
@@ -1003,10 +1126,13 @@ def render_demo_ui_html() -> str:
           return;
         }
         const docs = Array.isArray(preset.recommended_docs) ? preset.recommended_docs : [];
+        const checklistItems = Array.isArray(preset.checklist_items) ? preset.checklist_items : [];
         docs.forEach((doc, idx) => {
+          const checklist = checklistItems[idx] || {};
+          const docFamily = checklist.id ? ` · doc_family=${String(checklist.id)}` : "";
           const div = document.createElement("div");
           div.className = "item";
-          div.innerHTML = `<div class="title">Recommended upload ${idx + 1}</div><div class="sub">${escapeHtml(String(doc || ""))}</div>`;
+          div.innerHTML = `<div class="title">Recommended upload ${idx + 1}</div><div class="sub">${escapeHtml(String(doc || ""))}</div><div class="sub mono">${escapeHtml(docFamily.replace(/^ · /, ""))}</div>`;
           els.ingestPresetGuidanceList.appendChild(div);
         });
       }
@@ -1028,6 +1154,7 @@ def render_demo_ui_html() -> str:
         }
         persistUiState();
         renderIngestPresetGuidance();
+        renderIngestChecklistProgress();
       }
 
       function syncIngestDonorFromGenerate() {
@@ -1042,6 +1169,7 @@ def render_demo_ui_html() -> str:
         if (!file) throw new Error("Select a PDF file first");
         const filename = String(file.name || "").toLowerCase();
         if (!filename.endsWith(".pdf")) throw new Error("Only PDF files are supported");
+        let parsedMetadata = null;
 
         const form = new FormData();
         form.append("donor_id", donorId);
@@ -1058,6 +1186,7 @@ def render_demo_ui_html() -> str:
           if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
             throw new Error("Ingest Metadata JSON must be a JSON object");
           }
+          parsedMetadata = parsed;
           form.append("metadata_json", JSON.stringify(parsed));
         }
 
@@ -1072,6 +1201,29 @@ def render_demo_ui_html() -> str:
         const body = ct.includes("application/json") ? await res.json() : await res.text();
         if (!res.ok) {
           throw new Error(typeof body === "string" ? body : JSON.stringify(body, null, 2));
+        }
+        const { presetKey, preset } = getIngestChecklistItemsForSelectedPreset();
+        const uploadedDocFamily = String(parsedMetadata?.doc_family || "").trim();
+        if (
+          presetKey &&
+          preset &&
+          donorId.toLowerCase() === String(preset.donor_id || "").toLowerCase() &&
+          uploadedDocFamily
+        ) {
+          if (!state.ingestChecklistProgress || typeof state.ingestChecklistProgress !== "object") {
+            state.ingestChecklistProgress = {};
+          }
+          if (!state.ingestChecklistProgress[presetKey] || typeof state.ingestChecklistProgress[presetKey] !== "object") {
+            state.ingestChecklistProgress[presetKey] = {};
+          }
+          state.ingestChecklistProgress[presetKey][uploadedDocFamily] = {
+            completed: true,
+            filename: file.name || "",
+            ts: new Date().toISOString(),
+            donor_id: donorId,
+          };
+          persistIngestChecklistProgress();
+          renderIngestChecklistProgress();
         }
         setJson(els.ingestResultJson, body);
         return body;
@@ -2104,6 +2256,7 @@ def render_demo_ui_html() -> str:
         els.ingestBtn.addEventListener("click", () => ingestPdfUpload().catch(showError));
         els.applyIngestPresetBtn.addEventListener("click", applyIngestPreset);
         els.syncIngestDonorBtn.addEventListener("click", syncIngestDonorFromGenerate);
+        els.resetIngestChecklistBtn.addEventListener("click", resetIngestChecklistProgressForCurrentPreset);
         els.refreshAllBtn.addEventListener("click", () => refreshAll().catch(showError));
         els.pollToggleBtn.addEventListener("click", togglePolling);
         els.clearFiltersBtn.addEventListener("click", () => clearDemoFilters().catch(showError));
@@ -2187,6 +2340,7 @@ def render_demo_ui_html() -> str:
         els.ingestPresetSelect.addEventListener("change", () => {
           persistUiState();
           renderIngestPresetGuidance();
+          renderIngestChecklistProgress();
         });
         els.ingestDonorId.addEventListener("change", persistUiState);
         els.ingestMetadataJson.addEventListener("change", persistUiState);

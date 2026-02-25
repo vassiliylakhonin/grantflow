@@ -313,7 +313,7 @@ The `Generate` card includes preset examples that prefill `donor_id`, `project`,
 
 These presets are editable before submitting and are intended as starting points for demo/pilot conversations rather than final proposal briefs.
 
-The `Ingest (RAG Prep)` panel includes matching presets for these scenarios and suggests what kinds of donor/context PDFs to upload before generation (for better citation grounding and confidence).
+The `Ingest (RAG Prep)` panel includes matching presets for these scenarios, suggests what kinds of donor/context PDFs to upload before generation, and tracks a simple metadata-driven checklist (`metadata_json.doc_family`) so you can see which recommended document types are already covered.
 
 ### Webhook events (optional)
 

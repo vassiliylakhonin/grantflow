@@ -58,6 +58,11 @@ def test_demo_console_page_loads():
     assert "ingestMetadataJson" in body
     assert "ingestBtn" in body
     assert "ingestPresetGuidanceList" in body
+    assert "ingestChecklistSummary" in body
+    assert "ingestChecklistProgressList" in body
+    assert "resetIngestChecklistBtn" in body
+    assert "grantflow_demo_ingest_checklist_progress" in body
+    assert "doc_family=" in body
     assert "/ingest" in body
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/quality" in body
