@@ -77,6 +77,10 @@ def test_demo_console_page_loads():
     assert "portfolioQualityPrioritySignalsList" in body
     assert "portfolioQualityWeightedDonorsList" in body
     assert "portfolioQualityJson" in body
+    assert "copyPortfolioQualityJsonBtn" in body
+    assert "downloadPortfolioQualityJsonBtn" in body
+    assert "downloadPortfolioQualityCsvBtn" in body
+    assert "grantflow_portfolio_quality.csv" in body
     assert "portfolioStatusCountsList" in body
     assert "portfolioDonorCountsList" in body
     assert "Click to filter" in body

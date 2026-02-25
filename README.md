@@ -284,6 +284,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 - Export payload preview/copy and one-click review package export (`ZIP`) via `/export`
 - Job events and metrics
 - Portfolio metrics dashboard (filters + click-to-filter counts) plus `Portfolio Quality` risk rollups (top donors by needs-revision/open findings)
+- Portfolio Quality snapshot export from `/demo` (`Copy JSON`, `Download JSON`, `Download CSV`)
 
 ### Run and open
 

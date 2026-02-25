@@ -361,6 +361,11 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">High-Priority Signals</div><div class="value mono">-</div></div>
             </div>
             <div class="row" style="margin-top:10px;">
+              <button id="copyPortfolioQualityJsonBtn" class="ghost">Copy Quality JSON</button>
+              <button id="downloadPortfolioQualityJsonBtn" class="ghost">Download Quality JSON</button>
+              <button id="downloadPortfolioQualityCsvBtn" class="secondary">Download Quality CSV</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
               <div>
                 <label>Top Donors (Needs Revision)</label>
                 <div class="list" id="portfolioQualityRiskList"></div>
@@ -687,6 +692,9 @@ def render_demo_ui_html() -> str:
         qualityBtn: $("qualityBtn"),
         portfolioBtn: $("portfolioBtn"),
         portfolioClearBtn: $("portfolioClearBtn"),
+        copyPortfolioQualityJsonBtn: $("copyPortfolioQualityJsonBtn"),
+        downloadPortfolioQualityJsonBtn: $("downloadPortfolioQualityJsonBtn"),
+        downloadPortfolioQualityCsvBtn: $("downloadPortfolioQualityCsvBtn"),
         commentsBtn: $("commentsBtn"),
         addCommentBtn: $("addCommentBtn"),
         resolveCommentBtn: $("resolveCommentBtn"),
@@ -1514,6 +1522,88 @@ def render_demo_ui_html() -> str:
         await navigator.clipboard.writeText(text);
       }
 
+      async function ensurePortfolioQualityLoaded() {
+        let text = (els.portfolioQualityJson?.textContent || "").trim();
+        if (!text || text === "{}") {
+          await refreshPortfolioQuality();
+          text = (els.portfolioQualityJson?.textContent || "").trim();
+        }
+        if (!text || text === "{}") throw new Error("Load portfolio quality first");
+        return text;
+      }
+
+      function downloadBlob(blob, filename) {
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        } finally {
+          setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        }
+      }
+
+      function flattenObjectToRows(value, prefix = "") {
+        const rows = [];
+        if (Array.isArray(value)) {
+          value.forEach((item, idx) => {
+            rows.push(...flattenObjectToRows(item, `${prefix}[${idx}]`));
+          });
+          return rows;
+        }
+        if (value && typeof value === "object") {
+          Object.entries(value).forEach(([k, v]) => {
+            const next = prefix ? `${prefix}.${k}` : String(k);
+            rows.push(...flattenObjectToRows(v, next));
+          });
+          return rows;
+        }
+        rows.push({ field: prefix || "value", value: value == null ? "" : String(value) });
+        return rows;
+      }
+
+      function rowsToCsv(rows) {
+        const escapeCsv = (v) => {
+          const s = v == null ? "" : String(v);
+          if (/[\",\\n]/.test(s)) return `"${s.replace(/\"/g, '""')}"`;
+          return s;
+        };
+        const lines = ["field,value"];
+        rows.forEach((row) => lines.push(`${escapeCsv(row.field)},${escapeCsv(row.value)}`));
+        return `${lines.join("\\n")}\\n`;
+      }
+
+      async function copyPortfolioQualityJson() {
+        const text = await ensurePortfolioQualityLoaded();
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          throw new Error("Clipboard API is not available in this browser");
+        }
+        await navigator.clipboard.writeText(text);
+      }
+
+      async function downloadPortfolioQualityJson() {
+        const text = await ensurePortfolioQualityLoaded();
+        const blob = new Blob([text.endsWith("\\n") ? text : `${text}\\n`], { type: "application/json" });
+        downloadBlob(blob, "grantflow_portfolio_quality.json");
+      }
+
+      async function downloadPortfolioQualityCsv() {
+        const text = await ensurePortfolioQualityLoaded();
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          throw new Error("Portfolio quality JSON is invalid");
+        }
+        const rows = flattenObjectToRows(parsed);
+        const csv = rowsToCsv(rows);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        downloadBlob(blob, "grantflow_portfolio_quality.csv");
+      }
+
       async function exportZipFromPayload() {
         let currentText = (els.exportPayloadJson?.textContent || "").trim();
         if (!currentText || currentText === "{}") {
@@ -1699,6 +1789,15 @@ def render_demo_ui_html() -> str:
           clearPortfolioFilters();
           refreshPortfolioBundle().catch(showError);
         });
+        els.copyPortfolioQualityJsonBtn.addEventListener("click", () =>
+          copyPortfolioQualityJson().catch((err) => showError(err))
+        );
+        els.downloadPortfolioQualityJsonBtn.addEventListener("click", () =>
+          downloadPortfolioQualityJson().catch((err) => showError(err))
+        );
+        els.downloadPortfolioQualityCsvBtn.addEventListener("click", () =>
+          downloadPortfolioQualityCsv().catch((err) => showError(err))
+        );
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
