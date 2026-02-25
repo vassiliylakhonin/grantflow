@@ -174,10 +174,16 @@ def test_eval_harness_regression_comparison_flags_only_degradations():
     assert comparison["donor_breakdown"]["usaid"]["regression_count"] == 2
     assert comparison["donor_breakdown"]["eu"]["warning_count"] >= 1
     assert comparison["donor_breakdown"]["giz"]["warning_count"] >= 1
+    assert comparison["severity_weighted_regression_score"] >= 6
+    assert comparison["high_priority_regression_count"] >= 1
+    assert comparison["priority_metric_breakdown"]["architect_threshold_hit_rate"]["weight"] >= 4
+    assert comparison["donor_priority_breakdown"]["usaid"]["weighted_score"] >= 1
 
     text = format_eval_comparison_report(comparison)
     assert "Donor regression breakdown" in text
     assert "usaid: regressions=2" in text
+    assert "Severity-weighted regression summary" in text
+    assert "Top donor weighted risk" in text
 
 
 def test_eval_harness_cli_can_write_baseline_and_comparison_reports(tmp_path):
@@ -213,6 +219,7 @@ def test_eval_harness_cli_can_write_baseline_and_comparison_reports(tmp_path):
     comparison = json.loads(cmp_json_out.read_text(encoding="utf-8"))
     assert comparison["has_regressions"] is False
     assert comparison["regression_count"] == 0
+    assert comparison["severity_weighted_regression_score"] == 0
     assert regenerated_baseline_out.exists()
     cmp_text = cmp_text_out.read_text(encoding="utf-8")
     assert "No regressions detected" in cmp_text

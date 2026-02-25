@@ -38,6 +38,21 @@ BOOLEAN_GUARDRAIL_METRICS = (
     "has_logframe_draft",
 )
 REGRESSION_TOLERANCE = 1e-6
+REGRESSION_PRIORITY_WEIGHTS: dict[str, int] = {
+    "toc_schema_valid": 5,
+    "has_toc_draft": 5,
+    "has_logframe_draft": 5,
+    "error_count": 5,
+    "high_severity_fatal_flaw_count": 5,
+    "needs_revision": 4,
+    "architect_threshold_hit_rate": 4,
+    "citation_confidence_avg": 3,
+    "fatal_flaw_count": 3,
+    "quality_score": 2,
+    "critic_score": 2,
+    "low_confidence_citation_count": 2,
+    "rag_low_confidence_citation_count": 2,
+}
 
 
 def _looks_like_eval_case(item: Any) -> bool:
@@ -519,6 +534,35 @@ def compare_suite_to_baseline(
         )
         row["warning_count"] = int(row.get("warning_count") or 0) + 1
 
+    priority_metric_breakdown: dict[str, dict[str, Any]] = {}
+    donor_priority_breakdown: dict[str, dict[str, Any]] = {}
+    severity_weighted_regression_score = 0
+    high_priority_regression_count = 0
+    for item in regressions:
+        metric = str(item.get("metric") or "unknown")
+        donor_id = str(item.get("donor_id") or "unknown")
+        weight = int(REGRESSION_PRIORITY_WEIGHTS.get(metric, 1))
+        weighted_score = weight
+        severity_weighted_regression_score += weighted_score
+        if weight >= 4:
+            high_priority_regression_count += 1
+
+        metric_row = priority_metric_breakdown.setdefault(
+            metric,
+            {"count": 0, "weight": weight, "weighted_score": 0},
+        )
+        metric_row["count"] = int(metric_row.get("count") or 0) + 1
+        metric_row["weighted_score"] = int(metric_row.get("weighted_score") or 0) + weighted_score
+
+        donor_row = donor_priority_breakdown.setdefault(
+            donor_id,
+            {"regression_count": 0, "weighted_score": 0, "high_priority_regression_count": 0},
+        )
+        donor_row["regression_count"] = int(donor_row.get("regression_count") or 0) + 1
+        donor_row["weighted_score"] = int(donor_row.get("weighted_score") or 0) + weighted_score
+        if weight >= 4:
+            donor_row["high_priority_regression_count"] = int(donor_row.get("high_priority_regression_count") or 0) + 1
+
     return {
         "baseline_path": None,
         "case_count": len(current_cases),
@@ -529,6 +573,10 @@ def compare_suite_to_baseline(
         "regressions": regressions,
         "warnings": warnings,
         "donor_breakdown": donor_breakdown,
+        "severity_weighted_regression_score": severity_weighted_regression_score,
+        "high_priority_regression_count": high_priority_regression_count,
+        "priority_metric_breakdown": priority_metric_breakdown,
+        "donor_priority_breakdown": donor_priority_breakdown,
     }
 
 
@@ -579,6 +627,52 @@ def format_eval_comparison_report(comparison: dict[str, Any]) -> str:
                     f"warnings={int(row_dict.get('warning_count') or 0)} top_metrics={metric_text}"
                 )
             )
+
+    priority_metric_breakdown = comparison.get("priority_metric_breakdown")
+    donor_priority_breakdown = comparison.get("donor_priority_breakdown")
+    if isinstance(priority_metric_breakdown, dict) and priority_metric_breakdown:
+        lines.append("")
+        lines.append(
+            "Severity-weighted regression summary "
+            f"(weighted_score={int(comparison.get('severity_weighted_regression_score') or 0)}, "
+            f"high_priority={int(comparison.get('high_priority_regression_count') or 0)})"
+        )
+        ordered_metrics = sorted(
+            priority_metric_breakdown.items(),
+            key=lambda item: (
+                -(int((item[1] or {}).get("weighted_score") or 0)),
+                -(int((item[1] or {}).get("count") or 0)),
+                str(item[0]),
+            ),
+        )
+        for metric, row in ordered_metrics[:8]:
+            row_dict = row if isinstance(row, dict) else {}
+            lines.append(
+                (
+                    f"- metric {metric}: count={int(row_dict.get('count') or 0)} "
+                    f"weight={int(row_dict.get('weight') or 1)} "
+                    f"weighted_score={int(row_dict.get('weighted_score') or 0)}"
+                )
+            )
+        if isinstance(donor_priority_breakdown, dict) and donor_priority_breakdown:
+            lines.append("Top donor weighted risk")
+            ordered_donors = sorted(
+                donor_priority_breakdown.items(),
+                key=lambda item: (
+                    -(int((item[1] or {}).get("weighted_score") or 0)),
+                    -(int((item[1] or {}).get("high_priority_regression_count") or 0)),
+                    str(item[0]),
+                ),
+            )
+            for donor_id, row in ordered_donors[:8]:
+                row_dict = row if isinstance(row, dict) else {}
+                lines.append(
+                    (
+                        f"- {donor_id}: weighted_score={int(row_dict.get('weighted_score') or 0)} "
+                        f"regressions={int(row_dict.get('regression_count') or 0)} "
+                        f"high_priority={int(row_dict.get('high_priority_regression_count') or 0)}"
+                    )
+                )
     if not (comparison.get("regressions") or comparison.get("warnings")):
         lines.append("- No regressions detected against baseline.")
     return "\n".join(lines)
