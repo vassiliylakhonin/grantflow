@@ -47,9 +47,11 @@ def test_demo_console_page_loads():
     assert "/status/${encodeURIComponent(jobId)}/metrics" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
     assert "criticSeverityFilter" in body
+    assert "criticCitationConfidenceFilter" in body
     assert "Jump to Diff" in body
     assert "Create Comment" in body
     assert "criticContextList" in body
+    assert "conf " in body
     assert "commentsFilterStatus" in body
     assert "commentsFilterVersionId" in body
     assert "grantflow_demo_diff_section" in body

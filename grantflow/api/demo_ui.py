@@ -351,6 +351,14 @@ def render_demo_ui_html() -> str:
                   <option value="low">low</option>
                 </select>
               </div>
+              <div>
+                <label for="criticCitationConfidenceFilter">Citation Confidence</label>
+                <select id="criticCitationConfidenceFilter">
+                  <option value="">all</option>
+                  <option value="low">low (&lt; 0.30)</option>
+                  <option value="high">high (&ge; 0.70)</option>
+                </select>
+              </div>
             </div>
             <div class="row3" style="margin-top:10px;">
               <div>
@@ -507,6 +515,7 @@ def render_demo_ui_html() -> str:
         ["toVersionId", "grantflow_demo_to_version_id"],
         ["criticSectionFilter", "grantflow_demo_critic_section"],
         ["criticSeverityFilter", "grantflow_demo_critic_severity"],
+        ["criticCitationConfidenceFilter", "grantflow_demo_critic_confidence"],
         ["portfolioDonorFilter", "grantflow_demo_portfolio_donor"],
         ["portfolioStatusFilter", "grantflow_demo_portfolio_status"],
         ["portfolioHitlFilter", "grantflow_demo_portfolio_hitl"],
@@ -560,6 +569,7 @@ def render_demo_ui_html() -> str:
         portfolioDonorCountsList: $("portfolioDonorCountsList"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
+        criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
         portfolioDonorFilter: $("portfolioDonorFilter"),
         portfolioStatusFilter: $("portfolioStatusFilter"),
         portfolioHitlFilter: $("portfolioHitlFilter"),
@@ -772,9 +782,13 @@ def render_demo_ui_html() -> str:
           const label = c.label || c.source || c.namespace || "Citation";
           const meta = [c.stage, c.citation_type, c.used_for].filter(Boolean).join(" · ");
           const pageChunk = [c.page != null ? `p.${c.page}` : null, c.chunk != null ? `chunk ${c.chunk}` : null].filter(Boolean).join(" · ");
+          const confidence =
+            c.citation_confidence != null && !Number.isNaN(Number(c.citation_confidence))
+              ? `conf ${Number(c.citation_confidence).toFixed(2)}`
+              : "";
           div.innerHTML = `
             <div class="title mono">${escapeHtml(label)}</div>
-            <div class="sub">${escapeHtml(meta || "trace")}${pageChunk ? ` · ${escapeHtml(pageChunk)}` : ""}</div>
+            <div class="sub">${escapeHtml(meta || "trace")}${confidence ? ` · ${escapeHtml(confidence)}` : ""}${pageChunk ? ` · ${escapeHtml(pageChunk)}` : ""}</div>
             ${c.excerpt ? `<div class="sub" style="margin-top:6px;">${escapeHtml(String(c.excerpt).slice(0, 240))}</div>` : ""}
           `;
           els.citationsList.appendChild(div);
@@ -952,6 +966,7 @@ def render_demo_ui_html() -> str:
       function renderCriticContextCitations() {
         if (!els.criticContextList) return;
         const section = (els.criticSectionFilter.value || "").trim();
+        const confidenceFilter = (els.criticCitationConfidenceFilter?.value || "").trim();
         const citations = Array.isArray(state.lastCitations) ? state.lastCitations : [];
         let filtered = citations;
         if (section) {
@@ -971,6 +986,16 @@ def render_demo_ui_html() -> str:
             return true;
           });
         }
+        if (confidenceFilter) {
+          filtered = filtered.filter((c) => {
+            const raw = c?.citation_confidence;
+            const conf = raw == null ? null : Number(raw);
+            if (conf == null || Number.isNaN(conf)) return confidenceFilter === "low";
+            if (confidenceFilter === "low") return conf < 0.3;
+            if (confidenceFilter === "high") return conf >= 0.7;
+            return true;
+          });
+        }
         filtered = filtered.slice(0, 8);
 
         els.criticContextList.innerHTML = "";
@@ -984,9 +1009,13 @@ def render_demo_ui_html() -> str:
           const label = c.label || c.source || c.namespace || "Citation";
           const meta = [c.stage, c.citation_type, c.statement_path || c.used_for].filter(Boolean).join(" · ");
           const pageChunk = [c.page != null ? `p.${c.page}` : null, c.chunk_id || null].filter(Boolean).join(" · ");
+          const confidence =
+            c.citation_confidence != null && !Number.isNaN(Number(c.citation_confidence))
+              ? `conf ${Number(c.citation_confidence).toFixed(2)}`
+              : "";
           div.innerHTML = `
             <div class="title mono">${escapeHtml(label)}</div>
-            <div class="sub">${escapeHtml(meta || "trace")}</div>
+            <div class="sub">${escapeHtml(meta || "trace")}${confidence ? ` · ${escapeHtml(confidence)}` : ""}</div>
             ${pageChunk ? `<div class="sub" style="margin-top:6px;">${escapeHtml(pageChunk)}</div>` : ""}
             ${c.excerpt ? `<div class="sub" style="margin-top:6px;">${escapeHtml(String(c.excerpt).slice(0, 180))}</div>` : ""}
           `;
@@ -1358,6 +1387,10 @@ def render_demo_ui_html() -> str:
           persistUiState();
           if (state.lastCritic) renderCriticLists(state.lastCritic);
           else refreshCritic().catch(showError);
+        });
+        els.criticCitationConfidenceFilter.addEventListener("change", () => {
+          persistUiState();
+          renderCriticContextCitations();
         });
       }
 
