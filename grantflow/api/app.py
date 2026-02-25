@@ -712,6 +712,50 @@ def _health_diagnostics() -> dict[str, Any]:
     return diagnostics
 
 
+def _portfolio_export_response(
+    *,
+    payload: Dict[str, Any],
+    filename_prefix: str,
+    donor_id: Optional[str],
+    status: Optional[str],
+    hitl_enabled: Optional[bool],
+    export_format: Literal["csv", "json"],
+    gzip_enabled: bool,
+    csv_renderer,
+) -> StreamingResponse:
+    filename_parts = [filename_prefix]
+    if donor_id:
+        filename_parts.append(donor_id)
+    if status:
+        filename_parts.append(status)
+    if hitl_enabled is not None:
+        filename_parts.append(f"hitl_{str(hitl_enabled).lower()}")
+
+    if export_format == "csv":
+        body_text = csv_renderer(payload)
+        media_type = "text/csv; charset=utf-8"
+        extension = "csv"
+    elif export_format == "json":
+        body_text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+        media_type = "application/json"
+        extension = "json"
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported export format")
+
+    body_bytes = body_text.encode("utf-8")
+    if gzip_enabled:
+        body_bytes = gzip.compress(body_bytes)
+        extension = f"{extension}.gz"
+        media_type = "application/gzip"
+
+    filename = "_".join(filename_parts) + f".{extension}"
+    return StreamingResponse(
+        io.BytesIO(body_bytes),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 def _vector_store_readiness() -> dict[str, Any]:
     client = getattr(vector_store, "client", None)
     backend = "chroma" if client is not None else "memory"
@@ -801,36 +845,15 @@ def export_portfolio_metrics(
         hitl_enabled=hitl_enabled,
     )
 
-    filename_parts = ["grantflow_portfolio_metrics"]
-    if donor_id:
-        filename_parts.append(donor_id)
-    if status:
-        filename_parts.append(status)
-    if hitl_enabled is not None:
-        filename_parts.append(f"hitl_{str(hitl_enabled).lower()}")
-
-    if format == "csv":
-        body_text = public_portfolio_metrics_csv_text(payload)
-        media_type = "text/csv; charset=utf-8"
-        extension = "csv"
-    elif format == "json":
-        body_text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
-        media_type = "application/json"
-        extension = "json"
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported export format")
-
-    body_bytes = body_text.encode("utf-8")
-    if gzip_enabled:
-        body_bytes = gzip.compress(body_bytes)
-        extension = f"{extension}.gz"
-        media_type = "application/gzip"
-
-    filename = "_".join(filename_parts) + f".{extension}"
-    return StreamingResponse(
-        io.BytesIO(body_bytes),
-        media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    return _portfolio_export_response(
+        payload=payload,
+        filename_prefix="grantflow_portfolio_metrics",
+        donor_id=donor_id,
+        status=status,
+        hitl_enabled=hitl_enabled,
+        export_format=format,
+        gzip_enabled=gzip_enabled,
+        csv_renderer=public_portfolio_metrics_csv_text,
     )
 
 
@@ -873,36 +896,15 @@ def export_portfolio_quality(
         hitl_enabled=hitl_enabled,
     )
 
-    filename_parts = ["grantflow_portfolio_quality"]
-    if donor_id:
-        filename_parts.append(donor_id)
-    if status:
-        filename_parts.append(status)
-    if hitl_enabled is not None:
-        filename_parts.append(f"hitl_{str(hitl_enabled).lower()}")
-
-    if format == "csv":
-        body_text = public_portfolio_quality_csv_text(payload)
-        media_type = "text/csv; charset=utf-8"
-        extension = "csv"
-    elif format == "json":
-        body_text = json.dumps(payload, indent=2, sort_keys=True) + "\n"
-        media_type = "application/json"
-        extension = "json"
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported export format")
-
-    body_bytes = body_text.encode("utf-8")
-    if gzip_enabled:
-        body_bytes = gzip.compress(body_bytes)
-        extension = f"{extension}.gz"
-        media_type = "application/gzip"
-
-    filename = "_".join(filename_parts) + f".{extension}"
-    return StreamingResponse(
-        io.BytesIO(body_bytes),
-        media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    return _portfolio_export_response(
+        payload=payload,
+        filename_prefix="grantflow_portfolio_quality",
+        donor_id=donor_id,
+        status=status,
+        hitl_enabled=hitl_enabled,
+        export_format=format,
+        gzip_enabled=gzip_enabled,
+        csv_renderer=public_portfolio_quality_csv_text,
     )
 
 
