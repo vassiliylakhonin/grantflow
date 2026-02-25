@@ -1046,21 +1046,13 @@ def render_demo_ui_html() -> str:
         return { presetKey: key, preset, items };
       }
 
-      function renderGeneratePresetReadiness() {
-        if (!els.generatePresetReadinessPill || !els.generatePresetReadinessText) return;
+      function getGeneratePresetReadinessStats() {
         const presetKey = String(els.generatePresetSelect.value || "").trim();
-        if (!presetKey) {
-          els.generatePresetReadinessPill.className = "pill";
-          els.generatePresetReadinessText.textContent = "No preset selected";
-          return;
-        }
+        if (!presetKey) return { presetKey: "", total: 0, completed: 0 };
         const preset = INGEST_PRESETS[presetKey];
         const items = Array.isArray(preset?.checklist_items) ? preset.checklist_items : [];
-        if (!items.length) {
-          els.generatePresetReadinessPill.className = "pill";
-          els.generatePresetReadinessText.textContent = "No checklist for preset";
-          return;
-        }
+        if (!items.length) return { presetKey, total: 0, completed: 0 };
+
         const progressRoot = state.ingestChecklistProgress && typeof state.ingestChecklistProgress === "object"
           ? state.ingestChecklistProgress
           : {};
@@ -1074,7 +1066,22 @@ def render_demo_ui_html() -> str:
             : null;
           if (row && row.completed) completed += 1;
         }
-        const total = items.length;
+        return { presetKey, total: items.length, completed };
+      }
+
+      function renderGeneratePresetReadiness() {
+        if (!els.generatePresetReadinessPill || !els.generatePresetReadinessText) return;
+        const { presetKey, total, completed } = getGeneratePresetReadinessStats();
+        if (!presetKey) {
+          els.generatePresetReadinessPill.className = "pill";
+          els.generatePresetReadinessText.textContent = "No preset selected";
+          return;
+        }
+        if (!total) {
+          els.generatePresetReadinessPill.className = "pill";
+          els.generatePresetReadinessText.textContent = "No checklist for preset";
+          return;
+        }
         let cls = "pill";
         if (total && completed === total) cls += " status-done";
         else if (completed > 0) cls += " status-running";
@@ -1869,6 +1876,13 @@ def render_demo_ui_html() -> str:
       }
 
       async function generateJob() {
+        const readiness = getGeneratePresetReadinessStats();
+        if (readiness.presetKey && readiness.total > 0 && readiness.completed === 0) {
+          const ok = window.confirm(
+            `RAG readiness is 0/${readiness.total} for the selected preset. Generate anyway?`
+          );
+          if (!ok) return;
+        }
         let extraContext = {};
         const extraJsonText = String(els.inputContextJson.value || "").trim();
         if (extraJsonText) {

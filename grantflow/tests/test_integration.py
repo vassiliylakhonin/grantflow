@@ -52,6 +52,7 @@ def test_demo_console_page_loads():
     assert "generatePresetReadinessPill" in body
     assert "generatePresetReadinessText" in body
     assert "RAG Readiness (for selected preset)" in body
+    assert "Generate anyway?" in body
     assert "inputContextJson" in body
     assert "usaid_gov_ai_kazakhstan" in body
     assert "worldbank_public_sector_uzbekistan" in body
