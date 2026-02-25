@@ -279,6 +279,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 - Critic findings review (fatal flaws, rule checks, citation context, confidence filter)
 - Draft versions and diffs (with jump-to-diff shortcuts)
 - Review comments (create, resolve/reopen, list filters)
+- Export payload preview/copy and one-click review package export (`ZIP`) via `/export`
 - Job events and metrics
 - Portfolio metrics dashboard (filters + click-to-filter counts)
 
@@ -292,6 +293,8 @@ uvicorn grantflow.api.app:app --reload
 ```
 
 If API auth is enabled, paste the `X-API-Key` value into the demo toolbar once and all requests will use it.
+
+The `Export Payload` panel can load `GET /status/{job_id}/export-payload`, preview/copy the JSON, and trigger `POST /export` (`format="both"`) to download a review package ZIP directly from the UI.
 
 ### Webhook events (optional)
 
