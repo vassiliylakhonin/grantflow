@@ -225,6 +225,7 @@ def render_demo_ui_html() -> str:
               <div>
                 <label>RAG Readiness (for selected preset)</label>
                 <div id="generatePresetReadinessPill" class="pill"><span class="dot"></span><span id="generatePresetReadinessText">No preset selected</span></div>
+                <div id="generatePresetReadinessHint" class="sub" style="margin-top:6px;">Select a preset to see missing recommended document families.</div>
               </div>
               <div style="align-self:end;">
                 <button id="syncGenerateReadinessBtn" class="ghost">Sync Readiness Now</button>
@@ -887,6 +888,7 @@ def render_demo_ui_html() -> str:
         ingestBtn: $("ingestBtn"),
         generatePresetReadinessPill: $("generatePresetReadinessPill"),
         generatePresetReadinessText: $("generatePresetReadinessText"),
+        generatePresetReadinessHint: $("generatePresetReadinessHint"),
         syncGenerateReadinessBtn: $("syncGenerateReadinessBtn"),
         skipZeroReadinessWarningCheckbox: $("skipZeroReadinessWarningCheckbox"),
         skipZeroReadinessWarningLabel: $("skipZeroReadinessWarningLabel"),
@@ -1082,10 +1084,10 @@ def render_demo_ui_html() -> str:
 
       function getGeneratePresetReadinessStats() {
         const presetKey = String(els.generatePresetSelect.value || "").trim();
-        if (!presetKey) return { presetKey: "", total: 0, completed: 0 };
+        if (!presetKey) return { presetKey: "", total: 0, completed: 0, missingIds: [], missingLabels: [] };
         const preset = INGEST_PRESETS[presetKey];
         const items = Array.isArray(preset?.checklist_items) ? preset.checklist_items : [];
-        if (!items.length) return { presetKey, total: 0, completed: 0 };
+        if (!items.length) return { presetKey, total: 0, completed: 0, missingIds: [], missingLabels: [] };
 
         const progressRoot = state.ingestChecklistProgress && typeof state.ingestChecklistProgress === "object"
           ? state.ingestChecklistProgress
@@ -1093,14 +1095,21 @@ def render_demo_ui_html() -> str:
         const presetProgress =
           progressRoot[presetKey] && typeof progressRoot[presetKey] === "object" ? progressRoot[presetKey] : {};
         let completed = 0;
+        const missingIds = [];
+        const missingLabels = [];
         for (const item of items) {
           const itemId = String(item?.id || "").trim();
           const row = itemId && presetProgress[itemId] && typeof presetProgress[itemId] === "object"
             ? presetProgress[itemId]
             : null;
-          if (row && row.completed) completed += 1;
+          if (row && row.completed) {
+            completed += 1;
+          } else {
+            if (itemId) missingIds.push(itemId);
+            missingLabels.push(String(item?.label || itemId || "Checklist item"));
+          }
         }
-        return { presetKey, total: items.length, completed };
+        return { presetKey, total: items.length, completed, missingIds, missingLabels };
       }
 
       function isZeroReadinessWarningSkippedForPreset(presetKey) {
@@ -1128,16 +1137,24 @@ def render_demo_ui_html() -> str:
 
       function renderGeneratePresetReadiness() {
         if (!els.generatePresetReadinessPill || !els.generatePresetReadinessText) return;
-        const { presetKey, total, completed } = getGeneratePresetReadinessStats();
+        const { presetKey, total, completed, missingIds, missingLabels } = getGeneratePresetReadinessStats();
         if (!presetKey) {
           els.generatePresetReadinessPill.className = "pill";
           els.generatePresetReadinessText.textContent = "No preset selected";
+          els.generatePresetReadinessPill.title = "Select a preset to compute RAG readiness";
+          if (els.generatePresetReadinessHint) {
+            els.generatePresetReadinessHint.textContent = "Select a preset to see missing recommended document families.";
+          }
           renderZeroReadinessWarningPreference();
           return;
         }
         if (!total) {
           els.generatePresetReadinessPill.className = "pill";
           els.generatePresetReadinessText.textContent = "No checklist for preset";
+          els.generatePresetReadinessPill.title = "No ingest checklist is configured for this preset";
+          if (els.generatePresetReadinessHint) {
+            els.generatePresetReadinessHint.textContent = "This preset does not define recommended doc_family coverage.";
+          }
           renderZeroReadinessWarningPreference();
           return;
         }
@@ -1146,6 +1163,19 @@ def render_demo_ui_html() -> str:
         else if (completed > 0) cls += " status-running";
         els.generatePresetReadinessPill.className = cls;
         els.generatePresetReadinessText.textContent = `${completed}/${total} doc families loaded`;
+        if (missingIds.length) {
+          els.generatePresetReadinessPill.title = `Missing doc_family: ${missingIds.join(", ")}`;
+          if (els.generatePresetReadinessHint) {
+            const preview = missingIds.slice(0, 3).join(", ");
+            const suffix = missingIds.length > 3 ? ` +${missingIds.length - 3} more` : "";
+            els.generatePresetReadinessHint.textContent = `Missing: ${preview}${suffix}`;
+          }
+        } else {
+          els.generatePresetReadinessPill.title = "All recommended doc_family checklist items are covered";
+          if (els.generatePresetReadinessHint) {
+            els.generatePresetReadinessHint.textContent = "All recommended doc families loaded.";
+          }
+        }
         renderZeroReadinessWarningPreference();
       }
 
