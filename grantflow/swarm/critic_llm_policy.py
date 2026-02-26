@@ -21,7 +21,13 @@ LLM_FINDING_LABEL_SEVERITY_POLICY = {
 }
 
 LLM_FINDING_LABEL_DONOR_POLICY_OVERRIDES: Dict[str, Dict[str, str]] = {
-    "usaid": {},
+    # USAID early-draft reviews often phrase polish/detail gaps in variable wording.
+    # Treat generic TOC/LogFrame LLM review flags as advisory unless a donor-specific
+    # label classifier matched a stronger issue.
+    "usaid": {
+        "GENERIC_TOC_REVIEW_FLAG": "advisory",
+        "GENERIC_LOGFRAME_REVIEW_FLAG": "advisory",
+    },
     # In World Bank-style results framework review, missing baseline/target values
     # is often treated as a stronger issue than an "advisory" draft polish note.
     "worldbank": {"BASELINE_TARGET_MISSING": "default"},

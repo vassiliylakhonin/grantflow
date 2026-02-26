@@ -619,6 +619,14 @@ def public_job_quality_payload(
 
     failed_checks = sum(1 for c in rule_checks if isinstance(c, dict) and str(c.get("status") or "").lower() == "fail")
     warned_checks = sum(1 for c in rule_checks if isinstance(c, dict) and str(c.get("status") or "").lower() == "warn")
+    llm_finding_label_counts: Dict[str, int] = {}
+    for flaw in critic_payload.get("fatal_flaws") or []:
+        if not isinstance(flaw, dict):
+            continue
+        if str(flaw.get("source") or "").lower() != "llm":
+            continue
+        label = str(flaw.get("label") or "").strip() or "GENERIC_LLM_REVIEW_FLAG"
+        llm_finding_label_counts[label] = int(llm_finding_label_counts.get(label, 0)) + 1
 
     raw_toc_validation = state_dict.get("toc_validation")
     toc_validation: Dict[str, Any] = (
@@ -657,6 +665,7 @@ def public_job_quality_payload(
             "rule_check_count": int(critic_payload.get("rule_check_count") or 0),
             "failed_rule_check_count": failed_checks,
             "warned_rule_check_count": warned_checks,
+            "llm_finding_label_counts": llm_finding_label_counts,
             "llm_advisory_diagnostics": sanitize_for_public_response(critic_payload.get("llm_advisory_diagnostics")),
         },
         "citations": {
@@ -838,6 +847,7 @@ def public_portfolio_quality_payload(
     architect_rag_low_confidence_citation_count = 0
     mel_rag_low_confidence_citation_count = 0
     fallback_namespace_citation_count = 0
+    llm_finding_label_counts_total: Dict[str, int] = {}
 
     for row in quality_rows:
         row_critic: Dict[str, Any] = (
@@ -852,6 +862,11 @@ def public_portfolio_quality_payload(
         critic_high_severity_total += int(row_critic.get("high_severity_fatal_flaw_count") or 0)
         critic_medium_severity_total += int(row_critic.get("medium_severity_fatal_flaw_count") or 0)
         critic_fatal_flaws_total += int(row_critic.get("fatal_flaw_count") or 0)
+        for label, count in ((row_critic.get("llm_finding_label_counts") or {}).items() if isinstance(row_critic.get("llm_finding_label_counts"), dict) else []):
+            label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
+            llm_finding_label_counts_total[label_key] = int(llm_finding_label_counts_total.get(label_key, 0)) + int(
+                count or 0
+            )
         citation_count_total += int(row_citations.get("citation_count") or 0)
         low_confidence_citation_count += int(row_citations.get("low_confidence_citation_count") or 0)
         rag_low_confidence_citation_count += int(row_citations.get("rag_low_confidence_citation_count") or 0)
@@ -966,6 +981,7 @@ def public_portfolio_quality_payload(
             "fatal_flaws_total": critic_fatal_flaws_total,
             "needs_revision_job_count": needs_revision_job_count,
             "needs_revision_rate": round(needs_revision_job_count / job_count, 4) if job_count else None,
+            "llm_finding_label_counts": llm_finding_label_counts_total,
         },
         "citations": {
             "citation_count_total": citation_count_total,

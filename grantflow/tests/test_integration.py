@@ -886,6 +886,8 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
                             "section": "logframe",
                             "code": "Y",
                             "message": "m",
+                            "source": "llm",
+                            "label": "BASELINE_TARGET_MISSING",
                         },
                         {
                             "finding_id": "f3",
@@ -961,6 +963,7 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["critic"]["high_severity_fatal_flaw_count"] == 1
     assert body["critic"]["failed_rule_check_count"] == 1
     assert body["critic"]["warned_rule_check_count"] == 1
+    assert body["critic"]["llm_finding_label_counts"]["BASELINE_TARGET_MISSING"] == 1
     assert body["citations"]["citation_count"] == 4
     assert body["citations"]["architect_citation_count"] == 3
     assert body["citations"]["mel_citation_count"] == 1
@@ -1120,7 +1123,14 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                 "architect_retrieval": {"enabled": True, "hits_count": 2, "namespace": "usaid_ads201"},
                 "critic_notes": {
                     "fatal_flaws": [
-                        {"finding_id": "f1", "severity": "high", "status": "open", "section": "toc"},
+                        {
+                            "finding_id": "f1",
+                            "severity": "high",
+                            "status": "open",
+                            "section": "toc",
+                            "source": "llm",
+                            "label": "CAUSAL_LINK_DETAIL",
+                        },
                         {"finding_id": "f2", "severity": "low", "status": "resolved", "section": "general"},
                     ],
                     "rule_checks": [
@@ -1180,7 +1190,14 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                 "needs_revision": False,
                 "critic_notes": {
                     "fatal_flaws": [
-                        {"finding_id": "f3", "severity": "medium", "status": "acknowledged", "section": "logframe"}
+                        {
+                            "finding_id": "f3",
+                            "severity": "medium",
+                            "status": "acknowledged",
+                            "section": "logframe",
+                            "source": "llm",
+                            "label": "BASELINE_TARGET_MISSING",
+                        }
                     ],
                     "rule_checks": [{"code": "logframe.complete", "status": "pass"}],
                 },
@@ -1249,6 +1266,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["critic"]["high_severity_findings_total"] >= 1
     assert body["critic"]["needs_revision_job_count"] >= 1
     assert body["critic"]["needs_revision_rate"] is not None
+    assert body["critic"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
+    assert body["critic"]["llm_finding_label_counts"]["BASELINE_TARGET_MISSING"] >= 1
     assert body["citations"]["citation_count_total"] >= 4
     assert body["citations"]["citation_confidence_avg"] is not None
     assert body["citations"]["low_confidence_citation_count"] >= 1

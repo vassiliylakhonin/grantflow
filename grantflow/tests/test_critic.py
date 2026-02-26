@@ -401,6 +401,14 @@ def test_worldbank_default_override_keeps_baseline_target_missing_non_advisory()
     assert critic_llm_policy.llm_finding_policy_class(item, donor_id="usaid") == "advisory"
 
 
+def test_usaid_generic_toc_and_logframe_labels_are_advisory():
+    toc_item = {"label": "GENERIC_TOC_REVIEW_FLAG", "message": "General TOC refinement note."}
+    logframe_item = {"label": "GENERIC_LOGFRAME_REVIEW_FLAG", "message": "General logframe refinement note."}
+    assert critic_llm_policy.llm_finding_policy_class(toc_item, donor_id="usaid") == "advisory"
+    assert critic_llm_policy.llm_finding_policy_class(logframe_item, donor_id="usaid") == "advisory"
+    assert critic_llm_policy.llm_finding_policy_class(toc_item, donor_id="worldbank") == "default"
+
+
 def test_advisory_llm_findings_allow_good_enough_architect_grounding_without_fallback():
     class _RuleCheck:
         def __init__(self, status: str):

@@ -228,6 +228,7 @@ class JobQualityCriticSummaryPublicResponse(BaseModel):
     rule_check_count: int
     failed_rule_check_count: int
     warned_rule_check_count: int
+    llm_finding_label_counts: Optional[Dict[str, int]] = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -310,6 +311,7 @@ class PortfolioQualityCriticSummaryPublicResponse(BaseModel):
     fatal_flaws_total: int
     needs_revision_job_count: int
     needs_revision_rate: Optional[float] = None
+    llm_finding_label_counts: Optional[Dict[str, int]] = None
 
     model_config = ConfigDict(extra="allow")
 
