@@ -882,9 +882,15 @@ curl -s http://127.0.0.1:8000/status/<JOB_ID>/export-payload | jq .
 
 The returned `payload` can be sent directly into `POST /export` (with optional edits) to produce a review package that includes citations, critic findings, and reviewer comments.
 
-### README artifact sample gap (current state)
+### Artifact samples (current state)
 
-The README currently documents exporter capabilities and API payloads, but does **not yet include sanitized real `.docx` / `.xlsx` sample artifacts or embedded output snippets**. The built-in `/demo` screenshot block is also still a placeholder visual. For evaluators, the strongest current evidence of artifact quality is:
+The README now includes a sanitized output snippet and links to **sanitized sample export artifacts** generated with current exporters:
+
+- [`docs/samples/grantflow-sample-toc-review-package.docx`](docs/samples/grantflow-sample-toc-review-package.docx)
+- [`docs/samples/grantflow-sample-logframe-review-package.xlsx`](docs/samples/grantflow-sample-logframe-review-package.xlsx)
+- [`docs/samples/grantflow-sample-export-payload.json`](docs/samples/grantflow-sample-export-payload.json)
+
+There is still room to improve artifact proof in docs (for example, embedded screenshots of the generated `.docx/.xlsx` pages and a real `/demo` GIF instead of the placeholder visual). For evaluators, the strongest current evidence of artifact quality is:
 
 - local/demo runs (`/demo`)
 - typed API outputs (`/status/{job_id}/quality`, `/critic`, `/citations`, `/versions`, `/diff`)
