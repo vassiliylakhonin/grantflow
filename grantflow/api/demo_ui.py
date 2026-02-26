@@ -1617,9 +1617,15 @@ def render_demo_ui_html() -> str:
               ].filter(Boolean)
             : ["No LLM advisory diagnostics."];
           els.qualityAdvisoryBadgeList.innerHTML = "";
-          for (const row of rows) {
+          for (let i = 0; i < rows.length; i += 1) {
+            const row = rows[i];
             const div = document.createElement("div");
             div.className = "item";
+            if (i === 0 && advisoryDiagnostics) {
+              div.style.borderLeft = applies ? "4px solid #1f8f6b" : "4px solid #cc7a00";
+            } else if (String(row).startsWith("reason:")) {
+              div.style.borderLeft = "4px solid #cc7a00";
+            }
             div.innerHTML = `<div class="sub mono">${escapeHtml(String(row))}</div>`;
             els.qualityAdvisoryBadgeList.appendChild(div);
           }
