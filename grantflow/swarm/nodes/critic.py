@@ -18,6 +18,8 @@ WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION = 5
 WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD = 0.75
 WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD = 0.6
 ADVISORY_ONLY_LLM_SCORE_MAX_PENALTY = 0.75
+ADVISORY_GROUNDING_MIN_THRESHOLD_HIT_RATE = 0.5
+ADVISORY_GROUNDING_MAX_ARCHITECT_RAG_LOW_RATIO = 0.5
 
 
 class RedTeamEvaluation(BaseModel):
@@ -124,19 +126,32 @@ def _advisory_llm_findings_context(
         1 for c in architect_citations if str(c.get("citation_type") or "") == "fallback_namespace"
     )
     threshold_hit_rate = round(architect_support / architect_count, 4) if architect_count else None
+    architect_rag_low_ratio = round(architect_rag_low / architect_count, 4) if architect_count else None
 
     if architect_count == 0:
         return {"applies": False, "reason": "no_architect_citations"}
-    if architect_rag_low > 0 or architect_fallback > 0:
-        return {"applies": False, "reason": "architect_grounding_not_strong"}
-    if threshold_hit_rate is None or threshold_hit_rate < 0.8:
-        return {"applies": False, "reason": "threshold_hit_rate_below_min", "threshold_hit_rate": threshold_hit_rate}
+    if architect_fallback > 0:
+        return {"applies": False, "reason": "architect_fallback_citations_present"}
+    if architect_rag_low_ratio is not None and architect_rag_low_ratio > ADVISORY_GROUNDING_MAX_ARCHITECT_RAG_LOW_RATIO:
+        return {
+            "applies": False,
+            "reason": "architect_rag_low_ratio_too_high",
+            "architect_rag_low_ratio": architect_rag_low_ratio,
+        }
+    if threshold_hit_rate is None or threshold_hit_rate < ADVISORY_GROUNDING_MIN_THRESHOLD_HIT_RATE:
+        return {
+            "applies": False,
+            "reason": "threshold_hit_rate_below_min",
+            "threshold_hit_rate": threshold_hit_rate,
+            "min_threshold_hit_rate": ADVISORY_GROUNDING_MIN_THRESHOLD_HIT_RATE,
+        }
 
     return {
         "applies": True,
-        "reason": "advisory_only_llm_findings_with_strong_architect_grounding",
+        "reason": "advisory_only_llm_findings_with_good_enough_architect_grounding",
         "architect_citation_count": architect_count,
         "architect_threshold_hit_rate": threshold_hit_rate,
+        "architect_rag_low_ratio": architect_rag_low_ratio,
         "grounding_context": grounding,
     }
 

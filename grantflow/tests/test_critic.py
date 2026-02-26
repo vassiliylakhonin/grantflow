@@ -306,3 +306,39 @@ def test_usaid_early_draft_llm_findings_are_treated_as_advisory_when_grounded():
     downgraded, meta = _downgrade_advisory_llm_findings(llm_items, advisory_ctx=advisory_ctx)
     assert meta is not None and meta["downgraded_count"] == 3
     assert all(item["severity"] == "low" for item in downgraded)
+
+
+def test_advisory_llm_findings_allow_good_enough_architect_grounding_without_fallback():
+    class _RuleCheck:
+        def __init__(self, status: str):
+            self.status = status
+
+    class _RuleReport:
+        def __init__(self):
+            self.fatal_flaws = []
+            self.checks = [_RuleCheck("pass")]
+
+    state = {
+        "citations": [
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.55},
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.52},
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.48},
+            {"stage": "architect", "citation_type": "rag_low_confidence", "citation_confidence": 0.28},
+            {"stage": "architect", "citation_type": "rag_low_confidence", "citation_confidence": 0.27},
+            {"stage": "mel", "citation_type": "rag_result", "citation_confidence": 0.8},
+        ]
+    }
+    llm_items = [
+        {
+            "code": "LLM_REVIEW_FLAG_1",
+            "severity": "medium",
+            "section": "toc",
+            "message": "Weak causal links between Outputs and IRs: draft lacks a detailed causal explanation.",
+            "source": "llm",
+        }
+    ]
+
+    advisory_ctx = _advisory_llm_findings_context(state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items)
+    assert advisory_ctx["applies"] is True
+    assert advisory_ctx["architect_threshold_hit_rate"] == 0.6
+    assert advisory_ctx["architect_rag_low_ratio"] == 0.4
