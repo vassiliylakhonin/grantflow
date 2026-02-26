@@ -804,7 +804,7 @@ def public_portfolio_quality_payload(
     donor_counts: Dict[str, int] = {}
     donor_needs_revision_counts: Dict[str, int] = {}
     donor_open_findings_counts: Dict[str, int] = {}
-    donor_weighted_risk_breakdown: Dict[str, Dict[str, int]] = {}
+    donor_weighted_risk_breakdown: Dict[str, Dict[str, Any]] = {}
     quality_rows: list[Dict[str, Any]] = []
 
     for job_id, job in filtered:
@@ -890,6 +890,7 @@ def public_portfolio_quality_payload(
                 "architect_rag_low_confidence_citation_count": 0,
                 "mel_rag_low_confidence_citation_count": 0,
                 "fallback_namespace_citation_count": 0,
+                "llm_finding_label_counts": {},
             },
         )
         donor_row["open_findings_total"] += int(row_critic.get("open_finding_count") or 0)
@@ -907,6 +908,17 @@ def public_portfolio_quality_payload(
         donor_row["fallback_namespace_citation_count"] += int(
             row_citations.get("fallback_namespace_citation_count") or 0
         )
+        donor_label_counts = donor_row.get("llm_finding_label_counts")
+        if not isinstance(donor_label_counts, dict):
+            donor_label_counts = {}
+            donor_row["llm_finding_label_counts"] = donor_label_counts
+        for label, count in (
+            (row_critic.get("llm_finding_label_counts") or {}).items()
+            if isinstance(row_critic.get("llm_finding_label_counts"), dict)
+            else []
+        ):
+            label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
+            donor_label_counts[label_key] = int(donor_label_counts.get(label_key, 0)) + int(count or 0)
         if bool(row.get("needs_revision")):
             donor_row["needs_revision_job_count"] += 1
 

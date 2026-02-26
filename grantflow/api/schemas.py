@@ -353,6 +353,7 @@ class PortfolioQualityDonorWeightedRiskPublicResponse(BaseModel):
     architect_rag_low_confidence_citation_count: int = 0
     mel_rag_low_confidence_citation_count: int = 0
     fallback_namespace_citation_count: Optional[int] = None
+    llm_finding_label_counts: Optional[Dict[str, int]] = None
 
     model_config = ConfigDict(extra="allow")
 

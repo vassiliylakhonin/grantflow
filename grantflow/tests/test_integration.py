@@ -1287,6 +1287,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["donor_weighted_risk_breakdown"]["usaid"]["high_priority_signal_count"] >= 1
     assert "architect_rag_low_confidence_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "mel_rag_low_confidence_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "llm_finding_label_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
     assert body["donor_needs_revision_counts"]["usaid"] >= 1
     assert body["donor_open_findings_counts"]["usaid"] >= 1
     assert "eu" not in body["donor_counts"]
