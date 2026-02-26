@@ -123,6 +123,7 @@ def test_demo_console_page_loads():
     assert "qualityAdvisoryBadgeList" in body
     assert "portfolioQualityLlmLabelCountsList" in body
     assert "portfolioQualityTopDonorLlmLabelCountsList" in body
+    assert "portfolioQualityTopDonorAdvisoryRejectedReasonsList" in body
     assert "portfolioQualityAdvisoryAppliedList" in body
     assert "portfolioQualityAdvisoryRejectedReasonsList" in body
     assert "portfolioQualityJson" in body
@@ -1308,6 +1309,13 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert "mel_rag_low_confidence_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "llm_finding_label_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
+    assert "llm_advisory_rejected_reason_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert (
+        body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_rejected_reason_counts"][
+            "grounding_threshold_not_met"
+        ]
+        >= 1
+    )
     assert body["donor_needs_revision_counts"]["usaid"] >= 1
     assert body["donor_open_findings_counts"]["usaid"] >= 1
     assert "eu" not in body["donor_counts"]

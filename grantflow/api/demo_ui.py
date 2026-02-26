@@ -501,6 +501,13 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
+                <label>Top Donor Advisory Rejected Reasons</label>
+                <div class="list" id="portfolioQualityTopDonorAdvisoryRejectedReasonsList"></div>
+              </div>
+              <div></div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
                 <label>LLM Advisory Applied (Jobs)</label>
                 <div class="list" id="portfolioQualityAdvisoryAppliedList"></div>
               </div>
@@ -978,6 +985,7 @@ def render_demo_ui_html() -> str:
         portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
         portfolioQualityLlmLabelCountsList: $("portfolioQualityLlmLabelCountsList"),
         portfolioQualityTopDonorLlmLabelCountsList: $("portfolioQualityTopDonorLlmLabelCountsList"),
+        portfolioQualityTopDonorAdvisoryRejectedReasonsList: $("portfolioQualityTopDonorAdvisoryRejectedReasonsList"),
         portfolioQualityAdvisoryAppliedList: $("portfolioQualityAdvisoryAppliedList"),
         portfolioQualityAdvisoryRejectedReasonsList: $("portfolioQualityAdvisoryRejectedReasonsList"),
         criticSectionFilter: $("criticSectionFilter"),
@@ -1712,10 +1720,22 @@ def render_demo_ui_html() -> str:
             `No LLM finding labels for top donor (${donorId}).`,
             8
           );
+          renderKeyValueList(
+            els.portfolioQualityTopDonorAdvisoryRejectedReasonsList,
+            donorRow.llm_advisory_rejected_reason_counts,
+            `No advisory rejections for top donor (${donorId}).`,
+            8
+          );
           return;
         }
         renderKeyValueList(
           els.portfolioQualityTopDonorLlmLabelCountsList,
+          null,
+          "No donor weighted risk rows yet.",
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityTopDonorAdvisoryRejectedReasonsList,
           null,
           "No donor weighted risk rows yet.",
           8

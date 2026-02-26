@@ -911,6 +911,7 @@ def public_portfolio_quality_payload(
                 "mel_rag_low_confidence_citation_count": 0,
                 "fallback_namespace_citation_count": 0,
                 "llm_finding_label_counts": {},
+                "llm_advisory_rejected_reason_counts": {},
             },
         )
         donor_row["open_findings_total"] += int(row_critic.get("open_finding_count") or 0)
@@ -939,6 +940,18 @@ def public_portfolio_quality_payload(
         ):
             label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
             donor_label_counts[label_key] = int(donor_label_counts.get(label_key, 0)) + int(count or 0)
+        donor_advisory_reasons = donor_row.get("llm_advisory_rejected_reason_counts")
+        if not isinstance(donor_advisory_reasons, dict):
+            donor_advisory_reasons = {}
+            donor_row["llm_advisory_rejected_reason_counts"] = donor_advisory_reasons
+        row_llm_advisory = (
+            cast(Dict[str, Any], row_critic.get("llm_advisory_diagnostics"))
+            if isinstance(row_critic.get("llm_advisory_diagnostics"), dict)
+            else {}
+        )
+        rejected_reason = str(row_llm_advisory.get("advisory_rejected_reason") or "").strip()
+        if rejected_reason:
+            donor_advisory_reasons[rejected_reason] = int(donor_advisory_reasons.get(rejected_reason, 0)) + 1
         if bool(row.get("needs_revision")):
             donor_row["needs_revision_job_count"] += 1
 
