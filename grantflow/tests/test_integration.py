@@ -952,6 +952,8 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["citations"]["mel_citation_count"] == 1
     assert body["citations"]["high_confidence_citation_count"] == 2
     assert body["citations"]["low_confidence_citation_count"] == 2
+    assert body["citations"]["architect_rag_low_confidence_citation_count"] == 1
+    assert body["citations"]["mel_rag_low_confidence_citation_count"] == 0
     assert body["citations"]["rag_low_confidence_citation_count"] == 1
     assert body["citations"]["fallback_namespace_citation_count"] == 1
     assert body["citations"]["architect_threshold_hit_rate"] == 0.3333
@@ -1236,13 +1238,19 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["citations"]["citation_count_total"] >= 4
     assert body["citations"]["citation_confidence_avg"] is not None
     assert body["citations"]["low_confidence_citation_count"] >= 1
+    assert body["citations"]["architect_rag_low_confidence_citation_count"] >= 1
+    assert "mel_rag_low_confidence_citation_count" in body["citations"]
     assert body["citations"]["rag_low_confidence_citation_count"] >= 1
+    assert "architect_rag_low_confidence_citation_rate" in body["citations"]
+    assert "mel_rag_low_confidence_citation_rate" in body["citations"]
     assert "fallback_namespace_citation_count" in body["citations"]
     assert body["citations"]["architect_threshold_hit_rate_avg"] is not None
     assert body["priority_signal_breakdown"]["high_severity_findings_total"]["weight"] >= 1
     assert body["priority_signal_breakdown"]["open_findings_total"]["weighted_score"] >= 1
     assert body["donor_weighted_risk_breakdown"]["usaid"]["weighted_score"] >= 1
     assert body["donor_weighted_risk_breakdown"]["usaid"]["high_priority_signal_count"] >= 1
+    assert "architect_rag_low_confidence_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "mel_rag_low_confidence_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert body["donor_needs_revision_counts"]["usaid"] >= 1
     assert body["donor_open_findings_counts"]["usaid"] >= 1
     assert "eu" not in body["donor_counts"]

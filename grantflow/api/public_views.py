@@ -659,6 +659,12 @@ def public_job_quality_payload(
             "mel_citation_count": len(mel_citations),
             "high_confidence_citation_count": high_conf,
             "low_confidence_citation_count": low_conf,
+            "architect_rag_low_confidence_citation_count": sum(
+                1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_low_confidence"
+            ),
+            "mel_rag_low_confidence_citation_count": sum(
+                1 for c in mel_citations if str(c.get("citation_type") or "") == "rag_low_confidence"
+            ),
             "rag_low_confidence_citation_count": rag_low_conf,
             "fallback_namespace_citation_count": fallback_ns,
             "citation_confidence_avg": (
@@ -823,6 +829,8 @@ def public_portfolio_quality_payload(
     citation_count_total = 0
     low_confidence_citation_count = 0
     rag_low_confidence_citation_count = 0
+    architect_rag_low_confidence_citation_count = 0
+    mel_rag_low_confidence_citation_count = 0
     fallback_namespace_citation_count = 0
 
     for row in quality_rows:
@@ -841,6 +849,10 @@ def public_portfolio_quality_payload(
         citation_count_total += int(row_citations.get("citation_count") or 0)
         low_confidence_citation_count += int(row_citations.get("low_confidence_citation_count") or 0)
         rag_low_confidence_citation_count += int(row_citations.get("rag_low_confidence_citation_count") or 0)
+        architect_rag_low_confidence_citation_count += int(
+            row_citations.get("architect_rag_low_confidence_citation_count") or 0
+        )
+        mel_rag_low_confidence_citation_count += int(row_citations.get("mel_rag_low_confidence_citation_count") or 0)
         fallback_namespace_citation_count += int(row_citations.get("fallback_namespace_citation_count") or 0)
 
         donor_for_row = str(row.get("_donor_id") or "unknown")
@@ -854,6 +866,8 @@ def public_portfolio_quality_payload(
                 "needs_revision_job_count": 0,
                 "low_confidence_citation_count": 0,
                 "rag_low_confidence_citation_count": 0,
+                "architect_rag_low_confidence_citation_count": 0,
+                "mel_rag_low_confidence_citation_count": 0,
                 "fallback_namespace_citation_count": 0,
             },
         )
@@ -862,6 +876,12 @@ def public_portfolio_quality_payload(
         donor_row["low_confidence_citation_count"] += int(row_citations.get("low_confidence_citation_count") or 0)
         donor_row["rag_low_confidence_citation_count"] += int(
             row_citations.get("rag_low_confidence_citation_count") or 0
+        )
+        donor_row["architect_rag_low_confidence_citation_count"] += int(
+            row_citations.get("architect_rag_low_confidence_citation_count") or 0
+        )
+        donor_row["mel_rag_low_confidence_citation_count"] += int(
+            row_citations.get("mel_rag_low_confidence_citation_count") or 0
         )
         donor_row["fallback_namespace_citation_count"] += int(
             row_citations.get("fallback_namespace_citation_count") or 0
@@ -951,6 +971,16 @@ def public_portfolio_quality_payload(
             "rag_low_confidence_citation_count": rag_low_confidence_citation_count,
             "rag_low_confidence_citation_rate": (
                 round(rag_low_confidence_citation_count / citation_count_total, 4) if citation_count_total else None
+            ),
+            "architect_rag_low_confidence_citation_count": architect_rag_low_confidence_citation_count,
+            "architect_rag_low_confidence_citation_rate": (
+                round(architect_rag_low_confidence_citation_count / citation_count_total, 4)
+                if citation_count_total
+                else None
+            ),
+            "mel_rag_low_confidence_citation_count": mel_rag_low_confidence_citation_count,
+            "mel_rag_low_confidence_citation_rate": (
+                round(mel_rag_low_confidence_citation_count / citation_count_total, 4) if citation_count_total else None
             ),
             "fallback_namespace_citation_count": fallback_namespace_citation_count,
             "fallback_namespace_citation_rate": (
