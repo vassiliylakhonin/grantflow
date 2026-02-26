@@ -108,6 +108,17 @@ Examples:
 - Prefer canonical `donor_id` values in client integrations.
 - Specialized donors provide stronger donor-specific behavior than generic donors.
 
+### What "specialized" means in practice
+
+For specialized donors, GrantFlow uses more than aliases/catalog lookup. In practice this can include:
+
+- donor-specific strategy classes (prompt/policy behavior)
+- donor-specific ToC schema contracts / validation
+- donor-specific critic checklist logic / overrides
+- donor-specific RAG namespace mapping / collection defaults
+
+Generic donors still benefit from the shared pipeline (LangGraph orchestration, critic loop, exports, HITL, citations), but use shared drafting logic instead of donor-tuned rules/schemas.
+
 ## Quick Start
 
 ### 1) Install dependencies
@@ -169,6 +180,19 @@ curl -s -X POST http://127.0.0.1:8000/generate \
 ```
 
 If `GRANTFLOW_API_KEY` is configured, add `-H 'X-API-Key: <your-key>'` to write requests (for example: `/generate`, `/cancel/{job_id}`, `/resume/{job_id}`, `/hitl/approve`, `/status/{job_id}/comments`, critic finding `ack/resolve`, `/ingest`, `/export`).
+
+### Execution Modes (Important)
+
+`llm_mode` and `architect_rag_enabled` are independent toggles, and they change what kind of output you should expect:
+
+| Mode | What it is good for | What the system produces |
+|---|---|---|
+| `llm_mode=false`, `architect_rag_enabled=false` | CI, regression tests, local smoke checks, deterministic debugging | Contract-aware deterministic drafts (schema-driven structured outputs, rule-based critic, reproducible baseline signals). Useful for pipeline validation, not for judging final prose quality. |
+| `llm_mode=true`, `architect_rag_enabled=false` | Exploratory drafting without corpus setup | LLM-generated drafts and LLM critic feedback, but citations may degrade to fallback / low-confidence if no donor/context corpus is available. |
+| `llm_mode=true`, `architect_rag_enabled=true` | Grounded drafting / real pilot usage | LLM-generated drafts with retrieval-backed citations (quality depends on uploaded corpus relevance and retrieval tuning). |
+| `llm_mode=false`, `architect_rag_enabled=true` | Cheap retrieval/debug experiments | Deterministic drafting plus retrieval/citation instrumentation for grounding diagnostics (useful for tuning ranking/threshold policy without spending LLM tokens). |
+
+The quick-start examples default to `llm_mode=false` because they are meant to be safe/reproducible smoke tests. For evaluating real artifact quality, use `llm_mode=true` and (ideally) corpus-backed grounded mode.
 
 ### 5b) Generate with webhooks (optional)
 
@@ -808,6 +832,24 @@ GrantFlow is RAG-ready and uses ChromaDB namespaces for donor knowledge.
 - In-memory fallback behavior for local/offline smoke tests
 - Donor strategies can map to donor-specific knowledge collections
 
+### Grounding quality is corpus-dependent (important)
+
+RAG integration is real, but grounded output quality depends heavily on:
+
+- what donor/context PDFs you upload
+- how well those documents match the proposal topic
+- retrieval/ranking/threshold tuning
+
+Without a useful corpus, the system still works, but citation quality can degrade to fallback namespace references or low-confidence citations. This is why GrantFlow includes explicit citation confidence, threshold-hit, and grounding-risk diagnostics.
+
+Illustrative examples from local seeded-corpus experiments (not a universal benchmark):
+
+- **Ungrounded LLM eval lane (no corpus)**: `fallback_dominant:high(100%)` across donors was common
+- **Grounded World Bank (single-case LLM run, seeded corpus)**: `fallback_namespace_citation_count=0`, `rag_low_confidence_citation_count=0`, `architect_threshold_hit_rate=1.0`
+- **Grounded USAID (single-case LLM run, seeded corpus)**: `fallback_namespace_citation_count=0`, with measurable improvement after tuning (`architect_threshold_hit_rate` and `citation_confidence_avg` increased; `rag_low_confidence` decreased)
+
+Use `/status/{job_id}/quality`, `/status/{job_id}/citations`, and `/portfolio/quality` to inspect whether a run is truly grounded vs merely schema-valid.
+
 ## Exporters
 
 Current exporters generate:
@@ -828,6 +870,14 @@ curl -s http://127.0.0.1:8000/status/<JOB_ID>/export-payload | jq .
 ```
 
 The returned `payload` can be sent directly into `POST /export` (with optional edits) to produce a review package that includes citations, critic findings, and reviewer comments.
+
+### README artifact sample gap (current state)
+
+The README currently documents exporter capabilities and API payloads, but does **not yet include sanitized real `.docx` / `.xlsx` sample artifacts or embedded output snippets**. The built-in `/demo` screenshot block is also still a placeholder visual. For evaluators, the strongest current evidence of artifact quality is:
+
+- local/demo runs (`/demo`)
+- typed API outputs (`/status/{job_id}/quality`, `/critic`, `/citations`, `/versions`, `/diff`)
+- eval harness reports (`eval-report.txt`, `llm-eval-report.txt`)
 
 ## Project Structure
 
