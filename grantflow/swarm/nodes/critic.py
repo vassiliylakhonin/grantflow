@@ -28,6 +28,14 @@ ADVISORY_LLM_FINDING_LABELS = {
     "ASSUMPTION_EVIDENCE",
     "CROSS_CUTTING_INTEGRATION",
 }
+LLM_FINDING_LABEL_SEVERITY_POLICY = {
+    "BASELINE_TARGET_MISSING": "advisory",
+    "INDICATOR_EVIDENCE_EXCERPTS": "advisory",
+    "OBJECTIVE_SPECIFICITY": "advisory",
+    "CAUSAL_LINK_DETAIL": "advisory",
+    "ASSUMPTION_EVIDENCE": "advisory",
+    "CROSS_CUTTING_INTEGRATION": "advisory",
+}
 
 
 class RedTeamEvaluation(BaseModel):
@@ -148,9 +156,16 @@ def _is_advisory_llm_message(msg: str) -> bool:
 
 def _is_advisory_llm_finding(item: Dict[str, Any]) -> bool:
     label = str(item.get("label") or "").strip().upper()
-    if label and label in ADVISORY_LLM_FINDING_LABELS:
+    if label and LLM_FINDING_LABEL_SEVERITY_POLICY.get(label) == "advisory":
         return True
     return _is_advisory_llm_message(str(item.get("message") or ""))
+
+
+def _llm_finding_policy_class(item: Dict[str, Any]) -> str:
+    label = str(item.get("label") or "").strip().upper()
+    if label:
+        return str(LLM_FINDING_LABEL_SEVERITY_POLICY.get(label) or "default")
+    return "advisory" if _is_advisory_llm_message(str(item.get("message") or "")) else "default"
 
 
 def _advisory_llm_findings_context(
@@ -227,7 +242,7 @@ def _downgrade_advisory_llm_findings(
     out: List[Dict[str, Any]] = []
     for item in llm_fatal_flaw_items:
         current = dict(item)
-        if _is_advisory_llm_finding(current):
+        if _llm_finding_policy_class(current) == "advisory":
             if str(current.get("severity") or "").lower() != "low":
                 current["severity"] = "low"
                 changed += 1
@@ -245,6 +260,7 @@ def _downgrade_advisory_llm_findings(
         "downgraded_count": changed,
         "architect_threshold_hit_rate": advisory_ctx.get("architect_threshold_hit_rate"),
         "labels_downgraded": labels_downgraded,
+        "policy_mode": "label_first_with_text_fallback",
     }
 
 
