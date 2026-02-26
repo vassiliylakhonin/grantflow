@@ -719,7 +719,11 @@ Example portfolio quality response shape:
     "high_severity_findings_total": 3,
     "fatal_flaws_total": 21,
     "needs_revision_job_count": 6,
-    "needs_revision_rate": 0.25
+    "needs_revision_rate": 0.25,
+    "llm_finding_label_counts": {
+      "CAUSAL_LINK_DETAIL": 4,
+      "BASELINE_TARGET_MISSING": 3
+    }
   },
   "citations": {
     "citation_count_total": 132,
@@ -745,7 +749,11 @@ Example portfolio quality response shape:
       "high_severity_findings_total": 3,
       "needs_revision_job_count": 6,
       "low_confidence_citation_count": 12,
-      "rag_low_confidence_citation_count": 4
+      "rag_low_confidence_citation_count": 4,
+      "llm_finding_label_counts": {
+        "CAUSAL_LINK_DETAIL": 3,
+        "BASELINE_TARGET_MISSING": 2
+      }
     }
   },
   "donor_needs_revision_counts": {
@@ -757,7 +765,7 @@ Example portfolio quality response shape:
 }
 ```
 
-The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards and top-donor weighted-risk lists for quick triage.
+The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards, top-donor weighted-risk lists (click-to-filter), and LLM finding label drill-downs (portfolio-level and top weighted-risk donor).
 
 ## Human-in-the-Loop Checkpoints (MVP)
 
