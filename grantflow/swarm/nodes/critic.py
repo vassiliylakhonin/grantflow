@@ -86,6 +86,7 @@ def _advisory_llm_findings_context(
     rule_report: Any,
     llm_fatal_flaw_items: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
+    donor_id = str(state.get("donor_id") or state.get("donor") or "").strip().lower()
     llm_items = [f for f in llm_fatal_flaw_items if isinstance(f, dict)]
     if not llm_items:
         return {"applies": False, "reason": "no_llm_findings"}
@@ -96,7 +97,7 @@ def _advisory_llm_findings_context(
     if rule_fatal_flaws or failed_rule_checks:
         return {"applies": False, "reason": "rule_critic_has_failures"}
 
-    if any(not _is_advisory_llm_finding(item) for item in llm_items):
+    if any(not _is_advisory_llm_finding(item, donor_id=donor_id) for item in llm_items):
         return {"applies": False, "reason": "non_advisory_llm_finding_present"}
 
     grounding = _citation_grounding_context(state)
@@ -135,6 +136,7 @@ def _advisory_llm_findings_context(
     return {
         "applies": True,
         "reason": "advisory_only_llm_findings_with_good_enough_architect_grounding",
+        "donor_id": donor_id or None,
         "architect_citation_count": architect_count,
         "architect_threshold_hit_rate": threshold_hit_rate,
         "architect_rag_low_ratio": architect_rag_low_ratio,
@@ -154,7 +156,7 @@ def _downgrade_advisory_llm_findings(
     out: List[Dict[str, Any]] = []
     for item in llm_fatal_flaw_items:
         current = dict(item)
-        if _llm_finding_policy_class(current) == "advisory":
+        if _llm_finding_policy_class(current, donor_id=str(advisory_ctx.get("donor_id") or "")) == "advisory":
             if str(current.get("severity") or "").lower() != "low":
                 current["severity"] = "low"
                 changed += 1
@@ -406,6 +408,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     llm_advisory_diagnostics = _build_llm_advisory_diagnostics(
         llm_fatal_flaw_items=llm_fatal_flaw_items,
         advisory_ctx=advisory_ctx,
+        donor_id=str(state.get("donor_id") or state.get("donor") or ""),
     )
     llm_fatal_flaw_items, llm_advisory_normalization = _downgrade_advisory_llm_findings(
         llm_fatal_flaw_items,

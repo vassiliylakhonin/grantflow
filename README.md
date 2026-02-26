@@ -293,7 +293,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 - Ingest (RAG Prep) panel with donor-specific guidance presets and direct PDF upload to `POST /ingest`
 - Ingest inventory sync/export (`GET /ingest/inventory`, `GET /ingest/inventory/export`) for checklist/readiness snapshots (`Copy JSON`, `Download JSON/CSV`)
 - HITL approve/reject/resume/cancel actions
-- Critic findings review (fatal flaws, rule checks, citation context, confidence filter)
+- Critic findings review (fatal flaws, rule checks, citation context, confidence filter, and advisory diagnostics for LLM finding labels/gating decisions)
 - Draft versions and diffs (with jump-to-diff shortcuts)
 - Review comments (create, resolve/reopen, list filters)
 - Export payload preview/copy and one-click review package export (`ZIP`) via `/export`

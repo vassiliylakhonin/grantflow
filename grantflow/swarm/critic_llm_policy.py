@@ -20,6 +20,15 @@ LLM_FINDING_LABEL_SEVERITY_POLICY = {
     "CROSS_CUTTING_INTEGRATION": "advisory",
 }
 
+LLM_FINDING_LABEL_DONOR_POLICY_OVERRIDES: Dict[str, Dict[str, str]] = {
+    "usaid": {},
+    "worldbank": {},
+    "eu": {},
+    "giz": {},
+    "state_department": {},
+    "us_state_department": {},
+}
+
 
 def classify_llm_finding_label(msg: str, section: Optional[str] = None) -> str:
     lowered = str(msg or "").lower()
@@ -86,16 +95,20 @@ def is_advisory_llm_message(msg: str) -> bool:
     return any(advisory_signals)
 
 
-def llm_finding_policy_class(item: Dict[str, Any]) -> str:
+def llm_finding_policy_class(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> str:
     label = str(item.get("label") or "").strip().upper()
     if label:
+        donor_key = str(donor_id or "").strip().lower()
+        donor_overrides = LLM_FINDING_LABEL_DONOR_POLICY_OVERRIDES.get(donor_key, {})
+        if label in donor_overrides:
+            return str(donor_overrides[label] or "default")
         return str(LLM_FINDING_LABEL_SEVERITY_POLICY.get(label) or "default")
     return "advisory" if is_advisory_llm_message(str(item.get("message") or "")) else "default"
 
 
-def is_advisory_llm_finding(item: Dict[str, Any]) -> bool:
+def is_advisory_llm_finding(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> bool:
     label = str(item.get("label") or "").strip().upper()
-    if label and LLM_FINDING_LABEL_SEVERITY_POLICY.get(label) == "advisory":
+    if label and llm_finding_policy_class(item, donor_id=donor_id) == "advisory":
         return True
     return is_advisory_llm_message(str(item.get("message") or ""))
 
@@ -104,6 +117,7 @@ def build_llm_advisory_diagnostics(
     *,
     llm_fatal_flaw_items: List[Dict[str, Any]],
     advisory_ctx: Dict[str, Any],
+    donor_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     label_counts: Dict[str, int] = {}
     advisory_candidate_labels: List[str] = []
@@ -112,7 +126,7 @@ def build_llm_advisory_diagnostics(
     for item in valid_items:
         label = str(item.get("label") or "GENERIC_LLM_REVIEW_FLAG").strip() or "GENERIC_LLM_REVIEW_FLAG"
         label_counts[label] = int(label_counts.get(label, 0)) + 1
-        if llm_finding_policy_class(item) == "advisory":
+        if llm_finding_policy_class(item, donor_id=donor_id) == "advisory":
             advisory_candidate_count += 1
             advisory_candidate_labels.append(label)
     return {
@@ -124,5 +138,5 @@ def build_llm_advisory_diagnostics(
         "advisory_rejected_reason": None if advisory_ctx.get("applies") else str(advisory_ctx.get("reason") or ""),
         "architect_threshold_hit_rate": advisory_ctx.get("architect_threshold_hit_rate"),
         "architect_rag_low_ratio": advisory_ctx.get("architect_rag_low_ratio"),
+        "donor_id": str(donor_id or "").strip().lower() or None,
     }
-

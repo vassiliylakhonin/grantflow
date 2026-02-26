@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import grantflow.swarm.critic_llm_policy as critic_llm_policy
 from grantflow.swarm.critic_rules import evaluate_rule_based_critic
 from grantflow.swarm.nodes.critic import (
     _advisory_llm_findings_context,
@@ -381,6 +382,17 @@ def test_advisory_downgrade_uses_label_when_message_wording_varies():
     assert "CROSS_CUTTING_INTEGRATION" in (meta.get("labels_downgraded") or [])
     assert downgraded[0]["severity"] == "low"
     assert downgraded[1]["severity"] == "medium"
+
+
+def test_llm_finding_policy_supports_donor_specific_overrides(monkeypatch):
+    item = {"label": "CROSS_CUTTING_INTEGRATION", "message": "Placeholder wording"}
+    assert critic_llm_policy.llm_finding_policy_class(item, donor_id="usaid") == "advisory"
+    monkeypatch.setitem(
+        critic_llm_policy.LLM_FINDING_LABEL_DONOR_POLICY_OVERRIDES,
+        "usaid",
+        {"CROSS_CUTTING_INTEGRATION": "default"},
+    )
+    assert critic_llm_policy.llm_finding_policy_class(item, donor_id="usaid") == "default"
 
 
 def test_advisory_llm_findings_allow_good_enough_architect_grounding_without_fallback():
