@@ -316,6 +316,11 @@ def _extract_claim_strings(value: Any, path: str = "toc") -> list[tuple[str, str
         if not text:
             return claims
         lowered_path = path.lower()
+        # Indicator-level fields are better grounded in MEL/logframe stage and create noisy
+        # architect claim citations because ancestor path segments (e.g. intermediate_results)
+        # can accidentally match generic "result" keywords.
+        if ".indicators[" in lowered_path:
+            return claims
         identifier_tokens = ("_id", ".id", "indicator_code", "code]")
         if any(token in lowered_path for token in identifier_tokens):
             return claims

@@ -160,6 +160,38 @@ def test_extract_claim_strings_skips_identifier_fields():
     assert "toc.development_objectives[0].description" in paths
 
 
+def test_extract_claim_strings_skips_nested_indicator_fields():
+    toc_payload = {
+        "development_objectives": [
+            {
+                "intermediate_results": [
+                    {
+                        "description": "Teams improve delivery practices",
+                        "outputs": [
+                            {
+                                "description": "Training package deployed",
+                                "indicators": [
+                                    {
+                                        "name": "Number of staff trained",
+                                        "target": "500",
+                                        "justification": "Tracks coverage",
+                                        "citation": "usaid",
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        ]
+    }
+    claims = _extract_claim_strings(toc_payload, "toc")
+    paths = [p for p, _ in claims]
+    assert "toc.development_objectives[0].intermediate_results[0].description" in paths
+    assert "toc.development_objectives[0].intermediate_results[0].outputs[0].description" in paths
+    assert not any(".indicators[" in p for p in paths)
+
+
 def test_architect_claim_threshold_is_tuned_by_donor_and_section():
     default_threshold = architect_claim_confidence_threshold(donor_id="unknown", statement_path="toc.project_goal")
     usaid_goal_threshold = architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.project_goal")
