@@ -4,6 +4,7 @@ from grantflow.swarm.critic_rules import evaluate_rule_based_critic
 from grantflow.swarm.nodes.critic import (
     _advisory_llm_findings_context,
     _apply_advisory_llm_score_cap,
+    _classify_llm_finding_label,
     _citation_grounding_context,
     _combine_critic_scores,
     _downgrade_advisory_llm_findings,
@@ -324,6 +325,62 @@ def test_advisory_detector_matches_recent_usaid_llm_wording_variants():
         "Indicators lack baseline and target values, making it difficult to measure progress.",
     ]
     assert all(_is_advisory_llm_message(m) for m in msgs)
+
+
+def test_llm_finding_classifier_assigns_stable_labels():
+    cases = [
+        (
+            "Indicators lack baseline and target values, making it difficult to measure progress.",
+            "logframe",
+            "BASELINE_TARGET_MISSING",
+        ),
+        (
+            "Weak causal links between Outputs and IRs: draft lacks a detailed causal explanation.",
+            "toc",
+            "CAUSAL_LINK_DETAIL",
+        ),
+        (
+            "Missing cross-cutting themes: While gender equality is mentioned, the proposal lacks a detailed plan.",
+            "general",
+            "CROSS_CUTTING_INTEGRATION",
+        ),
+        (
+            "Theory of Change objectives are not sufficiently specific and measurable.",
+            "toc",
+            "OBJECTIVE_SPECIFICITY",
+        ),
+    ]
+    for message, section, expected in cases:
+        assert _classify_llm_finding_label(message, section=section) == expected
+
+
+def test_advisory_downgrade_uses_label_when_message_wording_varies():
+    advisory_ctx = {"applies": True, "reason": "test", "architect_threshold_hit_rate": 0.75}
+    llm_items = [
+        {
+            "code": "LLM_REVIEW_FLAG_1",
+            "label": "CROSS_CUTTING_INTEGRATION",
+            "severity": "medium",
+            "section": "general",
+            "message": "Coverage of gender and climate dimensions could be improved.",
+            "source": "llm",
+        },
+        {
+            "code": "LLM_REVIEW_FLAG_2",
+            "label": "GENERIC_LLM_REVIEW_FLAG",
+            "severity": "medium",
+            "section": "general",
+            "message": "Completely custom wording that should remain medium.",
+            "source": "llm",
+        },
+    ]
+
+    downgraded, meta = _downgrade_advisory_llm_findings(llm_items, advisory_ctx=advisory_ctx)
+    assert meta is not None and meta["applied"] is True
+    assert meta["downgraded_count"] == 1
+    assert "CROSS_CUTTING_INTEGRATION" in (meta.get("labels_downgraded") or [])
+    assert downgraded[0]["severity"] == "low"
+    assert downgraded[1]["severity"] == "medium"
 
 
 def test_advisory_llm_findings_allow_good_enough_architect_grounding_without_fallback():

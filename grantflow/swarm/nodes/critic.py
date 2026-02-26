@@ -20,6 +20,14 @@ WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD = 0.6
 ADVISORY_ONLY_LLM_SCORE_MAX_PENALTY = 0.75
 ADVISORY_GROUNDING_MIN_THRESHOLD_HIT_RATE = 0.5
 ADVISORY_GROUNDING_MAX_ARCHITECT_RAG_LOW_RATIO = 0.5
+ADVISORY_LLM_FINDING_LABELS = {
+    "BASELINE_TARGET_MISSING",
+    "INDICATOR_EVIDENCE_EXCERPTS",
+    "OBJECTIVE_SPECIFICITY",
+    "CAUSAL_LINK_DETAIL",
+    "ASSUMPTION_EVIDENCE",
+    "CROSS_CUTTING_INTEGRATION",
+}
 
 
 class RedTeamEvaluation(BaseModel):
@@ -55,10 +63,12 @@ def _llm_flaws_to_structured(flaws: List[str]) -> List[Dict[str, Any]]:
             section = "logframe"
         elif any(k in lowered for k in ("toc", "objective", "assumption", "causal")):
             section = "toc"
+        label = _classify_llm_finding_label(msg, section=section)
         structured.append(
             _dump_model(
                 CriticFatalFlaw(
                     code=f"LLM_REVIEW_FLAG_{idx+1}",
+                    label=label,
                     severity="medium",
                     section=section,
                     version_id=None,
@@ -69,6 +79,34 @@ def _llm_flaws_to_structured(flaws: List[str]) -> List[Dict[str, Any]]:
             )
         )
     return structured
+
+
+def _classify_llm_finding_label(msg: str, section: Optional[str] = None) -> str:
+    lowered = str(msg or "").lower()
+    if "baseline" in lowered and "target" in lowered and "indicator" in lowered:
+        return "BASELINE_TARGET_MISSING"
+    if "evidence excerpt" in lowered and "indicator" in lowered:
+        return "INDICATOR_EVIDENCE_EXCERPTS"
+    if "objective" in lowered and ("specific" in lowered or "measurable" in lowered):
+        return "OBJECTIVE_SPECIFICITY"
+    if ("weak causal link" in lowered or "weak causal links" in lowered) and (
+        "output" in lowered or "outputs" in lowered
+    ):
+        return "CAUSAL_LINK_DETAIL"
+    if "unrealistic assumption" in lowered or "unrealistic assumptions" in lowered:
+        return "ASSUMPTION_EVIDENCE"
+    if (
+        "cross-cutting" in lowered
+        or "gender equality" in lowered
+        or "climate resilience" in lowered
+        or "cross-cutting theme" in lowered
+    ):
+        return "CROSS_CUTTING_INTEGRATION"
+    if str(section or "").lower() == "toc":
+        return "GENERIC_TOC_REVIEW_FLAG"
+    if str(section or "").lower() == "logframe":
+        return "GENERIC_LOGFRAME_REVIEW_FLAG"
+    return "GENERIC_LLM_REVIEW_FLAG"
 
 
 def _is_advisory_llm_message(msg: str) -> bool:
@@ -108,6 +146,13 @@ def _is_advisory_llm_message(msg: str) -> bool:
     return any(advisory_signals)
 
 
+def _is_advisory_llm_finding(item: Dict[str, Any]) -> bool:
+    label = str(item.get("label") or "").strip().upper()
+    if label and label in ADVISORY_LLM_FINDING_LABELS:
+        return True
+    return _is_advisory_llm_message(str(item.get("message") or ""))
+
+
 def _advisory_llm_findings_context(
     *,
     state: Dict[str, Any],
@@ -124,7 +169,7 @@ def _advisory_llm_findings_context(
     if rule_fatal_flaws or failed_rule_checks:
         return {"applies": False, "reason": "rule_critic_has_failures"}
 
-    if any(not _is_advisory_llm_message(str(item.get("message") or "")) for item in llm_items):
+    if any(not _is_advisory_llm_finding(item) for item in llm_items):
         return {"applies": False, "reason": "non_advisory_llm_finding_present"}
 
     grounding = _citation_grounding_context(state)
@@ -182,16 +227,24 @@ def _downgrade_advisory_llm_findings(
     out: List[Dict[str, Any]] = []
     for item in llm_fatal_flaw_items:
         current = dict(item)
-        if _is_advisory_llm_message(str(current.get("message") or "")):
+        if _is_advisory_llm_finding(current):
             if str(current.get("severity") or "").lower() != "low":
                 current["severity"] = "low"
                 changed += 1
         out.append(current)
+    labels_downgraded = sorted(
+        {
+            str(item.get("label") or "").strip()
+            for item in out
+            if str(item.get("severity") or "").lower() == "low" and str(item.get("label") or "").strip()
+        }
+    )
     return out, {
         "applied": True,
         "reason": str(advisory_ctx.get("reason") or ""),
         "downgraded_count": changed,
         "architect_threshold_hit_rate": advisory_ctx.get("architect_threshold_hit_rate"),
+        "labels_downgraded": labels_downgraded,
     }
 
 

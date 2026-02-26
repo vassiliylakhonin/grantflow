@@ -11,6 +11,7 @@ from grantflow.swarm.versioning import filter_versions
 class CriticFatalFlaw(BaseModel):
     finding_id: Optional[str] = Field(default=None, description="Stable finding identifier within a job")
     code: str = Field(description="Stable rule/check code")
+    label: Optional[str] = Field(default=None, description="Normalized finding label for stable downstream handling")
     severity: str = Field(description="Severity level: low|medium|high")
     section: str = Field(description="Affected section: toc|logframe|general")
     status: Optional[str] = Field(default=None, description="open|acknowledged|resolved")

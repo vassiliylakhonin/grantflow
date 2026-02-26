@@ -164,6 +164,7 @@ class CriticRuleCheckPublicResponse(BaseModel):
 class CriticFatalFlawPublicResponse(BaseModel):
     finding_id: Optional[str] = None
     code: str
+    label: Optional[str] = None
     severity: str
     section: str
     status: Optional[str] = None
