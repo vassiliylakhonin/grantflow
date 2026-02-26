@@ -377,6 +377,12 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Avg citation conf</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Threshold hit-rate</div><div class="value mono">-</div></div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>LLM Finding Labels (Job)</label>
+                <div class="list" id="qualityLlmFindingLabelsList"></div>
+              </div>
+            </div>
             <div style="margin-top:10px;">
               <pre id="qualityJson">{}</pre>
             </div>
@@ -475,6 +481,12 @@ def render_demo_ui_html() -> str:
               <div>
                 <label>Top Donors (Weighted Risk)</label>
                 <div class="list" id="portfolioQualityWeightedDonorsList"></div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>LLM Finding Labels (Portfolio)</label>
+                <div class="list" id="portfolioQualityLlmLabelCountsList"></div>
               </div>
             </div>
             <div style="margin-top:10px;">
@@ -917,6 +929,7 @@ def render_demo_ui_html() -> str:
         statusJson: $("statusJson"),
         metricsJson: $("metricsJson"),
         qualityJson: $("qualityJson"),
+        qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
         portfolioMetricsJson: $("portfolioMetricsJson"),
         portfolioQualityJson: $("portfolioQualityJson"),
         criticJson: $("criticJson"),
@@ -942,6 +955,7 @@ def render_demo_ui_html() -> str:
         portfolioQualityOpenFindingsList: $("portfolioQualityOpenFindingsList"),
         portfolioQualityPrioritySignalsList: $("portfolioQualityPrioritySignalsList"),
         portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
+        portfolioQualityLlmLabelCountsList: $("portfolioQualityLlmLabelCountsList"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
@@ -1569,6 +1583,12 @@ def render_demo_ui_html() -> str:
         [...els.qualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
+        renderKeyValueList(
+          els.qualityLlmFindingLabelsList,
+          critic.llm_finding_label_counts,
+          "No LLM finding labels in this job.",
+          8
+        );
       }
 
       function renderPortfolioMetricsCards(metrics) {
@@ -1609,6 +1629,12 @@ def render_demo_ui_html() -> str:
         [...els.portfolioQualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
+        renderKeyValueList(
+          els.portfolioQualityLlmLabelCountsList,
+          critic.llm_finding_label_counts,
+          "No aggregated LLM finding labels.",
+          10
+        );
       }
 
       function renderKeyValueList(container, mapping, emptyLabel, topN = 8, onSelect = null) {
