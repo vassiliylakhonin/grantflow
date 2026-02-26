@@ -126,6 +126,8 @@ def test_demo_console_page_loads():
     assert "portfolioQualityTopDonorAdvisoryRejectedReasonsList" in body
     assert "portfolioQualityTopDonorAdvisoryAppliedList" in body
     assert "portfolioQualityFocusedDonorSummaryList" in body
+    assert "portfolioQualityFocusedDonorAdvisoryPill" in body
+    assert "portfolioQualityFocusedDonorAdvisoryPillText" in body
     assert "portfolioQualityFocusedDonorLlmLabelCountsList" in body
     assert "portfolioQualityFocusedDonorAdvisoryRejectedReasonsList" in body
     assert "portfolioQualityAdvisoryAppliedList" in body

@@ -512,6 +512,9 @@ def render_demo_ui_html() -> str:
             <div class="row" style="margin-top:10px;">
               <div>
                 <label>Focused Donor (Weighted Risk) Summary</label>
+                <div id="portfolioQualityFocusedDonorAdvisoryPill" class="pill status-unknown" style="margin-bottom:8px;">
+                  <span class="dot"></span><span id="portfolioQualityFocusedDonorAdvisoryPillText">advisory rate: -</span>
+                </div>
                 <div class="list" id="portfolioQualityFocusedDonorSummaryList"></div>
               </div>
               <div>
@@ -1008,6 +1011,8 @@ def render_demo_ui_html() -> str:
         portfolioQualityTopDonorAdvisoryRejectedReasonsList: $("portfolioQualityTopDonorAdvisoryRejectedReasonsList"),
         portfolioQualityTopDonorAdvisoryAppliedList: $("portfolioQualityTopDonorAdvisoryAppliedList"),
         portfolioQualityFocusedDonorSummaryList: $("portfolioQualityFocusedDonorSummaryList"),
+        portfolioQualityFocusedDonorAdvisoryPill: $("portfolioQualityFocusedDonorAdvisoryPill"),
+        portfolioQualityFocusedDonorAdvisoryPillText: $("portfolioQualityFocusedDonorAdvisoryPillText"),
         portfolioQualityFocusedDonorLlmLabelCountsList: $("portfolioQualityFocusedDonorLlmLabelCountsList"),
         portfolioQualityFocusedDonorAdvisoryRejectedReasonsList: $("portfolioQualityFocusedDonorAdvisoryRejectedReasonsList"),
         portfolioQualityAdvisoryAppliedList: $("portfolioQualityAdvisoryAppliedList"),
@@ -1830,8 +1835,14 @@ def render_demo_ui_html() -> str:
       }
 
       function renderPortfolioQualityFocusedDonorCard(summary) {
+        function setFocusedDonorAdvisoryPill(text, cls) {
+          if (!els.portfolioQualityFocusedDonorAdvisoryPill || !els.portfolioQualityFocusedDonorAdvisoryPillText) return;
+          els.portfolioQualityFocusedDonorAdvisoryPill.className = `pill ${cls || "status-unknown"}`;
+          els.portfolioQualityFocusedDonorAdvisoryPillText.textContent = text;
+        }
         const focused = getFocusedWeightedRiskDonorEntry(summary);
         if (!focused) {
+          setFocusedDonorAdvisoryPill("advisory rate: -", "status-unknown");
           renderKeyValueList(
             els.portfolioQualityFocusedDonorSummaryList,
             null,
@@ -1853,16 +1864,29 @@ def render_demo_ui_html() -> str:
           return;
         }
         const [donorId, donorRow] = focused;
+        const donorDiagJobs = Number(donorRow.llm_advisory_diagnostics_job_count || 0);
+        const donorAppliedJobs = Number(donorRow.llm_advisory_applied_job_count || 0);
+        const donorAppliedRate =
+          typeof donorRow.llm_advisory_applied_rate === "number" ? Number(donorRow.llm_advisory_applied_rate) : null;
+        let pillClass = "status-unknown";
+        if (donorAppliedRate !== null) {
+          if (donorAppliedRate >= 0.66) pillClass = "status-done";
+          else if (donorAppliedRate >= 0.33) pillClass = "status-pending_hitl";
+          else pillClass = "status-error";
+        }
+        setFocusedDonorAdvisoryPill(
+          donorAppliedRate === null
+            ? `advisory rate: - (${donorId})`
+            : `advisory rate: ${(donorAppliedRate * 100).toFixed(1)}% (${donorAppliedJobs}/${donorDiagJobs || 0})`,
+          pillClass
+        );
         const summaryRows = {
           donor_id: donorId,
           weighted_score: Number(donorRow.weighted_score || 0),
           high_priority_signals: Number(donorRow.high_priority_signal_count || 0),
           open_findings: Number(donorRow.open_findings_total || 0),
           high_severity_findings: Number(donorRow.high_severity_findings_total || 0),
-          advisory_applied_rate:
-            typeof donorRow.llm_advisory_applied_rate === "number"
-              ? `${(Number(donorRow.llm_advisory_applied_rate) * 100).toFixed(1)}%`
-              : "-",
+          advisory_applied_rate: donorAppliedRate !== null ? `${(donorAppliedRate * 100).toFixed(1)}%` : "-",
         };
         renderKeyValueList(
           els.portfolioQualityFocusedDonorSummaryList,
