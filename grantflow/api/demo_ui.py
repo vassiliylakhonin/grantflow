@@ -1579,6 +1579,49 @@ def render_demo_ui_html() -> str:
         });
       }
 
+      function renderQualityAdvisoryBadge(advisoryDiagnostics) {
+        if (!els.qualityAdvisoryBadgeList) return;
+        const applies = advisoryDiagnostics && advisoryDiagnostics.advisory_applies === true;
+        const rejectedReason = advisoryDiagnostics && advisoryDiagnostics.advisory_rejected_reason
+          ? String(advisoryDiagnostics.advisory_rejected_reason)
+          : "";
+        const labelCounts =
+          advisoryDiagnostics &&
+          advisoryDiagnostics.candidate_label_counts &&
+          typeof advisoryDiagnostics.candidate_label_counts === "object"
+            ? advisoryDiagnostics.candidate_label_counts
+            : {};
+        const labelCountTotal = Object.values(labelCounts).reduce((acc, value) => acc + Number(value || 0), 0);
+        const thrHit = advisoryDiagnostics && typeof advisoryDiagnostics.architect_threshold_hit_rate === "number"
+          ? `thr_hit=${Number(advisoryDiagnostics.architect_threshold_hit_rate).toFixed(3)}`
+          : null;
+        const ratio = advisoryDiagnostics && typeof advisoryDiagnostics.architect_rag_low_ratio === "number"
+          ? `arch_rag_low_ratio=${Number(advisoryDiagnostics.architect_rag_low_ratio).toFixed(3)}`
+          : null;
+        const rows = advisoryDiagnostics
+          ? [
+              `applies: ${applies ? "yes" : "no"}`,
+              `candidates: ${labelCountTotal}`,
+              thrHit,
+              ratio,
+              !applies && rejectedReason ? `reason: ${rejectedReason}` : null,
+            ].filter(Boolean)
+          : ["No LLM advisory diagnostics."];
+        els.qualityAdvisoryBadgeList.innerHTML = "";
+        for (let i = 0; i < rows.length; i += 1) {
+          const row = rows[i];
+          const div = document.createElement("div");
+          div.className = "item";
+          if (i === 0 && advisoryDiagnostics) {
+            div.style.borderLeft = applies ? "4px solid #1f8f6b" : "4px solid #cc7a00";
+          } else if (String(row).startsWith("reason:")) {
+            div.style.borderLeft = "4px solid #cc7a00";
+          }
+          div.innerHTML = `<div class="sub mono">${escapeHtml(String(row))}</div>`;
+          els.qualityAdvisoryBadgeList.appendChild(div);
+        }
+      }
+
       function renderQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
@@ -1597,44 +1640,7 @@ def render_demo_ui_html() -> str:
         [...els.qualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
-        if (els.qualityAdvisoryBadgeList) {
-          const applies = advisoryDiagnostics && advisoryDiagnostics.advisory_applies === true;
-          const rejectedReason = advisoryDiagnostics && advisoryDiagnostics.advisory_rejected_reason
-            ? String(advisoryDiagnostics.advisory_rejected_reason)
-            : "";
-          const labelCounts = advisoryDiagnostics && advisoryDiagnostics.candidate_label_counts && typeof advisoryDiagnostics.candidate_label_counts === "object"
-            ? advisoryDiagnostics.candidate_label_counts
-            : {};
-          const labelCountTotal = Object.values(labelCounts).reduce((acc, value) => acc + Number(value || 0), 0);
-          const thrHit = advisoryDiagnostics && typeof advisoryDiagnostics.architect_threshold_hit_rate === "number"
-            ? `thr_hit=${Number(advisoryDiagnostics.architect_threshold_hit_rate).toFixed(3)}`
-            : null;
-          const ratio = advisoryDiagnostics && typeof advisoryDiagnostics.architect_rag_low_ratio === "number"
-            ? `arch_rag_low_ratio=${Number(advisoryDiagnostics.architect_rag_low_ratio).toFixed(3)}`
-            : null;
-          const rows = advisoryDiagnostics
-            ? [
-                `applies: ${applies ? "yes" : "no"}`,
-                `candidates: ${labelCountTotal}`,
-                thrHit,
-                ratio,
-                !applies && rejectedReason ? `reason: ${rejectedReason}` : null,
-              ].filter(Boolean)
-            : ["No LLM advisory diagnostics."];
-          els.qualityAdvisoryBadgeList.innerHTML = "";
-          for (let i = 0; i < rows.length; i += 1) {
-            const row = rows[i];
-            const div = document.createElement("div");
-            div.className = "item";
-            if (i === 0 && advisoryDiagnostics) {
-              div.style.borderLeft = applies ? "4px solid #1f8f6b" : "4px solid #cc7a00";
-            } else if (String(row).startsWith("reason:")) {
-              div.style.borderLeft = "4px solid #cc7a00";
-            }
-            div.innerHTML = `<div class="sub mono">${escapeHtml(String(row))}</div>`;
-            els.qualityAdvisoryBadgeList.appendChild(div);
-          }
-        }
+        renderQualityAdvisoryBadge(advisoryDiagnostics);
         renderKeyValueList(
           els.qualityLlmFindingLabelsList,
           critic.llm_finding_label_counts,
