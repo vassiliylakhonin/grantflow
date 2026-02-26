@@ -5,6 +5,7 @@ from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes import architect_generation as architect_generation_module
 from grantflow.swarm.nodes.architect_generation import (
     _fallback_structured_toc,
+    _extract_claim_strings,
     build_architect_claim_citations,
     generate_toc_under_contract,
 )
@@ -98,6 +99,24 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
     assert 0.0 < float(citations[0]["confidence_threshold"]) < 1.0
     if citations[0]["citation_type"] == "rag_low_confidence":
         assert float(citations[0]["citation_confidence"]) < float(citations[0]["confidence_threshold"])
+
+
+def test_extract_claim_strings_skips_identifier_fields():
+    toc_payload = {
+        "project_goal": "Improve services",
+        "development_objectives": [
+            {
+                "do_id": "DO 1",
+                "description": "Institutional capacity improves",
+                "intermediate_results": [{"ir_id": "IR 1", "description": "Teams apply SOPs"}],
+            }
+        ],
+    }
+    claims = _extract_claim_strings(toc_payload, "toc")
+    paths = [p for p, _ in claims]
+    assert "toc.development_objectives[0].do_id" not in paths
+    assert "toc.development_objectives[0].intermediate_results[0].ir_id" not in paths
+    assert "toc.development_objectives[0].description" in paths
 
 
 def test_architect_claim_threshold_is_tuned_by_donor_and_section():

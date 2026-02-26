@@ -316,6 +316,9 @@ def _extract_claim_strings(value: Any, path: str = "toc") -> list[tuple[str, str
         if not text:
             return claims
         lowered_path = path.lower()
+        identifier_tokens = ("_id", ".id", "indicator_code", "code]")
+        if any(token in lowered_path for token in identifier_tokens):
+            return claims
         keywords = ("goal", "objective", "outcome", "result", "description", "assumption", "rationale", "change")
         if any(k in lowered_path for k in keywords):
             claims.append((path, text))

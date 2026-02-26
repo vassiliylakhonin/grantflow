@@ -4,10 +4,10 @@ from typing import Optional
 
 ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD = 0.35
 ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES: dict[str, float] = {
-    "usaid": 0.42,
+    "usaid": 0.38,
     "state_department": 0.4,
     "us_state_department": 0.4,
-    "worldbank": 0.38,
+    "worldbank": 0.34,
     "eu": 0.34,
     "giz": 0.32,
 }
@@ -72,4 +72,3 @@ def architect_claim_confidence_threshold(*, donor_id: str, statement_path: str) 
     elif any(token in path for token in ("description", "rationale")):
         threshold += 0.02
     return round(max(0.1, min(threshold, 0.95)), 2)
-
