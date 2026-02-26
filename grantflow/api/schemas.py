@@ -312,6 +312,11 @@ class PortfolioQualityCriticSummaryPublicResponse(BaseModel):
     needs_revision_job_count: int
     needs_revision_rate: Optional[float] = None
     llm_finding_label_counts: Optional[Dict[str, int]] = None
+    llm_advisory_diagnostics_job_count: Optional[int] = None
+    llm_advisory_applied_job_count: Optional[int] = None
+    llm_advisory_applied_rate: Optional[float] = None
+    llm_advisory_candidate_finding_count: Optional[int] = None
+    llm_advisory_rejected_reason_counts: Optional[Dict[str, int]] = None
 
     model_config = ConfigDict(extra="allow")
 

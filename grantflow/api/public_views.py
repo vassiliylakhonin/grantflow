@@ -848,6 +848,10 @@ def public_portfolio_quality_payload(
     mel_rag_low_confidence_citation_count = 0
     fallback_namespace_citation_count = 0
     llm_finding_label_counts_total: Dict[str, int] = {}
+    llm_advisory_diagnostics_job_count = 0
+    llm_advisory_applied_job_count = 0
+    llm_advisory_candidate_finding_count = 0
+    llm_advisory_rejected_reason_counts: Dict[str, int] = {}
 
     for row in quality_rows:
         row_critic: Dict[str, Any] = (
@@ -867,6 +871,22 @@ def public_portfolio_quality_payload(
             llm_finding_label_counts_total[label_key] = int(llm_finding_label_counts_total.get(label_key, 0)) + int(
                 count or 0
             )
+        row_llm_advisory = (
+            cast(Dict[str, Any], row_critic.get("llm_advisory_diagnostics"))
+            if isinstance(row_critic.get("llm_advisory_diagnostics"), dict)
+            else {}
+        )
+        if row_llm_advisory:
+            llm_advisory_diagnostics_job_count += 1
+            llm_advisory_candidate_finding_count += int(row_llm_advisory.get("advisory_candidate_count") or 0)
+            if bool(row_llm_advisory.get("advisory_applies")):
+                llm_advisory_applied_job_count += 1
+            else:
+                rejected_reason = str(row_llm_advisory.get("advisory_rejected_reason") or "").strip()
+                if rejected_reason:
+                    llm_advisory_rejected_reason_counts[rejected_reason] = (
+                        int(llm_advisory_rejected_reason_counts.get(rejected_reason, 0)) + 1
+                    )
         citation_count_total += int(row_citations.get("citation_count") or 0)
         low_confidence_citation_count += int(row_citations.get("low_confidence_citation_count") or 0)
         rag_low_confidence_citation_count += int(row_citations.get("rag_low_confidence_citation_count") or 0)
@@ -994,6 +1014,15 @@ def public_portfolio_quality_payload(
             "needs_revision_job_count": needs_revision_job_count,
             "needs_revision_rate": round(needs_revision_job_count / job_count, 4) if job_count else None,
             "llm_finding_label_counts": llm_finding_label_counts_total,
+            "llm_advisory_diagnostics_job_count": llm_advisory_diagnostics_job_count,
+            "llm_advisory_applied_job_count": llm_advisory_applied_job_count,
+            "llm_advisory_applied_rate": (
+                round(llm_advisory_applied_job_count / llm_advisory_diagnostics_job_count, 4)
+                if llm_advisory_diagnostics_job_count
+                else None
+            ),
+            "llm_advisory_candidate_finding_count": llm_advisory_candidate_finding_count,
+            "llm_advisory_rejected_reason_counts": llm_advisory_rejected_reason_counts,
         },
         "citations": {
             "citation_count_total": citation_count_total,

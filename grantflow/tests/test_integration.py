@@ -1141,6 +1141,11 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                         {"code": "toc.complete", "status": "fail"},
                         {"code": "toc.assumptions", "status": "warn"},
                     ],
+                    "llm_advisory_diagnostics": {
+                        "advisory_applies": True,
+                        "advisory_candidate_count": 1,
+                        "candidate_label_counts": {"CAUSAL_LINK_DETAIL": 1},
+                    },
                 },
                 "citations": [
                     {
@@ -1204,6 +1209,12 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                         }
                     ],
                     "rule_checks": [{"code": "logframe.complete", "status": "pass"}],
+                    "llm_advisory_diagnostics": {
+                        "advisory_applies": False,
+                        "advisory_candidate_count": 1,
+                        "advisory_rejected_reason": "grounding_threshold_not_met",
+                        "candidate_label_counts": {"BASELINE_TARGET_MISSING": 1},
+                    },
                 },
                 "citations": [
                     {
@@ -1272,6 +1283,11 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["critic"]["needs_revision_rate"] is not None
     assert body["critic"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
     assert body["critic"]["llm_finding_label_counts"]["BASELINE_TARGET_MISSING"] >= 1
+    assert body["critic"]["llm_advisory_diagnostics_job_count"] >= 2
+    assert body["critic"]["llm_advisory_applied_job_count"] >= 1
+    assert body["critic"]["llm_advisory_applied_rate"] is not None
+    assert body["critic"]["llm_advisory_candidate_finding_count"] >= 2
+    assert body["critic"]["llm_advisory_rejected_reason_counts"]["grounding_threshold_not_met"] >= 1
     assert body["citations"]["citation_count_total"] >= 4
     assert body["citations"]["citation_confidence_avg"] is not None
     assert body["citations"]["low_confidence_citation_count"] >= 1
