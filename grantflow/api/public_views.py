@@ -162,6 +162,11 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
         "fatal_flaw_messages": fatal_flaw_messages,
         "rule_check_count": len(rule_checks),
         "rule_checks": rule_checks,
+        "llm_advisory_diagnostics": sanitize_for_public_response(critic_notes.get("llm_advisory_diagnostics")),
+        "llm_advisory_normalization": sanitize_for_public_response(critic_notes.get("llm_advisory_normalization")),
+        "llm_advisory_score_calibration": sanitize_for_public_response(
+            critic_notes.get("llm_advisory_score_calibration")
+        ),
     }
 
 
@@ -652,6 +657,7 @@ def public_job_quality_payload(
             "rule_check_count": int(critic_payload.get("rule_check_count") or 0),
             "failed_rule_check_count": failed_checks,
             "warned_rule_check_count": warned_checks,
+            "llm_advisory_diagnostics": sanitize_for_public_response(critic_payload.get("llm_advisory_diagnostics")),
         },
         "citations": {
             "citation_count": len(citations),

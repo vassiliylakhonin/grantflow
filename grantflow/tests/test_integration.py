@@ -274,6 +274,14 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
                     "engine": "rules",
                     "rule_score": 6.5,
                     "llm_score": None,
+                    "llm_advisory_diagnostics": {
+                        "llm_finding_count": 1,
+                        "candidate_label_counts": {"TOY_LABEL": 1},
+                        "advisory_candidate_count": 0,
+                        "advisory_candidate_labels": [],
+                        "advisory_applies": False,
+                        "advisory_rejected_reason": "non_advisory_llm_finding_present",
+                    },
                     "revision_instructions": "Fix ToC and indicators.",
                     "fatal_flaws": [
                         {
@@ -297,6 +305,8 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     assert critic_resp.status_code == 200
     critic_body = critic_resp.json()
     assert critic_body["fatal_flaws"]
+    assert critic_body["llm_advisory_diagnostics"]["llm_finding_count"] == 1
+    assert critic_body["llm_advisory_diagnostics"]["advisory_rejected_reason"] == "non_advisory_llm_finding_present"
     finding = critic_body["fatal_flaws"][0]
     finding_id = finding["finding_id"]
 

@@ -168,6 +168,34 @@ def _llm_finding_policy_class(item: Dict[str, Any]) -> str:
     return "advisory" if _is_advisory_llm_message(str(item.get("message") or "")) else "default"
 
 
+def _build_llm_advisory_diagnostics(
+    *,
+    llm_fatal_flaw_items: List[Dict[str, Any]],
+    advisory_ctx: Dict[str, Any],
+) -> Dict[str, Any]:
+    label_counts: Dict[str, int] = {}
+    advisory_candidate_labels: List[str] = []
+    advisory_candidate_count = 0
+    for item in llm_fatal_flaw_items:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or "GENERIC_LLM_REVIEW_FLAG").strip() or "GENERIC_LLM_REVIEW_FLAG"
+        label_counts[label] = int(label_counts.get(label, 0)) + 1
+        if _llm_finding_policy_class(item) == "advisory":
+            advisory_candidate_count += 1
+            advisory_candidate_labels.append(label)
+    return {
+        "llm_finding_count": len([i for i in llm_fatal_flaw_items if isinstance(i, dict)]),
+        "candidate_label_counts": label_counts,
+        "advisory_candidate_count": advisory_candidate_count,
+        "advisory_candidate_labels": sorted(set(advisory_candidate_labels)),
+        "advisory_applies": bool(advisory_ctx.get("applies")),
+        "advisory_rejected_reason": None if advisory_ctx.get("applies") else str(advisory_ctx.get("reason") or ""),
+        "architect_threshold_hit_rate": advisory_ctx.get("architect_threshold_hit_rate"),
+        "architect_rag_low_ratio": advisory_ctx.get("architect_rag_low_ratio"),
+    }
+
+
 def _advisory_llm_findings_context(
     *,
     state: Dict[str, Any],
@@ -491,6 +519,10 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         rule_report=rule_report,
         llm_fatal_flaw_items=llm_fatal_flaw_items,
     )
+    llm_advisory_diagnostics = _build_llm_advisory_diagnostics(
+        llm_fatal_flaw_items=llm_fatal_flaw_items,
+        advisory_ctx=advisory_ctx,
+    )
     llm_fatal_flaw_items, llm_advisory_normalization = _downgrade_advisory_llm_findings(
         llm_fatal_flaw_items,
         advisory_ctx=advisory_ctx,
@@ -548,6 +580,8 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         notes["llm_reason"] = llm_reason
     if llm_score_calibration is not None:
         notes["llm_score_calibration"] = llm_score_calibration
+    if llm_fatal_flaw_items:
+        notes["llm_advisory_diagnostics"] = llm_advisory_diagnostics
     if llm_advisory_normalization is not None:
         notes["llm_advisory_normalization"] = llm_advisory_normalization
     if llm_advisory_score_calibration is not None:
