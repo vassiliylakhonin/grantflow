@@ -7,6 +7,7 @@ from grantflow.swarm.nodes.critic import (
     _citation_grounding_context,
     _combine_critic_scores,
     _downgrade_advisory_llm_findings,
+    _is_advisory_llm_message,
     red_team_critic,
 )
 
@@ -306,6 +307,23 @@ def test_usaid_early_draft_llm_findings_are_treated_as_advisory_when_grounded():
     downgraded, meta = _downgrade_advisory_llm_findings(llm_items, advisory_ctx=advisory_ctx)
     assert meta is not None and meta["downgraded_count"] == 3
     assert all(item["severity"] == "low" for item in downgraded)
+
+
+def test_advisory_detector_matches_recent_usaid_llm_wording_variants():
+    msgs = [
+        (
+            "Weak causal link between Outputs and IRs, particularly in explaining how AI training modules lead to "
+            "a comprehensive AI training curriculum."
+        ),
+        (
+            "Unrealistic assumption that AI training directly contributes to climate resilience without clear evidence "
+            "or logical explanation."
+        ),
+        "Missing detailed strategies for ensuring gender equality in AI training participation.",
+        "Lack of integration of climate resilience as a cross-cutting theme in AI training programs.",
+        "Indicators lack baseline and target values, making it difficult to measure progress.",
+    ]
+    assert all(_is_advisory_llm_message(m) for m in msgs)
 
 
 def test_advisory_llm_findings_allow_good_enough_architect_grounding_without_fallback():

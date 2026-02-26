@@ -83,12 +83,26 @@ def _is_advisory_llm_message(msg: str) -> bool:
             and ("ir" in lowered or "intermediate result" in lowered)
         ),
         (
-            "unrealistic assumption" in lowered
-            and ("motivated to participate" in lowered or "motivation" in lowered)
+            ("unrealistic assumption" in lowered or "unrealistic assumptions" in lowered)
+            and (
+                "motivated to participate" in lowered
+                or "motivation" in lowered
+                or "without clear evidence" in lowered
+                or "without evidence" in lowered
+                or "logical explanation" in lowered
+            )
         ),
         (
             "missing cross-cutting" in lowered
             or ("cross-cutting" in lowered and "lacks a detailed plan" in lowered)
+            or (
+                "gender equality" in lowered
+                and ("missing detailed strateg" in lowered or "lacks a detailed plan" in lowered)
+            )
+            or (
+                "climate resilience" in lowered
+                and ("cross-cutting theme" in lowered or "lack of integration" in lowered)
+            )
         ),
     )
     return any(advisory_signals)
