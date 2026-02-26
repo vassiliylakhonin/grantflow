@@ -2368,11 +2368,7 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) return;
         persistUiState();
-        const params = new URLSearchParams();
-        if (els.commentsFilterSection.value) params.set("section", els.commentsFilterSection.value);
-        if (els.commentsFilterStatus.value) params.set("status", els.commentsFilterStatus.value);
-        if (els.commentsFilterVersionId.value.trim()) params.set("version_id", els.commentsFilterVersionId.value.trim());
-        const q = params.toString() ? `?${params.toString()}` : "";
+        const q = buildCommentsFilterQueryString();
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/comments${q}`);
         renderComments(body.comments || []);
         return body;
@@ -2419,6 +2415,15 @@ def render_demo_ui_html() -> str:
         if (els.portfolioDonorFilter.value.trim()) params.set("donor_id", els.portfolioDonorFilter.value.trim());
         if (els.portfolioStatusFilter.value) params.set("status", els.portfolioStatusFilter.value);
         if (els.portfolioHitlFilter.value) params.set("hitl_enabled", els.portfolioHitlFilter.value);
+        const q = params.toString();
+        return q ? `?${q}` : "";
+      }
+
+      function buildCommentsFilterQueryString() {
+        const params = new URLSearchParams();
+        if (els.commentsFilterSection.value) params.set("section", els.commentsFilterSection.value);
+        if (els.commentsFilterStatus.value) params.set("status", els.commentsFilterStatus.value);
+        if (els.commentsFilterVersionId.value.trim()) params.set("version_id", els.commentsFilterVersionId.value.trim());
         const q = params.toString();
         return q ? `?${q}` : "";
       }
