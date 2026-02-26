@@ -13,7 +13,10 @@ from grantflow.swarm.nodes.architect_policy import (
     ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES,
     architect_claim_confidence_threshold,
 )
-from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
+from grantflow.swarm.nodes.architect_retrieval import (
+    pick_best_architect_evidence_hit,
+    score_architect_evidence_hit,
+)
 
 
 def test_architect_generates_contract_validated_toc_with_optional_retrieval_disabled():
@@ -74,6 +77,44 @@ def test_architect_evidence_ranking_prefers_more_relevant_hit():
     best_hit, confidence = pick_best_architect_evidence_hit(statement, hits)
     assert best_hit["source"] == "b.pdf"
     assert confidence > 0.3
+
+
+def test_architect_evidence_scoring_penalizes_generic_excerpt_and_rewards_worldbank_tokens():
+    statement = "Improve public service delivery performance through results framework indicators"
+    generic_hit = {
+        "rank": 1,
+        "label": "Implementation templates",
+        "excerpt": "Budget templates procurement reporting compliance annex and finance forms",
+        "source": "generic.pdf",
+    }
+    wb_hit = {
+        "rank": 2,
+        "label": "World Bank results framework guide",
+        "excerpt": "Results framework indicators for public service delivery performance monitoring",
+        "source": "wb.pdf",
+        "page": 5,
+    }
+    generic_score = score_architect_evidence_hit(
+        statement,
+        generic_hit,
+        donor_id="worldbank",
+        statement_path="toc.results[0].description",
+    )
+    wb_score = score_architect_evidence_hit(
+        statement,
+        wb_hit,
+        donor_id="worldbank",
+        statement_path="toc.results[0].description",
+    )
+    assert wb_score > generic_score
+    best_hit, confidence = pick_best_architect_evidence_hit(
+        statement,
+        [generic_hit, wb_hit],
+        donor_id="worldbank",
+        statement_path="toc.results[0].description",
+    )
+    assert best_hit["source"] == "wb.pdf"
+    assert confidence == wb_score
 
 
 def test_architect_claim_citation_policy_marks_low_confidence_hits():

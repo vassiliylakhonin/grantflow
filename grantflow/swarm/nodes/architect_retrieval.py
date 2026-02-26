@@ -8,6 +8,44 @@ from grantflow.memory_bank.vector_store import vector_store
 
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+_GENERIC_EXCERPT_TOKENS = {
+    "annex",
+    "appendix",
+    "budget",
+    "compliance",
+    "finance",
+    "financial",
+    "forms",
+    "procurement",
+    "reporting",
+    "template",
+    "templates",
+}
+_DONOR_PRIORITY_TOKENS: dict[str, set[str]] = {
+    "usaid": {
+        "activity",
+        "indicator",
+        "ir",
+        "mel",
+        "outcome",
+        "results",
+        "services",
+        "usaid",
+    },
+    "worldbank": {
+        "capacity",
+        "delivery",
+        "framework",
+        "indicator",
+        "institutional",
+        "monitoring",
+        "outcome",
+        "performance",
+        "reform",
+        "results",
+        "service",
+    },
+}
 
 
 def build_architect_query_text(state: Dict[str, Any]) -> str:
@@ -31,13 +69,32 @@ def _tokenize(text: Any) -> set[str]:
     return {m.group(0).lower() for m in _TOKEN_RE.finditer(str(text or "")) if len(m.group(0)) >= 3}
 
 
-def score_architect_evidence_hit(statement: str, hit: Dict[str, Any]) -> float:
+def _statement_priority_tokens(statement_path: str | None) -> set[str]:
+    path = str(statement_path or "").lower()
+    extra: set[str] = set()
+    if any(token in path for token in ("indicator", "mel", "monitoring")):
+        extra.update({"indicator", "monitoring", "results"})
+    if any(token in path for token in ("result", "outcome", "objective")):
+        extra.update({"results", "outcome", "indicator"})
+    if any(token in path for token in ("service", "delivery")):
+        extra.update({"service", "delivery", "performance"})
+    return extra
+
+
+def score_architect_evidence_hit(
+    statement: str,
+    hit: Dict[str, Any],
+    *,
+    donor_id: str | None = None,
+    statement_path: str | None = None,
+) -> float:
     statement_tokens = _tokenize(statement)
     if not statement_tokens:
         return 0.0
 
     excerpt_tokens = _tokenize(hit.get("excerpt"))
     label_tokens = _tokenize(hit.get("label") or hit.get("source"))
+    all_hit_tokens = excerpt_tokens | label_tokens
 
     excerpt_overlap = len(statement_tokens & excerpt_tokens) / max(1, len(statement_tokens))
     label_overlap = len(statement_tokens & label_tokens) / max(1, len(statement_tokens))
@@ -46,18 +103,42 @@ def score_architect_evidence_hit(statement: str, hit: Dict[str, Any]) -> float:
     rank_bonus = max(0.0, 1.0 - (rank - 1) * 0.15)
     page_bonus = 0.05 if hit.get("page") is not None else 0.0
     source_bonus = 0.05 if hit.get("source") else 0.0
+    donor_key = str(donor_id or "").strip().lower()
+    priority_tokens = set(_DONOR_PRIORITY_TOKENS.get(donor_key, set()))
+    priority_tokens.update(_statement_priority_tokens(statement_path))
+    priority_overlap = len(priority_tokens & all_hit_tokens)
+    priority_bonus = min(0.12, priority_overlap * 0.03)
 
-    score = (0.65 * excerpt_overlap) + (0.15 * label_overlap) + (0.15 * rank_bonus) + page_bonus + source_bonus
+    generic_overlap = len(_GENERIC_EXCERPT_TOKENS & excerpt_tokens)
+    generic_penalty = 0.0
+    if generic_overlap >= 2 and excerpt_overlap < 0.15:
+        generic_penalty = min(0.1, generic_overlap * 0.02)
+
+    score = (
+        (0.65 * excerpt_overlap)
+        + (0.15 * label_overlap)
+        + (0.15 * rank_bonus)
+        + page_bonus
+        + source_bonus
+        + priority_bonus
+        - generic_penalty
+    )
     return max(0.0, min(1.0, round(score, 4)))
 
 
-def pick_best_architect_evidence_hit(statement: str, hits: List[Dict[str, Any]]) -> tuple[Dict[str, Any], float]:
+def pick_best_architect_evidence_hit(
+    statement: str,
+    hits: List[Dict[str, Any]],
+    *,
+    donor_id: str | None = None,
+    statement_path: str | None = None,
+) -> tuple[Dict[str, Any], float]:
     if not hits:
         return {}, 0.0
     best_hit = hits[0]
-    best_score = score_architect_evidence_hit(statement, best_hit)
+    best_score = score_architect_evidence_hit(statement, best_hit, donor_id=donor_id, statement_path=statement_path)
     for hit in hits[1:]:
-        score = score_architect_evidence_hit(statement, hit)
+        score = score_architect_evidence_hit(statement, hit, donor_id=donor_id, statement_path=statement_path)
         if score > best_score:
             best_hit = hit
             best_score = score

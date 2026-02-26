@@ -353,7 +353,12 @@ def build_architect_claim_citations(
         hit: Dict[str, Any]
         confidence: float
         if hits:
-            hit, confidence = pick_best_architect_evidence_hit(statement, hits)
+            hit, confidence = pick_best_architect_evidence_hit(
+                statement,
+                hits,
+                donor_id=donor_id,
+                statement_path=statement_path,
+            )
         else:
             hit, confidence = {}, 0.0
         confidence_threshold = architect_claim_confidence_threshold(donor_id=donor_id, statement_path=statement_path)
