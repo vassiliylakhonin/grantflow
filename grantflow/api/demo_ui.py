@@ -2336,11 +2336,7 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) return;
         persistUiState();
-        const params = new URLSearchParams();
-        if (els.diffSection.value) params.set("section", els.diffSection.value);
-        if (els.fromVersionId.value.trim()) params.set("from_version_id", els.fromVersionId.value.trim());
-        if (els.toVersionId.value.trim()) params.set("to_version_id", els.toVersionId.value.trim());
-        const q = params.toString() ? `?${params.toString()}` : "";
+        const q = buildDiffQueryString();
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/diff${q}`);
         setJson(els.diffPre, body.diff_text || body);
         return body;
@@ -2424,6 +2420,15 @@ def render_demo_ui_html() -> str:
         if (els.commentsFilterSection.value) params.set("section", els.commentsFilterSection.value);
         if (els.commentsFilterStatus.value) params.set("status", els.commentsFilterStatus.value);
         if (els.commentsFilterVersionId.value.trim()) params.set("version_id", els.commentsFilterVersionId.value.trim());
+        const q = params.toString();
+        return q ? `?${q}` : "";
+      }
+
+      function buildDiffQueryString() {
+        const params = new URLSearchParams();
+        if (els.diffSection.value) params.set("section", els.diffSection.value);
+        if (els.fromVersionId.value.trim()) params.set("from_version_id", els.fromVersionId.value.trim());
+        if (els.toVersionId.value.trim()) params.set("to_version_id", els.toVersionId.value.trim());
         const q = params.toString();
         return q ? `?${q}` : "";
       }
