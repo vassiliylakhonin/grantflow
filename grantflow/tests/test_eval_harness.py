@@ -107,6 +107,7 @@ def test_format_eval_suite_report_highlights_fallback_dominance_signals():
                     "critic_score": 7.0,
                     "toc_schema_valid": True,
                     "fatal_flaw_count": 2,
+                    "llm_finding_label_counts": {"CAUSAL_LINK_DETAIL": 2, "BASELINE_TARGET_MISSING": 1},
                     "citations_total": 10,
                     "fallback_namespace_citation_count": 9,
                     "high_severity_fatal_flaw_count": 0,
@@ -124,6 +125,7 @@ def test_format_eval_suite_report_highlights_fallback_dominance_signals():
                     "critic_score": 7.0,
                     "toc_schema_valid": True,
                     "fatal_flaw_count": 1,
+                    "llm_finding_label_counts": {"BASELINE_TARGET_MISSING": 1},
                     "citations_total": 4,
                     "fallback_namespace_citation_count": 4,
                     "high_severity_fatal_flaw_count": 0,
@@ -138,6 +140,11 @@ def test_format_eval_suite_report_highlights_fallback_dominance_signals():
     assert "grounding_risk=fallback_dominant:high(90%)" in text
     assert "Grounding risk summary (fallback dominance)" in text
     assert "usaid: fallback_dominance=high (90%) fallback_ns_citations=9/10" in text
+    assert "LLM finding label mix (suite-level)" in text
+    assert "- BASELINE_TARGET_MISSING: 2" in text
+    assert "- CAUSAL_LINK_DETAIL: 2" in text
+    assert "LLM finding label mix by donor" in text
+    assert "- usaid: CAUSAL_LINK_DETAIL=2, BASELINE_TARGET_MISSING=1" in text
     # c2 is below minimum citation threshold for dominance reporting
     assert "eu: fallback_dominance" not in text
 
@@ -148,7 +155,14 @@ def test_compute_state_metrics_splits_fallback_namespace_from_rag_low_confidence
             "toc_validation": {"valid": True},
             "toc_draft": {"toc": {}},
             "logframe_draft": {"indicators": []},
-            "critic_notes": {"fatal_flaws": []},
+            "critic_notes": {
+                "fatal_flaws": [
+                    {"source": "llm", "label": "CAUSAL_LINK_DETAIL"},
+                    {"source": "llm", "label": "CAUSAL_LINK_DETAIL"},
+                    {"source": "llm", "label": "BASELINE_TARGET_MISSING"},
+                    {"source": "rules", "label": "IGNORE_ME"},
+                ]
+            },
             "citations": [
                 {"stage": "architect", "citation_type": "fallback_namespace", "citation_confidence": 0.1},
                 {"stage": "architect", "citation_type": "rag_low_confidence", "citation_confidence": 0.2},
@@ -160,6 +174,8 @@ def test_compute_state_metrics_splits_fallback_namespace_from_rag_low_confidence
     assert metrics["low_confidence_citation_count"] == 2
     assert metrics["rag_low_confidence_citation_count"] == 1
     assert metrics["fallback_namespace_citation_count"] == 1
+    assert metrics["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] == 2
+    assert metrics["llm_finding_label_counts"]["BASELINE_TARGET_MISSING"] == 1
 
 
 def test_eval_harness_runtime_overrides_apply_to_cases_without_mutating_original():

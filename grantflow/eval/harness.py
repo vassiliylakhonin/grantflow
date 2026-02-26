@@ -193,6 +193,14 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
     high_flaws = sum(
         1 for flaw in fatal_flaws if isinstance(flaw, dict) and str(flaw.get("severity") or "").lower() == "high"
     )
+    llm_finding_label_counts: dict[str, int] = {}
+    for flaw in fatal_flaws:
+        if not isinstance(flaw, dict):
+            continue
+        if str(flaw.get("source") or "").lower() != "llm":
+            continue
+        label = str(flaw.get("label") or "").strip() or "GENERIC_LLM_REVIEW_FLAG"
+        llm_finding_label_counts[label] = int(llm_finding_label_counts.get(label, 0)) + 1
     confidence_values: list[float] = []
     low_confidence_count = 0
     high_confidence_count = 0
@@ -243,6 +251,7 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
         "needs_revision": bool(state.get("needs_revision")),
         "fatal_flaw_count": len(fatal_flaws),
         "high_severity_fatal_flaw_count": high_flaws,
+        "llm_finding_label_counts": llm_finding_label_counts,
         "citations_total": len(citations),
         "architect_citation_count": _count_stage_citations(citations, "architect"),
         "mel_citation_count": _count_stage_citations(citations, "mel"),
@@ -404,6 +413,7 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
             lines.append(f"    * {check.get('name')}: expected {check.get('expected')} got {check.get('actual')}")
 
     donor_rows: dict[str, dict[str, Any]] = {}
+    llm_finding_label_counts_total: dict[str, int] = {}
     for case in suite.get("cases") or []:
         if not isinstance(case, dict):
             continue
@@ -437,6 +447,18 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         row["fallback_ns_total"] = int(row["fallback_ns_total"]) + int(
             metrics.get("fallback_namespace_citation_count") or 0
         )
+        row_label_counts = row.setdefault("llm_finding_label_counts", {})
+        if not isinstance(row_label_counts, dict):
+            row_label_counts = {}
+            row["llm_finding_label_counts"] = row_label_counts
+        case_label_counts = metrics.get("llm_finding_label_counts") if isinstance(metrics, dict) else {}
+        if isinstance(case_label_counts, dict):
+            for label, count in case_label_counts.items():
+                label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
+                row_label_counts[label_key] = int(row_label_counts.get(label_key, 0)) + int(count or 0)
+                llm_finding_label_counts_total[label_key] = int(llm_finding_label_counts_total.get(label_key, 0)) + int(
+                    count or 0
+                )
 
     if donor_rows:
         lines.append("")
@@ -484,6 +506,30 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                         f"{int(row.get('citation_total') or 0)}"
                     )
                 )
+    if llm_finding_label_counts_total:
+        lines.append("")
+        lines.append("LLM finding label mix (suite-level)")
+        for label, count in sorted(
+            llm_finding_label_counts_total.items(),
+            key=lambda item: (-int(item[1]), str(item[0])),
+        ):
+            lines.append(f"- {label}: {int(count)}")
+
+        donor_label_mix_rows: list[tuple[str, dict[str, int]]] = []
+        for donor_id, row in donor_rows.items():
+            donor_label_counts = row.get("llm_finding_label_counts")
+            if isinstance(donor_label_counts, dict) and donor_label_counts:
+                donor_label_mix_rows.append((donor_id, donor_label_counts))
+        if donor_label_mix_rows:
+            lines.append("")
+            lines.append("LLM finding label mix by donor")
+            for donor_id, donor_label_counts in sorted(donor_label_mix_rows, key=lambda item: str(item[0])):
+                top_entries = sorted(
+                    donor_label_counts.items(),
+                    key=lambda item: (-int(item[1]), str(item[0])),
+                )[:5]
+                top_str = ", ".join(f"{label}={int(count)}" for label, count in top_entries)
+                lines.append(f"- {donor_id}: {top_str}")
     return "\n".join(lines)
 
 
