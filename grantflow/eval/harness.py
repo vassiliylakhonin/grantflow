@@ -194,6 +194,8 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
         1 for flaw in fatal_flaws if isinstance(flaw, dict) and str(flaw.get("severity") or "").lower() == "high"
     )
     llm_finding_label_counts: dict[str, int] = {}
+    llm_advisory_applied_label_counts: dict[str, int] = {}
+    llm_advisory_rejected_label_counts: dict[str, int] = {}
     for flaw in fatal_flaws:
         if not isinstance(flaw, dict):
             continue
@@ -201,6 +203,29 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
             continue
         label = str(flaw.get("label") or "").strip() or "GENERIC_LLM_REVIEW_FLAG"
         llm_finding_label_counts[label] = int(llm_finding_label_counts.get(label, 0)) + 1
+    llm_advisory_diagnostics = (
+        critic_notes.get("llm_advisory_diagnostics") if isinstance(critic_notes.get("llm_advisory_diagnostics"), dict) else {}
+    )
+    if isinstance(llm_advisory_diagnostics, dict):
+        candidate_label_counts = (
+            llm_advisory_diagnostics.get("candidate_label_counts")
+            if isinstance(llm_advisory_diagnostics.get("candidate_label_counts"), dict)
+            else {}
+        )
+        target_map = (
+            llm_advisory_applied_label_counts
+            if bool(llm_advisory_diagnostics.get("advisory_applies"))
+            else llm_advisory_rejected_label_counts
+        )
+        for label, count in candidate_label_counts.items():
+            label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
+            try:
+                inc = int(count or 0)
+            except (TypeError, ValueError):
+                inc = 0
+            if inc <= 0:
+                continue
+            target_map[label_key] = int(target_map.get(label_key, 0)) + inc
     confidence_values: list[float] = []
     low_confidence_count = 0
     high_confidence_count = 0
@@ -252,6 +277,8 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
         "fatal_flaw_count": len(fatal_flaws),
         "high_severity_fatal_flaw_count": high_flaws,
         "llm_finding_label_counts": llm_finding_label_counts,
+        "llm_advisory_applied_label_counts": llm_advisory_applied_label_counts,
+        "llm_advisory_rejected_label_counts": llm_advisory_rejected_label_counts,
         "citations_total": len(citations),
         "architect_citation_count": _count_stage_citations(citations, "architect"),
         "mel_citation_count": _count_stage_citations(citations, "mel"),
@@ -414,6 +441,8 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
 
     donor_rows: dict[str, dict[str, Any]] = {}
     llm_finding_label_counts_total: dict[str, int] = {}
+    llm_advisory_applied_label_counts_total: dict[str, int] = {}
+    llm_advisory_rejected_label_counts_total: dict[str, int] = {}
     for case in suite.get("cases") or []:
         if not isinstance(case, dict):
             continue
@@ -459,6 +488,25 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                 llm_finding_label_counts_total[label_key] = int(llm_finding_label_counts_total.get(label_key, 0)) + int(
                     count or 0
                 )
+        for metric_key, row_key, total_key in (
+            ("llm_advisory_applied_label_counts", "llm_advisory_applied_label_counts", llm_advisory_applied_label_counts_total),
+            (
+                "llm_advisory_rejected_label_counts",
+                "llm_advisory_rejected_label_counts",
+                llm_advisory_rejected_label_counts_total,
+            ),
+        ):
+            row_mix = row.setdefault(row_key, {})
+            if not isinstance(row_mix, dict):
+                row_mix = {}
+                row[row_key] = row_mix
+            case_mix = metrics.get(metric_key) if isinstance(metrics, dict) else {}
+            if not isinstance(case_mix, dict):
+                continue
+            for label, count in case_mix.items():
+                label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
+                row_mix[label_key] = int(row_mix.get(label_key, 0)) + int(count or 0)
+                total_key[label_key] = int(total_key.get(label_key, 0)) + int(count or 0)
 
     if donor_rows:
         lines.append("")
@@ -528,6 +576,32 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                     donor_label_counts.items(),
                     key=lambda item: (-int(item[1]), str(item[0])),
                 )[:5]
+                top_str = ", ".join(f"{label}={int(count)}" for label, count in top_entries)
+                lines.append(f"- {donor_id}: {top_str}")
+    for title, total_mix, donor_key in (
+        ("LLM advisory label mix (applied)", llm_advisory_applied_label_counts_total, "llm_advisory_applied_label_counts"),
+        (
+            "LLM advisory label mix (rejected)",
+            llm_advisory_rejected_label_counts_total,
+            "llm_advisory_rejected_label_counts",
+        ),
+    ):
+        if not total_mix:
+            continue
+        lines.append("")
+        lines.append(title)
+        for label, count in sorted(total_mix.items(), key=lambda item: (-int(item[1]), str(item[0]))):
+            lines.append(f"- {label}: {int(count)}")
+        donor_mix_rows: list[tuple[str, dict[str, int]]] = []
+        for donor_id, row in donor_rows.items():
+            donor_mix = row.get(donor_key)
+            if isinstance(donor_mix, dict) and donor_mix:
+                donor_mix_rows.append((donor_id, donor_mix))
+        if donor_mix_rows:
+            lines.append("")
+            lines.append(f"{title} by donor")
+            for donor_id, donor_mix in sorted(donor_mix_rows, key=lambda item: str(item[0])):
+                top_entries = sorted(donor_mix.items(), key=lambda item: (-int(item[1]), str(item[0])))[:5]
                 top_str = ", ".join(f"{label}={int(count)}" for label, count in top_entries)
                 lines.append(f"- {donor_id}: {top_str}")
     return "\n".join(lines)
