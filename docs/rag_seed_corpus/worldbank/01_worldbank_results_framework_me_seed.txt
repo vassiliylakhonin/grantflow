@@ -1,0 +1,27 @@
+World Bank results framework and M&E guidance (seed summary)
+
+Purpose
+This seed summary supports retrieval for World Bank-style results framework design in governance and public sector reform projects. Replace with official World Bank guidance and project documents in production.
+
+Typical results framework expectations
+- Clear project development objective (PDO) with measurable change dimensions
+- Intermediate indicators linked to implementation outputs and institutional outcomes
+- Baselines, end targets, and data collection arrangements
+- Realistic attribution and sequencing across implementation period
+
+Public sector reform / service delivery design considerations
+- Institutional capacity and change management are often as important as technical inputs
+- Process diagnostics and baseline service metrics should inform target setting
+- Indicators should capture both implementation progress and service performance outcomes
+- Learning and adaptive management should be built into supervision and review cycles
+
+Example indicator areas
+- Agency performance management practices adopted
+- Service delivery process time or error reduction
+- Staff competency and use of management tools
+- Adoption of standardized procedures and reporting routines
+
+Common issues
+- PDOs too broad for measurable tracking
+- Indicators without baselines or data source clarity
+- Outputs mistaken for outcomes

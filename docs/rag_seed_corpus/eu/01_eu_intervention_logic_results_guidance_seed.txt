@@ -1,0 +1,30 @@
+EU intervention logic and results framework guidance (seed summary)
+
+Purpose
+This seed summary supports retrieval for EU-style intervention logic drafting (overall objective, specific objectives, outputs, indicators, assumptions). Replace with official EU/EuropeAid guidance in production.
+
+Typical intervention logic structure
+- Overall objective (long-term change and rationale)
+- Specific objectives / outcomes (changes directly attributable within program scope)
+- Outputs (deliverables produced by the action)
+- Activities (what the action implements)
+- Assumptions and external factors
+
+Drafting expectations for EU-style proposals
+- The overall objective should include a rationale and clear policy relevance.
+- Specific objectives should be concrete and measurable.
+- Outputs should be linked to implementation packages and beneficiaries.
+- Indicators should include baseline, target, and means of verification.
+- Assumptions and risks should be explicitly documented.
+
+Governance and digital service delivery focus
+- User-centric service quality improvements
+- Institutional capacity for implementation and monitoring
+- Inter-agency coordination and process standardization
+- Data governance and digital inclusion considerations
+
+Common weaknesses to avoid
+- Vague overall objective with no rationale
+- Outputs not linked to specific objectives
+- Indicators without baselines or verification sources
+- Missing implementation responsibilities

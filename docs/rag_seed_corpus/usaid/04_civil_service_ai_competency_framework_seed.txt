@@ -1,0 +1,41 @@
+Civil service AI competency framework (seed)
+
+Purpose
+This seed framework supports retrieval for capacity-building proposals focused on public sector AI skills. Replace with official competency frameworks or training standards where available.
+
+Competency domains
+1. Foundational AI literacy
+- Understand basic AI capabilities and limitations
+- Distinguish generative AI from analytics and automation tools
+- Recognize appropriate and inappropriate use cases
+
+2. Public sector workflow application
+- Map administrative tasks and identify candidate AI-assisted steps
+- Define quality criteria for policy and service outputs
+- Use structured prompts and review checklists
+
+3. Responsible use and compliance
+- Apply privacy, security, and records management requirements
+- Document human oversight and approval steps
+- Escalate risks and suspected misuse
+
+4. Evidence and verification
+- Verify factual claims and data references
+- Cross-check outputs against approved sources and internal guidance
+- Track errors and corrective actions
+
+5. Change management and adoption
+- Support team adoption through SOPs and peer coaching
+- Participate in learning reviews and process improvement cycles
+- Report performance improvements and implementation constraints
+
+Role-based proficiency levels (illustrative)
+- Level 1 (General staff): safe use, verification, escalation
+- Level 2 (Supervisors/process owners): workflow design, QA, approvals
+- Level 3 (Focal points/trainers): SOP design, coaching, monitoring, governance coordination
+
+Suggested learning evidence
+- Pre/post knowledge assessment
+- Applied assignments using agency workflow examples
+- Supervisor verification of pilot output quality
+- SOP adoption and compliance spot checks

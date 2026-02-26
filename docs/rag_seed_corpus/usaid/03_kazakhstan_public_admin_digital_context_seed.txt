@@ -1,0 +1,34 @@
+Kazakhstan public administration and digital government context (seed brief)
+
+Purpose
+This seed brief provides contextual retrieval cues for drafting public sector digital capacity and responsible AI interventions in Kazakhstan. Replace with current government policy documents and diagnostics for production use.
+
+Context themes relevant to proposal design
+- Ongoing government digitalization and service modernization efforts
+- Uneven agency capacity for data use and digital workflow redesign
+- Need for practical training linked to real administrative processes
+- Importance of central guidance plus agency-level implementation ownership
+
+Program design implications
+- National-level curriculum should be complemented by pilot implementation in selected agencies or municipalities.
+- Training should be role-based (policy, service delivery, digital units, managers).
+- Institutional adoption requires SOPs, focal points, and leadership support, not only classroom learning.
+- Use cases should focus on low-risk, high-value workflows first (document processing, service triage, drafting support, internal knowledge tasks).
+
+Potential implementation stakeholders (illustrative)
+- Civil service training institutions or academies
+- Digital transformation or e-government coordinating bodies
+- Sector ministries with service-heavy operations
+- Agency IT and information security units
+
+Illustrative risks
+- Tool access restrictions in government IT environments
+- Staff turnover after training
+- Inconsistent availability of process maps and baseline data
+- Uneven leadership buy-in across participating agencies
+
+Illustrative mitigation measures
+- Approved tool list and supervised pilot environments
+- Training-of-trainers and refresher cycles
+- Early baseline diagnostics and process mapping
+- Agency focal points with implementation plans and review checkpoints

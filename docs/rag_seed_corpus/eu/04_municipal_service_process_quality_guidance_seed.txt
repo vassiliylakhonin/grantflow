@@ -1,0 +1,27 @@
+Municipal service process and quality guidance (seed)
+
+Purpose
+Supports retrieval for practical process-improvement components in local service delivery projects.
+
+Core process management elements
+- Service catalog and service standards
+- Process maps with roles, decision points, and handoffs
+- Queue and workload management rules
+- Escalation and exception handling
+- Quality checks and supervisory review
+- Citizen feedback and complaint handling
+
+Pilot implementation pattern
+1. Select service/process with high volume or strategic importance
+2. Map current-state process and bottlenecks
+3. Define target-state process and service standards
+4. Train staff and supervisors
+5. Pilot, monitor, and review performance
+6. Adjust SOPs and institutionalize changes
+
+Operational indicators
+- Service completion time
+- First-time-right rate
+- Backlog volume
+- Escalation resolution time
+- Citizen satisfaction proxy measures

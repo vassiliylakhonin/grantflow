@@ -1,0 +1,23 @@
+World Bank public sector modernization project reference patterns (seed)
+
+Purpose
+Supports retrieval for common design patterns in public sector performance and service delivery improvement interventions.
+
+Common components in public sector modernization projects
+- Institutional diagnostics and performance baseline
+- Capacity building for managers and operational staff
+- Process redesign and service improvement pilots
+- Data systems and reporting enhancements
+- Performance reviews and adaptive course correction
+
+Design heuristics
+- Phase implementation to allow diagnostics and pilot learning before scale-up
+- Link training directly to process changes and management routines
+- Build agency ownership through focal points and management accountability
+- Use a limited number of high-value service/process pilots to demonstrate results
+
+Illustrative risk areas
+- Reform fatigue and competing priorities
+- Weak administrative data quality
+- Staff turnover in trained units
+- Slow adoption of new reporting routines

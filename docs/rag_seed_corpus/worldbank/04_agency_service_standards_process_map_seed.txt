@@ -1,0 +1,26 @@
+Agency service standards and process mapping reference (seed)
+
+Purpose
+Supports retrieval for process improvement and service delivery pilot design.
+
+Core process documentation elements
+- Current-state process map and actors
+- Standard processing steps and decision points
+- Service standards (timeliness, completeness, quality checks)
+- Exception handling and escalation
+- Monitoring checkpoints and reporting responsibilities
+
+Pilot process-improvement cycle
+1. Baseline measurement of current performance
+2. Process mapping and bottleneck analysis
+3. Redesign and standard setting
+4. Staff training and rollout
+5. Monitoring and weekly review
+6. Adjustments and institutional adoption
+
+Illustrative operational metrics
+- Turnaround time
+- Completion rate
+- Error/rework rate
+- Backlog volume
+- Compliance with service standards

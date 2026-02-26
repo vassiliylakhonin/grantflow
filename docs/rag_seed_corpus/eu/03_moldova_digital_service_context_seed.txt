@@ -1,0 +1,21 @@
+Moldova digitization and public service context (seed brief)
+
+Purpose
+This seed brief provides contextual retrieval cues for EU-style digital governance and service delivery capacity proposals in Moldova. Replace with current national strategies, service standards, and diagnostics.
+
+Context themes relevant to proposal design
+- Ongoing public administration modernization and service digitization priorities
+- Capacity gaps across central and local institutions in process management and performance monitoring
+- Need for practical support that links training with pilot implementation and institutional routines
+
+Design implications
+- Combine intervention logic and technical assistance with municipal/agency process pilots
+- Include service standards and process documentation outputs
+- Strengthen data collection and monitoring routines for service performance
+- Include change management and cross-institution coordination mechanisms
+
+Illustrative stakeholders
+- Central coordination units for digital transformation or public administration reform
+- Line ministries and local authorities delivering citizen services
+- Municipal service centers and process owners
+- Training and technical support partners

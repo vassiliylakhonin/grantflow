@@ -1,0 +1,30 @@
+Digital governance and service delivery reform reference (seed)
+
+Purpose
+Supports retrieval for governance reform proposals focused on digital public services, process simplification, and citizen-facing service quality.
+
+Design principles for digital service improvement
+- User-centric service design and accessibility
+- Process simplification before digitization
+- Standard operating procedures and service standards
+- Data quality and interoperability practices
+- Performance monitoring and feedback loops
+
+Recommended action components
+- Service/process diagnostics and bottleneck mapping
+- Prioritization of high-impact services
+- Capacity development for municipal/agency teams
+- Process redesign pilots with measurable service improvements
+- Monitoring dashboards and review routines
+
+Illustrative indicators
+- Number of services/processes redesigned and piloted
+- Average processing time reduction for target services
+- Error/rework rate reduction
+- Staff trained in service process management and monitoring
+- Number of agencies/municipalities adopting service standards
+
+Implementation risks
+- Digitizing inefficient legacy processes without redesign
+- Low data quality and weak reporting routines
+- Fragmented ownership across institutions

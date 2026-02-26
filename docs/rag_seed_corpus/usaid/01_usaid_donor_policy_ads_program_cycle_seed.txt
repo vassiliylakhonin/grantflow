@@ -1,0 +1,40 @@
+USAID donor policy and ADS-style program cycle guidance (seed summary)
+
+Purpose
+This seed reference is designed to improve retrieval for USAID-like Results Based Management and program cycle drafting in GrantFlow evaluation runs. It is not an official USAID document and should be replaced by official ADS guidance for production use.
+
+Key USAID drafting concepts
+- Development Objective (DO): a strategic change objective at the program level.
+- Intermediate Result (IR): a measurable change that contributes to a DO.
+- Output: tangible deliverables and immediate products supporting IR achievement.
+- Critical assumptions: external conditions required for the causal logic to hold.
+- Indicators: performance measures with baseline, target, frequency, and data source.
+
+Practical USAID-aligned design expectations
+- The Theory of Change should show a clear results hierarchy from outputs to IRs to DO-level change.
+- Each IR should have a plausible causal pathway and implementing activities that explain how outputs are generated.
+- Assumptions and risks should be explicit, especially for governance reform, behavior change, and institutional adoption interventions.
+- Monitoring and evaluation should distinguish between output indicators (delivery) and outcome indicators (behavior, practice, institutional change).
+- Baselines and targets should be feasible within the period of performance.
+
+USAID governance and capacity strengthening heuristics
+- Include institutional ownership and focal points.
+- Include sequencing: diagnostics, capacity development, pilot application, learning, institutionalization.
+- Include sustainability through embedded procedures, training-of-trainers, and agency-level SOPs.
+- Include safeguards for ethics, privacy, inclusion, and human oversight in digital/AI use cases.
+
+Checklist for draft review
+1. At least one Development Objective is present.
+2. Each DO has intermediate results.
+3. Each IR has outputs.
+4. Critical assumptions are listed.
+5. Indicators are mapped to key result levels.
+6. Risks and mitigation actions are identified.
+7. Sustainability/institutionalization is addressed.
+
+Example USAID-style governance chain
+- DO: Participating government institutions improve service quality and operational effectiveness.
+- IR1: Civil servants improve practical competencies in responsible AI and digital workflow design.
+- IR2: Agencies adopt governance guidance and operating procedures for safe AI-enabled workflows.
+- IR3: Pilot units demonstrate service/process improvements and learning loops.
+- Outputs: diagnostics completed, training cohorts delivered, SOPs drafted, pilot reviews conducted.
