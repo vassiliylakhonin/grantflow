@@ -2402,6 +2402,12 @@ def render_demo_ui_html() -> str:
         refreshPortfolioBundle().catch(showError);
       }
 
+      function applyPortfolioStatusFilter(statusKey) {
+        els.portfolioStatusFilter.value = statusKey || "";
+        persistUiState();
+        refreshPortfolioBundle().catch(showError);
+      }
+
       async function refreshPortfolioMetrics() {
         persistUiState();
         const params = new URLSearchParams();
@@ -2416,11 +2422,7 @@ def render_demo_ui_html() -> str:
           body.status_counts,
           "No status counts yet.",
           8,
-          (statusKey) => {
-            els.portfolioStatusFilter.value = statusKey || "";
-            persistUiState();
-            refreshPortfolioBundle().catch(showError);
-          }
+          (statusKey) => applyPortfolioStatusFilter(statusKey)
         );
         renderKeyValueList(
           els.portfolioDonorCountsList,
