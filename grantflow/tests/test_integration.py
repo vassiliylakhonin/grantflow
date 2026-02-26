@@ -1358,6 +1358,58 @@ def test_portfolio_quality_export_endpoint_returns_csv():
     assert "priority_signal_breakdown.high_severity_findings_total.weight," in body
 
 
+def test_portfolio_quality_export_csv_flattens_donor_advisory_label_mix():
+    api_app_module.JOB_STORE.set(
+        "portfolio-quality-export-job-seeded",
+        {
+            "status": "done",
+            "hitl_enabled": True,
+            "state": {
+                "donor_id": "usaid",
+                "quality_score": 8.0,
+                "critic_score": 7.5,
+                "needs_revision": False,
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "seed-f1",
+                            "severity": "medium",
+                            "status": "open",
+                            "section": "toc",
+                            "source": "llm",
+                            "label": "CAUSAL_LINK_DETAIL",
+                        }
+                    ],
+                    "llm_advisory_diagnostics": {
+                        "advisory_applies": False,
+                        "advisory_candidate_count": 2,
+                        "advisory_rejected_reason": "grounding_threshold_not_met",
+                        "candidate_label_counts": {
+                            "CAUSAL_LINK_DETAIL": 1,
+                            "BASELINE_TARGET_MISSING": 1,
+                        },
+                    },
+                },
+                "citations": [
+                    {"stage": "architect", "citation_type": "rag_low_confidence", "citation_confidence": 0.2},
+                    {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.9},
+                ],
+            },
+            "job_events": [
+                {"event_id": "pqx1", "ts": "2026-02-24T12:00:00+00:00", "type": "status_changed", "to_status": "accepted"},
+                {"event_id": "pqx2", "ts": "2026-02-24T12:00:01+00:00", "type": "status_changed", "to_status": "running"},
+                {"event_id": "pqx3", "ts": "2026-02-24T12:00:10+00:00", "type": "status_changed", "to_status": "done"},
+            ],
+        },
+    )
+
+    response = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "status": "done", "format": "csv"})
+    assert response.status_code == 200
+    body = response.text
+    assert "donor_weighted_risk_breakdown.usaid.llm_advisory_rejected_label_counts.CAUSAL_LINK_DETAIL," in body
+    assert "donor_weighted_risk_breakdown.usaid.llm_advisory_rejected_label_counts.BASELINE_TARGET_MISSING," in body
+
+
 def test_portfolio_quality_export_endpoint_supports_json_and_gzip():
     json_resp = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "format": "json"})
     assert json_resp.status_code == 200

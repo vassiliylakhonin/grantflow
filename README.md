@@ -597,6 +597,8 @@ curl -s "http://127.0.0.1:8000/portfolio/quality/export?donor_id=usaid&status=do
   -o portfolio_quality.csv
 ```
 
+CSV exports flatten nested objects into `field,value` rows, including donor drill-down fields such as `donor_weighted_risk_breakdown.<donor>.llm_advisory_applied_label_counts.*` and `...llm_advisory_rejected_label_counts.*`.
+
 Export aggregated portfolio quality snapshot (JSON or GZip):
 
 ```bash
