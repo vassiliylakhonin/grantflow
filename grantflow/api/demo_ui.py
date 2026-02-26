@@ -511,6 +511,23 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
+                <label>Focused Donor (Weighted Risk) Summary</label>
+                <div class="list" id="portfolioQualityFocusedDonorSummaryList"></div>
+              </div>
+              <div>
+                <label>Focused Donor LLM Labels</label>
+                <div class="list" id="portfolioQualityFocusedDonorLlmLabelCountsList"></div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Focused Donor Advisory Rejected Reasons</label>
+                <div class="list" id="portfolioQualityFocusedDonorAdvisoryRejectedReasonsList"></div>
+              </div>
+              <div></div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
                 <label>LLM Advisory Applied (Jobs)</label>
                 <div class="list" id="portfolioQualityAdvisoryAppliedList"></div>
               </div>
@@ -990,6 +1007,9 @@ def render_demo_ui_html() -> str:
         portfolioQualityTopDonorLlmLabelCountsList: $("portfolioQualityTopDonorLlmLabelCountsList"),
         portfolioQualityTopDonorAdvisoryRejectedReasonsList: $("portfolioQualityTopDonorAdvisoryRejectedReasonsList"),
         portfolioQualityTopDonorAdvisoryAppliedList: $("portfolioQualityTopDonorAdvisoryAppliedList"),
+        portfolioQualityFocusedDonorSummaryList: $("portfolioQualityFocusedDonorSummaryList"),
+        portfolioQualityFocusedDonorLlmLabelCountsList: $("portfolioQualityFocusedDonorLlmLabelCountsList"),
+        portfolioQualityFocusedDonorAdvisoryRejectedReasonsList: $("portfolioQualityFocusedDonorAdvisoryRejectedReasonsList"),
         portfolioQualityAdvisoryAppliedList: $("portfolioQualityAdvisoryAppliedList"),
         portfolioQualityAdvisoryRejectedReasonsList: $("portfolioQualityAdvisoryRejectedReasonsList"),
         criticSectionFilter: $("criticSectionFilter"),
@@ -1706,6 +1726,19 @@ def render_demo_ui_html() -> str:
         );
       }
 
+      function getFocusedWeightedRiskDonorEntry(summary) {
+        const donorRows =
+          summary && summary.donor_weighted_risk_breakdown && typeof summary.donor_weighted_risk_breakdown === "object"
+            ? summary.donor_weighted_risk_breakdown
+            : {};
+        const donorFilter = String((els.portfolioDonorFilter && els.portfolioDonorFilter.value) || "").trim();
+        if (donorFilter && donorRows && Object.prototype.hasOwnProperty.call(donorRows, donorFilter)) {
+          const row = donorRows[donorFilter];
+          return [donorFilter, row && typeof row === "object" && !Array.isArray(row) ? row : {}];
+        }
+        return getTopWeightedRiskDonorEntry(summary);
+      }
+
       function renderPortfolioQualityLlmLabelDrilldown(summary) {
         const critic = summary?.critic || {};
         renderKeyValueList(
@@ -1796,6 +1829,61 @@ def render_demo_ui_html() -> str:
         );
       }
 
+      function renderPortfolioQualityFocusedDonorCard(summary) {
+        const focused = getFocusedWeightedRiskDonorEntry(summary);
+        if (!focused) {
+          renderKeyValueList(
+            els.portfolioQualityFocusedDonorSummaryList,
+            null,
+            "No donor weighted risk rows yet.",
+            8
+          );
+          renderKeyValueList(
+            els.portfolioQualityFocusedDonorLlmLabelCountsList,
+            null,
+            "No donor weighted risk rows yet.",
+            8
+          );
+          renderKeyValueList(
+            els.portfolioQualityFocusedDonorAdvisoryRejectedReasonsList,
+            null,
+            "No donor weighted risk rows yet.",
+            8
+          );
+          return;
+        }
+        const [donorId, donorRow] = focused;
+        const summaryRows = {
+          donor_id: donorId,
+          weighted_score: Number(donorRow.weighted_score || 0),
+          high_priority_signals: Number(donorRow.high_priority_signal_count || 0),
+          open_findings: Number(donorRow.open_findings_total || 0),
+          high_severity_findings: Number(donorRow.high_severity_findings_total || 0),
+          advisory_applied_rate:
+            typeof donorRow.llm_advisory_applied_rate === "number"
+              ? `${(Number(donorRow.llm_advisory_applied_rate) * 100).toFixed(1)}%`
+              : "-",
+        };
+        renderKeyValueList(
+          els.portfolioQualityFocusedDonorSummaryList,
+          summaryRows,
+          `No focused donor summary for ${donorId}.`,
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityFocusedDonorLlmLabelCountsList,
+          donorRow.llm_finding_label_counts,
+          `No LLM finding labels for ${donorId}.`,
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityFocusedDonorAdvisoryRejectedReasonsList,
+          donorRow.llm_advisory_rejected_reason_counts,
+          `No advisory rejections for ${donorId}.`,
+          8
+        );
+      }
+
       function renderPortfolioQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
@@ -1822,6 +1910,7 @@ def render_demo_ui_html() -> str:
         });
         renderPortfolioQualityLlmLabelDrilldown(summary);
         renderPortfolioQualityAdvisoryDrilldown(summary);
+        renderPortfolioQualityFocusedDonorCard(summary);
       }
 
       function renderKeyValueList(container, mapping, emptyLabel, topN = 8, onSelect = null) {
