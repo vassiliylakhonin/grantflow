@@ -767,6 +767,13 @@ Example portfolio quality response shape:
       "llm_advisory_candidate_finding_count": 5,
       "llm_advisory_rejected_reason_counts": {
         "grounding_threshold_not_met": 1
+      },
+      "llm_advisory_applied_label_counts": {
+        "CAUSAL_LINK_DETAIL": 2,
+        "ASSUMPTION_EVIDENCE": 1
+      },
+      "llm_advisory_rejected_label_counts": {
+        "BASELINE_TARGET_MISSING": 1
       }
     }
   },
