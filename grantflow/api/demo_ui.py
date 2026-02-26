@@ -499,6 +499,16 @@ def render_demo_ui_html() -> str:
                 <div class="list" id="portfolioQualityTopDonorLlmLabelCountsList"></div>
               </div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>LLM Advisory Applied (Jobs)</label>
+                <div class="list" id="portfolioQualityAdvisoryAppliedList"></div>
+              </div>
+              <div>
+                <label>LLM Advisory Rejected Reasons</label>
+                <div class="list" id="portfolioQualityAdvisoryRejectedReasonsList"></div>
+              </div>
+            </div>
             <div style="margin-top:10px;">
               <pre id="portfolioQualityJson">{}</pre>
             </div>
@@ -968,6 +978,8 @@ def render_demo_ui_html() -> str:
         portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
         portfolioQualityLlmLabelCountsList: $("portfolioQualityLlmLabelCountsList"),
         portfolioQualityTopDonorLlmLabelCountsList: $("portfolioQualityTopDonorLlmLabelCountsList"),
+        portfolioQualityAdvisoryAppliedList: $("portfolioQualityAdvisoryAppliedList"),
+        portfolioQualityAdvisoryRejectedReasonsList: $("portfolioQualityAdvisoryRejectedReasonsList"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
@@ -1710,6 +1722,35 @@ def render_demo_ui_html() -> str:
         );
       }
 
+      function renderPortfolioQualityAdvisoryDrilldown(summary) {
+        const critic = summary?.critic || {};
+        const appliedJobs = Number(critic.llm_advisory_applied_job_count || 0);
+        const diagnosticsJobs = Number(critic.llm_advisory_diagnostics_job_count || 0);
+        const appliedRate =
+          typeof critic.llm_advisory_applied_rate === "number"
+            ? `${(Number(critic.llm_advisory_applied_rate) * 100).toFixed(1)}%`
+            : "-";
+        const advisoryCandidates = Number(critic.llm_advisory_candidate_finding_count || 0);
+        const appliedSummary = {
+          "jobs_with_diagnostics": diagnosticsJobs,
+          "advisory_applied_jobs": appliedJobs,
+          "advisory_applied_rate": appliedRate,
+          "advisory_candidate_findings": advisoryCandidates,
+        };
+        renderKeyValueList(
+          els.portfolioQualityAdvisoryAppliedList,
+          appliedSummary,
+          "No advisory diagnostics aggregated yet.",
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityAdvisoryRejectedReasonsList,
+          critic.llm_advisory_rejected_reason_counts,
+          "No advisory rejections recorded.",
+          8
+        );
+      }
+
       function renderPortfolioQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
@@ -1735,6 +1776,7 @@ def render_demo_ui_html() -> str:
           node.textContent = values[i] ?? "-";
         });
         renderPortfolioQualityLlmLabelDrilldown(summary);
+        renderPortfolioQualityAdvisoryDrilldown(summary);
       }
 
       function renderKeyValueList(container, mapping, emptyLabel, topN = 8, onSelect = null) {

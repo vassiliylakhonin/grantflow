@@ -123,6 +123,8 @@ def test_demo_console_page_loads():
     assert "qualityAdvisoryBadgeList" in body
     assert "portfolioQualityLlmLabelCountsList" in body
     assert "portfolioQualityTopDonorLlmLabelCountsList" in body
+    assert "portfolioQualityAdvisoryAppliedList" in body
+    assert "portfolioQualityAdvisoryRejectedReasonsList" in body
     assert "portfolioQualityJson" in body
     assert "copyPortfolioQualityJsonBtn" in body
     assert "downloadPortfolioQualityJsonBtn" in body
