@@ -6,6 +6,13 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from grantflow.core.config import config
+from grantflow.swarm.critic_llm_policy import (
+    build_llm_advisory_diagnostics as _build_llm_advisory_diagnostics,
+    classify_llm_finding_label as _classify_llm_finding_label,
+    is_advisory_llm_finding as _is_advisory_llm_finding,
+    is_advisory_llm_message as _is_advisory_llm_message,  # noqa: F401
+    llm_finding_policy_class as _llm_finding_policy_class,
+)
 from grantflow.swarm.llm_provider import (
     chat_openai_init_kwargs,
     openai_compatible_llm_available,
@@ -20,22 +27,6 @@ WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD = 0.6
 ADVISORY_ONLY_LLM_SCORE_MAX_PENALTY = 0.75
 ADVISORY_GROUNDING_MIN_THRESHOLD_HIT_RATE = 0.5
 ADVISORY_GROUNDING_MAX_ARCHITECT_RAG_LOW_RATIO = 0.5
-ADVISORY_LLM_FINDING_LABELS = {
-    "BASELINE_TARGET_MISSING",
-    "INDICATOR_EVIDENCE_EXCERPTS",
-    "OBJECTIVE_SPECIFICITY",
-    "CAUSAL_LINK_DETAIL",
-    "ASSUMPTION_EVIDENCE",
-    "CROSS_CUTTING_INTEGRATION",
-}
-LLM_FINDING_LABEL_SEVERITY_POLICY = {
-    "BASELINE_TARGET_MISSING": "advisory",
-    "INDICATOR_EVIDENCE_EXCERPTS": "advisory",
-    "OBJECTIVE_SPECIFICITY": "advisory",
-    "CAUSAL_LINK_DETAIL": "advisory",
-    "ASSUMPTION_EVIDENCE": "advisory",
-    "CROSS_CUTTING_INTEGRATION": "advisory",
-}
 
 
 class RedTeamEvaluation(BaseModel):
@@ -87,113 +78,6 @@ def _llm_flaws_to_structured(flaws: List[str]) -> List[Dict[str, Any]]:
             )
         )
     return structured
-
-
-def _classify_llm_finding_label(msg: str, section: Optional[str] = None) -> str:
-    lowered = str(msg or "").lower()
-    if "baseline" in lowered and "target" in lowered and "indicator" in lowered:
-        return "BASELINE_TARGET_MISSING"
-    if "evidence excerpt" in lowered and "indicator" in lowered:
-        return "INDICATOR_EVIDENCE_EXCERPTS"
-    if "objective" in lowered and ("specific" in lowered or "measurable" in lowered):
-        return "OBJECTIVE_SPECIFICITY"
-    if ("weak causal link" in lowered or "weak causal links" in lowered) and (
-        "output" in lowered or "outputs" in lowered
-    ):
-        return "CAUSAL_LINK_DETAIL"
-    if "unrealistic assumption" in lowered or "unrealistic assumptions" in lowered:
-        return "ASSUMPTION_EVIDENCE"
-    if (
-        "cross-cutting" in lowered
-        or "gender equality" in lowered
-        or "climate resilience" in lowered
-        or "cross-cutting theme" in lowered
-    ):
-        return "CROSS_CUTTING_INTEGRATION"
-    if str(section or "").lower() == "toc":
-        return "GENERIC_TOC_REVIEW_FLAG"
-    if str(section or "").lower() == "logframe":
-        return "GENERIC_LOGFRAME_REVIEW_FLAG"
-    return "GENERIC_LLM_REVIEW_FLAG"
-
-
-def _is_advisory_llm_message(msg: str) -> bool:
-    lowered = str(msg or "").lower()
-    advisory_signals = (
-        ("baseline" in lowered and "target" in lowered and "indicator" in lowered),
-        ("evidence excerpt" in lowered and "indicator" in lowered),
-        ("objective" in lowered and ("specific" in lowered or "measurable" in lowered)),
-        (
-            ("weak causal link" in lowered or "weak causal links" in lowered)
-            and ("output" in lowered or "outputs" in lowered)
-            and ("ir" in lowered or "intermediate result" in lowered)
-        ),
-        (
-            ("unrealistic assumption" in lowered or "unrealistic assumptions" in lowered)
-            and (
-                "motivated to participate" in lowered
-                or "motivation" in lowered
-                or "without clear evidence" in lowered
-                or "without evidence" in lowered
-                or "logical explanation" in lowered
-            )
-        ),
-        (
-            "missing cross-cutting" in lowered
-            or ("cross-cutting" in lowered and "lacks a detailed plan" in lowered)
-            or (
-                "gender equality" in lowered
-                and ("missing detailed strateg" in lowered or "lacks a detailed plan" in lowered)
-            )
-            or (
-                "climate resilience" in lowered
-                and ("cross-cutting theme" in lowered or "lack of integration" in lowered)
-            )
-        ),
-    )
-    return any(advisory_signals)
-
-
-def _is_advisory_llm_finding(item: Dict[str, Any]) -> bool:
-    label = str(item.get("label") or "").strip().upper()
-    if label and LLM_FINDING_LABEL_SEVERITY_POLICY.get(label) == "advisory":
-        return True
-    return _is_advisory_llm_message(str(item.get("message") or ""))
-
-
-def _llm_finding_policy_class(item: Dict[str, Any]) -> str:
-    label = str(item.get("label") or "").strip().upper()
-    if label:
-        return str(LLM_FINDING_LABEL_SEVERITY_POLICY.get(label) or "default")
-    return "advisory" if _is_advisory_llm_message(str(item.get("message") or "")) else "default"
-
-
-def _build_llm_advisory_diagnostics(
-    *,
-    llm_fatal_flaw_items: List[Dict[str, Any]],
-    advisory_ctx: Dict[str, Any],
-) -> Dict[str, Any]:
-    label_counts: Dict[str, int] = {}
-    advisory_candidate_labels: List[str] = []
-    advisory_candidate_count = 0
-    for item in llm_fatal_flaw_items:
-        if not isinstance(item, dict):
-            continue
-        label = str(item.get("label") or "GENERIC_LLM_REVIEW_FLAG").strip() or "GENERIC_LLM_REVIEW_FLAG"
-        label_counts[label] = int(label_counts.get(label, 0)) + 1
-        if _llm_finding_policy_class(item) == "advisory":
-            advisory_candidate_count += 1
-            advisory_candidate_labels.append(label)
-    return {
-        "llm_finding_count": len([i for i in llm_fatal_flaw_items if isinstance(i, dict)]),
-        "candidate_label_counts": label_counts,
-        "advisory_candidate_count": advisory_candidate_count,
-        "advisory_candidate_labels": sorted(set(advisory_candidate_labels)),
-        "advisory_applies": bool(advisory_ctx.get("applies")),
-        "advisory_rejected_reason": None if advisory_ctx.get("applies") else str(advisory_ctx.get("reason") or ""),
-        "architect_threshold_hit_rate": advisory_ctx.get("architect_threshold_hit_rate"),
-        "architect_rag_low_ratio": advisory_ctx.get("architect_rag_low_ratio"),
-    }
 
 
 def _advisory_llm_findings_context(
