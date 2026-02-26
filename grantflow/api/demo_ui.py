@@ -1745,7 +1745,14 @@ def render_demo_ui_html() -> str:
         }
       }
 
-      function renderWeightedBreakdownList(container, mapping, emptyLabel, topN = 8, scoreKey = "weighted_score") {
+      function renderWeightedBreakdownList(
+        container,
+        mapping,
+        emptyLabel,
+        topN = 8,
+        scoreKey = "weighted_score",
+        onSelect = null
+      ) {
         container.innerHTML = "";
         if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
           container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
@@ -1785,6 +1792,11 @@ def render_demo_ui_html() -> str:
             <div class="title mono">${escapeHtml(key)}</div>
             <div class="sub">${escapeHtml(details)}</div>
           `;
+          if (typeof onSelect === "function") {
+            div.style.cursor = "pointer";
+            div.title = "Click to filter";
+            div.addEventListener("click", () => onSelect(key, row));
+          }
           container.appendChild(div);
         }
       }
@@ -2423,7 +2435,13 @@ def render_demo_ui_html() -> str:
           els.portfolioQualityWeightedDonorsList,
           body.donor_weighted_risk_breakdown,
           "No weighted donor risk yet.",
-          8
+          8,
+          "weighted_score",
+          (donorKey) => {
+            els.portfolioDonorFilter.value = donorKey || "";
+            persistUiState();
+            refreshPortfolioBundle().catch(showError);
+          }
         );
         setJson(els.portfolioQualityJson, body);
         return body;
