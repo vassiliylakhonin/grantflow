@@ -494,6 +494,10 @@ def render_demo_ui_html() -> str:
                 <label>LLM Finding Labels (Portfolio)</label>
                 <div class="list" id="portfolioQualityLlmLabelCountsList"></div>
               </div>
+              <div>
+                <label>Top Donor LLM Labels (Weighted Risk)</label>
+                <div class="list" id="portfolioQualityTopDonorLlmLabelCountsList"></div>
+              </div>
             </div>
             <div style="margin-top:10px;">
               <pre id="portfolioQualityJson">{}</pre>
@@ -963,6 +967,7 @@ def render_demo_ui_html() -> str:
         portfolioQualityPrioritySignalsList: $("portfolioQualityPrioritySignalsList"),
         portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
         portfolioQualityLlmLabelCountsList: $("portfolioQualityLlmLabelCountsList"),
+        portfolioQualityTopDonorLlmLabelCountsList: $("portfolioQualityTopDonorLlmLabelCountsList"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
@@ -1682,6 +1687,32 @@ def render_demo_ui_html() -> str:
           "No aggregated LLM finding labels.",
           10
         );
+        const donorRows =
+          summary && summary.donor_weighted_risk_breakdown && typeof summary.donor_weighted_risk_breakdown === "object"
+            ? summary.donor_weighted_risk_breakdown
+            : {};
+        const topDonor = Object.entries(donorRows)
+          .map(([donorId, row]) => [
+            String(donorId),
+            row && typeof row === "object" && !Array.isArray(row) ? row : {},
+          ])
+          .sort((a, b) => Number((b[1] || {}).weighted_score || 0) - Number((a[1] || {}).weighted_score || 0) || a[0].localeCompare(b[0]))[0];
+        if (topDonor) {
+          const [donorId, donorRow] = topDonor;
+          renderKeyValueList(
+            els.portfolioQualityTopDonorLlmLabelCountsList,
+            donorRow.llm_finding_label_counts,
+            `No LLM finding labels for top donor (${donorId}).`,
+            8
+          );
+        } else {
+          renderKeyValueList(
+            els.portfolioQualityTopDonorLlmLabelCountsList,
+            null,
+            "No donor weighted risk rows yet.",
+            8
+          );
+        }
       }
 
       function renderKeyValueList(container, mapping, emptyLabel, topN = 8, onSelect = null) {
