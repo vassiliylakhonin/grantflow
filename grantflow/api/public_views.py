@@ -911,6 +911,9 @@ def public_portfolio_quality_payload(
                 "mel_rag_low_confidence_citation_count": 0,
                 "fallback_namespace_citation_count": 0,
                 "llm_finding_label_counts": {},
+                "llm_advisory_diagnostics_job_count": 0,
+                "llm_advisory_applied_job_count": 0,
+                "llm_advisory_candidate_finding_count": 0,
                 "llm_advisory_rejected_reason_counts": {},
             },
         )
@@ -949,6 +952,11 @@ def public_portfolio_quality_payload(
             if isinstance(row_critic.get("llm_advisory_diagnostics"), dict)
             else {}
         )
+        if row_llm_advisory:
+            donor_row["llm_advisory_diagnostics_job_count"] += 1
+            donor_row["llm_advisory_candidate_finding_count"] += int(row_llm_advisory.get("advisory_candidate_count") or 0)
+            if bool(row_llm_advisory.get("advisory_applies")):
+                donor_row["llm_advisory_applied_job_count"] += 1
         rejected_reason = str(row_llm_advisory.get("advisory_rejected_reason") or "").strip()
         if rejected_reason:
             donor_advisory_reasons[rejected_reason] = int(donor_advisory_reasons.get(rejected_reason, 0)) + 1
@@ -993,6 +1001,11 @@ def public_portfolio_quality_payload(
             + donor_row["open_findings_total"]
             + donor_row["needs_revision_job_count"]
             + donor_row["rag_low_confidence_citation_count"]
+        )
+        donor_diag_jobs = int(donor_row.get("llm_advisory_diagnostics_job_count") or 0)
+        donor_applied_jobs = int(donor_row.get("llm_advisory_applied_job_count") or 0)
+        donor_row["llm_advisory_applied_rate"] = (
+            round(donor_applied_jobs / donor_diag_jobs, 4) if donor_diag_jobs else None
         )
 
     job_count = len(filtered)

@@ -761,6 +761,10 @@ Example portfolio quality response shape:
         "CAUSAL_LINK_DETAIL": 3,
         "BASELINE_TARGET_MISSING": 2
       },
+      "llm_advisory_diagnostics_job_count": 4,
+      "llm_advisory_applied_job_count": 3,
+      "llm_advisory_applied_rate": 0.75,
+      "llm_advisory_candidate_finding_count": 5,
       "llm_advisory_rejected_reason_counts": {
         "grounding_threshold_not_met": 1
       }
@@ -775,7 +779,7 @@ Example portfolio quality response shape:
 }
 ```
 
-The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards, top-donor weighted-risk lists (click-to-filter), LLM finding label drill-downs (portfolio-level and top weighted-risk donor), top-donor advisory rejected reasons, and advisory-normalization portfolio diagnostics (applied jobs + top rejected reasons).
+The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards, top-donor weighted-risk lists (click-to-filter), LLM finding label drill-downs (portfolio-level and top weighted-risk donor), top-donor advisory applied/rejected drill-downs, and advisory-normalization portfolio diagnostics (applied jobs + top rejected reasons).
 
 ## Human-in-the-Loop Checkpoints (MVP)
 

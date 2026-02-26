@@ -504,7 +504,10 @@ def render_demo_ui_html() -> str:
                 <label>Top Donor Advisory Rejected Reasons</label>
                 <div class="list" id="portfolioQualityTopDonorAdvisoryRejectedReasonsList"></div>
               </div>
-              <div></div>
+              <div>
+                <label>Top Donor Advisory Applied (Jobs)</label>
+                <div class="list" id="portfolioQualityTopDonorAdvisoryAppliedList"></div>
+              </div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -986,6 +989,7 @@ def render_demo_ui_html() -> str:
         portfolioQualityLlmLabelCountsList: $("portfolioQualityLlmLabelCountsList"),
         portfolioQualityTopDonorLlmLabelCountsList: $("portfolioQualityTopDonorLlmLabelCountsList"),
         portfolioQualityTopDonorAdvisoryRejectedReasonsList: $("portfolioQualityTopDonorAdvisoryRejectedReasonsList"),
+        portfolioQualityTopDonorAdvisoryAppliedList: $("portfolioQualityTopDonorAdvisoryAppliedList"),
         portfolioQualityAdvisoryAppliedList: $("portfolioQualityAdvisoryAppliedList"),
         portfolioQualityAdvisoryRejectedReasonsList: $("portfolioQualityAdvisoryRejectedReasonsList"),
         criticSectionFilter: $("criticSectionFilter"),
@@ -1726,6 +1730,21 @@ def render_demo_ui_html() -> str:
             `No advisory rejections for top donor (${donorId}).`,
             8
           );
+          const topDonorAdvisorySummary = {
+            jobs_with_diagnostics: Number(donorRow.llm_advisory_diagnostics_job_count || 0),
+            advisory_applied_jobs: Number(donorRow.llm_advisory_applied_job_count || 0),
+            advisory_applied_rate:
+              typeof donorRow.llm_advisory_applied_rate === "number"
+                ? `${(Number(donorRow.llm_advisory_applied_rate) * 100).toFixed(1)}%`
+                : "-",
+            advisory_candidate_findings: Number(donorRow.llm_advisory_candidate_finding_count || 0),
+          };
+          renderKeyValueList(
+            els.portfolioQualityTopDonorAdvisoryAppliedList,
+            topDonorAdvisorySummary,
+            `No advisory diagnostics for top donor (${donorId}).`,
+            8
+          );
           return;
         }
         renderKeyValueList(
@@ -1736,6 +1755,12 @@ def render_demo_ui_html() -> str:
         );
         renderKeyValueList(
           els.portfolioQualityTopDonorAdvisoryRejectedReasonsList,
+          null,
+          "No donor weighted risk rows yet.",
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityTopDonorAdvisoryAppliedList,
           null,
           "No donor weighted risk rows yet.",
           8

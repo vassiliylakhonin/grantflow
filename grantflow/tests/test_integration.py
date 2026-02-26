@@ -124,6 +124,7 @@ def test_demo_console_page_loads():
     assert "portfolioQualityLlmLabelCountsList" in body
     assert "portfolioQualityTopDonorLlmLabelCountsList" in body
     assert "portfolioQualityTopDonorAdvisoryRejectedReasonsList" in body
+    assert "portfolioQualityTopDonorAdvisoryAppliedList" in body
     assert "portfolioQualityAdvisoryAppliedList" in body
     assert "portfolioQualityAdvisoryRejectedReasonsList" in body
     assert "portfolioQualityJson" in body
@@ -1310,6 +1311,10 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert "llm_finding_label_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
     assert "llm_advisory_rejected_reason_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_diagnostics_job_count"] >= 2
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_applied_job_count"] >= 1
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_applied_rate"] is not None
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_candidate_finding_count"] >= 2
     assert (
         body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_rejected_reason_counts"][
             "grounding_threshold_not_met"
