@@ -283,7 +283,7 @@ GrantFlow includes a built-in operator/demo UI at `GET /demo` for testing the en
 
 ![GrantFlow demo console overview](docs/assets/demo-console-overview.svg)
 
-_Overview placeholder for the built-in `/demo` console (can be replaced with a real screenshot or GIF later without changing the section structure)._
+_Overview placeholder for the built-in `/demo` console (including newer portfolio quality drill-downs such as the `Focused Donor (Weighted Risk)` card); can be replaced with a real screenshot or GIF later without changing the section structure._
 
 ### What it supports
 
