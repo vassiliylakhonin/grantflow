@@ -395,6 +395,12 @@ def test_llm_finding_policy_supports_donor_specific_overrides(monkeypatch):
     assert critic_llm_policy.llm_finding_policy_class(item, donor_id="usaid") == "default"
 
 
+def test_worldbank_default_override_keeps_baseline_target_missing_non_advisory():
+    item = {"label": "BASELINE_TARGET_MISSING", "message": "Indicators lack baseline and target values."}
+    assert critic_llm_policy.llm_finding_policy_class(item, donor_id="worldbank") == "default"
+    assert critic_llm_policy.llm_finding_policy_class(item, donor_id="usaid") == "advisory"
+
+
 def test_advisory_llm_findings_allow_good_enough_architect_grounding_without_fallback():
     class _RuleCheck:
         def __init__(self, status: str):
