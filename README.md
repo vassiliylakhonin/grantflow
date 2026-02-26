@@ -298,7 +298,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 - Review comments (create, resolve/reopen, list filters)
 - Export payload preview/copy and one-click review package export (`ZIP`) via `/export`
 - Job events and metrics
-- Portfolio metrics dashboard (filters + click-to-filter counts) plus `Portfolio Quality` risk rollups (top donors by needs-revision/open findings)
+- Portfolio metrics dashboard (filters + click-to-filter counts) plus `Portfolio Quality` risk rollups (top donors by needs-revision/open findings), LLM finding label counts (portfolio + top weighted-risk donor), and click-to-filter on top weighted-risk donors
 - Portfolio Quality snapshot export from `/demo` (`Copy JSON`, `Download JSON`, `Download CSV`)
 
 ### Run and open
