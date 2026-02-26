@@ -1657,6 +1657,53 @@ def render_demo_ui_html() -> str:
         });
       }
 
+      function getTopWeightedRiskDonorEntry(summary) {
+        const donorRows =
+          summary && summary.donor_weighted_risk_breakdown && typeof summary.donor_weighted_risk_breakdown === "object"
+            ? summary.donor_weighted_risk_breakdown
+            : {};
+        return (
+          Object.entries(donorRows)
+            .map(([donorId, row]) => [
+              String(donorId),
+              row && typeof row === "object" && !Array.isArray(row) ? row : {},
+            ])
+            .sort(
+              (a, b) =>
+                Number((b[1] || {}).weighted_score || 0) - Number((a[1] || {}).weighted_score || 0) ||
+                a[0].localeCompare(b[0])
+            )[0] || null
+        );
+      }
+
+      function renderPortfolioQualityLlmLabelDrilldown(summary) {
+        const critic = summary?.critic || {};
+        renderKeyValueList(
+          els.portfolioQualityLlmLabelCountsList,
+          critic.llm_finding_label_counts,
+          "No aggregated LLM finding labels.",
+          10
+        );
+
+        const topDonor = getTopWeightedRiskDonorEntry(summary);
+        if (topDonor) {
+          const [donorId, donorRow] = topDonor;
+          renderKeyValueList(
+            els.portfolioQualityTopDonorLlmLabelCountsList,
+            donorRow.llm_finding_label_counts,
+            `No LLM finding labels for top donor (${donorId}).`,
+            8
+          );
+          return;
+        }
+        renderKeyValueList(
+          els.portfolioQualityTopDonorLlmLabelCountsList,
+          null,
+          "No donor weighted risk rows yet.",
+          8
+        );
+      }
+
       function renderPortfolioQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
@@ -1681,38 +1728,7 @@ def render_demo_ui_html() -> str:
         [...els.portfolioQualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
-        renderKeyValueList(
-          els.portfolioQualityLlmLabelCountsList,
-          critic.llm_finding_label_counts,
-          "No aggregated LLM finding labels.",
-          10
-        );
-        const donorRows =
-          summary && summary.donor_weighted_risk_breakdown && typeof summary.donor_weighted_risk_breakdown === "object"
-            ? summary.donor_weighted_risk_breakdown
-            : {};
-        const topDonor = Object.entries(donorRows)
-          .map(([donorId, row]) => [
-            String(donorId),
-            row && typeof row === "object" && !Array.isArray(row) ? row : {},
-          ])
-          .sort((a, b) => Number((b[1] || {}).weighted_score || 0) - Number((a[1] || {}).weighted_score || 0) || a[0].localeCompare(b[0]))[0];
-        if (topDonor) {
-          const [donorId, donorRow] = topDonor;
-          renderKeyValueList(
-            els.portfolioQualityTopDonorLlmLabelCountsList,
-            donorRow.llm_finding_label_counts,
-            `No LLM finding labels for top donor (${donorId}).`,
-            8
-          );
-        } else {
-          renderKeyValueList(
-            els.portfolioQualityTopDonorLlmLabelCountsList,
-            null,
-            "No donor weighted risk rows yet.",
-            8
-          );
-        }
+        renderPortfolioQualityLlmLabelDrilldown(summary);
       }
 
       function renderKeyValueList(container, mapping, emptyLabel, topN = 8, onSelect = null) {
