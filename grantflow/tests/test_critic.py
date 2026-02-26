@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 from grantflow.swarm.critic_rules import evaluate_rule_based_critic
-from grantflow.swarm.nodes.critic import _citation_grounding_context, _combine_critic_scores, red_team_critic
+from grantflow.swarm.nodes.critic import (
+    _advisory_llm_findings_context,
+    _apply_advisory_llm_score_cap,
+    _citation_grounding_context,
+    _combine_critic_scores,
+    _downgrade_advisory_llm_findings,
+    red_team_critic,
+)
 
 
 def test_rule_based_critic_emits_structured_flaws_with_section_and_version():
@@ -181,3 +188,62 @@ def test_combine_critic_scores_keeps_strict_min_when_grounding_is_not_weak():
     assert score == 5.0
     assert meta is not None
     assert meta["applied"] is False
+
+
+def test_advisory_llm_findings_are_downgraded_and_score_penalty_is_capped():
+    class _RuleCheck:
+        def __init__(self, status: str):
+            self.status = status
+
+    class _RuleReport:
+        def __init__(self):
+            self.fatal_flaws = []
+            self.checks = [_RuleCheck("pass")]
+
+    state = {
+        "citations": [
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.25},
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.27},
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.29},
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.24},
+            {"stage": "mel", "citation_type": "rag_result", "citation_confidence": 0.85},
+        ]
+    }
+    llm_items = [
+        {
+            "code": "LLM_REVIEW_FLAG_1",
+            "severity": "medium",
+            "section": "logframe",
+            "message": "Lack of defined baselines and targets for indicators, making it impossible to measure progress effectively.",
+            "source": "llm",
+        },
+        {
+            "code": "LLM_REVIEW_FLAG_2",
+            "severity": "medium",
+            "section": "logframe",
+            "message": "Absence of detailed evidence excerpts to justify the selection of each indicator, reducing credibility.",
+            "source": "llm",
+        },
+        {
+            "code": "LLM_REVIEW_FLAG_3",
+            "severity": "medium",
+            "section": "toc",
+            "message": "The Theory of Change objectives are not sufficiently specific and measurable.",
+            "source": "llm",
+        },
+    ]
+
+    advisory_ctx = _advisory_llm_findings_context(state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items)
+    assert advisory_ctx["applies"] is True
+    downgraded, meta = _downgrade_advisory_llm_findings(llm_items, advisory_ctx=advisory_ctx)
+    assert meta is not None and meta["applied"] is True
+    assert all(item["severity"] == "low" for item in downgraded)
+
+    combined, score_meta = _apply_advisory_llm_score_cap(
+        combined_score=7.75,
+        rule_score=9.25,
+        llm_score=4.5,
+        advisory_ctx=advisory_ctx,
+    )
+    assert combined == 8.5
+    assert score_meta is not None and score_meta["applied"] is True

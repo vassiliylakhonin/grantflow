@@ -17,6 +17,7 @@ WEAK_GROUNDING_LLM_SCORE_MAX_PENALTY = 1.5
 WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION = 5
 WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD = 0.75
 WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD = 0.6
+ADVISORY_ONLY_LLM_SCORE_MAX_PENALTY = 0.75
 
 
 class RedTeamEvaluation(BaseModel):
@@ -66,6 +67,118 @@ def _llm_flaws_to_structured(flaws: List[str]) -> List[Dict[str, Any]]:
             )
         )
     return structured
+
+
+def _is_advisory_llm_message(msg: str) -> bool:
+    lowered = str(msg or "").lower()
+    advisory_signals = (
+        ("baseline" in lowered and "target" in lowered and "indicator" in lowered),
+        ("evidence excerpt" in lowered and "indicator" in lowered),
+        ("objective" in lowered and ("specific" in lowered or "measurable" in lowered)),
+    )
+    return any(advisory_signals)
+
+
+def _advisory_llm_findings_context(
+    *,
+    state: Dict[str, Any],
+    rule_report: Any,
+    llm_fatal_flaw_items: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    llm_items = [f for f in llm_fatal_flaw_items if isinstance(f, dict)]
+    if not llm_items:
+        return {"applies": False, "reason": "no_llm_findings"}
+
+    rule_fatal_flaws = list(getattr(rule_report, "fatal_flaws", []) or [])
+    rule_checks = list(getattr(rule_report, "checks", []) or [])
+    failed_rule_checks = [c for c in rule_checks if str(getattr(c, "status", "")).lower() == "fail"]
+    if rule_fatal_flaws or failed_rule_checks:
+        return {"applies": False, "reason": "rule_critic_has_failures"}
+
+    if any(not _is_advisory_llm_message(str(item.get("message") or "")) for item in llm_items):
+        return {"applies": False, "reason": "non_advisory_llm_finding_present"}
+
+    grounding = _citation_grounding_context(state)
+    architect_citations = [
+        c for c in (state.get("citations") or []) if isinstance(c, dict) and str(c.get("stage") or "") == "architect"
+    ]
+    architect_count = len(architect_citations)
+    architect_support = sum(1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_claim_support")
+    architect_rag_low = sum(
+        1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_low_confidence"
+    )
+    architect_fallback = sum(
+        1 for c in architect_citations if str(c.get("citation_type") or "") == "fallback_namespace"
+    )
+    threshold_hit_rate = round(architect_support / architect_count, 4) if architect_count else None
+
+    if architect_count == 0:
+        return {"applies": False, "reason": "no_architect_citations"}
+    if architect_rag_low > 0 or architect_fallback > 0:
+        return {"applies": False, "reason": "architect_grounding_not_strong"}
+    if threshold_hit_rate is None or threshold_hit_rate < 0.8:
+        return {"applies": False, "reason": "threshold_hit_rate_below_min", "threshold_hit_rate": threshold_hit_rate}
+
+    return {
+        "applies": True,
+        "reason": "advisory_only_llm_findings_with_strong_architect_grounding",
+        "architect_citation_count": architect_count,
+        "architect_threshold_hit_rate": threshold_hit_rate,
+        "grounding_context": grounding,
+    }
+
+
+def _downgrade_advisory_llm_findings(
+    llm_fatal_flaw_items: List[Dict[str, Any]],
+    *,
+    advisory_ctx: Dict[str, Any],
+) -> tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    if not advisory_ctx.get("applies"):
+        return llm_fatal_flaw_items, None
+
+    changed = 0
+    out: List[Dict[str, Any]] = []
+    for item in llm_fatal_flaw_items:
+        current = dict(item)
+        if _is_advisory_llm_message(str(current.get("message") or "")):
+            if str(current.get("severity") or "").lower() != "low":
+                current["severity"] = "low"
+                changed += 1
+        out.append(current)
+    return out, {
+        "applied": True,
+        "reason": str(advisory_ctx.get("reason") or ""),
+        "downgraded_count": changed,
+        "architect_threshold_hit_rate": advisory_ctx.get("architect_threshold_hit_rate"),
+    }
+
+
+def _apply_advisory_llm_score_cap(
+    *,
+    combined_score: float,
+    rule_score: float,
+    llm_score: Optional[float],
+    advisory_ctx: Dict[str, Any],
+) -> tuple[float, Optional[Dict[str, Any]]]:
+    if llm_score is None or not advisory_ctx.get("applies"):
+        return round(float(combined_score), 2), None
+    if float(llm_score) >= float(rule_score):
+        return round(float(combined_score), 2), None
+
+    min_allowed = float(rule_score) - ADVISORY_ONLY_LLM_SCORE_MAX_PENALTY
+    adjusted = max(float(combined_score), min_allowed)
+    if adjusted <= float(combined_score):
+        return round(float(combined_score), 2), None
+    return round(adjusted, 2), {
+        "applied": True,
+        "reason": "advisory_only_llm_findings_caps_penalty",
+        "rule_score": round(float(rule_score), 2),
+        "raw_llm_score": round(float(llm_score), 2),
+        "combined_score_before": round(float(combined_score), 2),
+        "combined_score_after": round(adjusted, 2),
+        "max_llm_penalty": ADVISORY_ONLY_LLM_SCORE_MAX_PENALTY,
+        "advisory_context": advisory_ctx,
+    }
 
 
 def _finding_identity_key(item: Dict[str, Any]) -> tuple[str, str, str, str, str]:
@@ -259,10 +372,29 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     iteration = int(state.get("iteration", state.get("iteration_count", 0)) or 0) + 1
     max_iters = int(state.get("max_iterations", 3) or 3)
     llm_score = float(evaluation.score) if evaluation is not None else None
+    llm_fatal_flaw_items: List[Dict[str, Any]] = []
+    if evaluation is not None:
+        llm_fatal_flaw_items = _llm_flaws_to_structured(list(evaluation.fatal_flaws or []))
+    advisory_ctx = _advisory_llm_findings_context(
+        state=state,
+        rule_report=rule_report,
+        llm_fatal_flaw_items=llm_fatal_flaw_items,
+    )
+    llm_fatal_flaw_items, llm_advisory_normalization = _downgrade_advisory_llm_findings(
+        llm_fatal_flaw_items,
+        advisory_ctx=advisory_ctx,
+    )
+
     score, llm_score_calibration = _combine_critic_scores(
         rule_score=float(rule_report.score),
         llm_score=llm_score,
         state=state,
+    )
+    score, llm_advisory_score_calibration = _apply_advisory_llm_score_cap(
+        combined_score=score,
+        rule_score=float(rule_report.score),
+        llm_score=llm_score,
+        advisory_ctx=advisory_ctx,
     )
     threshold = float(getattr(config.graph, "critic_threshold", 8.0) or 8.0)
 
@@ -274,8 +406,8 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     fatal_flaw_items: List[Dict[str, Any]] = [_dump_model(item) for item in rule_report.fatal_flaws]
-    if evaluation is not None:
-        fatal_flaw_items.extend(_llm_flaws_to_structured(list(evaluation.fatal_flaws or [])))
+    if llm_fatal_flaw_items:
+        fatal_flaw_items.extend(llm_fatal_flaw_items)
     fatal_flaw_items = _normalize_fatal_flaw_items(fatal_flaw_items, previous_fatal_flaws)
 
     fatal_flaw_messages = [
@@ -305,6 +437,10 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         notes["llm_reason"] = llm_reason
     if llm_score_calibration is not None:
         notes["llm_score_calibration"] = llm_score_calibration
+    if llm_advisory_normalization is not None:
+        notes["llm_advisory_normalization"] = llm_advisory_normalization
+    if llm_advisory_score_calibration is not None:
+        notes["llm_advisory_score_calibration"] = llm_advisory_score_calibration
 
     state["quality_score"] = score
     state["critic_score"] = score
