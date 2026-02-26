@@ -247,3 +247,62 @@ def test_advisory_llm_findings_are_downgraded_and_score_penalty_is_capped():
     )
     assert combined == 8.5
     assert score_meta is not None and score_meta["applied"] is True
+
+
+def test_usaid_early_draft_llm_findings_are_treated_as_advisory_when_grounded():
+    class _RuleCheck:
+        def __init__(self, status: str):
+            self.status = status
+
+    class _RuleReport:
+        def __init__(self):
+            self.fatal_flaws = []
+            self.checks = [_RuleCheck("pass")]
+
+    state = {
+        "citations": [
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.51},
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.49},
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.53},
+            {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.47},
+            {"stage": "mel", "citation_type": "rag_result", "citation_confidence": 0.8},
+        ]
+    }
+    llm_items = [
+        {
+            "code": "LLM_REVIEW_FLAG_1",
+            "severity": "medium",
+            "section": "toc",
+            "message": (
+                "Weak causal links between Outputs and IRs: The proposal lacks detailed explanation on how training "
+                "modules and workshops will lead to increased AI literacy and skills."
+            ),
+            "source": "llm",
+        },
+        {
+            "code": "LLM_REVIEW_FLAG_2",
+            "severity": "medium",
+            "section": "toc",
+            "message": (
+                "Unrealistic assumptions: The proposal assumes civil servants are motivated to participate without "
+                "evidence or strategies to sustain this motivation."
+            ),
+            "source": "llm",
+        },
+        {
+            "code": "LLM_REVIEW_FLAG_3",
+            "severity": "medium",
+            "section": "general",
+            "message": (
+                "Missing cross-cutting themes: While gender equality is mentioned, the proposal lacks a detailed "
+                "plan for implementation and measurement."
+            ),
+            "source": "llm",
+        },
+    ]
+
+    advisory_ctx = _advisory_llm_findings_context(state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items)
+    assert advisory_ctx["applies"] is True
+    downgraded, meta = _downgrade_advisory_llm_findings(llm_items, advisory_ctx=advisory_ctx)
+    assert meta is not None and meta["downgraded_count"] == 3
+    assert all(item["severity"] == "low" for item in downgraded)

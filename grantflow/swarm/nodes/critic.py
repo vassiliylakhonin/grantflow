@@ -75,6 +75,19 @@ def _is_advisory_llm_message(msg: str) -> bool:
         ("baseline" in lowered and "target" in lowered and "indicator" in lowered),
         ("evidence excerpt" in lowered and "indicator" in lowered),
         ("objective" in lowered and ("specific" in lowered or "measurable" in lowered)),
+        (
+            ("weak causal link" in lowered or "weak causal links" in lowered)
+            and ("output" in lowered or "outputs" in lowered)
+            and ("ir" in lowered or "intermediate result" in lowered)
+        ),
+        (
+            "unrealistic assumption" in lowered
+            and ("motivated to participate" in lowered or "motivation" in lowered)
+        ),
+        (
+            "missing cross-cutting" in lowered
+            or ("cross-cutting" in lowered and "lacks a detailed plan" in lowered)
+        ),
     )
     return any(advisory_signals)
 
