@@ -2408,6 +2408,12 @@ def render_demo_ui_html() -> str:
         refreshPortfolioBundle().catch(showError);
       }
 
+      function applyPortfolioHitlFilter(hitlValue) {
+        els.portfolioHitlFilter.value = hitlValue || "";
+        persistUiState();
+        refreshPortfolioBundle().catch(showError);
+      }
+
       async function refreshPortfolioMetrics() {
         persistUiState();
         const params = new URLSearchParams();
@@ -2874,12 +2880,12 @@ def render_demo_ui_html() -> str:
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
         [els.diffSection, els.fromVersionId, els.toVersionId].forEach((el) => el.addEventListener("change", persistUiState));
-        [els.portfolioStatusFilter, els.portfolioHitlFilter].forEach((el) =>
-          el.addEventListener("change", () => {
-            persistUiState();
-            refreshPortfolioBundle().catch(showError);
-          })
-        );
+        els.portfolioStatusFilter.addEventListener("change", () => {
+          applyPortfolioStatusFilter(els.portfolioStatusFilter.value);
+        });
+        els.portfolioHitlFilter.addEventListener("change", () => {
+          applyPortfolioHitlFilter(els.portfolioHitlFilter.value);
+        });
         els.portfolioDonorFilter.addEventListener("change", () => {
           persistUiState();
           refreshPortfolioBundle().catch(showError);
