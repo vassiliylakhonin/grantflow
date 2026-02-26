@@ -527,6 +527,16 @@ def render_demo_ui_html() -> str:
                 <label>Focused Donor Advisory Rejected Reasons</label>
                 <div class="list" id="portfolioQualityFocusedDonorAdvisoryRejectedReasonsList"></div>
               </div>
+              <div>
+                <label>Focused Donor Advisory Labels (Applied)</label>
+                <div class="list" id="portfolioQualityFocusedDonorAdvisoryAppliedLabelCountsList"></div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Focused Donor Advisory Labels (Rejected)</label>
+                <div class="list" id="portfolioQualityFocusedDonorAdvisoryRejectedLabelCountsList"></div>
+              </div>
               <div></div>
             </div>
             <div class="row" style="margin-top:10px;">
@@ -1015,6 +1025,8 @@ def render_demo_ui_html() -> str:
         portfolioQualityFocusedDonorAdvisoryPillText: $("portfolioQualityFocusedDonorAdvisoryPillText"),
         portfolioQualityFocusedDonorLlmLabelCountsList: $("portfolioQualityFocusedDonorLlmLabelCountsList"),
         portfolioQualityFocusedDonorAdvisoryRejectedReasonsList: $("portfolioQualityFocusedDonorAdvisoryRejectedReasonsList"),
+        portfolioQualityFocusedDonorAdvisoryAppliedLabelCountsList: $("portfolioQualityFocusedDonorAdvisoryAppliedLabelCountsList"),
+        portfolioQualityFocusedDonorAdvisoryRejectedLabelCountsList: $("portfolioQualityFocusedDonorAdvisoryRejectedLabelCountsList"),
         portfolioQualityAdvisoryAppliedList: $("portfolioQualityAdvisoryAppliedList"),
         portfolioQualityAdvisoryRejectedReasonsList: $("portfolioQualityAdvisoryRejectedReasonsList"),
         criticSectionFilter: $("criticSectionFilter"),
@@ -1861,6 +1873,18 @@ def render_demo_ui_html() -> str:
             "No donor weighted risk rows yet.",
             8
           );
+          renderKeyValueList(
+            els.portfolioQualityFocusedDonorAdvisoryAppliedLabelCountsList,
+            null,
+            "No donor weighted risk rows yet.",
+            8
+          );
+          renderKeyValueList(
+            els.portfolioQualityFocusedDonorAdvisoryRejectedLabelCountsList,
+            null,
+            "No donor weighted risk rows yet.",
+            8
+          );
           return;
         }
         const [donorId, donorRow] = focused;
@@ -1904,6 +1928,18 @@ def render_demo_ui_html() -> str:
           els.portfolioQualityFocusedDonorAdvisoryRejectedReasonsList,
           donorRow.llm_advisory_rejected_reason_counts,
           `No advisory rejections for ${donorId}.`,
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityFocusedDonorAdvisoryAppliedLabelCountsList,
+          donorRow.llm_advisory_applied_label_counts,
+          `No advisory-applied labels for ${donorId}.`,
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityFocusedDonorAdvisoryRejectedLabelCountsList,
+          donorRow.llm_advisory_rejected_label_counts,
+          `No advisory-rejected labels for ${donorId}.`,
           8
         );
       }

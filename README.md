@@ -779,7 +779,7 @@ Example portfolio quality response shape:
 }
 ```
 
-The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards, top-donor weighted-risk lists (click-to-filter), LLM finding label drill-downs (portfolio-level and top weighted-risk donor), a `Focused Donor (Weighted Risk)` drill-down card (summary + labels + advisory rejected reasons), top-donor advisory applied/rejected drill-downs, and advisory-normalization portfolio diagnostics (applied jobs + top rejected reasons).
+The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards, top-donor weighted-risk lists (click-to-filter), LLM finding label drill-downs (portfolio-level and top weighted-risk donor), a `Focused Donor (Weighted Risk)` drill-down card (summary + labels + advisory rejected reasons + advisory label mix applied vs rejected), top-donor advisory applied/rejected drill-downs, and advisory-normalization portfolio diagnostics (applied jobs + top rejected reasons).
 
 ## Human-in-the-Loop Checkpoints (MVP)
 

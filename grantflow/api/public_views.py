@@ -911,6 +911,8 @@ def public_portfolio_quality_payload(
                 "mel_rag_low_confidence_citation_count": 0,
                 "fallback_namespace_citation_count": 0,
                 "llm_finding_label_counts": {},
+                "llm_advisory_applied_label_counts": {},
+                "llm_advisory_rejected_label_counts": {},
                 "llm_advisory_diagnostics_job_count": 0,
                 "llm_advisory_applied_job_count": 0,
                 "llm_advisory_candidate_finding_count": 0,
@@ -955,8 +957,32 @@ def public_portfolio_quality_payload(
         if row_llm_advisory:
             donor_row["llm_advisory_diagnostics_job_count"] += 1
             donor_row["llm_advisory_candidate_finding_count"] += int(row_llm_advisory.get("advisory_candidate_count") or 0)
+            donor_applied_label_counts = donor_row.get("llm_advisory_applied_label_counts")
+            if not isinstance(donor_applied_label_counts, dict):
+                donor_applied_label_counts = {}
+                donor_row["llm_advisory_applied_label_counts"] = donor_applied_label_counts
+            donor_rejected_label_counts = donor_row.get("llm_advisory_rejected_label_counts")
+            if not isinstance(donor_rejected_label_counts, dict):
+                donor_rejected_label_counts = {}
+                donor_row["llm_advisory_rejected_label_counts"] = donor_rejected_label_counts
+            candidate_label_counts = (
+                cast(Dict[str, Any], row_llm_advisory.get("candidate_label_counts"))
+                if isinstance(row_llm_advisory.get("candidate_label_counts"), dict)
+                else {}
+            )
             if bool(row_llm_advisory.get("advisory_applies")):
                 donor_row["llm_advisory_applied_job_count"] += 1
+                for label, count in candidate_label_counts.items():
+                    label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
+                    donor_applied_label_counts[label_key] = int(donor_applied_label_counts.get(label_key, 0)) + int(
+                        count or 0
+                    )
+            else:
+                for label, count in candidate_label_counts.items():
+                    label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
+                    donor_rejected_label_counts[label_key] = int(donor_rejected_label_counts.get(label_key, 0)) + int(
+                        count or 0
+                    )
         rejected_reason = str(row_llm_advisory.get("advisory_rejected_reason") or "").strip()
         if rejected_reason:
             donor_advisory_reasons[rejected_reason] = int(donor_advisory_reasons.get(rejected_reason, 0)) + 1
