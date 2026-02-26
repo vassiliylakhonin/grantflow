@@ -298,7 +298,7 @@ _Overview placeholder for the built-in `/demo` console (can be replaced with a r
 - Review comments (create, resolve/reopen, list filters)
 - Export payload preview/copy and one-click review package export (`ZIP`) via `/export`
 - Job events and metrics
-- Portfolio metrics dashboard (filters + click-to-filter counts) plus `Portfolio Quality` risk rollups (top donors by needs-revision/open findings), LLM finding label counts (portfolio + top weighted-risk donor), and click-to-filter on top weighted-risk donors
+- Portfolio metrics dashboard (filters + click-to-filter counts) plus `Portfolio Quality` risk rollups (top donors by needs-revision/open findings), LLM finding label counts (portfolio + top weighted-risk donor), a `Focused Donor (Weighted Risk)` drill-down card, and click-to-filter on top weighted-risk donors
 - Portfolio Quality snapshot export from `/demo` (`Copy JSON`, `Download JSON`, `Download CSV`)
 
 ### Run and open
@@ -779,7 +779,7 @@ Example portfolio quality response shape:
 }
 ```
 
-The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards, top-donor weighted-risk lists (click-to-filter), LLM finding label drill-downs (portfolio-level and top weighted-risk donor), top-donor advisory applied/rejected drill-downs, and advisory-normalization portfolio diagnostics (applied jobs + top rejected reasons).
+The `/demo` console `Portfolio Quality` panel visualizes these weighted risk signals with KPI cards, top-donor weighted-risk lists (click-to-filter), LLM finding label drill-downs (portfolio-level and top weighted-risk donor), a `Focused Donor (Weighted Risk)` drill-down card (summary + labels + advisory rejected reasons), top-donor advisory applied/rejected drill-downs, and advisory-normalization portfolio diagnostics (applied jobs + top rejected reasons).
 
 ## Human-in-the-Loop Checkpoints (MVP)
 
