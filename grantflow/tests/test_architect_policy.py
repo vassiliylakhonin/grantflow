@@ -72,7 +72,7 @@ def test_architect_threshold_uses_donor_override_and_caps_range():
     usaid_goal = architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.project_goal")
     usaid_assumption = architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.critical_assumptions[0]")
 
-    assert usaid_goal >= ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES["usaid"]
+    assert usaid_goal == 0.32
     assert usaid_assumption > usaid_goal
     assert 0.1 <= usaid_assumption <= 0.95
 
@@ -91,3 +91,8 @@ def test_architect_threshold_relaxes_worldbank_objective_title_and_description()
     assert title_thr == 0.25
     assert desc_thr == 0.25
     assert risk_thr > 0.25
+
+
+def test_architect_threshold_relaxes_usaid_project_goal_path():
+    goal_thr = architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.project_goal")
+    assert goal_thr == 0.32

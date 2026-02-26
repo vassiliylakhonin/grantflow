@@ -65,6 +65,8 @@ def architect_claim_confidence_threshold(*, donor_id: str, statement_path: str) 
         donor_key, ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD
     )
     path = str(statement_path or "").lower()
+    if donor_key == "usaid" and path == "toc.project_goal":
+        return 0.32
     if donor_key == "worldbank" and ".objectives[" in path and (path.endswith(".title") or path.endswith(".description")):
         return 0.25
     if any(token in path for token in ("assumption", "risk")):

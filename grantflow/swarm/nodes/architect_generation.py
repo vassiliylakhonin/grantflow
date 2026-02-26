@@ -321,6 +321,10 @@ def _extract_claim_strings(value: Any, path: str = "toc") -> list[tuple[str, str
         # can accidentally match generic "result" keywords.
         if ".indicators[" in lowered_path:
             return claims
+        # Assumptions/risks are often design hypotheses rather than evidence-backed claims.
+        # Treating them as architect claim citations inflates low-confidence noise.
+        if ".critical_assumptions[" in lowered_path or ".risks[" in lowered_path:
+            return claims
         identifier_tokens = ("_id", ".id", "indicator_code", "code]")
         if any(token in lowered_path for token in identifier_tokens):
             return claims

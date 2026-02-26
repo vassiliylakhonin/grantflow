@@ -192,6 +192,19 @@ def test_extract_claim_strings_skips_nested_indicator_fields():
     assert not any(".indicators[" in p for p in paths)
 
 
+def test_extract_claim_strings_skips_assumptions_and_risks():
+    toc_payload = {
+        "project_goal": "Improve service delivery",
+        "critical_assumptions": ["Leadership support remains stable"],
+        "risks": ["Policy turnover delays adoption"],
+    }
+    claims = _extract_claim_strings(toc_payload, "toc")
+    paths = [p for p, _ in claims]
+    assert "toc.project_goal" in paths
+    assert "toc.critical_assumptions[0]" not in paths
+    assert "toc.risks[0]" not in paths
+
+
 def test_architect_claim_threshold_is_tuned_by_donor_and_section():
     default_threshold = architect_claim_confidence_threshold(donor_id="unknown", statement_path="toc.project_goal")
     usaid_goal_threshold = architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.project_goal")
@@ -200,7 +213,7 @@ def test_architect_claim_threshold_is_tuned_by_donor_and_section():
     )
 
     assert default_threshold >= 0.35
-    assert usaid_goal_threshold >= ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES["usaid"]
+    assert usaid_goal_threshold == 0.32
     assert usaid_assumption_threshold > usaid_goal_threshold
 
 
