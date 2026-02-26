@@ -90,9 +90,13 @@ def test_demo_console_page_loads():
     assert "/export" in body
     assert "criticSeverityFilter" in body
     assert "criticCitationConfidenceFilter" in body
+    assert "criticAdvisorySummaryList" in body
+    assert "criticAdvisoryLabelsList" in body
+    assert "criticAdvisoryNormalizationList" in body
     assert "Jump to Diff" in body
     assert "Create Comment" in body
     assert "criticContextList" in body
+    assert "llm_advisory_diagnostics" in body
     assert "conf " in body
     assert "thr " in body
     assert "architect_threshold_hit_rate" in body

@@ -517,6 +517,20 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row3" style="margin-top:10px;">
               <div>
+                <label>Advisory Diagnostics</label>
+                <div class="list" id="criticAdvisorySummaryList"></div>
+              </div>
+              <div>
+                <label>Advisory Candidate Labels</label>
+                <div class="list" id="criticAdvisoryLabelsList"></div>
+              </div>
+              <div>
+                <label>Advisory Normalization</label>
+                <div class="list" id="criticAdvisoryNormalizationList"></div>
+              </div>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <div>
                 <label>Fatal Flaws</label>
                 <div class="list" id="criticFlawsList"></div>
               </div>
@@ -914,6 +928,9 @@ def render_demo_ui_html() -> str:
         criticFlawsList: $("criticFlawsList"),
         criticChecksList: $("criticChecksList"),
         criticContextList: $("criticContextList"),
+        criticAdvisorySummaryList: $("criticAdvisorySummaryList"),
+        criticAdvisoryLabelsList: $("criticAdvisoryLabelsList"),
+        criticAdvisoryNormalizationList: $("criticAdvisoryNormalizationList"),
         commentsList: $("commentsList"),
         metricsCards: $("metricsCards"),
         qualityCards: $("qualityCards"),
@@ -1782,6 +1799,7 @@ def render_demo_ui_html() -> str:
         const severity = (els.criticSeverityFilter.value || "").trim();
         const flaws = Array.isArray(body?.fatal_flaws) ? body.fatal_flaws : [];
         const checks = Array.isArray(body?.rule_checks) ? body.rule_checks : [];
+        renderCriticAdvisoryDiagnostics(body);
         const filteredFlaws = flaws.filter((f) => {
           if (section && String(f.section || "") !== section) return false;
           if (severity && String(f.severity || "") !== severity) return false;
@@ -1875,6 +1893,95 @@ def render_demo_ui_html() -> str:
         }
 
         renderCriticContextCitations();
+      }
+
+      function renderCriticAdvisoryDiagnostics(body) {
+        const diagnostics = (body && typeof body === "object") ? body.llm_advisory_diagnostics : null;
+        const normalization = (body && typeof body === "object") ? body.llm_advisory_normalization : null;
+        const scoreCalibration = (body && typeof body === "object") ? body.llm_advisory_score_calibration : null;
+
+        if (els.criticAdvisorySummaryList) els.criticAdvisorySummaryList.innerHTML = "";
+        if (els.criticAdvisoryLabelsList) els.criticAdvisoryLabelsList.innerHTML = "";
+        if (els.criticAdvisoryNormalizationList) els.criticAdvisoryNormalizationList.innerHTML = "";
+
+        if (!diagnostics || typeof diagnostics !== "object") {
+          if (els.criticAdvisorySummaryList) {
+            els.criticAdvisorySummaryList.innerHTML = `<div class="item"><div class="sub">No LLM advisory diagnostics.</div></div>`;
+          }
+          if (els.criticAdvisoryLabelsList) {
+            els.criticAdvisoryLabelsList.innerHTML = `<div class="item"><div class="sub">No candidate labels.</div></div>`;
+          }
+          if (els.criticAdvisoryNormalizationList) {
+            els.criticAdvisoryNormalizationList.innerHTML = `<div class="item"><div class="sub">No advisory normalization metadata.</div></div>`;
+          }
+          return;
+        }
+
+        const summaryItems = [
+          `applies: ${diagnostics.advisory_applies ? "yes" : "no"}`,
+          `llm findings: ${diagnostics.llm_finding_count ?? 0}`,
+          `advisory candidates: ${diagnostics.advisory_candidate_count ?? 0}`,
+          diagnostics.architect_threshold_hit_rate != null ? `thr_hit: ${diagnostics.architect_threshold_hit_rate}` : null,
+          diagnostics.architect_rag_low_ratio != null ? `arch_rag_low_ratio: ${diagnostics.architect_rag_low_ratio}` : null,
+          diagnostics.advisory_rejected_reason ? `reason: ${diagnostics.advisory_rejected_reason}` : null,
+        ].filter(Boolean);
+        if (els.criticAdvisorySummaryList) {
+          if (!summaryItems.length) {
+            els.criticAdvisorySummaryList.innerHTML = `<div class="item"><div class="sub">No advisory diagnostics summary.</div></div>`;
+          } else {
+            for (const text of summaryItems) {
+              const div = document.createElement("div");
+              div.className = "item";
+              div.innerHTML = `<div class="sub mono">${escapeHtml(String(text))}</div>`;
+              els.criticAdvisorySummaryList.appendChild(div);
+            }
+          }
+        }
+
+        const labelCounts = (diagnostics.candidate_label_counts && typeof diagnostics.candidate_label_counts === "object")
+          ? diagnostics.candidate_label_counts
+          : {};
+        const labelRows = Object.entries(labelCounts)
+          .sort((a, b) => Number(b[1] || 0) - Number(a[1] || 0) || String(a[0]).localeCompare(String(b[0])))
+          .slice(0, 8);
+        if (els.criticAdvisoryLabelsList) {
+          if (!labelRows.length) {
+            els.criticAdvisoryLabelsList.innerHTML = `<div class="item"><div class="sub">No candidate labels.</div></div>`;
+          } else {
+            for (const [label, count] of labelRows) {
+              const div = document.createElement("div");
+              div.className = "item";
+              div.innerHTML = `<div class="title mono">${escapeHtml(String(label))}</div><div class="sub">count: ${escapeHtml(String(count))}</div>`;
+              els.criticAdvisoryLabelsList.appendChild(div);
+            }
+          }
+        }
+
+        const normRows = [];
+        if (normalization && typeof normalization === "object") {
+          normRows.push(`normalization.applied: ${normalization.applied ? "yes" : "no"}`);
+          if (normalization.downgraded_count != null) normRows.push(`downgraded: ${normalization.downgraded_count}`);
+          if (normalization.policy_mode) normRows.push(`policy: ${normalization.policy_mode}`);
+          if (Array.isArray(normalization.labels_downgraded) && normalization.labels_downgraded.length) {
+            normRows.push(`labels: ${normalization.labels_downgraded.join(", ")}`);
+          }
+        }
+        if (scoreCalibration && typeof scoreCalibration === "object") {
+          normRows.push(`score_cap.applied: ${scoreCalibration.applied ? "yes" : "no"}`);
+          if (scoreCalibration.combined_score_after != null) normRows.push(`score_after: ${scoreCalibration.combined_score_after}`);
+        }
+        if (els.criticAdvisoryNormalizationList) {
+          if (!normRows.length) {
+            els.criticAdvisoryNormalizationList.innerHTML = `<div class="item"><div class="sub">No advisory normalization metadata.</div></div>`;
+          } else {
+            for (const row of normRows) {
+              const div = document.createElement("div");
+              div.className = "item";
+              div.innerHTML = `<div class="sub mono">${escapeHtml(String(row))}</div>`;
+              els.criticAdvisoryNormalizationList.appendChild(div);
+            }
+          }
+        }
       }
 
       function renderCriticContextCitations() {
