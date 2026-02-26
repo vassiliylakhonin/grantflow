@@ -2396,6 +2396,12 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      function applyPortfolioDonorFilter(donorKey) {
+        els.portfolioDonorFilter.value = donorKey || "";
+        persistUiState();
+        refreshPortfolioBundle().catch(showError);
+      }
+
       async function refreshPortfolioMetrics() {
         persistUiState();
         const params = new URLSearchParams();
@@ -2421,11 +2427,7 @@ def render_demo_ui_html() -> str:
           body.donor_counts,
           "No donor counts yet.",
           8,
-          (donorKey) => {
-            els.portfolioDonorFilter.value = donorKey || "";
-            persistUiState();
-            refreshPortfolioBundle().catch(showError);
-          }
+          (donorKey) => applyPortfolioDonorFilter(donorKey)
         );
         setJson(els.portfolioMetricsJson, body);
         return body;
@@ -2459,11 +2461,7 @@ def render_demo_ui_html() -> str:
           "No weighted donor risk yet.",
           8,
           "weighted_score",
-          (donorKey) => {
-            els.portfolioDonorFilter.value = donorKey || "";
-            persistUiState();
-            refreshPortfolioBundle().catch(showError);
-          }
+          (donorKey) => applyPortfolioDonorFilter(donorKey)
         );
         setJson(els.portfolioQualityJson, body);
         return body;
