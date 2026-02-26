@@ -2414,13 +2414,18 @@ def render_demo_ui_html() -> str:
         refreshPortfolioBundle().catch(showError);
       }
 
-      async function refreshPortfolioMetrics() {
-        persistUiState();
+      function buildPortfolioFilterQueryString() {
         const params = new URLSearchParams();
         if (els.portfolioDonorFilter.value.trim()) params.set("donor_id", els.portfolioDonorFilter.value.trim());
         if (els.portfolioStatusFilter.value) params.set("status", els.portfolioStatusFilter.value);
         if (els.portfolioHitlFilter.value) params.set("hitl_enabled", els.portfolioHitlFilter.value);
-        const q = params.toString() ? `?${params.toString()}` : "";
+        const q = params.toString();
+        return q ? `?${q}` : "";
+      }
+
+      async function refreshPortfolioMetrics() {
+        persistUiState();
+        const q = buildPortfolioFilterQueryString();
         const body = await apiFetch(`/portfolio/metrics${q}`);
         renderPortfolioMetricsCards(body);
         renderKeyValueList(
@@ -2443,11 +2448,7 @@ def render_demo_ui_html() -> str:
 
       async function refreshPortfolioQuality() {
         persistUiState();
-        const params = new URLSearchParams();
-        if (els.portfolioDonorFilter.value.trim()) params.set("donor_id", els.portfolioDonorFilter.value.trim());
-        if (els.portfolioStatusFilter.value) params.set("status", els.portfolioStatusFilter.value);
-        if (els.portfolioHitlFilter.value) params.set("hitl_enabled", els.portfolioHitlFilter.value);
-        const q = params.toString() ? `?${params.toString()}` : "";
+        const q = buildPortfolioFilterQueryString();
         const body = await apiFetch(`/portfolio/quality${q}`);
         renderPortfolioQualityCards(body);
         renderKeyValueList(els.portfolioQualityRiskList, body.donor_needs_revision_counts, "No donor revision risks yet.", 8);
