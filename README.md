@@ -850,6 +850,17 @@ Illustrative examples from local seeded-corpus experiments (not a universal benc
 
 Use `/status/{job_id}/quality`, `/status/{job_id}/citations`, and `/portfolio/quality` to inspect whether a run is truly grounded vs merely schema-valid.
 
+### Grounded vs. Ungrounded (illustrative snapshot)
+
+These examples are intentionally small and not meant as a formal benchmark. They are useful for understanding *what changes* when corpus-backed grounding is available.
+
+| Scenario | Donor | Scope | `quality_score` | Grounding signal | Notes |
+|---|---|---|---:|---|---|
+| Ungrounded LLM eval lane | `usaid` | suite-level donor aggregate (4 cases) | `avg_q=7.25` | `fallback_dominance=high (100%)`, `fallback_ns_citations=107/107` | LLM drafting works, but citations are fallback-only without corpus |
+| Ungrounded LLM eval lane | `worldbank` | suite-level donor aggregate (2 cases) | `avg_q=7.75` | `fallback_dominance=high (100%)`, `fallback_ns_citations=38/38` | Schema-valid outputs, weak evidence grounding |
+| Grounded LLM run (seeded corpus) | `worldbank` | single-case | `8.5` | `fallback_namespace_citation_count=0`, `rag_low_confidence_citation_count=0`, `architect_threshold_hit_rate=1.0` | Grounding and critic quality improved after retrieval/policy tuning |
+| Grounded LLM run (seeded corpus) | `usaid` | single-case | `8.5` | `fallback_namespace_citation_count=0`, `architect_threshold_hit_rate=0.5484`, `citation_confidence_avg=0.4226` | Grounding improved materially, but some low-confidence citations remained |
+
 ## Exporters
 
 Current exporters generate:
@@ -878,6 +889,42 @@ The README currently documents exporter capabilities and API payloads, but does 
 - local/demo runs (`/demo`)
 - typed API outputs (`/status/{job_id}/quality`, `/critic`, `/citations`, `/versions`, `/diff`)
 - eval harness reports (`eval-report.txt`, `llm-eval-report.txt`)
+
+### Sanitized Sample Output Snippet (illustrative)
+
+Below is a shortened, sanitized example of the *kind* of structured draft content GrantFlow produces before export (`.docx` / `.xlsx`). Exact fields and wording vary by donor strategy and mode.
+
+**ToC / Results chain excerpt (USAID-style, shortened)**
+
+```json
+{
+  "project_goal": "Improve public sector efficiency and service quality through responsible AI use in government workflows.",
+  "development_objective": {
+    "title": "Strengthen institutional capacity of participating government agencies in Kazakhstan to safely and effectively apply AI in priority functions.",
+    "intermediate_results": [
+      {
+        "ir_id": "IR1",
+        "title": "Civil servants improve practical competencies in responsible AI use",
+        "outputs": [
+          "Agency needs assessment and baseline competency mapping completed",
+          "Cohort-based training and ToT delivered",
+          "Applied labs completed for priority workflow use-cases"
+        ]
+      }
+    ]
+  }
+}
+```
+
+**LogFrame / MEL excerpt (sheet-style, shortened)**
+
+| Level | Result statement | Indicator | Baseline | Target | Means of verification |
+|---|---|---|---|---|---|
+| DO | Institutional capacity for responsible AI use strengthened | % of participating agencies applying approved AI SOPs in pilot workflows | 0 | 60% by endline | Agency SOP adoption records, pilot implementation logs |
+| IR1 | Civil servants improve practical AI competencies | % of trained participants scoring above competency threshold in post-test | TBD (baseline) | 75% | Pre/post assessments, training attendance records |
+| Output | Cohort training delivered | # civil servants completing training modules | 0 | 600-1000 | Training completion registers |
+
+These artifacts can be exported directly and enriched with citation traceability, critic findings, and review comments via `POST /export` and `GET /status/{job_id}/export-payload`.
 
 ## Project Structure
 
