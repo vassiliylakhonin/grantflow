@@ -379,6 +379,12 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
+                <label>Advisory Normalization (LLM Critic)</label>
+                <div class="list" id="qualityAdvisoryBadgeList"></div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
                 <label>LLM Finding Labels (Job)</label>
                 <div class="list" id="qualityLlmFindingLabelsList"></div>
               </div>
@@ -929,6 +935,7 @@ def render_demo_ui_html() -> str:
         statusJson: $("statusJson"),
         metricsJson: $("metricsJson"),
         qualityJson: $("qualityJson"),
+        qualityAdvisoryBadgeList: $("qualityAdvisoryBadgeList"),
         qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
         portfolioMetricsJson: $("portfolioMetricsJson"),
         portfolioQualityJson: $("portfolioQualityJson"),
@@ -1570,6 +1577,8 @@ def render_demo_ui_html() -> str:
       function renderQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
+        const advisoryDiagnostics =
+          critic && typeof critic.llm_advisory_diagnostics === "object" ? critic.llm_advisory_diagnostics : null;
         const values = [
           typeof summary?.quality_score === "number" ? Number(summary.quality_score).toFixed(2) : "-",
           typeof summary?.critic_score === "number" ? Number(summary.critic_score).toFixed(2) : "-",
@@ -1583,6 +1592,38 @@ def render_demo_ui_html() -> str:
         [...els.qualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
+        if (els.qualityAdvisoryBadgeList) {
+          const applies = advisoryDiagnostics && advisoryDiagnostics.advisory_applies === true;
+          const rejectedReason = advisoryDiagnostics && advisoryDiagnostics.advisory_rejected_reason
+            ? String(advisoryDiagnostics.advisory_rejected_reason)
+            : "";
+          const labelCounts = advisoryDiagnostics && advisoryDiagnostics.candidate_label_counts && typeof advisoryDiagnostics.candidate_label_counts === "object"
+            ? advisoryDiagnostics.candidate_label_counts
+            : {};
+          const labelCountTotal = Object.values(labelCounts).reduce((acc, value) => acc + Number(value || 0), 0);
+          const thrHit = advisoryDiagnostics && typeof advisoryDiagnostics.architect_threshold_hit_rate === "number"
+            ? `thr_hit=${Number(advisoryDiagnostics.architect_threshold_hit_rate).toFixed(3)}`
+            : null;
+          const ratio = advisoryDiagnostics && typeof advisoryDiagnostics.architect_rag_low_ratio === "number"
+            ? `arch_rag_low_ratio=${Number(advisoryDiagnostics.architect_rag_low_ratio).toFixed(3)}`
+            : null;
+          const rows = advisoryDiagnostics
+            ? [
+                `applies: ${applies ? "yes" : "no"}`,
+                `candidates: ${labelCountTotal}`,
+                thrHit,
+                ratio,
+                !applies && rejectedReason ? `reason: ${rejectedReason}` : null,
+              ].filter(Boolean)
+            : ["No LLM advisory diagnostics."];
+          els.qualityAdvisoryBadgeList.innerHTML = "";
+          for (const row of rows) {
+            const div = document.createElement("div");
+            div.className = "item";
+            div.innerHTML = `<div class="sub mono">${escapeHtml(String(row))}</div>`;
+            els.qualityAdvisoryBadgeList.appendChild(div);
+          }
+        }
         renderKeyValueList(
           els.qualityLlmFindingLabelsList,
           critic.llm_finding_label_counts,
