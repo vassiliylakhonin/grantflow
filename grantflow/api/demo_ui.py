@@ -2325,8 +2325,7 @@ def render_demo_ui_html() -> str:
       async function refreshVersions() {
         const jobId = currentJobId();
         if (!jobId) return;
-        const section = els.diffSection.value;
-        const q = section ? `?section=${encodeURIComponent(section)}` : "";
+        const q = buildVersionsQueryString();
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/versions${q}`);
         renderVersions(body.versions || []);
         return body;
@@ -2431,6 +2430,11 @@ def render_demo_ui_html() -> str:
         if (els.toVersionId.value.trim()) params.set("to_version_id", els.toVersionId.value.trim());
         const q = params.toString();
         return q ? `?${q}` : "";
+      }
+
+      function buildVersionsQueryString() {
+        const section = String(els.diffSection.value || "").trim();
+        return section ? `?section=${encodeURIComponent(section)}` : "";
       }
 
       async function refreshPortfolioMetrics() {
