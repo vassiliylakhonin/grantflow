@@ -25,3 +25,15 @@ curl -s -X POST http://127.0.0.1:8000/ingest \
 
 ## Suggested first grounded eval
 Load USAID/EU/World Bank files, then run `LLM Eval (Grounded)` with donor filters `usaid,eu,worldbank`.
+
+## Local grounded benchmark (API)
+Run a quick local benchmark across the three governance presets after ingest:
+
+```bash
+python3 docs/rag_seed_corpus/local_grounded_benchmark.py --api-base http://127.0.0.1:8000 --llm-mode
+```
+
+Optional:
+- add `--api-key <KEY>` if API auth is enabled
+- limit donors with `--donors usaid` or `--donors usaid,eu`
+- write raw results with `--json-out /tmp/grounded-benchmark.json`
