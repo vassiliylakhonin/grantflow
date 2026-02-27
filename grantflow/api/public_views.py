@@ -27,6 +27,7 @@ PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS = {
     "traceability_gap_citation_count",
 }
 PORTFOLIO_WARNING_LEVELS = {"high", "medium", "low", "none"}
+PORTFOLIO_WARNING_LEVEL_ORDER = ("high", "medium", "low", "none")
 
 
 def _job_warning_level(job: Dict[str, Any]) -> str:
@@ -49,6 +50,18 @@ def _normalize_warning_level_filter(warning_level: Optional[str]) -> Optional[st
     if not token:
         return None
     return token
+
+
+def _warning_level_breakdown(
+    warning_level_counts: Dict[str, int], total_jobs: int
+) -> tuple[Dict[str, int], Dict[str, Optional[float]]]:
+    normalized_counts: Dict[str, int] = {}
+    normalized_rates: Dict[str, Optional[float]] = {}
+    for level in PORTFOLIO_WARNING_LEVEL_ORDER:
+        count = int(warning_level_counts.get(level) or 0)
+        normalized_counts[level] = count
+        normalized_rates[level] = round(count / total_jobs, 4) if total_jobs else None
+    return normalized_counts, normalized_rates
 
 
 def sanitize_for_public_response(value: Any) -> Any:
@@ -883,8 +896,11 @@ def public_portfolio_metrics_payload(
     terminal_statuses = {"done", "error", "canceled"}
     terminal_rows = [m for m in metrics_rows if str(m.get("terminal_status") or "") in terminal_statuses]
 
+    job_count = len(filtered)
+    warning_level_job_counts, warning_level_job_rates = _warning_level_breakdown(warning_level_counts, job_count)
+
     return {
-        "job_count": len(filtered),
+        "job_count": job_count,
         "filters": {
             "donor_id": donor_id,
             "status": status,
@@ -894,6 +910,8 @@ def public_portfolio_metrics_payload(
         "status_counts": status_counts,
         "donor_counts": donor_counts,
         "warning_level_counts": warning_level_counts,
+        "warning_level_job_counts": warning_level_job_counts,
+        "warning_level_job_rates": warning_level_job_rates,
         "terminal_job_count": len(terminal_rows),
         "hitl_job_count": sum(1 for _, job in filtered if bool(job.get("hitl_enabled"))),
         "total_pause_count": total_pause_count,
@@ -1202,6 +1220,7 @@ def public_portfolio_quality_payload(
         )
 
     job_count = len(filtered)
+    warning_level_job_counts, warning_level_job_rates = _warning_level_breakdown(warning_level_counts, job_count)
     quality_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("quality_score"), (int, float)))
     critic_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("critic_score"), (int, float)))
 
@@ -1220,14 +1239,16 @@ def public_portfolio_quality_payload(
         "status_counts": status_counts,
         "donor_counts": donor_counts,
         "warning_level_counts": warning_level_counts,
-        "warning_level_high_job_count": int(warning_level_counts.get("high") or 0),
-        "warning_level_medium_job_count": int(warning_level_counts.get("medium") or 0),
-        "warning_level_high_rate": (
-            round(int(warning_level_counts.get("high") or 0) / job_count, 4) if job_count else None
-        ),
-        "warning_level_medium_rate": (
-            round(int(warning_level_counts.get("medium") or 0) / job_count, 4) if job_count else None
-        ),
+        "warning_level_job_counts": warning_level_job_counts,
+        "warning_level_job_rates": warning_level_job_rates,
+        "warning_level_high_job_count": int(warning_level_job_counts.get("high") or 0),
+        "warning_level_medium_job_count": int(warning_level_job_counts.get("medium") or 0),
+        "warning_level_low_job_count": int(warning_level_job_counts.get("low") or 0),
+        "warning_level_none_job_count": int(warning_level_job_counts.get("none") or 0),
+        "warning_level_high_rate": (warning_level_job_rates.get("high")),
+        "warning_level_medium_rate": (warning_level_job_rates.get("medium")),
+        "warning_level_low_rate": (warning_level_job_rates.get("low")),
+        "warning_level_none_rate": (warning_level_job_rates.get("none")),
         "terminal_job_count": len(terminal_rows),
         "quality_score_job_count": quality_score_job_count,
         "critic_score_job_count": critic_score_job_count,

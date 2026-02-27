@@ -500,7 +500,10 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">High-Priority Signals</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">% High-warning Jobs</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">% Medium-warning Jobs</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">% Low-warning Jobs</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">% No-warning Jobs</div><div class="value mono">-</div></div>
             </div>
+            <div id="portfolioWarningMetaLine" class="footer-note mono">high=- · medium=- · low=- · none=- · total=-</div>
             <div class="row" style="margin-top:10px;">
               <button id="copyPortfolioQualityJsonBtn" class="ghost">Copy Quality JSON</button>
               <button id="downloadPortfolioQualityJsonBtn" class="ghost">Download Quality JSON</button>
@@ -1063,6 +1066,7 @@ def render_demo_ui_html() -> str:
         qualityCards: $("qualityCards"),
         portfolioMetricsCards: $("portfolioMetricsCards"),
         portfolioQualityCards: $("portfolioQualityCards"),
+        portfolioWarningMetaLine: $("portfolioWarningMetaLine"),
         portfolioStatusCountsList: $("portfolioStatusCountsList"),
         portfolioDonorCountsList: $("portfolioDonorCountsList"),
         portfolioQualityRiskList: $("portfolioQualityRiskList"),
@@ -2082,8 +2086,18 @@ def render_demo_ui_html() -> str:
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
         const portfolioJobCount = Number(summary?.job_count ?? 0);
-        const highWarningCount = Number(summary?.warning_level_high_job_count ?? 0);
-        const mediumWarningCount = Number(summary?.warning_level_medium_job_count ?? 0);
+        const warningCounts =
+          summary?.warning_level_job_counts && typeof summary.warning_level_job_counts === "object"
+            ? summary.warning_level_job_counts
+            : (summary?.warning_level_counts || {});
+        const warningRates =
+          summary?.warning_level_job_rates && typeof summary.warning_level_job_rates === "object"
+            ? summary.warning_level_job_rates
+            : {};
+        const highWarningCount = Number(warningCounts.high ?? summary?.warning_level_high_job_count ?? 0);
+        const mediumWarningCount = Number(warningCounts.medium ?? summary?.warning_level_medium_job_count ?? 0);
+        const lowWarningCount = Number(warningCounts.low ?? summary?.warning_level_low_job_count ?? 0);
+        const noneWarningCount = Number(warningCounts.none ?? summary?.warning_level_none_job_count ?? 0);
         const needsRevisionRate =
           typeof critic.needs_revision_rate === "number"
             ? `${(Number(critic.needs_revision_rate) * 100).toFixed(1)}%`
@@ -2092,14 +2106,19 @@ def render_demo_ui_html() -> str:
           typeof citations.architect_threshold_hit_rate_avg === "number"
             ? `${(Number(citations.architect_threshold_hit_rate_avg) * 100).toFixed(1)}%`
             : "-";
+        const formatWarningRate = (explicitValue, fallbackValue) => {
+          if (typeof explicitValue === "number") return `${(Number(explicitValue) * 100).toFixed(1)}%`;
+          if (typeof fallbackValue === "number") return `${(Number(fallbackValue) * 100).toFixed(1)}%`;
+          return "-";
+        };
         const highWarningRate =
-          typeof summary?.warning_level_high_rate === "number"
-            ? `${(Number(summary.warning_level_high_rate) * 100).toFixed(1)}%`
-            : "-";
+          formatWarningRate(summary?.warning_level_high_rate, warningRates.high);
         const mediumWarningRate =
-          typeof summary?.warning_level_medium_rate === "number"
-            ? `${(Number(summary.warning_level_medium_rate) * 100).toFixed(1)}%`
-            : "-";
+          formatWarningRate(summary?.warning_level_medium_rate, warningRates.medium);
+        const lowWarningRate =
+          formatWarningRate(summary?.warning_level_low_rate, warningRates.low);
+        const noneWarningRate =
+          formatWarningRate(summary?.warning_level_none_rate, warningRates.none);
         const values = [
           typeof summary?.avg_quality_score === "number" ? Number(summary.avg_quality_score).toFixed(2) : "-",
           needsRevisionRate,
@@ -2111,28 +2130,34 @@ def render_demo_ui_html() -> str:
           String(summary?.high_priority_signal_count ?? "-"),
           highWarningRate,
           mediumWarningRate,
+          lowWarningRate,
+          noneWarningRate,
         ];
         const portfolioQualityValueNodes = [...els.portfolioQualityCards.querySelectorAll(".kpi .value")];
         portfolioQualityValueNodes.forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
-        const highWarningNode = portfolioQualityValueNodes[8];
-        if (highWarningNode) {
-          highWarningNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
-          highWarningNode.classList.add(highWarningCount > 0 ? "risk-high" : "risk-none");
-          highWarningNode.title =
+        const warningKpiConfig = [
+          { index: 8, level: "high", count: highWarningCount, activeClass: "risk-high" },
+          { index: 9, level: "medium", count: mediumWarningCount, activeClass: "risk-medium" },
+          { index: 10, level: "low", count: lowWarningCount, activeClass: "risk-low" },
+          { index: 11, level: "none", count: noneWarningCount, activeClass: "risk-low" },
+        ];
+        for (const cfg of warningKpiConfig) {
+          const node = portfolioQualityValueNodes[cfg.index];
+          if (!node) continue;
+          node.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          node.classList.add(cfg.count > 0 ? cfg.activeClass : "risk-none");
+          node.title =
             portfolioJobCount > 0
-              ? `${highWarningCount} jobs / ${portfolioJobCount} total`
+              ? `${cfg.count} jobs / ${portfolioJobCount} total · click to filter`
               : "No portfolio jobs in current filter";
+          node.style.cursor = portfolioJobCount > 0 ? "pointer" : "default";
+          node.onclick = portfolioJobCount > 0 ? () => applyPortfolioWarningLevelFilter(cfg.level) : null;
         }
-        const mediumWarningNode = portfolioQualityValueNodes[9];
-        if (mediumWarningNode) {
-          mediumWarningNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
-          mediumWarningNode.classList.add(mediumWarningCount > 0 ? "risk-medium" : "risk-none");
-          mediumWarningNode.title =
-            portfolioJobCount > 0
-              ? `${mediumWarningCount} jobs / ${portfolioJobCount} total`
-              : "No portfolio jobs in current filter";
+        if (els.portfolioWarningMetaLine) {
+          els.portfolioWarningMetaLine.textContent =
+            `high=${highWarningCount} · medium=${mediumWarningCount} · low=${lowWarningCount} · none=${noneWarningCount} · total=${portfolioJobCount}`;
         }
         renderPortfolioQualityLlmLabelDrilldown(summary);
         renderPortfolioQualityAdvisoryDrilldown(summary);
@@ -2164,6 +2189,44 @@ def render_demo_ui_html() -> str:
             div.style.cursor = "pointer";
             div.title = "Click to filter";
             div.addEventListener("click", () => onSelect(key));
+          }
+          container.appendChild(div);
+        }
+      }
+
+      function renderWarningLevelBreakdownList(container, countsMapping, ratesMapping, emptyLabel, onSelect = null) {
+        container.innerHTML = "";
+        if (!countsMapping || typeof countsMapping !== "object" || Array.isArray(countsMapping)) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        const levels = ["high", "medium", "low", "none"];
+        const rows = levels.map((level) => {
+          const count = Number(countsMapping[level] || 0);
+          const rawRate =
+            ratesMapping && typeof ratesMapping === "object" && !Array.isArray(ratesMapping)
+              ? ratesMapping[level]
+              : null;
+          const rateLabel =
+            typeof rawRate === "number" ? `${(Number(rawRate) * 100).toFixed(1)}%` : "-";
+          return { level, count, rateLabel };
+        });
+        const hasAnyCounts = rows.some((row) => row.count > 0);
+        if (!hasAnyCounts) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        for (const row of rows) {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(row.level)}</div>
+            <div class="sub">count: ${escapeHtml(String(row.count))} · rate: ${escapeHtml(row.rateLabel)}</div>
+          `;
+          if (typeof onSelect === "function") {
+            div.style.cursor = "pointer";
+            div.title = "Click to filter";
+            div.addEventListener("click", () => onSelect(row.level));
           }
           container.appendChild(div);
         }
@@ -2927,11 +2990,11 @@ def render_demo_ui_html() -> str:
           "weighted_score",
           (donorKey) => applyPortfolioDonorFilter(donorKey)
         );
-        renderKeyValueList(
+        renderWarningLevelBreakdownList(
           els.portfolioQualityWarningLevelsList,
-          body.warning_level_counts,
+          body.warning_level_job_counts || body.warning_level_counts,
+          body.warning_level_job_rates || {},
           "No warning-level data yet.",
-          4,
           (warningLevel) => applyPortfolioWarningLevelFilter(warningLevel)
         );
         setJson(els.portfolioQualityJson, body);

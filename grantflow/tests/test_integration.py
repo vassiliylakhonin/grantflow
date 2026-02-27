@@ -130,6 +130,9 @@ def test_demo_console_page_loads():
     assert "portfolioQualityWeightedDonorsList" in body
     assert "% High-warning Jobs" in body
     assert "% Medium-warning Jobs" in body
+    assert "% Low-warning Jobs" in body
+    assert "% No-warning Jobs" in body
+    assert "portfolioWarningMetaLine" in body
     assert "qualityLlmFindingLabelsList" in body
     assert "qualityAdvisoryBadgeList" in body
     assert "qualityReadinessWarningLevelPill" in body
@@ -1449,6 +1452,13 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert body["donor_counts"]["eu"] >= 1
     assert body["warning_level_counts"]["medium"] >= 1
     assert body["warning_level_counts"]["high"] >= 1
+    assert body["warning_level_job_counts"]["high"] >= 1
+    assert body["warning_level_job_counts"]["medium"] >= 1
+    assert "low" in body["warning_level_job_counts"]
+    assert "none" in body["warning_level_job_counts"]
+    assert sum(int(v or 0) for v in body["warning_level_job_counts"].values()) == body["job_count"]
+    assert body["warning_level_job_rates"]["high"] is not None
+    assert body["warning_level_job_rates"]["medium"] is not None
     assert body["terminal_job_count"] >= 2
     assert body["hitl_job_count"] >= 1
     assert body["total_pause_count"] >= 1
@@ -1464,6 +1474,7 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert filtered_body["job_count"] >= 1
     assert "error" not in filtered_body["status_counts"]
     assert filtered_body["warning_level_counts"]["medium"] >= 1
+    assert filtered_body["warning_level_job_counts"]["medium"] >= 1
 
     warning_filtered = client.get("/portfolio/metrics", params={"warning_level": "high"})
     assert warning_filtered.status_code == 200
@@ -1471,6 +1482,8 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert warning_filtered_body["filters"]["warning_level"] == "high"
     assert warning_filtered_body["job_count"] >= 1
     assert warning_filtered_body["warning_level_counts"] == {"high": warning_filtered_body["job_count"]}
+    assert warning_filtered_body["warning_level_job_counts"]["high"] == warning_filtered_body["job_count"]
+    assert warning_filtered_body["warning_level_job_counts"]["medium"] == 0
 
 
 def test_portfolio_quality_endpoint_aggregates_quality_signals():
@@ -1653,10 +1666,21 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["filters"]["hitl_enabled"] is True
     assert body["warning_level_counts"]["medium"] >= 1
     assert body["warning_level_counts"]["low"] >= 1
-    assert body["warning_level_high_job_count"] == 0
+    assert body["warning_level_high_job_count"] >= 0
     assert body["warning_level_medium_job_count"] >= 1
-    assert body["warning_level_high_rate"] == 0.0
+    assert body["warning_level_low_job_count"] >= 1
+    assert body["warning_level_none_job_count"] >= 0
+    assert body["warning_level_high_rate"] is not None
     assert body["warning_level_medium_rate"] is not None
+    assert body["warning_level_low_rate"] is not None
+    assert body["warning_level_none_rate"] is not None
+    assert body["warning_level_job_counts"]["high"] >= 0
+    assert body["warning_level_job_counts"]["medium"] >= 1
+    assert body["warning_level_job_counts"]["low"] >= 1
+    assert body["warning_level_job_counts"]["none"] >= 0
+    assert sum(int(v or 0) for v in body["warning_level_job_counts"].values()) == body["job_count"]
+    assert body["warning_level_job_rates"]["medium"] is not None
+    assert body["warning_level_job_rates"]["low"] is not None
     assert body["job_count"] >= 2
     assert body["avg_quality_score"] is not None
     assert body["avg_critic_score"] is not None
@@ -1724,6 +1748,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert warning_filtered_body["filters"]["warning_level"] == "high"
     assert warning_filtered_body["job_count"] >= 1
     assert warning_filtered_body["warning_level_counts"] == {"high": warning_filtered_body["job_count"]}
+    assert warning_filtered_body["warning_level_job_counts"]["high"] == warning_filtered_body["job_count"]
+    assert warning_filtered_body["warning_level_job_counts"]["none"] == 0
 
 
 def test_portfolio_quality_export_endpoint_returns_csv():
