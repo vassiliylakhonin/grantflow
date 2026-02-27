@@ -184,6 +184,7 @@ curl -s -X POST http://127.0.0.1:8000/export \
   - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/export`
   - `POST /status/{job_id}/critic/findings/{finding_id}/ack|open|resolve`
   - `POST /status/{job_id}/critic/findings/bulk-status`
+  - `GET /status/{job_id}/review/workflow` filters: `event_type`, `finding_id`, `comment_status`, `workflow_state (pending|overdue)`, `overdue_after_hours`
 - `GET /portfolio/metrics` and `/portfolio/metrics/export` support filters:
   - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`
 - `GET /portfolio/quality` and `/portfolio/quality/export` support filters:

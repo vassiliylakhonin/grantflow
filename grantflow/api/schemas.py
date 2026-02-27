@@ -180,8 +180,12 @@ class JobReviewWorkflowSummaryPublicResponse(BaseModel):
     open_finding_count: int
     acknowledged_finding_count: int
     resolved_finding_count: int
+    pending_finding_count: int = 0
+    overdue_finding_count: int = 0
     open_comment_count: int
     resolved_comment_count: int
+    pending_comment_count: int = 0
+    overdue_comment_count: int = 0
     finding_status_counts: Dict[str, int]
     finding_severity_counts: Dict[str, int]
     comment_status_counts: Dict[str, int]
@@ -195,6 +199,8 @@ class JobReviewWorkflowFiltersPublicResponse(BaseModel):
     event_type: Optional[str] = None
     finding_id: Optional[str] = None
     comment_status: Optional[str] = None
+    workflow_state: Optional[str] = None
+    overdue_after_hours: Optional[int] = None
 
     model_config = ConfigDict(extra="allow")
 

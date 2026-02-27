@@ -219,12 +219,18 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowEventTypeFilter" in body
     assert "reviewWorkflowFindingIdFilter" in body
     assert "reviewWorkflowCommentStatusFilter" in body
+    assert "reviewWorkflowStateFilter" in body
+    assert "reviewWorkflowOverdueHoursFilter" in body
     assert "reviewWorkflowClearFiltersBtn" in body
     assert "reviewWorkflowExportJsonBtn" in body
     assert "reviewWorkflowExportCsvBtn" in body
     assert "grantflow_demo_review_workflow_event_type" in body
     assert "grantflow_demo_review_workflow_finding_id" in body
     assert "grantflow_demo_review_workflow_comment_status" in body
+    assert "grantflow_demo_review_workflow_state" in body
+    assert "grantflow_demo_review_workflow_overdue_hours" in body
+    assert 'params.set("workflow_state",' in body
+    assert 'params.set("overdue_after_hours",' in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/export" in body
 
@@ -1495,6 +1501,8 @@ def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeli
     assert body.get("filters", {}).get("event_type") is None
     assert body.get("filters", {}).get("finding_id") is None
     assert body.get("filters", {}).get("comment_status") is None
+    assert body.get("filters", {}).get("workflow_state") is None
+    assert body.get("filters", {}).get("overdue_after_hours") == 48
     assert len(body["findings"]) == 2
     assert len(body["comments"]) == 2
 
@@ -1506,8 +1514,12 @@ def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeli
     assert summary["open_finding_count"] == 1
     assert summary["acknowledged_finding_count"] == 0
     assert summary["resolved_finding_count"] == 1
+    assert summary["pending_finding_count"] == 1
+    assert summary["overdue_finding_count"] == 0
     assert summary["open_comment_count"] == 1
     assert summary["resolved_comment_count"] == 1
+    assert summary["pending_comment_count"] == 1
+    assert summary["overdue_comment_count"] == 0
     assert summary["finding_status_counts"]["open"] == 1
     assert summary["finding_status_counts"]["resolved"] == 1
     assert summary["finding_severity_counts"]["high"] == 1
@@ -1555,6 +1567,155 @@ def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeli
     assert comment_status_filtered_body["filters"]["comment_status"] == "resolved"
     assert len(comment_status_filtered_body["comments"]) == 1
     assert all(str(row.get("status") or "") == "resolved" for row in comment_status_filtered_body["comments"])
+
+
+def test_status_review_workflow_supports_pending_overdue_filters_and_validation():
+    job_id = "review-workflow-pending-overdue-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "finding-a",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "message": "ToC mismatch.",
+                            "updated_at": "2026-02-27T06:00:00+00:00",
+                        },
+                        {
+                            "finding_id": "finding-b",
+                            "code": "MEL_BASELINE_MISSING",
+                            "severity": "medium",
+                            "section": "logframe",
+                            "status": "acknowledged",
+                            "message": "Baseline is incomplete.",
+                            "acknowledged_at": "2026-02-27T09:30:00+00:00",
+                        },
+                        {
+                            "finding_id": "finding-c",
+                            "code": "CITATION_GAP",
+                            "severity": "low",
+                            "section": "general",
+                            "status": "resolved",
+                            "message": "Citation evidence now linked.",
+                            "resolved_at": "2026-02-27T10:40:00+00:00",
+                        },
+                    ]
+                }
+            },
+            "review_comments": [
+                {
+                    "comment_id": "comment-a",
+                    "ts": "2026-02-27T06:30:00+00:00",
+                    "section": "toc",
+                    "status": "open",
+                    "message": "Need stronger assumptions.",
+                    "linked_finding_id": "finding-a",
+                },
+                {
+                    "comment_id": "comment-b",
+                    "ts": "2026-02-27T10:20:00+00:00",
+                    "section": "logframe",
+                    "status": "open",
+                    "message": "Indicator wording updated.",
+                    "linked_finding_id": "finding-b",
+                },
+                {
+                    "comment_id": "comment-c",
+                    "ts": "2026-02-27T10:30:00+00:00",
+                    "section": "general",
+                    "status": "resolved",
+                    "message": "Resolved in reviewer pass.",
+                    "linked_finding_id": "finding-c",
+                },
+            ],
+            "job_events": [
+                {
+                    "event_id": "rwf-po-1",
+                    "ts": "2026-02-27T06:00:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-a",
+                    "status": "open",
+                    "section": "toc",
+                    "severity": "high",
+                },
+                {
+                    "event_id": "rwf-po-2",
+                    "ts": "2026-02-27T06:30:00+00:00",
+                    "type": "review_comment_added",
+                    "comment_id": "comment-a",
+                    "section": "toc",
+                },
+                {
+                    "event_id": "rwf-po-3",
+                    "ts": "2026-02-27T09:30:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-b",
+                    "status": "acknowledged",
+                    "section": "logframe",
+                    "severity": "medium",
+                },
+                {
+                    "event_id": "rwf-po-4",
+                    "ts": "2026-02-27T10:20:00+00:00",
+                    "type": "review_comment_added",
+                    "comment_id": "comment-b",
+                    "section": "logframe",
+                },
+                {
+                    "event_id": "rwf-po-5",
+                    "ts": "2026-02-27T10:40:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-c",
+                    "status": "resolved",
+                    "section": "general",
+                    "severity": "low",
+                },
+            ],
+        },
+    )
+
+    invalid_filter = client.get(f"/status/{job_id}/review/workflow", params={"workflow_state": "inbox"})
+    assert invalid_filter.status_code == 400
+
+    all_items = client.get(f"/status/{job_id}/review/workflow", params={"overdue_after_hours": 2})
+    assert all_items.status_code == 200
+    all_body = all_items.json()
+    assert all_body["summary"]["pending_finding_count"] == 1
+    assert all_body["summary"]["overdue_finding_count"] == 1
+    assert all_body["summary"]["pending_comment_count"] == 1
+    assert all_body["summary"]["overdue_comment_count"] == 1
+
+    pending_only = client.get(
+        f"/status/{job_id}/review/workflow",
+        params={"workflow_state": "pending", "overdue_after_hours": 2},
+    )
+    assert pending_only.status_code == 200
+    pending_body = pending_only.json()
+    assert pending_body["filters"]["workflow_state"] == "pending"
+    assert pending_body["filters"]["overdue_after_hours"] == 2
+    assert {row["finding_id"] for row in pending_body["findings"]} == {"finding-b"}
+    assert {row["comment_id"] for row in pending_body["comments"]} == {"comment-b"}
+    assert all(row.get("workflow_state") == "pending" for row in pending_body["findings"])
+    assert all(row.get("workflow_state") == "pending" for row in pending_body["comments"])
+
+    overdue_only = client.get(
+        f"/status/{job_id}/review/workflow",
+        params={"workflow_state": "overdue", "overdue_after_hours": 2},
+    )
+    assert overdue_only.status_code == 200
+    overdue_body = overdue_only.json()
+    assert overdue_body["filters"]["workflow_state"] == "overdue"
+    assert overdue_body["filters"]["overdue_after_hours"] == 2
+    assert {row["finding_id"] for row in overdue_body["findings"]} == {"finding-a"}
+    assert {row["comment_id"] for row in overdue_body["comments"]} == {"comment-a"}
+    assert all(row.get("workflow_state") == "overdue" for row in overdue_body["findings"])
+    assert all(row.get("workflow_state") == "overdue" for row in overdue_body["comments"])
 
 
 def test_status_review_workflow_export_supports_csv_json_and_gzip():

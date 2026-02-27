@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import difflib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional, cast
 
@@ -37,6 +37,8 @@ REVIEW_WORKFLOW_EVENT_TYPES = {
     "review_comment_added",
     "review_comment_status_changed",
 }
+REVIEW_WORKFLOW_STATE_FILTER_VALUES = {"pending", "overdue"}
+REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS = 48
 GROUNDING_FALLBACK_HIGH_THRESHOLD = 0.8
 GROUNDING_FALLBACK_MEDIUM_THRESHOLD = 0.5
 
@@ -92,6 +94,17 @@ def _normalize_finding_severity_filter(finding_severity: Optional[str]) -> Optio
     if not token:
         return None
     if token not in FINDING_SEVERITY_FILTER_VALUES:
+        return token
+    return token
+
+
+def _normalize_review_workflow_state_filter(workflow_state: Optional[str]) -> Optional[str]:
+    if workflow_state is None:
+        return None
+    token = str(workflow_state or "").strip().lower()
+    if not token:
+        return None
+    if token not in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
         return token
     return token
 
@@ -257,10 +270,18 @@ def public_job_review_workflow_payload(
     event_type: Optional[str] = None,
     finding_id: Optional[str] = None,
     comment_status: Optional[str] = None,
+    workflow_state: Optional[str] = None,
+    overdue_after_hours: int = REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
 ) -> Dict[str, Any]:
     event_type_filter = str(event_type or "").strip() or None
     finding_id_filter = str(finding_id or "").strip() or None
     comment_status_filter = str(comment_status or "").strip().lower() or None
+    workflow_state_filter = _normalize_review_workflow_state_filter(workflow_state)
+    overdue_after_hours_value = (
+        int(overdue_after_hours)
+        if isinstance(overdue_after_hours, int) and overdue_after_hours > 0
+        else REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS
+    )
 
     critic_payload = public_job_critic_payload(job_id, job)
     findings = critic_payload.get("fatal_flaws") if isinstance(critic_payload, dict) else []
@@ -275,40 +296,9 @@ def public_job_review_workflow_payload(
         comments_list = [
             item for item in comments_list if str(item.get("linked_finding_id") or "") == finding_id_filter
         ]
-    if comment_status_filter:
-        comments_list = [
-            item for item in comments_list if str(item.get("status") or "").strip().lower() == comment_status_filter
-        ]
-
-    finding_status_counts = {"open": 0, "acknowledged": 0, "resolved": 0}
-    finding_severity_counts = {"high": 0, "medium": 0, "low": 0}
-    for row in findings_list:
-        status = str(row.get("status") or "open").strip().lower()
-        severity = str(row.get("severity") or "").strip().lower()
-        if status in finding_status_counts:
-            finding_status_counts[status] += 1
-        if severity in finding_severity_counts:
-            finding_severity_counts[severity] += 1
-
-    finding_ids = {finding_primary_id(row) for row in findings_list if finding_primary_id(row)}
-    comment_ids = {
-        str(row.get("comment_id") or "").strip() for row in comments_list if str(row.get("comment_id") or "").strip()
-    }
-    linked_comment_count = 0
-    orphan_linked_comment_count = 0
-    comment_status_counts: Dict[str, int] = {}
-    for row in comments_list:
-        comment_status = str(row.get("status") or "open").strip().lower() or "open"
-        comment_status_counts[comment_status] = int(comment_status_counts.get(comment_status, 0)) + 1
-        linked_finding_id = str(row.get("linked_finding_id") or "").strip()
-        if not linked_finding_id:
-            continue
-        linked_comment_count += 1
-        if linked_finding_id not in finding_ids:
-            orphan_linked_comment_count += 1
 
     raw_events = job.get("job_events")
-    timeline: list[Dict[str, Any]] = []
+    timeline_all: list[Dict[str, Any]] = []
     if isinstance(raw_events, list):
         for item in raw_events:
             if not isinstance(item, dict):
@@ -319,9 +309,9 @@ def public_job_review_workflow_payload(
             event_type = str(event.get("type") or "").strip()
             if event_type not in REVIEW_WORKFLOW_EVENT_TYPES:
                 continue
-            finding_id = str(event.get("finding_id") or "").strip() or None
+            event_finding_id = str(event.get("finding_id") or "").strip() or None
             comment_id = str(event.get("comment_id") or "").strip() or None
-            timeline.append(
+            timeline_all.append(
                 {
                     "event_id": event.get("event_id"),
                     "ts": event.get("ts"),
@@ -331,7 +321,7 @@ def public_job_review_workflow_payload(
                         if event_type == "critic_finding_status_changed"
                         else ("comment_added" if event_type == "review_comment_added" else "comment_status")
                     ),
-                    "finding_id": finding_id,
+                    "finding_id": event_finding_id,
                     "comment_id": comment_id,
                     "status": event.get("status"),
                     "section": event.get("section"),
@@ -341,6 +331,163 @@ def public_job_review_workflow_payload(
                     "message": event.get("message"),
                 }
             )
+    finding_last_event_ts: Dict[str, datetime] = {}
+    comment_last_event_ts: Dict[str, datetime] = {}
+    activity_dt_values: list[datetime] = []
+
+    def _latest(existing: Optional[datetime], candidate: Optional[datetime]) -> Optional[datetime]:
+        if existing is None:
+            return candidate
+        if candidate is None:
+            return existing
+        return candidate if candidate > existing else existing
+
+    for row in timeline_all:
+        ts_dt = _parse_event_ts(row.get("ts"))
+        if ts_dt is None:
+            continue
+        activity_dt_values.append(ts_dt)
+        event_finding_id = str(row.get("finding_id") or "").strip()
+        event_comment_id = str(row.get("comment_id") or "").strip()
+        if str(row.get("type") or "") == "critic_finding_status_changed" and event_finding_id:
+            finding_last_event_ts[event_finding_id] = (
+                _latest(finding_last_event_ts.get(event_finding_id), ts_dt) or ts_dt
+            )
+        if str(row.get("kind") or "") in {"comment_added", "comment_status"} and event_comment_id:
+            comment_last_event_ts[event_comment_id] = (
+                _latest(comment_last_event_ts.get(event_comment_id), ts_dt) or ts_dt
+            )
+
+    for row in comments_list:
+        for key in ("updated_ts", "resolved_at", "ts"):
+            ts_dt = _parse_event_ts(row.get(key))
+            if ts_dt is not None:
+                activity_dt_values.append(ts_dt)
+                break
+
+    for row in findings_list:
+        for key in ("updated_at", "resolved_at", "acknowledged_at"):
+            ts_dt = _parse_event_ts(row.get(key))
+            if ts_dt is not None:
+                activity_dt_values.append(ts_dt)
+                break
+
+    reference_ts = max(activity_dt_values) if activity_dt_values else None
+
+    findings_with_workflow: list[Dict[str, Any]] = []
+    for row in findings_list:
+        current = dict(row)
+        current_finding_id = finding_primary_id(current)
+        status = str(current.get("status") or "open").strip().lower() or "open"
+        unresolved = status in {"open", "acknowledged"}
+        last_transition_dt = finding_last_event_ts.get(current_finding_id or "")
+        if last_transition_dt is None:
+            for key in ("updated_at", "acknowledged_at", "resolved_at"):
+                parsed = _parse_event_ts(current.get(key))
+                if parsed is not None:
+                    last_transition_dt = parsed
+                    break
+        age_hours: Optional[float] = None
+        if unresolved and reference_ts is not None and last_transition_dt is not None:
+            age_hours = max(0.0, (reference_ts - last_transition_dt).total_seconds() / 3600.0)
+        is_overdue = bool(unresolved and age_hours is not None and age_hours >= float(overdue_after_hours_value))
+        if status == "resolved":
+            current["workflow_state"] = "resolved"
+        elif is_overdue:
+            current["workflow_state"] = "overdue"
+        else:
+            current["workflow_state"] = "pending"
+        current["is_overdue"] = is_overdue
+        current["age_hours"] = round(age_hours, 3) if age_hours is not None else None
+        current["last_transition_at"] = last_transition_dt.isoformat() if last_transition_dt is not None else None
+        findings_with_workflow.append(current)
+
+    comments_with_workflow: list[Dict[str, Any]] = []
+    for row in comments_list:
+        current = dict(row)
+        current_comment_id = str(current.get("comment_id") or "").strip()
+        status = str(current.get("status") or "open").strip().lower() or "open"
+        unresolved = status != "resolved"
+        last_transition_dt = comment_last_event_ts.get(current_comment_id)
+        if last_transition_dt is None:
+            for key in ("updated_ts", "resolved_at", "ts"):
+                parsed = _parse_event_ts(current.get(key))
+                if parsed is not None:
+                    last_transition_dt = parsed
+                    break
+        age_hours = None
+        if unresolved and reference_ts is not None and last_transition_dt is not None:
+            age_hours = max(0.0, (reference_ts - last_transition_dt).total_seconds() / 3600.0)
+        is_overdue = bool(unresolved and age_hours is not None and age_hours >= float(overdue_after_hours_value))
+        if status == "resolved":
+            current["workflow_state"] = "resolved"
+        elif is_overdue:
+            current["workflow_state"] = "overdue"
+        else:
+            current["workflow_state"] = "pending"
+        current["is_overdue"] = is_overdue
+        current["age_hours"] = round(age_hours, 3) if age_hours is not None else None
+        current["last_transition_at"] = last_transition_dt.isoformat() if last_transition_dt is not None else None
+        comments_with_workflow.append(current)
+
+    if comment_status_filter:
+        comments_with_workflow = [
+            item
+            for item in comments_with_workflow
+            if str(item.get("status") or "").strip().lower() == comment_status_filter
+        ]
+    if workflow_state_filter in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
+        findings_with_workflow = [
+            item for item in findings_with_workflow if str(item.get("workflow_state") or "") == workflow_state_filter
+        ]
+        comments_with_workflow = [
+            item for item in comments_with_workflow if str(item.get("workflow_state") or "") == workflow_state_filter
+        ]
+
+    finding_status_counts = {"open": 0, "acknowledged": 0, "resolved": 0}
+    finding_severity_counts = {"high": 0, "medium": 0, "low": 0}
+    pending_finding_count = 0
+    overdue_finding_count = 0
+    for row in findings_with_workflow:
+        status = str(row.get("status") or "open").strip().lower()
+        severity = str(row.get("severity") or "").strip().lower()
+        workflow_status = str(row.get("workflow_state") or "").strip().lower()
+        if status in finding_status_counts:
+            finding_status_counts[status] += 1
+        if severity in finding_severity_counts:
+            finding_severity_counts[severity] += 1
+        if workflow_status == "pending":
+            pending_finding_count += 1
+        elif workflow_status == "overdue":
+            overdue_finding_count += 1
+
+    finding_ids = {finding_primary_id(row) for row in findings_with_workflow if finding_primary_id(row)}
+    comment_ids = {
+        str(row.get("comment_id") or "").strip()
+        for row in comments_with_workflow
+        if str(row.get("comment_id") or "").strip()
+    }
+    linked_comment_count = 0
+    orphan_linked_comment_count = 0
+    comment_status_counts: Dict[str, int] = {}
+    pending_comment_count = 0
+    overdue_comment_count = 0
+    for row in comments_with_workflow:
+        row_status = str(row.get("status") or "open").strip().lower() or "open"
+        comment_status_counts[row_status] = int(comment_status_counts.get(row_status, 0)) + 1
+        workflow_status = str(row.get("workflow_state") or "").strip().lower()
+        if workflow_status == "pending":
+            pending_comment_count += 1
+        elif workflow_status == "overdue":
+            overdue_comment_count += 1
+        linked_finding_id = str(row.get("linked_finding_id") or "").strip()
+        if not linked_finding_id:
+            continue
+        linked_comment_count += 1
+        if linked_finding_id not in finding_ids:
+            orphan_linked_comment_count += 1
+
+    timeline = list(timeline_all)
     if finding_id_filter:
         timeline = [
             row
@@ -355,6 +502,13 @@ def public_job_review_workflow_payload(
             if str(row.get("kind") or "") not in {"comment_added", "comment_status"}
             or str(row.get("comment_id") or "").strip() in comment_ids
         ]
+    if workflow_state_filter in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
+        timeline = [
+            row
+            for row in timeline
+            if str(row.get("finding_id") or "").strip() in finding_ids
+            or str(row.get("comment_id") or "").strip() in comment_ids
+        ]
     if event_type_filter:
         timeline = [row for row in timeline if str(row.get("type") or "") == event_type_filter]
     timeline.sort(key=lambda row: str(row.get("ts") or ""), reverse=True)
@@ -364,11 +518,11 @@ def public_job_review_workflow_payload(
         ts = str(row.get("ts") or "").strip()
         if ts:
             activity_ts_values.append(ts)
-    for row in comments_list:
+    for row in comments_with_workflow:
         ts = str(row.get("ts") or "").strip()
         if ts:
             activity_ts_values.append(ts)
-    for row in findings_list:
+    for row in findings_with_workflow:
         for key in ("updated_at", "resolved_at", "acknowledged_at"):
             ts = str(row.get(key) or "").strip()
             if ts:
@@ -383,8 +537,12 @@ def public_job_review_workflow_payload(
         "open_finding_count": int(finding_status_counts.get("open", 0)),
         "acknowledged_finding_count": int(finding_status_counts.get("acknowledged", 0)),
         "resolved_finding_count": int(finding_status_counts.get("resolved", 0)),
+        "pending_finding_count": pending_finding_count,
+        "overdue_finding_count": overdue_finding_count,
         "open_comment_count": int(comment_status_counts.get("open", 0)),
         "resolved_comment_count": int(comment_status_counts.get("resolved", 0)),
+        "pending_comment_count": pending_comment_count,
+        "overdue_comment_count": overdue_comment_count,
         "finding_status_counts": finding_status_counts,
         "finding_severity_counts": finding_severity_counts,
         "comment_status_counts": comment_status_counts,
@@ -398,10 +556,12 @@ def public_job_review_workflow_payload(
             "event_type": event_type_filter,
             "finding_id": finding_id_filter,
             "comment_status": comment_status_filter,
+            "workflow_state": workflow_state_filter,
+            "overdue_after_hours": overdue_after_hours_value,
         },
         "summary": summary,
-        "findings": findings_list,
-        "comments": comments_list,
+        "findings": findings_with_workflow,
+        "comments": comments_with_workflow,
         "timeline": timeline,
     }
 
@@ -723,7 +883,10 @@ def _parse_event_ts(value: Any) -> Optional[datetime]:
     if not isinstance(value, str) or not value.strip():
         return None
     try:
-        return datetime.fromisoformat(value)
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
     except ValueError:
         return None
 

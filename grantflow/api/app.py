@@ -15,6 +15,8 @@ from pydantic import BaseModel, ConfigDict
 
 from grantflow.api.demo_ui import render_demo_ui_html
 from grantflow.api.public_views import (
+    REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+    REVIEW_WORKFLOW_STATE_FILTER_VALUES,
     public_checkpoint_payload,
     public_ingest_inventory_csv_text,
     public_ingest_inventory_payload,
@@ -1957,8 +1959,18 @@ def get_status_review_workflow(
     event_type: Optional[str] = None,
     finding_id: Optional[str] = None,
     comment_status: Optional[str] = Query(default=None, alias="comment_status"),
+    workflow_state: Optional[str] = Query(default=None, alias="workflow_state"),
+    overdue_after_hours: int = Query(
+        default=REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+        ge=1,
+        le=24 * 30,
+        alias="overdue_after_hours",
+    ),
 ):
     require_api_key_if_configured(request, for_read=True)
+    workflow_state_filter = str(workflow_state or "").strip().lower() or None
+    if workflow_state_filter and workflow_state_filter not in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
+        raise HTTPException(status_code=400, detail="Unsupported workflow_state filter")
     job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -1968,6 +1980,8 @@ def get_status_review_workflow(
         event_type=(event_type or None),
         finding_id=(finding_id or None),
         comment_status=(comment_status or None),
+        workflow_state=workflow_state_filter,
+        overdue_after_hours=overdue_after_hours,
     )
 
 
@@ -1978,10 +1992,20 @@ def export_status_review_workflow(
     event_type: Optional[str] = None,
     finding_id: Optional[str] = None,
     comment_status: Optional[str] = Query(default=None, alias="comment_status"),
+    workflow_state: Optional[str] = Query(default=None, alias="workflow_state"),
+    overdue_after_hours: int = Query(
+        default=REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+        ge=1,
+        le=24 * 30,
+        alias="overdue_after_hours",
+    ),
     format: Literal["csv", "json"] = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
+    workflow_state_filter = str(workflow_state or "").strip().lower() or None
+    if workflow_state_filter and workflow_state_filter not in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
+        raise HTTPException(status_code=400, detail="Unsupported workflow_state filter")
     job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -1991,6 +2015,8 @@ def export_status_review_workflow(
         event_type=(event_type or None),
         finding_id=(finding_id or None),
         comment_status=(comment_status or None),
+        workflow_state=workflow_state_filter,
+        overdue_after_hours=overdue_after_hours,
     )
     return _portfolio_export_response(
         payload=payload,

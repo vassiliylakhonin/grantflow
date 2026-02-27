@@ -972,6 +972,23 @@ def render_demo_ui_html() -> str:
                   <option value="resolved">resolved</option>
                 </select>
               </div>
+              <div>
+                <label for="reviewWorkflowStateFilter">Workflow Filter: State</label>
+                <select id="reviewWorkflowStateFilter">
+                  <option value="">all</option>
+                  <option value="pending">pending</option>
+                  <option value="overdue">overdue</option>
+                </select>
+              </div>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <div>
+                <label for="reviewWorkflowOverdueHoursFilter">Workflow Filter: Overdue After (hours)</label>
+                <input id="reviewWorkflowOverdueHoursFilter" type="number" min="1" step="1" value="48" />
+              </div>
+              <div class="sub" style="align-self:end;">
+                Applied when `State=overdue` (also included in export queries).
+              </div>
               <div style="align-self:end;">
                 <button id="reviewWorkflowClearFiltersBtn" class="ghost">Clear Workflow Filters</button>
               </div>
@@ -1022,6 +1039,8 @@ def render_demo_ui_html() -> str:
         ["reviewWorkflowEventTypeFilter", "grantflow_demo_review_workflow_event_type"],
         ["reviewWorkflowFindingIdFilter", "grantflow_demo_review_workflow_finding_id"],
         ["reviewWorkflowCommentStatusFilter", "grantflow_demo_review_workflow_comment_status"],
+        ["reviewWorkflowStateFilter", "grantflow_demo_review_workflow_state"],
+        ["reviewWorkflowOverdueHoursFilter", "grantflow_demo_review_workflow_overdue_hours"],
         ["selectedCommentId", "grantflow_demo_selected_comment_id"],
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
         ["generatePresetSelect", "grantflow_demo_generate_preset"],
@@ -1264,6 +1283,8 @@ def render_demo_ui_html() -> str:
         reviewWorkflowEventTypeFilter: $("reviewWorkflowEventTypeFilter"),
         reviewWorkflowFindingIdFilter: $("reviewWorkflowFindingIdFilter"),
         reviewWorkflowCommentStatusFilter: $("reviewWorkflowCommentStatusFilter"),
+        reviewWorkflowStateFilter: $("reviewWorkflowStateFilter"),
+        reviewWorkflowOverdueHoursFilter: $("reviewWorkflowOverdueHoursFilter"),
         reviewWorkflowClearFiltersBtn: $("reviewWorkflowClearFiltersBtn"),
         reviewWorkflowExportJsonBtn: $("reviewWorkflowExportJsonBtn"),
         reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
@@ -1428,6 +1449,8 @@ def render_demo_ui_html() -> str:
         els.reviewWorkflowEventTypeFilter.value = "";
         els.reviewWorkflowFindingIdFilter.value = "";
         els.reviewWorkflowCommentStatusFilter.value = "";
+        els.reviewWorkflowStateFilter.value = "";
+        els.reviewWorkflowOverdueHoursFilter.value = "48";
         persistUiState();
       }
 
@@ -2781,11 +2804,15 @@ def render_demo_ui_html() -> str:
         const timelineCount = Number(summary.timeline_event_count || timeline.length || 0);
         const findingCount = Number(summary.finding_count || 0);
         const commentCount = Number(summary.comment_count || 0);
+        const pendingFindingCount = Number(summary.pending_finding_count || 0);
+        const overdueFindingCount = Number(summary.overdue_finding_count || 0);
+        const pendingCommentCount = Number(summary.pending_comment_count || 0);
+        const overdueCommentCount = Number(summary.overdue_comment_count || 0);
         const orphanLinkedCount = Number(summary.orphan_linked_comment_count || 0);
         const lastActivity = String(summary.last_activity_at || "-");
         if (els.reviewWorkflowSummaryLine) {
           els.reviewWorkflowSummaryLine.textContent =
-            `workflow: timeline=${timelineCount} · findings=${findingCount} · comments=${commentCount} · orphan_links=${orphanLinkedCount} · last=${lastActivity}`;
+            `workflow: timeline=${timelineCount} · findings=${findingCount} (pending=${pendingFindingCount}, overdue=${overdueFindingCount}) · comments=${commentCount} (pending=${pendingCommentCount}, overdue=${overdueCommentCount}) · orphan_links=${orphanLinkedCount} · last=${lastActivity}`;
         }
       }
 
@@ -3460,6 +3487,13 @@ def render_demo_ui_html() -> str:
         }
         if (els.reviewWorkflowCommentStatusFilter.value) {
           params.set("comment_status", els.reviewWorkflowCommentStatusFilter.value);
+        }
+        if (els.reviewWorkflowStateFilter.value) {
+          params.set("workflow_state", els.reviewWorkflowStateFilter.value);
+        }
+        const overdueHours = Number.parseInt(String(els.reviewWorkflowOverdueHoursFilter.value || "").trim(), 10);
+        if (Number.isFinite(overdueHours) && overdueHours > 0) {
+          params.set("overdue_after_hours", String(overdueHours));
         }
         const q = params.toString();
         return q ? `?${q}` : "";
@@ -4180,13 +4214,17 @@ def render_demo_ui_html() -> str:
             refreshComments().catch(showError);
           })
         );
-        [els.reviewWorkflowEventTypeFilter, els.reviewWorkflowCommentStatusFilter].forEach((el) =>
+        [els.reviewWorkflowEventTypeFilter, els.reviewWorkflowCommentStatusFilter, els.reviewWorkflowStateFilter].forEach((el) =>
           el.addEventListener("change", () => {
             persistUiState();
             refreshReviewWorkflow().catch(showError);
           })
         );
         els.reviewWorkflowFindingIdFilter.addEventListener("change", () => {
+          persistUiState();
+          refreshReviewWorkflow().catch(showError);
+        });
+        els.reviewWorkflowOverdueHoursFilter.addEventListener("change", () => {
           persistUiState();
           refreshReviewWorkflow().catch(showError);
         });
