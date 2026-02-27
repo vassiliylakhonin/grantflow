@@ -732,6 +732,8 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     assert critic_body["llm_advisory_diagnostics"]["advisory_rejected_reason"] == "non_advisory_llm_finding_present"
     finding = critic_body["fatal_flaws"][0]
     finding_id = finding["finding_id"]
+    assert isinstance(finding.get("due_at"), str) and finding["due_at"]
+    assert int(finding.get("sla_hours") or 0) == 24
 
     ack_resp = client.post(
         f"/status/{job_id}/critic/findings/{finding_id}/ack",
@@ -746,6 +748,7 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     assert ack_body.get("updated_at")
     assert ack_body.get("updated_by") == "qa_reviewer"
     assert ack_body.get("acknowledged_by") == "qa_reviewer"
+    assert isinstance(ack_body.get("due_at"), str) and ack_body["due_at"]
 
     comment_resp = client.post(
         f"/status/{job_id}/comments",
@@ -758,6 +761,8 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     assert comment_resp.status_code == 200
     comment_body = comment_resp.json()
     assert comment_body["linked_finding_id"] == finding_id
+    assert int(comment_body.get("sla_hours") or 0) == 24
+    assert isinstance(comment_body.get("due_at"), str) and comment_body["due_at"]
 
     critic_resp_2 = client.get(f"/status/{job_id}/critic")
     assert critic_resp_2.status_code == 200
@@ -795,6 +800,8 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     assert reopen_body.get("acknowledged_by") is None
     assert reopen_body.get("resolved_at") is None
     assert reopen_body.get("resolved_by") is None
+    assert isinstance(reopen_body.get("due_at"), str) and reopen_body["due_at"]
+    assert reopen_body["due_at"] != ack_body["due_at"]
 
 
 def test_status_critic_normalizes_legacy_string_findings_into_entities():
@@ -1328,6 +1335,8 @@ def test_status_comments_endpoints_create_list_and_filter():
     assert created["status"] == "open"
     assert created["version_id"] == toc_version_id
     assert created["author"] == "reviewer-1"
+    assert isinstance(created.get("due_at"), str) and created["due_at"]
+    assert int(created.get("sla_hours") or 0) >= 1
 
     comments_resp = client.get(f"/status/{job_id}/comments")
     assert comments_resp.status_code == 200
@@ -1341,6 +1350,7 @@ def test_status_comments_endpoints_create_list_and_filter():
     resolved = resolve_resp.json()
     assert resolved["comment_id"] == created["comment_id"]
     assert resolved["status"] == "resolved"
+    assert isinstance(resolved.get("due_at"), str) and resolved["due_at"]
 
     resolved_filter_resp = client.get(f"/status/{job_id}/comments", params={"status": "resolved"})
     assert resolved_filter_resp.status_code == 200
@@ -1352,6 +1362,8 @@ def test_status_comments_endpoints_create_list_and_filter():
     reopened = reopen_resp.json()
     assert reopened["comment_id"] == created["comment_id"]
     assert reopened["status"] == "open"
+    assert isinstance(reopened.get("due_at"), str) and reopened["due_at"]
+    assert reopened["due_at"] != resolved["due_at"]
 
     filtered_resp = client.get(
         f"/status/{job_id}/comments",

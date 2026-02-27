@@ -6,7 +6,7 @@ import json
 import tempfile
 import uuid
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
@@ -92,6 +92,8 @@ HITLStartAt = Literal["start", "architect", "mel", "critic"]
 TERMINAL_JOB_STATUSES = {"done", "error", "canceled"}
 REVIEW_COMMENT_SECTIONS = {"toc", "logframe", "general"}
 CRITIC_FINDING_STATUSES = {"open", "acknowledged", "resolved"}
+CRITIC_FINDING_SLA_HOURS = {"high": 24, "medium": 72, "low": 120}
+REVIEW_COMMENT_DEFAULT_SLA_HOURS = 72
 STATUS_WEBHOOK_EVENTS = {
     "running": "job.started",
     "pending_hitl": "job.pending_hitl",
@@ -117,6 +119,34 @@ GROUNDING_POLICY_MODES = {"off", "warn", "strict"}
 
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _parse_iso_utc(value: Any) -> Optional[datetime]:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _iso_plus_hours(base_ts: Optional[str], hours: int) -> str:
+    base_dt = _parse_iso_utc(base_ts) or datetime.now(timezone.utc)
+    return (base_dt + timedelta(hours=max(1, int(hours)))).isoformat()
+
+
+def _finding_sla_hours(severity: Any) -> int:
+    token = str(severity or "").strip().lower()
+    return int(CRITIC_FINDING_SLA_HOURS.get(token, CRITIC_FINDING_SLA_HOURS["medium"]))
+
+
+def _comment_sla_hours(*, linked_finding_severity: Optional[str] = None) -> int:
+    if linked_finding_severity:
+        return _finding_sla_hours(linked_finding_severity)
+    return REVIEW_COMMENT_DEFAULT_SLA_HOURS
 
 
 def _finding_actor_from_request(request: Request) -> str:
@@ -662,6 +692,24 @@ def _job_draft_version_exists_for_section(job: Dict[str, Any], *, section: str, 
     return False
 
 
+def _ensure_finding_due_at(item: Dict[str, Any], *, now_iso: str, reset: bool = False) -> Dict[str, Any]:
+    current = dict(item)
+    status = str(current.get("status") or "open").strip().lower()
+    if status == "resolved":
+        return current
+    if not reset and str(current.get("due_at") or "").strip():
+        return current
+    sla_hours = _finding_sla_hours(current.get("severity"))
+    base_ts = None
+    if status == "acknowledged":
+        base_ts = str(current.get("acknowledged_at") or current.get("updated_at") or now_iso)
+    else:
+        base_ts = str(current.get("updated_at") or now_iso)
+    current["due_at"] = _iso_plus_hours(base_ts, sla_hours)
+    current["sla_hours"] = sla_hours
+    return current
+
+
 def _normalize_critic_fatal_flaws_for_job(job_id: str) -> Optional[Dict[str, Any]]:
     job = _get_job(job_id)
     if not job:
@@ -677,17 +725,34 @@ def _normalize_critic_fatal_flaws_for_job(job_id: str) -> Optional[Dict[str, Any
         return job
 
     normalized = normalize_findings(raw_flaws, previous_items=raw_flaws, default_source="rules")
-    changed = normalized != raw_flaws
+    now_iso = _utcnow_iso()
+    normalized_with_due = [_ensure_finding_due_at(item, now_iso=now_iso) for item in normalized]
+    changed = normalized_with_due != raw_flaws
 
     if not changed:
         return job
 
     next_notes = dict(critic_notes)
-    next_notes["fatal_flaws"] = normalized
+    next_notes["fatal_flaws"] = normalized_with_due
     next_state = dict(state)
     next_state["critic_notes"] = next_notes
-    next_state["critic_fatal_flaws"] = normalized
+    next_state["critic_fatal_flaws"] = normalized_with_due
     return _update_job(job_id, state=next_state)
+
+
+def _normalize_review_comments_for_job(job_id: str) -> Optional[Dict[str, Any]]:
+    job = _get_job(job_id)
+    if not job:
+        return None
+    raw_comments = job.get("review_comments")
+    if not isinstance(raw_comments, list):
+        return job
+    comments = [c for c in raw_comments if isinstance(c, dict)]
+    now_iso = _utcnow_iso()
+    normalized_comments = [_ensure_comment_due_at(comment, job=job, now_iso=now_iso) for comment in comments]
+    if normalized_comments == comments:
+        return job
+    return _update_job(job_id, review_comments=normalized_comments[-500:])
 
 
 def _find_critic_fatal_flaw(job: Dict[str, Any], finding_id: str) -> Optional[Dict[str, Any]]:
@@ -790,6 +855,7 @@ def _apply_critic_finding_status_transition(
     if current_finding_id:
         current["id"] = current_finding_id
         current["finding_id"] = current_finding_id
+    current = _ensure_finding_due_at(current, now_iso=now)
 
     current_status = str(current.get("status") or "open")
     if current_status == next_status:
@@ -803,6 +869,7 @@ def _apply_critic_finding_status_transition(
         current["acknowledged_by"] = actor_value
         current.pop("resolved_at", None)
         current.pop("resolved_by", None)
+        current = _ensure_finding_due_at(current, now_iso=now)
     elif next_status == "resolved":
         current["resolved_at"] = now
         current["resolved_by"] = actor_value
@@ -815,6 +882,7 @@ def _apply_critic_finding_status_transition(
         current.pop("acknowledged_by", None)
         current.pop("resolved_at", None)
         current.pop("resolved_by", None)
+        current = _ensure_finding_due_at(current, now_iso=now, reset=True)
     return current, True
 
 
@@ -961,6 +1029,46 @@ def _set_critic_fatal_flaws_status_bulk(
     }
 
 
+def _linked_finding_severity(job: Dict[str, Any], linked_finding_id: Optional[str]) -> Optional[str]:
+    token = str(linked_finding_id or "").strip()
+    if not token:
+        return None
+    finding = _find_critic_fatal_flaw(job, token)
+    if not isinstance(finding, dict):
+        return None
+    severity = str(finding.get("severity") or "").strip().lower()
+    return severity or None
+
+
+def _ensure_comment_due_at(
+    comment: Dict[str, Any],
+    *,
+    job: Dict[str, Any],
+    now_iso: str,
+    reset: bool = False,
+) -> Dict[str, Any]:
+    current = dict(comment)
+    status = str(current.get("status") or "open").strip().lower()
+    if status == "resolved":
+        return current
+    if not reset and str(current.get("due_at") or "").strip():
+        if not current.get("sla_hours"):
+            inferred_sla = _comment_sla_hours(
+                linked_finding_severity=_linked_finding_severity(
+                    job, str(current.get("linked_finding_id") or "").strip()
+                )
+            )
+            current["sla_hours"] = inferred_sla
+        return current
+    linked_finding_id = str(current.get("linked_finding_id") or "").strip() or None
+    severity = _linked_finding_severity(job, linked_finding_id)
+    sla_hours = _comment_sla_hours(linked_finding_severity=severity)
+    base_ts = str(current.get("updated_ts") or current.get("ts") or now_iso)
+    current["sla_hours"] = sla_hours
+    current["due_at"] = _iso_plus_hours(base_ts, sla_hours)
+    return current
+
+
 def _append_review_comment(
     job_id: str,
     *,
@@ -969,6 +1077,7 @@ def _append_review_comment(
     author: Optional[str] = None,
     version_id: Optional[str] = None,
     linked_finding_id: Optional[str] = None,
+    linked_finding_severity: Optional[str] = None,
 ) -> Dict[str, Any]:
     job = _get_job(job_id)
     if not job:
@@ -983,6 +1092,8 @@ def _append_review_comment(
         "status": "open",
         "message": message,
     }
+    comment["sla_hours"] = _comment_sla_hours(linked_finding_severity=linked_finding_severity)
+    comment["due_at"] = _iso_plus_hours(comment["ts"], int(comment["sla_hours"]))
     if author:
         comment["author"] = author
     if version_id:
@@ -1017,6 +1128,8 @@ def _set_review_comment_status(
     comments = [c for c in existing if isinstance(c, dict)] if isinstance(existing, list) else []
     updated_comment: Optional[Dict[str, Any]] = None
     changed = False
+    status_transitioned = False
+    now_iso = _utcnow_iso()
 
     next_comments: list[Dict[str, Any]] = []
     for item in comments:
@@ -1027,14 +1140,21 @@ def _set_review_comment_status(
 
         current = dict(item)
         current_status = str(current.get("status") or "open")
+        current_with_due = _ensure_comment_due_at(current, job=job, now_iso=now_iso)
+        if current_with_due != current:
+            changed = True
+        current = current_with_due
         if current_status != next_status:
             current["status"] = next_status
-            current["updated_ts"] = _utcnow_iso()
+            current["updated_ts"] = now_iso
             if next_status == "resolved":
                 current["resolved_at"] = current["updated_ts"]
             elif "resolved_at" in current:
                 current.pop("resolved_at", None)
+            if next_status == "open":
+                current = _ensure_comment_due_at(current, job=job, now_iso=now_iso, reset=True)
             changed = True
+            status_transitioned = True
         updated_comment = current
         next_comments.append(current)
 
@@ -1043,6 +1163,7 @@ def _set_review_comment_status(
 
     if changed:
         _update_job(job_id, review_comments=next_comments[-500:])
+    if status_transitioned:
         _record_job_event(
             job_id,
             "review_comment_status_changed",
@@ -1936,7 +2057,8 @@ def get_status_comments(
     version_id: Optional[str] = None,
 ):
     require_api_key_if_configured(request, for_read=True)
-    job = _get_job(job_id)
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    job = _normalize_review_comments_for_job(job_id) or job
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_comments_payload(
@@ -1972,6 +2094,7 @@ def get_status_review_workflow(
     if workflow_state_filter and workflow_state_filter not in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
         raise HTTPException(status_code=400, detail="Unsupported workflow_state filter")
     job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    job = _normalize_review_comments_for_job(job_id) or job
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return public_job_review_workflow_payload(
@@ -2007,6 +2130,7 @@ def export_status_review_workflow(
     if workflow_state_filter and workflow_state_filter not in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
         raise HTTPException(status_code=400, detail="Unsupported workflow_state filter")
     job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    job = _normalize_review_comments_for_job(job_id) or job
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     payload = public_job_review_workflow_payload(
@@ -2056,6 +2180,7 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
     linked_finding_id = (req.linked_finding_id or "").strip() or None
     if version_id and not _job_draft_version_exists_for_section(job, section=section, version_id=version_id):
         raise HTTPException(status_code=400, detail="Unknown version_id for requested section")
+    linked_finding_severity: Optional[str] = None
     if linked_finding_id:
         normalized_job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
         if not normalized_job:
@@ -2064,6 +2189,7 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
         if not finding:
             raise HTTPException(status_code=400, detail="Unknown linked_finding_id")
         linked_finding_id = finding_primary_id(finding) or linked_finding_id
+        linked_finding_severity = str(finding.get("severity") or "").strip().lower() or None
         finding_section = str(finding.get("section") or "")
         if section != "general" and finding_section and section != finding_section:
             raise HTTPException(status_code=400, detail="linked_finding_id section does not match comment section")
@@ -2075,6 +2201,7 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
         author=author,
         version_id=version_id,
         linked_finding_id=linked_finding_id,
+        linked_finding_severity=linked_finding_severity,
     )
 
 

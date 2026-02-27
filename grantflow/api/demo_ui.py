@@ -2750,7 +2750,23 @@ def render_demo_ui_html() -> str:
           div.className = "item";
           const titleBits = [`[${c.status || "open"}]`, c.section || "general"];
           if (c.comment_id) titleBits.push(`#${String(c.comment_id).slice(0, 8)}`);
-          const meta = [c.ts, c.author, c.version_id, c.linked_finding_id ? `finding ${String(c.linked_finding_id).slice(0, 8)}` : null].filter(Boolean).join(" · ");
+          const workflowMeta = [
+            c.workflow_state ? `state ${c.workflow_state}` : null,
+            c.is_overdue === true ? "overdue" : null,
+            c.due_at ? `due ${c.due_at}` : null,
+            Number.isFinite(Number(c.sla_hours)) ? `sla ${Number(c.sla_hours)}h` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          const meta = [
+            c.ts,
+            c.author,
+            c.version_id,
+            c.linked_finding_id ? `finding ${String(c.linked_finding_id).slice(0, 8)}` : null,
+            workflowMeta || null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
           div.innerHTML = `
             <div class="title mono">${escapeHtml(titleBits.join(" "))}</div>
             <div class="sub">${escapeHtml(c.message || "")}</div>
@@ -2841,7 +2857,15 @@ def render_demo_ui_html() -> str:
             const flawSeverity = String(flaw.severity || "").toLowerCase();
             div.className = `item${flawSeverity ? ` severity-${flawSeverity}` : ""}`;
             const titleBits = [flaw.status || "open", flaw.severity || "severity", flaw.section || "section", flaw.code || "FLAW"];
-            const meta = [flaw.version_id, flaw.source].filter(Boolean).join(" · ");
+            const meta = [
+              flaw.version_id,
+              flaw.source,
+              flaw.due_at ? `due ${flaw.due_at}` : null,
+              Number.isFinite(Number(flaw.sla_hours)) ? `sla ${Number(flaw.sla_hours)}h` : null,
+              flaw.workflow_state ? `state ${flaw.workflow_state}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
             const linkedComments = Array.isArray(flaw.linked_comment_ids) ? flaw.linked_comment_ids : [];
             div.innerHTML = `
               <div class="title mono">${escapeHtml(titleBits.join(" · "))}</div>

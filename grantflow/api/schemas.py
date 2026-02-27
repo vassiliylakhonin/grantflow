@@ -142,6 +142,12 @@ class ReviewCommentPublicResponse(BaseModel):
     author: Optional[str] = None
     version_id: Optional[str] = None
     linked_finding_id: Optional[str] = None
+    due_at: Optional[str] = None
+    sla_hours: Optional[int] = None
+    workflow_state: Optional[str] = None
+    is_overdue: Optional[bool] = None
+    age_hours: Optional[float] = None
+    time_to_due_hours: Optional[float] = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -272,6 +278,12 @@ class CriticFatalFlawPublicResponse(BaseModel):
     resolved_at: Optional[str] = None
     resolved_by: Optional[str] = None
     linked_comment_ids: Optional[list[str]] = None
+    due_at: Optional[str] = None
+    sla_hours: Optional[int] = None
+    workflow_state: Optional[str] = None
+    is_overdue: Optional[bool] = None
+    age_hours: Optional[float] = None
+    time_to_due_hours: Optional[float] = None
 
     model_config = ConfigDict(extra="allow")
 

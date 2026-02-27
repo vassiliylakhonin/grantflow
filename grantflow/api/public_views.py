@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import difflib
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, Optional, cast
 
@@ -387,10 +387,27 @@ def public_job_review_workflow_payload(
                 if parsed is not None:
                     last_transition_dt = parsed
                     break
+        due_at_dt = _parse_event_ts(current.get("due_at"))
+        threshold_due_dt = (
+            last_transition_dt + timedelta(hours=float(overdue_after_hours_value))
+            if unresolved and last_transition_dt is not None
+            else None
+        )
+        if due_at_dt is None:
+            due_at_dt = threshold_due_dt
+        effective_due_dt = due_at_dt
+        if due_at_dt is not None and threshold_due_dt is not None:
+            effective_due_dt = min(due_at_dt, threshold_due_dt)
         age_hours: Optional[float] = None
         if unresolved and reference_ts is not None and last_transition_dt is not None:
             age_hours = max(0.0, (reference_ts - last_transition_dt).total_seconds() / 3600.0)
-        is_overdue = bool(unresolved and age_hours is not None and age_hours >= float(overdue_after_hours_value))
+        if unresolved and reference_ts is not None and effective_due_dt is not None:
+            is_overdue = reference_ts >= effective_due_dt
+        else:
+            is_overdue = bool(unresolved and age_hours is not None and age_hours >= float(overdue_after_hours_value))
+        time_to_due_hours: Optional[float] = None
+        if unresolved and reference_ts is not None and effective_due_dt is not None:
+            time_to_due_hours = (effective_due_dt - reference_ts).total_seconds() / 3600.0
         if status == "resolved":
             current["workflow_state"] = "resolved"
         elif is_overdue:
@@ -399,6 +416,8 @@ def public_job_review_workflow_payload(
             current["workflow_state"] = "pending"
         current["is_overdue"] = is_overdue
         current["age_hours"] = round(age_hours, 3) if age_hours is not None else None
+        current["time_to_due_hours"] = round(time_to_due_hours, 3) if time_to_due_hours is not None else None
+        current["due_at"] = due_at_dt.isoformat() if due_at_dt is not None else current.get("due_at")
         current["last_transition_at"] = last_transition_dt.isoformat() if last_transition_dt is not None else None
         findings_with_workflow.append(current)
 
@@ -415,10 +434,27 @@ def public_job_review_workflow_payload(
                 if parsed is not None:
                     last_transition_dt = parsed
                     break
-        age_hours = None
+        due_at_dt = _parse_event_ts(current.get("due_at"))
+        threshold_due_dt = (
+            last_transition_dt + timedelta(hours=float(overdue_after_hours_value))
+            if unresolved and last_transition_dt is not None
+            else None
+        )
+        if due_at_dt is None:
+            due_at_dt = threshold_due_dt
+        effective_due_dt = due_at_dt
+        if due_at_dt is not None and threshold_due_dt is not None:
+            effective_due_dt = min(due_at_dt, threshold_due_dt)
+        age_hours: Optional[float] = None
         if unresolved and reference_ts is not None and last_transition_dt is not None:
             age_hours = max(0.0, (reference_ts - last_transition_dt).total_seconds() / 3600.0)
-        is_overdue = bool(unresolved and age_hours is not None and age_hours >= float(overdue_after_hours_value))
+        if unresolved and reference_ts is not None and effective_due_dt is not None:
+            is_overdue = reference_ts >= effective_due_dt
+        else:
+            is_overdue = bool(unresolved and age_hours is not None and age_hours >= float(overdue_after_hours_value))
+        time_to_due_hours: Optional[float] = None
+        if unresolved and reference_ts is not None and effective_due_dt is not None:
+            time_to_due_hours = (effective_due_dt - reference_ts).total_seconds() / 3600.0
         if status == "resolved":
             current["workflow_state"] = "resolved"
         elif is_overdue:
@@ -427,6 +463,8 @@ def public_job_review_workflow_payload(
             current["workflow_state"] = "pending"
         current["is_overdue"] = is_overdue
         current["age_hours"] = round(age_hours, 3) if age_hours is not None else None
+        current["time_to_due_hours"] = round(time_to_due_hours, 3) if time_to_due_hours is not None else None
+        current["due_at"] = due_at_dt.isoformat() if due_at_dt is not None else current.get("due_at")
         current["last_transition_at"] = last_transition_dt.isoformat() if last_transition_dt is not None else None
         comments_with_workflow.append(current)
 

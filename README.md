@@ -16,6 +16,7 @@ Current focus:
 - structured draft pipeline (ToC + MEL/LogFrame)
 - donor strategy routing (specialized + generic)
 - critic loop with structured findings entities (`id`, `severity`, `section`, `status`, remediation fields)
+- SLA-aware review workflow (`due_at`, `sla_hours`, `pending/overdue` filters for findings and comments)
 - human-in-the-loop pause/approve/resume
 - citation + version traceability
 - export to `.docx` / `.xlsx` / ZIP
