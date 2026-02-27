@@ -226,6 +226,10 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowExportCsvBtn" in body
     assert "reviewWorkflowSlaBtn" in body
     assert "reviewWorkflowSlaRecomputeBtn" in body
+    assert "reviewWorkflowSlaHighHours" in body
+    assert "reviewWorkflowSlaMediumHours" in body
+    assert "reviewWorkflowSlaLowHours" in body
+    assert "reviewWorkflowSlaCommentDefaultHours" in body
     assert "reviewWorkflowSlaSummaryLine" in body
     assert "reviewWorkflowSlaHotspotsList" in body
     assert "reviewWorkflowSlaJson" in body
@@ -239,6 +243,8 @@ def test_demo_console_page_loads():
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/recompute" in body
+    assert "finding_sla_hours" in body
+    assert "default_comment_sla_hours" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/export" in body
 
 
@@ -1902,7 +1908,16 @@ def test_status_review_workflow_sla_recompute_rewrites_due_dates_and_emits_event
                     "linked_finding_id": "finding-r1",
                     "due_at": "2000-01-01T00:00:00+00:00",
                     "sla_hours": 24,
-                }
+                },
+                {
+                    "comment_id": "comment-r2",
+                    "ts": "2026-02-27T09:00:00+00:00",
+                    "section": "general",
+                    "status": "open",
+                    "message": "General review queue.",
+                    "due_at": "2000-01-01T00:00:00+00:00",
+                    "sla_hours": 72,
+                },
             ],
             "job_events": [],
         },
@@ -1910,6 +1925,10 @@ def test_status_review_workflow_sla_recompute_rewrites_due_dates_and_emits_event
 
     resp = client.post(
         f"/status/{job_id}/review/workflow/sla/recompute",
+        json={
+            "finding_sla_hours": {"high": 12, "medium": 48, "low": 96},
+            "default_comment_sla_hours": 36,
+        },
         headers={"X-Reviewer": "qa-recompute"},
     )
     assert resp.status_code == 200
@@ -1917,24 +1936,28 @@ def test_status_review_workflow_sla_recompute_rewrites_due_dates_and_emits_event
     assert body["job_id"] == job_id
     assert body["status"] == "done"
     assert body["actor"] == "qa-recompute"
+    assert body["applied_finding_sla_hours"] == {"high": 12, "medium": 48, "low": 96}
+    assert body["applied_default_comment_sla_hours"] == 36
     assert body["finding_checked_count"] == 1
-    assert body["comment_checked_count"] == 1
+    assert body["comment_checked_count"] == 2
     assert body["finding_updated_count"] == 1
-    assert body["comment_updated_count"] == 1
-    assert body["total_updated_count"] == 2
+    assert body["comment_updated_count"] == 2
+    assert body["total_updated_count"] == 3
     assert body["sla"]["job_id"] == job_id
 
     critic_resp = client.get(f"/status/{job_id}/critic")
     assert critic_resp.status_code == 200
     critic_finding = critic_resp.json()["fatal_flaws"][0]
-    assert critic_finding["due_at"] != "2000-01-01T00:00:00+00:00"
-    assert int(critic_finding.get("sla_hours") or 0) == 24
+    assert critic_finding["due_at"] == "2026-02-27T20:00:00+00:00"
+    assert int(critic_finding.get("sla_hours") or 0) == 12
 
     comments_resp = client.get(f"/status/{job_id}/comments")
     assert comments_resp.status_code == 200
-    comment = comments_resp.json()["comments"][0]
-    assert comment["due_at"] != "2000-01-01T00:00:00+00:00"
-    assert int(comment.get("sla_hours") or 0) == 24
+    comments_by_id = {row["comment_id"]: row for row in comments_resp.json()["comments"]}
+    assert comments_by_id["comment-r1"]["due_at"] == "2026-02-27T20:30:00+00:00"
+    assert int(comments_by_id["comment-r1"].get("sla_hours") or 0) == 12
+    assert comments_by_id["comment-r2"]["due_at"] == "2026-02-28T21:00:00+00:00"
+    assert int(comments_by_id["comment-r2"].get("sla_hours") or 0) == 36
 
     events_resp = client.get(f"/status/{job_id}/events")
     assert events_resp.status_code == 200
@@ -1942,7 +1965,35 @@ def test_status_review_workflow_sla_recompute_rewrites_due_dates_and_emits_event
     assert event_rows
     last = event_rows[-1]
     assert last["actor"] == "qa-recompute"
-    assert int(last["total_updated_count"]) == 2
+    assert int(last["total_updated_count"]) == 3
+    assert last["applied_finding_sla_hours"] == {"high": 12, "medium": 48, "low": 96}
+    assert int(last["applied_default_comment_sla_hours"]) == 36
+
+
+def test_status_review_workflow_sla_recompute_rejects_invalid_profile():
+    job_id = "review-workflow-sla-recompute-invalid-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {"critic_notes": {"fatal_flaws": []}},
+            "review_comments": [],
+        },
+    )
+
+    bad_key = client.post(
+        f"/status/{job_id}/review/workflow/sla/recompute",
+        json={"finding_sla_hours": {"critical": 6}},
+    )
+    assert bad_key.status_code == 400
+    assert "Unsupported SLA severity key" in bad_key.json()["detail"]
+
+    bad_value = client.post(
+        f"/status/{job_id}/review/workflow/sla/recompute",
+        json={"default_comment_sla_hours": 0},
+    )
+    assert bad_value.status_code == 400
+    assert "default_comment_sla_hours must be within" in bad_value.json()["detail"]
 
 
 def test_status_review_workflow_export_supports_csv_json_and_gzip():

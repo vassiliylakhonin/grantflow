@@ -141,15 +141,23 @@ def _iso_plus_hours(base_ts: Optional[str], hours: int) -> str:
     return (base_dt + timedelta(hours=max(1, int(hours)))).isoformat()
 
 
-def _finding_sla_hours(severity: Any) -> int:
+def _finding_sla_hours(severity: Any, *, finding_sla_hours_override: Optional[Dict[str, int]] = None) -> int:
     token = str(severity or "").strip().lower()
-    return int(CRITIC_FINDING_SLA_HOURS.get(token, CRITIC_FINDING_SLA_HOURS["medium"]))
+    source = finding_sla_hours_override if isinstance(finding_sla_hours_override, dict) else CRITIC_FINDING_SLA_HOURS
+    return int(source.get(token, source.get("medium", CRITIC_FINDING_SLA_HOURS["medium"])))
 
 
-def _comment_sla_hours(*, linked_finding_severity: Optional[str] = None) -> int:
+def _comment_sla_hours(
+    *,
+    linked_finding_severity: Optional[str] = None,
+    finding_sla_hours_override: Optional[Dict[str, int]] = None,
+    default_comment_sla_hours: Optional[int] = None,
+) -> int:
     if linked_finding_severity:
-        return _finding_sla_hours(linked_finding_severity)
-    return REVIEW_COMMENT_DEFAULT_SLA_HOURS
+        return _finding_sla_hours(linked_finding_severity, finding_sla_hours_override=finding_sla_hours_override)
+    if isinstance(default_comment_sla_hours, int) and default_comment_sla_hours > 0:
+        return int(default_comment_sla_hours)
+    return int(REVIEW_COMMENT_DEFAULT_SLA_HOURS)
 
 
 def _finding_actor_from_request(request: Request) -> str:
@@ -594,6 +602,13 @@ class CriticFindingsBulkStatusRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ReviewWorkflowSLARecomputeRequest(BaseModel):
+    finding_sla_hours: Optional[Dict[str, int]] = None
+    default_comment_sla_hours: Optional[int] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 def _resolve_export_inputs(
     req: ExportRequest,
 ) -> tuple[dict, dict, str, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
@@ -695,14 +710,54 @@ def _job_draft_version_exists_for_section(job: Dict[str, Any], *, section: str, 
     return False
 
 
-def _ensure_finding_due_at(item: Dict[str, Any], *, now_iso: str, reset: bool = False) -> Dict[str, Any]:
+def _normalize_finding_sla_profile(
+    finding_sla_hours: Optional[Dict[str, Any]],
+    *,
+    default: Optional[Dict[str, int]] = None,
+) -> Dict[str, int]:
+    profile: Dict[str, int] = dict(default or CRITIC_FINDING_SLA_HOURS)
+    if not isinstance(finding_sla_hours, dict):
+        return profile
+    for raw_key, raw_value in finding_sla_hours.items():
+        key = str(raw_key or "").strip().lower()
+        if key not in CRITIC_FINDING_SLA_HOURS:
+            raise HTTPException(status_code=400, detail=f"Unsupported SLA severity key: {raw_key}")
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail=f"Invalid SLA hours for {key}") from None
+        if value <= 0 or value > 24 * 365:
+            raise HTTPException(status_code=400, detail=f"SLA hours for {key} must be within 1..8760")
+        profile[key] = value
+    return profile
+
+
+def _normalize_comment_sla_hours(default_comment_sla_hours: Optional[Any]) -> int:
+    if default_comment_sla_hours is None:
+        return int(REVIEW_COMMENT_DEFAULT_SLA_HOURS)
+    try:
+        value = int(default_comment_sla_hours)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid default_comment_sla_hours") from None
+    if value <= 0 or value > 24 * 365:
+        raise HTTPException(status_code=400, detail="default_comment_sla_hours must be within 1..8760")
+    return value
+
+
+def _ensure_finding_due_at(
+    item: Dict[str, Any],
+    *,
+    now_iso: str,
+    reset: bool = False,
+    finding_sla_hours_override: Optional[Dict[str, int]] = None,
+) -> Dict[str, Any]:
     current = dict(item)
     status = str(current.get("status") or "open").strip().lower()
     if status == "resolved":
         return current
     if not reset and str(current.get("due_at") or "").strip():
         return current
-    sla_hours = _finding_sla_hours(current.get("severity"))
+    sla_hours = _finding_sla_hours(current.get("severity"), finding_sla_hours_override=finding_sla_hours_override)
     base_ts = None
     if status == "acknowledged":
         base_ts = str(current.get("acknowledged_at") or current.get("updated_at") or now_iso)
@@ -758,7 +813,13 @@ def _normalize_review_comments_for_job(job_id: str) -> Optional[Dict[str, Any]]:
     return _update_job(job_id, review_comments=normalized_comments[-500:])
 
 
-def _recompute_review_workflow_sla(job_id: str, *, actor: Optional[str] = None) -> Dict[str, Any]:
+def _recompute_review_workflow_sla(
+    job_id: str,
+    *,
+    actor: Optional[str] = None,
+    finding_sla_hours_override: Optional[Dict[str, Any]] = None,
+    default_comment_sla_hours: Optional[Any] = None,
+) -> Dict[str, Any]:
     job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
     job = _normalize_review_comments_for_job(job_id) or job
     if not job:
@@ -766,6 +827,8 @@ def _recompute_review_workflow_sla(job_id: str, *, actor: Optional[str] = None) 
 
     now_iso = _utcnow_iso()
     actor_value = str(actor or "").strip() or "api_user"
+    applied_finding_sla_hours = _normalize_finding_sla_profile(finding_sla_hours_override)
+    applied_default_comment_sla_hours = _normalize_comment_sla_hours(default_comment_sla_hours)
 
     state = job.get("state")
     state_dict = state if isinstance(state, dict) else {}
@@ -779,7 +842,12 @@ def _recompute_review_workflow_sla(job_id: str, *, actor: Optional[str] = None) 
     next_flaws: list[Dict[str, Any]] = []
     for item in flaws:
         current = dict(item)
-        recomputed = _ensure_finding_due_at(current, now_iso=now_iso, reset=True)
+        recomputed = _ensure_finding_due_at(
+            current,
+            now_iso=now_iso,
+            reset=True,
+            finding_sla_hours_override=applied_finding_sla_hours,
+        )
         if recomputed != current:
             finding_updated_count += 1
         next_flaws.append(recomputed)
@@ -809,7 +877,14 @@ def _recompute_review_workflow_sla(job_id: str, *, actor: Optional[str] = None) 
     next_comments: list[Dict[str, Any]] = []
     for comment in comments:
         current = dict(comment)
-        recomputed = _ensure_comment_due_at(current, job=working_job, now_iso=now_iso, reset=True)
+        recomputed = _ensure_comment_due_at(
+            current,
+            job=working_job,
+            now_iso=now_iso,
+            reset=True,
+            finding_sla_hours_override=applied_finding_sla_hours,
+            default_comment_sla_hours=applied_default_comment_sla_hours,
+        )
         if recomputed != current:
             comment_updated_count += 1
         next_comments.append(recomputed)
@@ -832,6 +907,8 @@ def _recompute_review_workflow_sla(job_id: str, *, actor: Optional[str] = None) 
         finding_updated_count=finding_updated_count,
         comment_updated_count=comment_updated_count,
         total_updated_count=total_updated_count,
+        applied_finding_sla_hours=applied_finding_sla_hours,
+        applied_default_comment_sla_hours=applied_default_comment_sla_hours,
     )
 
     return {
@@ -839,6 +916,8 @@ def _recompute_review_workflow_sla(job_id: str, *, actor: Optional[str] = None) 
         "status": str((job or {}).get("status") or ""),
         "actor": actor_value,
         "recomputed_at": now_iso,
+        "applied_finding_sla_hours": applied_finding_sla_hours,
+        "applied_default_comment_sla_hours": applied_default_comment_sla_hours,
         "finding_checked_count": finding_checked_count,
         "comment_checked_count": comment_checked_count,
         "finding_updated_count": finding_updated_count,
@@ -1143,6 +1222,8 @@ def _ensure_comment_due_at(
     job: Dict[str, Any],
     now_iso: str,
     reset: bool = False,
+    finding_sla_hours_override: Optional[Dict[str, int]] = None,
+    default_comment_sla_hours: Optional[int] = None,
 ) -> Dict[str, Any]:
     current = dict(comment)
     status = str(current.get("status") or "open").strip().lower()
@@ -1153,13 +1234,19 @@ def _ensure_comment_due_at(
             inferred_sla = _comment_sla_hours(
                 linked_finding_severity=_linked_finding_severity(
                     job, str(current.get("linked_finding_id") or "").strip()
-                )
+                ),
+                finding_sla_hours_override=finding_sla_hours_override,
+                default_comment_sla_hours=default_comment_sla_hours,
             )
             current["sla_hours"] = inferred_sla
         return current
     linked_finding_id = str(current.get("linked_finding_id") or "").strip() or None
     severity = _linked_finding_severity(job, linked_finding_id)
-    sla_hours = _comment_sla_hours(linked_finding_severity=severity)
+    sla_hours = _comment_sla_hours(
+        linked_finding_severity=severity,
+        finding_sla_hours_override=finding_sla_hours_override,
+        default_comment_sla_hours=default_comment_sla_hours,
+    )
     base_ts = str(current.get("updated_ts") or current.get("ts") or now_iso)
     current["sla_hours"] = sla_hours
     current["due_at"] = _iso_plus_hours(base_ts, sla_hours)
@@ -2237,9 +2324,19 @@ def get_status_review_workflow_sla(
     response_model=JobReviewWorkflowSLARecomputePublicResponse,
     response_model_exclude_none=True,
 )
-def recompute_status_review_workflow_sla(job_id: str, request: Request):
+def recompute_status_review_workflow_sla(
+    job_id: str,
+    request: Request,
+    req: Optional[ReviewWorkflowSLARecomputeRequest] = None,
+):
     require_api_key_if_configured(request)
-    return _recompute_review_workflow_sla(job_id, actor=_finding_actor_from_request(request))
+    payload = req or ReviewWorkflowSLARecomputeRequest()
+    return _recompute_review_workflow_sla(
+        job_id,
+        actor=_finding_actor_from_request(request),
+        finding_sla_hours_override=payload.finding_sla_hours,
+        default_comment_sla_hours=payload.default_comment_sla_hours,
+    )
 
 
 @app.get("/status/{job_id}/review/workflow/export")

@@ -1013,6 +1013,24 @@ def render_demo_ui_html() -> str:
                 sla: overdue=- · breach_rate=- · oldest=-
               </div>
             </div>
+            <div class="row4" style="margin-top:10px;">
+              <div>
+                <label for="reviewWorkflowSlaHighHours">SLA High (h)</label>
+                <input id="reviewWorkflowSlaHighHours" type="number" min="1" step="1" value="24" />
+              </div>
+              <div>
+                <label for="reviewWorkflowSlaMediumHours">SLA Medium (h)</label>
+                <input id="reviewWorkflowSlaMediumHours" type="number" min="1" step="1" value="72" />
+              </div>
+              <div>
+                <label for="reviewWorkflowSlaLowHours">SLA Low (h)</label>
+                <input id="reviewWorkflowSlaLowHours" type="number" min="1" step="1" value="120" />
+              </div>
+              <div>
+                <label for="reviewWorkflowSlaCommentDefaultHours">Comment Default SLA (h)</label>
+                <input id="reviewWorkflowSlaCommentDefaultHours" type="number" min="1" step="1" value="72" />
+              </div>
+            </div>
             <div class="sub" style="margin-top:8px;">SLA hotspots for reviewer triage.</div>
             <div style="margin-top:10px;">
               <label>Top Overdue Items</label>
@@ -1056,6 +1074,10 @@ def render_demo_ui_html() -> str:
         ["reviewWorkflowCommentStatusFilter", "grantflow_demo_review_workflow_comment_status"],
         ["reviewWorkflowStateFilter", "grantflow_demo_review_workflow_state"],
         ["reviewWorkflowOverdueHoursFilter", "grantflow_demo_review_workflow_overdue_hours"],
+        ["reviewWorkflowSlaHighHours", "grantflow_demo_review_workflow_sla_high_hours"],
+        ["reviewWorkflowSlaMediumHours", "grantflow_demo_review_workflow_sla_medium_hours"],
+        ["reviewWorkflowSlaLowHours", "grantflow_demo_review_workflow_sla_low_hours"],
+        ["reviewWorkflowSlaCommentDefaultHours", "grantflow_demo_review_workflow_sla_comment_default_hours"],
         ["selectedCommentId", "grantflow_demo_selected_comment_id"],
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
         ["generatePresetSelect", "grantflow_demo_generate_preset"],
@@ -1300,6 +1322,10 @@ def render_demo_ui_html() -> str:
         reviewWorkflowCommentStatusFilter: $("reviewWorkflowCommentStatusFilter"),
         reviewWorkflowStateFilter: $("reviewWorkflowStateFilter"),
         reviewWorkflowOverdueHoursFilter: $("reviewWorkflowOverdueHoursFilter"),
+        reviewWorkflowSlaHighHours: $("reviewWorkflowSlaHighHours"),
+        reviewWorkflowSlaMediumHours: $("reviewWorkflowSlaMediumHours"),
+        reviewWorkflowSlaLowHours: $("reviewWorkflowSlaLowHours"),
+        reviewWorkflowSlaCommentDefaultHours: $("reviewWorkflowSlaCommentDefaultHours"),
         reviewWorkflowClearFiltersBtn: $("reviewWorkflowClearFiltersBtn"),
         reviewWorkflowExportJsonBtn: $("reviewWorkflowExportJsonBtn"),
         reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
@@ -1471,6 +1497,10 @@ def render_demo_ui_html() -> str:
         els.reviewWorkflowCommentStatusFilter.value = "";
         els.reviewWorkflowStateFilter.value = "";
         els.reviewWorkflowOverdueHoursFilter.value = "48";
+        els.reviewWorkflowSlaHighHours.value = "24";
+        els.reviewWorkflowSlaMediumHours.value = "72";
+        els.reviewWorkflowSlaLowHours.value = "120";
+        els.reviewWorkflowSlaCommentDefaultHours.value = "72";
         persistUiState();
       }
 
@@ -3505,8 +3535,23 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) throw new Error("No job_id");
         persistUiState();
+        const parseHours = (value, fallback) => {
+          const parsed = Number.parseInt(String(value || "").trim(), 10);
+          if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+          return parsed;
+        };
+        const payload = {
+          finding_sla_hours: {
+            high: parseHours(els.reviewWorkflowSlaHighHours.value, 24),
+            medium: parseHours(els.reviewWorkflowSlaMediumHours.value, 72),
+            low: parseHours(els.reviewWorkflowSlaLowHours.value, 120),
+          },
+          default_comment_sla_hours: parseHours(els.reviewWorkflowSlaCommentDefaultHours.value, 72),
+        };
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/review/workflow/sla/recompute`, {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
         const slaPayload = body?.sla && typeof body.sla === "object" ? body.sla : {};
         renderReviewWorkflowSla(slaPayload);

@@ -265,6 +265,8 @@ class JobReviewWorkflowSLARecomputePublicResponse(BaseModel):
     status: str
     actor: str
     recomputed_at: str
+    applied_finding_sla_hours: Dict[str, int]
+    applied_default_comment_sla_hours: int
     finding_checked_count: int
     comment_checked_count: int
     finding_updated_count: int
