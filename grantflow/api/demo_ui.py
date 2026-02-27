@@ -1776,6 +1776,16 @@ def render_demo_ui_html() -> str:
           if (level === "high" || level === "medium" || level === "low" || level === "none") {
             preflightRiskNode.classList.add(`risk-${level}`);
           }
+          const coverageRateLabel =
+            typeof preflight?.coverage_rate === "number"
+              ? `${(Number(preflight.coverage_rate) * 100).toFixed(1)}%`
+              : "-";
+          const warningCountLabel =
+            typeof preflight?.warning_count === "number" ? String(preflight.warning_count) : "-";
+          preflightRiskNode.title =
+            preflightRiskLevel === "-"
+              ? "No preflight summary in this job"
+              : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel}`;
         }
         renderQualityAdvisoryBadge(advisoryDiagnostics);
         renderKeyValueList(
