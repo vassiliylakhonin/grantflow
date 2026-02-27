@@ -1,0 +1,160 @@
+{
+  "job_id": "521b1728-df21-4d67-b52a-8f1f4dd572b0",
+  "status": "done",
+  "quality_score": 8.5,
+  "critic_score": 8.5,
+  "engine": "rules+llm:gpt-4o",
+  "rule_score": 9.25,
+  "llm_score": 5.0,
+  "needs_revision": false,
+  "revision_instructions": "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.\n\nLLM reviewer notes: 1. Define clear baseline and target values for each indicator to enable progress measurement.\n2. Provide detailed evidence excerpts for each indicator to support their selection and relevance.\n3. Ensure that each objective in the Theory of Change is linked to specific, measurable outcomes and corresponding indicators.",
+  "fatal_flaw_count": 3,
+  "fatal_flaws": [
+    {
+      "finding_id": "f87d3778-5abc-4163-8d36-3fadc9c27e10",
+      "code": "LLM_REVIEW_FLAG_1",
+      "label": "BASELINE_TARGET_MISSING",
+      "severity": "medium",
+      "section": "logframe",
+      "status": "open",
+      "message": "Indicators lack baseline and target values, making it impossible to measure progress.",
+      "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+      "source": "llm"
+    },
+    {
+      "finding_id": "c44a7707-bfa9-430d-aa9b-cc9e812ddaeb",
+      "code": "LLM_REVIEW_FLAG_2",
+      "label": "INDICATOR_EVIDENCE_EXCERPTS",
+      "severity": "low",
+      "section": "logframe",
+      "status": "open",
+      "message": "Evidence excerpts for indicators are missing, reducing the credibility of the indicators.",
+      "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+      "source": "llm"
+    },
+    {
+      "finding_id": "bf5e08f6-d94e-4b8b-a611-443d3cc50b08",
+      "code": "LLM_REVIEW_FLAG_3",
+      "label": "OBJECTIVE_SPECIFICITY",
+      "severity": "low",
+      "section": "toc",
+      "status": "open",
+      "message": "The Theory of Change does not clearly link objectives to specific, measurable outcomes.",
+      "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+      "source": "llm"
+    }
+  ],
+  "fatal_flaw_messages": [
+    "Indicators lack baseline and target values, making it impossible to measure progress.",
+    "Evidence excerpts for indicators are missing, reducing the credibility of the indicators.",
+    "The Theory of Change does not clearly link objectives to specific, measurable outcomes."
+  ],
+  "rule_check_count": 8,
+  "rule_checks": [
+    {
+      "code": "INPUT_BRIEF_MINIMUM_CONTEXT",
+      "status": "pass",
+      "section": "general",
+      "detail": "8 non-empty input field(s)"
+    },
+    {
+      "code": "TOC_PRESENT",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "TOC_SCHEMA_VALID",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "WB_OBJECTIVES_PRESENT",
+      "status": "pass",
+      "section": "toc",
+      "detail": "5 objectives"
+    },
+    {
+      "code": "WB_OBJECTIVES_COMPLETE",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "TOC_CLAIM_CITATIONS",
+      "status": "pass",
+      "section": "toc",
+      "detail": "10 claim-level architect citations"
+    },
+    {
+      "code": "LOGFRAME_INDICATORS_PRESENT",
+      "status": "pass",
+      "section": "logframe",
+      "detail": "3 indicators"
+    },
+    {
+      "code": "LOGFRAME_CITATIONS_PRESENT",
+      "status": "pass",
+      "section": "logframe",
+      "detail": "3 MEL citations"
+    }
+  ],
+  "llm_advisory_diagnostics": {
+    "llm_finding_count": 3,
+    "candidate_label_counts": {
+      "BASELINE_TARGET_MISSING": 1,
+      "INDICATOR_EVIDENCE_EXCERPTS": 1,
+      "OBJECTIVE_SPECIFICITY": 1
+    },
+    "advisory_candidate_count": 2,
+    "advisory_candidate_labels": [
+      "INDICATOR_EVIDENCE_EXCERPTS",
+      "OBJECTIVE_SPECIFICITY"
+    ],
+    "advisory_applies": true,
+    "advisory_rejected_reason": null,
+    "architect_threshold_hit_rate": 1.0,
+    "architect_rag_low_ratio": 0.0,
+    "donor_id": "worldbank"
+  },
+  "llm_advisory_normalization": {
+    "applied": true,
+    "reason": "advisory_only_llm_findings_with_good_enough_architect_grounding",
+    "downgraded_count": 2,
+    "architect_threshold_hit_rate": 1.0,
+    "labels_downgraded": [
+      "INDICATOR_EVIDENCE_EXCERPTS",
+      "OBJECTIVE_SPECIFICITY"
+    ],
+    "policy_mode": "label_first_with_text_fallback"
+  },
+  "llm_advisory_score_calibration": {
+    "applied": true,
+    "reason": "advisory_only_llm_findings_caps_penalty",
+    "rule_score": 9.25,
+    "raw_llm_score": 5.0,
+    "combined_score_before": 7.75,
+    "combined_score_after": 8.5,
+    "max_llm_penalty": 0.75,
+    "advisory_context": {
+      "applies": true,
+      "reason": "advisory_only_llm_findings_with_good_enough_architect_grounding",
+      "donor_id": "worldbank",
+      "architect_citation_count": 10,
+      "architect_threshold_hit_rate": 1.0,
+      "architect_rag_low_ratio": 0.0,
+      "grounding_context": {
+        "citation_count": 13,
+        "low_confidence_citation_count": 10,
+        "rag_low_confidence_citation_count": 0,
+        "fallback_namespace_citation_count": 0,
+        "low_confidence_ratio": 0.7692,
+        "weak_rag_or_fallback_ratio": 0.0,
+        "architect_retrieval_enabled": true,
+        "architect_retrieval_hits_count": 3,
+        "weak_grounding": true,
+        "weak_grounding_reasons": [
+          "low_confidence_citations_dominate"
+        ]
+      }
+    }
+  }
+}

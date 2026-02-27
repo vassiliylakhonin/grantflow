@@ -1,0 +1,154 @@
+{
+  "job_id": "3b811b56-2381-4286-9873-011f0356084e",
+  "status": "done",
+  "quality_score": 8.5,
+  "critic_score": 8.5,
+  "engine": "rules+llm:gpt-4o",
+  "rule_score": 9.25,
+  "llm_score": 4.5,
+  "needs_revision": false,
+  "revision_instructions": "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.\n\nLLM reviewer notes: 1. Enhance the Theory of Change by specifying measurable outcomes and detailing the steps to achieve the objective of enhancing digital governance.\n2. Define clear baselines and targets for each indicator in the Logical Framework to ensure they are actionable and measurable.\n3. Provide detailed evidence excerpts that clearly relate to each indicator and demonstrate how they will measure progress.\n4. Diversify the types of evidence used for indicators to ensure comprehensive coverage of the project's objectives and activities.",
+  "fatal_flaw_count": 3,
+  "fatal_flaws": [
+    {
+      "finding_id": "9461fb9a-689e-4d24-91fa-b40855e86583",
+      "code": "LLM_REVIEW_FLAG_1",
+      "label": "OBJECTIVE_SPECIFICITY",
+      "severity": "low",
+      "section": "toc",
+      "status": "open",
+      "message": "Lack of specificity in measurable outcomes and steps to achieve objectives in the Theory of Change.",
+      "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+      "source": "llm"
+    },
+    {
+      "finding_id": "d45d61f6-0652-4aa5-a995-bb908654a52b",
+      "code": "LLM_REVIEW_FLAG_2",
+      "label": "BASELINE_TARGET_MISSING",
+      "severity": "low",
+      "section": "logframe",
+      "status": "open",
+      "message": "Indicators have undefined baselines and targets, making them non-actionable.",
+      "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+      "source": "llm"
+    },
+    {
+      "finding_id": "9fc4b4da-bb3f-4cf6-8ad1-065411aa9c88",
+      "code": "LLM_REVIEW_FLAG_3",
+      "label": "INDICATOR_EVIDENCE_EXCERPTS",
+      "severity": "low",
+      "section": "logframe",
+      "status": "open",
+      "message": "Repetitive and vague evidence excerpts for indicators, lacking diversity and specificity.",
+      "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+      "source": "llm"
+    }
+  ],
+  "fatal_flaw_messages": [
+    "Lack of specificity in measurable outcomes and steps to achieve objectives in the Theory of Change.",
+    "Indicators have undefined baselines and targets, making them non-actionable.",
+    "Repetitive and vague evidence excerpts for indicators, lacking diversity and specificity."
+  ],
+  "rule_check_count": 7,
+  "rule_checks": [
+    {
+      "code": "INPUT_BRIEF_MINIMUM_CONTEXT",
+      "status": "pass",
+      "section": "general",
+      "detail": "8 non-empty input field(s)"
+    },
+    {
+      "code": "TOC_PRESENT",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "TOC_SCHEMA_VALID",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "EU_OVERALL_OBJECTIVE_COMPLETE",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "TOC_CLAIM_CITATIONS",
+      "status": "pass",
+      "section": "toc",
+      "detail": "4 claim-level architect citations"
+    },
+    {
+      "code": "LOGFRAME_INDICATORS_PRESENT",
+      "status": "pass",
+      "section": "logframe",
+      "detail": "3 indicators"
+    },
+    {
+      "code": "LOGFRAME_CITATIONS_PRESENT",
+      "status": "pass",
+      "section": "logframe",
+      "detail": "3 MEL citations"
+    }
+  ],
+  "llm_advisory_diagnostics": {
+    "llm_finding_count": 3,
+    "candidate_label_counts": {
+      "OBJECTIVE_SPECIFICITY": 1,
+      "BASELINE_TARGET_MISSING": 1,
+      "INDICATOR_EVIDENCE_EXCERPTS": 1
+    },
+    "advisory_candidate_count": 3,
+    "advisory_candidate_labels": [
+      "BASELINE_TARGET_MISSING",
+      "INDICATOR_EVIDENCE_EXCERPTS",
+      "OBJECTIVE_SPECIFICITY"
+    ],
+    "advisory_applies": true,
+    "advisory_rejected_reason": null,
+    "architect_threshold_hit_rate": 0.5,
+    "architect_rag_low_ratio": 0.5,
+    "donor_id": "eu"
+  },
+  "llm_advisory_normalization": {
+    "applied": true,
+    "reason": "advisory_only_llm_findings_with_good_enough_architect_grounding",
+    "downgraded_count": 3,
+    "architect_threshold_hit_rate": 0.5,
+    "labels_downgraded": [
+      "BASELINE_TARGET_MISSING",
+      "INDICATOR_EVIDENCE_EXCERPTS",
+      "OBJECTIVE_SPECIFICITY"
+    ],
+    "policy_mode": "label_first_with_text_fallback"
+  },
+  "llm_advisory_score_calibration": {
+    "applied": true,
+    "reason": "advisory_only_llm_findings_caps_penalty",
+    "rule_score": 9.25,
+    "raw_llm_score": 4.5,
+    "combined_score_before": 4.5,
+    "combined_score_after": 8.5,
+    "max_llm_penalty": 0.75,
+    "advisory_context": {
+      "applies": true,
+      "reason": "advisory_only_llm_findings_with_good_enough_architect_grounding",
+      "donor_id": "eu",
+      "architect_citation_count": 4,
+      "architect_threshold_hit_rate": 0.5,
+      "architect_rag_low_ratio": 0.5,
+      "grounding_context": {
+        "citation_count": 7,
+        "low_confidence_citation_count": 1,
+        "rag_low_confidence_citation_count": 2,
+        "fallback_namespace_citation_count": 0,
+        "low_confidence_ratio": 0.1429,
+        "weak_rag_or_fallback_ratio": 0.2857,
+        "architect_retrieval_enabled": true,
+        "architect_retrieval_hits_count": 3,
+        "weak_grounding": false,
+        "weak_grounding_reasons": []
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "job_id": "b58cdba5-a12c-4a8a-898e-04a7501d49f0",
+  "status": "done",
+  "quality_score": 8.5,
+  "critic_score": 8.5,
+  "needs_revision": false,
+  "terminal_status": "done",
+  "time_to_first_draft_seconds": 11.281,
+  "time_to_terminal_seconds": 11.281,
+  "critic": {
+    "engine": "rules+llm:gpt-4o",
+    "rule_score": 9.25,
+    "llm_score": 5.0,
+    "fatal_flaw_count": 3,
+    "open_finding_count": 3,
+    "acknowledged_finding_count": 0,
+    "resolved_finding_count": 0,
+    "high_severity_fatal_flaw_count": 0,
+    "medium_severity_fatal_flaw_count": 0,
+    "low_severity_fatal_flaw_count": 3,
+    "rule_check_count": 10,
+    "failed_rule_check_count": 0,
+    "warned_rule_check_count": 0,
+    "llm_finding_label_counts": {
+      "CAUSAL_LINK_DETAIL": 1,
+      "ASSUMPTION_EVIDENCE": 1,
+      "CROSS_CUTTING_INTEGRATION": 1
+    },
+    "llm_advisory_diagnostics": {
+      "llm_finding_count": 3,
+      "candidate_label_counts": {
+        "CAUSAL_LINK_DETAIL": 1,
+        "ASSUMPTION_EVIDENCE": 1,
+        "CROSS_CUTTING_INTEGRATION": 1
+      },
+      "advisory_candidate_count": 3,
+      "advisory_candidate_labels": [
+        "ASSUMPTION_EVIDENCE",
+        "CAUSAL_LINK_DETAIL",
+        "CROSS_CUTTING_INTEGRATION"
+      ],
+      "advisory_applies": true,
+      "advisory_rejected_reason": null,
+      "architect_threshold_hit_rate": 0.8,
+      "architect_rag_low_ratio": 0.2,
+      "donor_id": "usaid"
+    }
+  },
+  "citations": {
+    "citation_count": 8,
+    "architect_citation_count": 5,
+    "mel_citation_count": 3,
+    "high_confidence_citation_count": 4,
+    "low_confidence_citation_count": 0,
+    "architect_rag_low_confidence_citation_count": 1,
+    "mel_rag_low_confidence_citation_count": 0,
+    "rag_low_confidence_citation_count": 1,
+    "fallback_namespace_citation_count": 0,
+    "citation_confidence_avg": 0.6266,
+    "architect_threshold_hit_rate": 0.8
+  },
+  "architect": {
+    "engine": "llm:gpt-4o",
+    "llm_used": true,
+    "retrieval_used": true,
+    "retrieval_enabled": true,
+    "retrieval_hits_count": 3,
+    "retrieval_namespace": "usaid_ads201",
+    "toc_schema_name": "USAID_TOC",
+    "toc_schema_valid": true,
+    "citation_policy": {
+      "default_high_confidence_threshold": 0.35,
+      "threshold_mode": "donor_section",
+      "donor_overrides": {
+        "eu": 0.34,
+        "giz": 0.32,
+        "state_department": 0.4,
+        "us_state_department": 0.4,
+        "usaid": 0.38,
+        "worldbank": 0.34
+      },
+      "low_confidence_type": "rag_low_confidence"
+    }
+  }
+}

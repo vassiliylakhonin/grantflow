@@ -1,0 +1,201 @@
+{
+  "job_id": "b58cdba5-a12c-4a8a-898e-04a7501d49f0",
+  "status": "done",
+  "version_count": 2,
+  "versions": [
+    {
+      "version_id": "toc_v1",
+      "sequence": 1,
+      "section": "toc",
+      "node": "architect",
+      "iteration": 1,
+      "content": {
+        "toc": {
+          "project_goal": "Enhance the capacity of Kazakhstan's civil service to effectively integrate and utilize AI technologies for improved governance and public service delivery.",
+          "development_objectives": [
+            {
+              "do_id": "DO1",
+              "description": "Increase AI literacy and skills among civil servants in Kazakhstan.",
+              "intermediate_results": [
+                {
+                  "ir_id": "IR1.1",
+                  "description": "Develop and implement a comprehensive AI training curriculum for civil servants.",
+                  "outputs": [
+                    {
+                      "output_id": "Output1.1.1",
+                      "description": "AI literacy training modules developed and delivered.",
+                      "indicators": [
+                        {
+                          "indicator_code": "HL.9-1",
+                          "name": "Number of individuals trained in AI literacy",
+                          "target": "500 civil servants",
+                          "justification": "Training civil servants in AI literacy is foundational for integrating AI technologies into public administration.",
+                          "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_so2qeluh.pdf"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output1.1.2",
+                      "description": "Safe prompt and workflow design workshops conducted.",
+                      "indicators": [
+                        {
+                          "indicator_code": "HL.9-2",
+                          "name": "Number of workshops on safe prompt and workflow design conducted",
+                          "target": "20 workshops",
+                          "justification": "Workshops on safe prompt and workflow design ensure that AI tools are used responsibly and effectively.",
+                          "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_shogjtqi.pdf"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "critical_assumptions": [
+            "Kazakhstan's government remains committed to digital transformation and AI integration.",
+            "There is sufficient interest and participation from civil servants in training programs.",
+            "Technological infrastructure in Kazakhstan supports the implementation of AI tools in public administration."
+          ]
+        },
+        "citation": "Based on usaid_ads201",
+        "generation_meta": {
+          "engine": "llm:gpt-4o",
+          "llm_used": true,
+          "retrieval_used": true,
+          "schema_name": "USAID_TOC",
+          "citation_policy": {
+            "default_high_confidence_threshold": 0.35,
+            "threshold_mode": "donor_section",
+            "donor_overrides": {
+              "eu": 0.34,
+              "giz": 0.32,
+              "state_department": 0.4,
+              "us_state_department": 0.4,
+              "usaid": 0.38,
+              "worldbank": 0.34
+            },
+            "low_confidence_type": "rag_low_confidence"
+          }
+        },
+        "validation": {
+          "valid": true,
+          "schema_name": "USAID_TOC",
+          "error_count": 0,
+          "errors": []
+        },
+        "architect_retrieval": {
+          "enabled": true,
+          "namespace": "usaid_ads201",
+          "query": "Responsible AI Skills for Civil Service Modernization in Kazakhstan | Kazakhstan | usaid",
+          "top_k": 3,
+          "hits_count": 3,
+          "used_results": 3,
+          "hit_labels": [
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_so2qeluh.pdf",
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_shogjtqi.pdf",
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_mgwd6etb.pdf"
+          ]
+        }
+      }
+    },
+    {
+      "version_id": "logframe_v1",
+      "sequence": 2,
+      "section": "logframe",
+      "node": "mel_specialist",
+      "iteration": 0,
+      "content": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Indicator from usaid_ads201 #1",
+            "justification": "Selected from donor-specific RAG collection 'usaid_ads201' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_97h9iel1.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                                           \n                                                                                \n                                                                                \n"
+          },
+          {
+            "indicator_id": "IND_002",
+            "name": "Indicator from usaid_ads201 #2",
+            "justification": "Selected from donor-specific RAG collection 'usaid_ads201' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_nch_r4ku.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                                           \n                                                                                \n                                                                                \n"
+          },
+          {
+            "indicator_id": "IND_003",
+            "name": "Indicator from usaid_ads201 #3",
+            "justification": "Selected from donor-specific RAG collection 'usaid_ads201' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_shogjtqi.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                                           \n                                                                                \n                                                                                \n"
+          }
+        ],
+        "rag_trace": {
+          "namespace": "usaid_ads201",
+          "query": "Responsible AI Skills for Civil Service Modernization in Kazakhstan | Kazakhstan",
+          "top_k": 3,
+          "used_results": 3,
+          "citation_count": 3
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "usaid_ads201",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_97h9iel1.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 6,
+            "chunk_id": "usaid_ads201_grantflow_ingest_97h9iel1_p1_c6",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_97h9iel1.pdf",
+            "used_for": "IND_001",
+            "excerpt": "                                                           \n                                                                                \n                                                                                \n",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 1
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "usaid_ads201",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_nch_r4ku.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 6,
+            "chunk_id": "usaid_ads201_grantflow_ingest_nch_r4ku_p1_c6",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_nch_r4ku.pdf",
+            "used_for": "IND_002",
+            "excerpt": "                                                           \n                                                                                \n                                                                                \n",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 2
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "usaid_ads201",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_shogjtqi.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 6,
+            "chunk_id": "usaid_ads201_grantflow_ingest_shogjtqi_p1_c6",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_shogjtqi.pdf",
+            "used_for": "IND_003",
+            "excerpt": "                                                           \n                                                                                \n                                                                                \n",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 3
+          }
+        ]
+      }
+    }
+  ]
+}

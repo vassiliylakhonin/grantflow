@@ -1037,6 +1037,28 @@ An additional `LLM Eval` workflow (`.github/workflows/llm-eval.yml`) is availabl
 For corpus-backed experiments, use the manual `LLM Eval (Grounded)` workflow (`.github/workflows/llm-eval-grounded.yml`). It supports donor/case subset filters (for example `usaid,eu,worldbank`), can force `architect_rag_enabled=true`, reads optional `CHROMA_*` repository variables, and uploads a separate `llm-eval-grounded-report` artifact for comparison against the ungrounded exploratory lane.
 The workflow also supports `OPENROUTER_API_KEY` (OpenAI-compatible backend) and will run if either `OPENAI_API_KEY` or `OPENROUTER_API_KEY` is configured in repository secrets.
 
+### Pilot validation pack example
+
+A sanitized multi-donor pilot snapshot is included under:
+
+- [`docs/pilot_runs/2026-02-27/summary.md`](docs/pilot_runs/2026-02-27/summary.md)
+- [`docs/pilot_runs/2026-02-27/benchmark-results.json`](docs/pilot_runs/2026-02-27/benchmark-results.json)
+
+Per-donor subfolders contain:
+
+- typed API snapshots (`status`, `quality`, `critic`, `citations`, `metrics`, `events`, `versions`)
+- review-ready export payload snapshot
+- exported artifacts (`.docx`, `.xlsx`, `.zip`)
+
+Rebuild a pilot pack from an existing benchmark file:
+
+```bash
+python docs/pilot_runs/generate_pilot_pack.py \
+  --api-base http://127.0.0.1:8000 \
+  --benchmark-json docs/pilot_runs/2026-02-27/benchmark-results.json \
+  --output-dir docs/pilot_runs/2026-02-27
+```
+
 ### OpenAI-Compatible Backends (OpenRouter)
 
 GrantFlow's LLM calls use an OpenAI-compatible client path (`langchain_openai`). In addition to `OPENAI_API_KEY`, you can use OpenRouter:

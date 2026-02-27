@@ -1,0 +1,30 @@
+{
+  "job_id": "521b1728-df21-4d67-b52a-8f1f4dd572b0",
+  "status": "done",
+  "event_count": 3,
+  "events": [
+    {
+      "event_id": "8b718564-df3c-4f65-9792-3870652b2d67",
+      "ts": "2026-02-27T03:22:22.500886+00:00",
+      "type": "status_changed",
+      "to_status": "accepted",
+      "status": "accepted"
+    },
+    {
+      "event_id": "96472cdc-fd0a-40d9-9d02-204158484963",
+      "ts": "2026-02-27T03:22:22.501663+00:00",
+      "type": "status_changed",
+      "from_status": "accepted",
+      "to_status": "running",
+      "status": "running"
+    },
+    {
+      "event_id": "333435db-876e-4320-9eb3-78b1b9948d86",
+      "ts": "2026-02-27T03:22:30.716438+00:00",
+      "type": "status_changed",
+      "from_status": "running",
+      "to_status": "done",
+      "status": "done"
+    }
+  ]
+}

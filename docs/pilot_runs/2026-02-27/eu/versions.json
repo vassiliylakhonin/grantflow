@@ -1,0 +1,215 @@
+{
+  "job_id": "3b811b56-2381-4286-9873-011f0356084e",
+  "status": "done",
+  "version_count": 3,
+  "versions": [
+    {
+      "version_id": "toc_v1",
+      "sequence": 1,
+      "section": "toc",
+      "node": "architect",
+      "iteration": 1,
+      "content": {
+        "toc": {
+          "overall_objective": {
+            "objective_id": "1",
+            "title": "Enhance Digital Governance",
+            "rationale": "To improve efficiency and transparency in public service delivery through digital transformation, aligning with EU standards and practices."
+          }
+        },
+        "citation": "Based on eu_intpa",
+        "generation_meta": {
+          "engine": "llm:gpt-4o",
+          "llm_used": true,
+          "retrieval_used": true,
+          "schema_name": "EU_TOC",
+          "citation_policy": {
+            "default_high_confidence_threshold": 0.35,
+            "threshold_mode": "donor_section",
+            "donor_overrides": {
+              "eu": 0.34,
+              "giz": 0.32,
+              "state_department": 0.4,
+              "us_state_department": 0.4,
+              "usaid": 0.38,
+              "worldbank": 0.34
+            },
+            "low_confidence_type": "rag_low_confidence"
+          }
+        },
+        "validation": {
+          "valid": true,
+          "schema_name": "EU_TOC",
+          "error_count": 0,
+          "errors": []
+        },
+        "architect_retrieval": {
+          "enabled": true,
+          "namespace": "eu_intpa",
+          "query": "Digital Governance and Service Delivery Improvement | Moldova | eu",
+          "top_k": 3,
+          "hits_count": 3,
+          "used_results": 3,
+          "hit_labels": [
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_rpisqmym.pdf",
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_byqt36zk.pdf",
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_0p133kad.pdf"
+          ]
+        }
+      }
+    },
+    {
+      "version_id": "logframe_v1",
+      "sequence": 2,
+      "section": "logframe",
+      "node": "mel_specialist",
+      "iteration": 0,
+      "content": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Indicator from eu_intpa #1",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_ywcehcqv.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    "
+          },
+          {
+            "indicator_id": "IND_002",
+            "name": "Indicator from eu_intpa #2",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_vuj_2w_4.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    "
+          },
+          {
+            "indicator_id": "IND_003",
+            "name": "Indicator from eu_intpa #3",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_urb45e70.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    "
+          }
+        ],
+        "rag_trace": {
+          "namespace": "eu_intpa",
+          "query": "Digital Governance and Service Delivery Improvement | Moldova",
+          "top_k": 3,
+          "used_results": 3,
+          "citation_count": 3
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_ywcehcqv.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 2,
+            "chunk_id": "eu_intpa_grantflow_ingest_ywcehcqv_p1_c2",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_ywcehcqv.pdf",
+            "used_for": "IND_001",
+            "excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 1
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_vuj_2w_4.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 2,
+            "chunk_id": "eu_intpa_grantflow_ingest_vuj_2w_4_p1_c2",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_vuj_2w_4.pdf",
+            "used_for": "IND_002",
+            "excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 2
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_urb45e70.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 2,
+            "chunk_id": "eu_intpa_grantflow_ingest_urb45e70_p1_c2",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_urb45e70.pdf",
+            "used_for": "IND_003",
+            "excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 3
+          }
+        ]
+      }
+    },
+    {
+      "version_id": "toc_v2",
+      "sequence": 3,
+      "section": "toc",
+      "node": "architect",
+      "iteration": 2,
+      "content": {
+        "toc": {
+          "overall_objective": {
+            "objective_id": "1",
+            "title": "Enhance Digital Governance in Moldova",
+            "rationale": "To improve the efficiency and transparency of public service delivery through digital transformation, aligning with EU standards and best practices. This involves adjusting SOPs and institutionalizing changes to ensure sustainable improvements in governance."
+          }
+        },
+        "citation": "Based on eu_intpa",
+        "generation_meta": {
+          "engine": "llm:gpt-4o",
+          "llm_used": true,
+          "retrieval_used": true,
+          "schema_name": "EU_TOC",
+          "citation_policy": {
+            "default_high_confidence_threshold": 0.35,
+            "threshold_mode": "donor_section",
+            "donor_overrides": {
+              "eu": 0.34,
+              "giz": 0.32,
+              "state_department": 0.4,
+              "us_state_department": 0.4,
+              "usaid": 0.38,
+              "worldbank": 0.34
+            },
+            "low_confidence_type": "rag_low_confidence"
+          }
+        },
+        "validation": {
+          "valid": true,
+          "schema_name": "EU_TOC",
+          "error_count": 0,
+          "errors": []
+        },
+        "architect_retrieval": {
+          "enabled": true,
+          "namespace": "eu_intpa",
+          "query": "Digital Governance and Service Delivery Improvement | Moldova | eu | Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.\n\nLLM reviewer notes: 1. Enhance the Theory of Change by specifying measurable outcomes and detailing the steps to achieve the objective of enhancing digital governance.\n2. Define clear baselines and targets for each indicator in the Logical Framework to ensure they are actionable and measurable.\n3. Provide detailed evidence excerpts that clearly relate to each indicator and demonstrate how they will measure progress.\n4. Diversify the types of evidence used for indicators to ensure comprehensive coverage of the project's objectives and activities.",
+          "top_k": 3,
+          "hits_count": 3,
+          "used_results": 3,
+          "hit_labels": [
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_5keldaqc.pdf",
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_fpk0np1x.pdf",
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_vuj_2w_4.pdf"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1067 @@
+{
+  "job_id": "521b1728-df21-4d67-b52a-8f1f4dd572b0",
+  "status": "done",
+  "payload": {
+    "state": {
+      "donor": "worldbank",
+      "donor_id": "worldbank",
+      "input": {
+        "project": "Public Sector Performance and Service Delivery Capacity Strengthening",
+        "country": "Uzbekistan",
+        "region": "National ministries and selected subnational administrations",
+        "timeframe": "2026-2028 (36 months)",
+        "problem": "Public agencies have uneven capabilities in performance management and evidence-based decision-making for service delivery improvement.",
+        "target_population": "Government managers and civil servants in reform, performance, and service delivery functions.",
+        "expected_change": "Participating institutions adopt stronger performance management practices and improve selected services through diagnostics, process improvement pilots, and adaptive reviews.",
+        "key_activities": [
+          "institutional diagnostics and process mapping",
+          "capacity development for performance management and data use",
+          "technical assistance for service improvement plans",
+          "process optimization pilots",
+          "adaptive performance reviews"
+        ]
+      },
+      "input_context": {
+        "project": "Public Sector Performance and Service Delivery Capacity Strengthening",
+        "country": "Uzbekistan",
+        "region": "National ministries and selected subnational administrations",
+        "timeframe": "2026-2028 (36 months)",
+        "problem": "Public agencies have uneven capabilities in performance management and evidence-based decision-making for service delivery improvement.",
+        "target_population": "Government managers and civil servants in reform, performance, and service delivery functions.",
+        "expected_change": "Participating institutions adopt stronger performance management practices and improve selected services through diagnostics, process improvement pilots, and adaptive reviews.",
+        "key_activities": [
+          "institutional diagnostics and process mapping",
+          "capacity development for performance management and data use",
+          "technical assistance for service improvement plans",
+          "process optimization pilots",
+          "adaptive performance reviews"
+        ]
+      },
+      "llm_mode": true,
+      "iteration": 1,
+      "iteration_count": 1,
+      "max_iterations": 3,
+      "quality_score": 8.5,
+      "critic_score": 8.5,
+      "needs_revision": false,
+      "critic_notes": {
+        "score": 8.5,
+        "fatal_flaws": [
+          {
+            "finding_id": "f87d3778-5abc-4163-8d36-3fadc9c27e10",
+            "code": "LLM_REVIEW_FLAG_1",
+            "label": "BASELINE_TARGET_MISSING",
+            "severity": "medium",
+            "section": "logframe",
+            "status": "open",
+            "version_id": null,
+            "message": "Indicators lack baseline and target values, making it impossible to measure progress.",
+            "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+            "source": "llm"
+          },
+          {
+            "finding_id": "c44a7707-bfa9-430d-aa9b-cc9e812ddaeb",
+            "code": "LLM_REVIEW_FLAG_2",
+            "label": "INDICATOR_EVIDENCE_EXCERPTS",
+            "severity": "low",
+            "section": "logframe",
+            "status": "open",
+            "version_id": null,
+            "message": "Evidence excerpts for indicators are missing, reducing the credibility of the indicators.",
+            "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+            "source": "llm"
+          },
+          {
+            "finding_id": "bf5e08f6-d94e-4b8b-a611-443d3cc50b08",
+            "code": "LLM_REVIEW_FLAG_3",
+            "label": "OBJECTIVE_SPECIFICITY",
+            "severity": "low",
+            "section": "toc",
+            "status": "open",
+            "version_id": null,
+            "message": "The Theory of Change does not clearly link objectives to specific, measurable outcomes.",
+            "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+            "source": "llm"
+          }
+        ],
+        "fatal_flaw_messages": [
+          "Indicators lack baseline and target values, making it impossible to measure progress.",
+          "Evidence excerpts for indicators are missing, reducing the credibility of the indicators.",
+          "The Theory of Change does not clearly link objectives to specific, measurable outcomes."
+        ],
+        "revision_instructions": "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.\n\nLLM reviewer notes: 1. Define clear baseline and target values for each indicator to enable progress measurement.\n2. Provide detailed evidence excerpts for each indicator to support their selection and relevance.\n3. Ensure that each objective in the Theory of Change is linked to specific, measurable outcomes and corresponding indicators.",
+        "rule_checks": [
+          {
+            "code": "INPUT_BRIEF_MINIMUM_CONTEXT",
+            "status": "pass",
+            "section": "general",
+            "detail": "8 non-empty input field(s)"
+          },
+          {
+            "code": "TOC_PRESENT",
+            "status": "pass",
+            "section": "toc",
+            "detail": null
+          },
+          {
+            "code": "TOC_SCHEMA_VALID",
+            "status": "pass",
+            "section": "toc",
+            "detail": null
+          },
+          {
+            "code": "WB_OBJECTIVES_PRESENT",
+            "status": "pass",
+            "section": "toc",
+            "detail": "5 objectives"
+          },
+          {
+            "code": "WB_OBJECTIVES_COMPLETE",
+            "status": "pass",
+            "section": "toc",
+            "detail": null
+          },
+          {
+            "code": "TOC_CLAIM_CITATIONS",
+            "status": "pass",
+            "section": "toc",
+            "detail": "10 claim-level architect citations"
+          },
+          {
+            "code": "LOGFRAME_INDICATORS_PRESENT",
+            "status": "pass",
+            "section": "logframe",
+            "detail": "3 indicators"
+          },
+          {
+            "code": "LOGFRAME_CITATIONS_PRESENT",
+            "status": "pass",
+            "section": "logframe",
+            "detail": "3 MEL citations"
+          }
+        ],
+        "rule_score": 9.25,
+        "llm_score": 5.0,
+        "engine": "rules+llm:gpt-4o",
+        "llm_score_calibration": {
+          "applied": true,
+          "reason": "weak_grounding_caps_llm_penalty",
+          "rule_score": 9.25,
+          "raw_llm_score": 5.0,
+          "calibrated_llm_score": 7.75,
+          "combined_score": 7.75,
+          "max_llm_penalty": 1.5,
+          "grounding_context": {
+            "citation_count": 13,
+            "low_confidence_citation_count": 10,
+            "rag_low_confidence_citation_count": 0,
+            "fallback_namespace_citation_count": 0,
+            "low_confidence_ratio": 0.7692,
+            "weak_rag_or_fallback_ratio": 0.0,
+            "architect_retrieval_enabled": true,
+            "architect_retrieval_hits_count": 3,
+            "weak_grounding": true,
+            "weak_grounding_reasons": [
+              "low_confidence_citations_dominate"
+            ]
+          }
+        },
+        "llm_advisory_diagnostics": {
+          "llm_finding_count": 3,
+          "candidate_label_counts": {
+            "BASELINE_TARGET_MISSING": 1,
+            "INDICATOR_EVIDENCE_EXCERPTS": 1,
+            "OBJECTIVE_SPECIFICITY": 1
+          },
+          "advisory_candidate_count": 2,
+          "advisory_candidate_labels": [
+            "INDICATOR_EVIDENCE_EXCERPTS",
+            "OBJECTIVE_SPECIFICITY"
+          ],
+          "advisory_applies": true,
+          "advisory_rejected_reason": null,
+          "architect_threshold_hit_rate": 1.0,
+          "architect_rag_low_ratio": 0.0,
+          "donor_id": "worldbank"
+        },
+        "llm_advisory_normalization": {
+          "applied": true,
+          "reason": "advisory_only_llm_findings_with_good_enough_architect_grounding",
+          "downgraded_count": 2,
+          "architect_threshold_hit_rate": 1.0,
+          "labels_downgraded": [
+            "INDICATOR_EVIDENCE_EXCERPTS",
+            "OBJECTIVE_SPECIFICITY"
+          ],
+          "policy_mode": "label_first_with_text_fallback"
+        },
+        "llm_advisory_score_calibration": {
+          "applied": true,
+          "reason": "advisory_only_llm_findings_caps_penalty",
+          "rule_score": 9.25,
+          "raw_llm_score": 5.0,
+          "combined_score_before": 7.75,
+          "combined_score_after": 8.5,
+          "max_llm_penalty": 0.75,
+          "advisory_context": {
+            "applies": true,
+            "reason": "advisory_only_llm_findings_with_good_enough_architect_grounding",
+            "donor_id": "worldbank",
+            "architect_citation_count": 10,
+            "architect_threshold_hit_rate": 1.0,
+            "architect_rag_low_ratio": 0.0,
+            "grounding_context": {
+              "citation_count": 13,
+              "low_confidence_citation_count": 10,
+              "rag_low_confidence_citation_count": 0,
+              "fallback_namespace_citation_count": 0,
+              "low_confidence_ratio": 0.7692,
+              "weak_rag_or_fallback_ratio": 0.0,
+              "architect_retrieval_enabled": true,
+              "architect_retrieval_hits_count": 3,
+              "weak_grounding": true,
+              "weak_grounding_reasons": [
+                "low_confidence_citations_dominate"
+              ]
+            }
+          }
+        }
+      },
+      "critic_feedback_history": [
+        "Iteration 1: score=8.5; flaws=['Indicators lack baseline and target values, making it impossible to measure progress.', 'Evidence excerpts for indicators are missing, reducing the credibility of the indicators.', 'The Theory of Change does not clearly link objectives to specific, measurable outcomes.']; instructions=Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.\n\nLLM reviewer notes: 1. Define clear baseline and target values for each indicator to enable progress measurement.\n2. Provide detailed evidence excerpts for each indicator to support their selection and relevance.\n3. Ensure that each objective in the Theory of Change is linked to specific, measurable outcomes and corresponding indicators."
+      ],
+      "hitl_pending": false,
+      "errors": [],
+      "toc": {
+        "objectives": [
+          {
+            "objective_id": "1",
+            "title": "Enhance Public Sector Performance",
+            "description": "Improve efficiency, transparency, and accountability in public sector operations to better serve citizens."
+          },
+          {
+            "objective_id": "2",
+            "title": "Strengthen Service Delivery Capacity",
+            "description": "Build institutional capacity to deliver quality public services effectively and equitably across Uzbekistan."
+          },
+          {
+            "objective_id": "3",
+            "title": "Promote Evidence-Based Policy Making",
+            "description": "Support the use of data and evidence in policy formulation and implementation to ensure informed decision-making."
+          },
+          {
+            "objective_id": "4",
+            "title": "Foster Inclusive Governance",
+            "description": "Encourage participatory governance practices to ensure that diverse voices are heard and considered in public sector decision-making."
+          },
+          {
+            "objective_id": "5",
+            "title": "Improve Financial Management Systems",
+            "description": "Enhance financial management systems to ensure efficient allocation and use of public resources."
+          }
+        ]
+      },
+      "toc_validation": {
+        "valid": true,
+        "schema_name": "WorldBank_TOC",
+        "error_count": 0,
+        "errors": []
+      },
+      "architect_retrieval": {
+        "enabled": true,
+        "namespace": "worldbank_ads301",
+        "query": "Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan | worldbank",
+        "top_k": 3,
+        "hits_count": 3,
+        "used_results": 3,
+        "hit_labels": [
+          "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_vfvy2v5s.pdf",
+          "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_woxz6tyt.pdf"
+        ]
+      },
+      "toc_generation_meta": {
+        "engine": "llm:gpt-4o",
+        "llm_used": true,
+        "retrieval_used": true,
+        "schema_name": "WorldBank_TOC",
+        "citation_policy": {
+          "default_high_confidence_threshold": 0.35,
+          "threshold_mode": "donor_section",
+          "donor_overrides": {
+            "eu": 0.34,
+            "giz": 0.32,
+            "state_department": 0.4,
+            "us_state_department": 0.4,
+            "usaid": 0.38,
+            "worldbank": 0.34
+          },
+          "low_confidence_type": "rag_low_confidence"
+        }
+      },
+      "toc_draft": {
+        "toc": {
+          "objectives": [
+            {
+              "objective_id": "1",
+              "title": "Enhance Public Sector Performance",
+              "description": "Improve efficiency, transparency, and accountability in public sector operations to better serve citizens."
+            },
+            {
+              "objective_id": "2",
+              "title": "Strengthen Service Delivery Capacity",
+              "description": "Build institutional capacity to deliver quality public services effectively and equitably across Uzbekistan."
+            },
+            {
+              "objective_id": "3",
+              "title": "Promote Evidence-Based Policy Making",
+              "description": "Support the use of data and evidence in policy formulation and implementation to ensure informed decision-making."
+            },
+            {
+              "objective_id": "4",
+              "title": "Foster Inclusive Governance",
+              "description": "Encourage participatory governance practices to ensure that diverse voices are heard and considered in public sector decision-making."
+            },
+            {
+              "objective_id": "5",
+              "title": "Improve Financial Management Systems",
+              "description": "Enhance financial management systems to ensure efficient allocation and use of public resources."
+            }
+          ]
+        },
+        "citation": "Based on worldbank_ads301",
+        "generation_meta": {
+          "engine": "llm:gpt-4o",
+          "llm_used": true,
+          "retrieval_used": true,
+          "schema_name": "WorldBank_TOC",
+          "citation_policy": {
+            "default_high_confidence_threshold": 0.35,
+            "threshold_mode": "donor_section",
+            "donor_overrides": {
+              "eu": 0.34,
+              "giz": 0.32,
+              "state_department": 0.4,
+              "us_state_department": 0.4,
+              "usaid": 0.38,
+              "worldbank": 0.34
+            },
+            "low_confidence_type": "rag_low_confidence"
+          }
+        },
+        "validation": {
+          "valid": true,
+          "schema_name": "WorldBank_TOC",
+          "error_count": 0,
+          "errors": []
+        },
+        "architect_retrieval": {
+          "enabled": true,
+          "namespace": "worldbank_ads301",
+          "query": "Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan | worldbank",
+          "top_k": 3,
+          "hits_count": 3,
+          "used_results": 3,
+          "hit_labels": [
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_vfvy2v5s.pdf",
+            "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_woxz6tyt.pdf"
+          ]
+        }
+      },
+      "draft_versions": [
+        {
+          "version_id": "toc_v1",
+          "sequence": 1,
+          "section": "toc",
+          "node": "architect",
+          "iteration": 1,
+          "content": {
+            "toc": {
+              "objectives": [
+                {
+                  "objective_id": "1",
+                  "title": "Enhance Public Sector Performance",
+                  "description": "Improve efficiency, transparency, and accountability in public sector operations to better serve citizens."
+                },
+                {
+                  "objective_id": "2",
+                  "title": "Strengthen Service Delivery Capacity",
+                  "description": "Build institutional capacity to deliver quality public services effectively and equitably across Uzbekistan."
+                },
+                {
+                  "objective_id": "3",
+                  "title": "Promote Evidence-Based Policy Making",
+                  "description": "Support the use of data and evidence in policy formulation and implementation to ensure informed decision-making."
+                },
+                {
+                  "objective_id": "4",
+                  "title": "Foster Inclusive Governance",
+                  "description": "Encourage participatory governance practices to ensure that diverse voices are heard and considered in public sector decision-making."
+                },
+                {
+                  "objective_id": "5",
+                  "title": "Improve Financial Management Systems",
+                  "description": "Enhance financial management systems to ensure efficient allocation and use of public resources."
+                }
+              ]
+            },
+            "citation": "Based on worldbank_ads301",
+            "generation_meta": {
+              "engine": "llm:gpt-4o",
+              "llm_used": true,
+              "retrieval_used": true,
+              "schema_name": "WorldBank_TOC",
+              "citation_policy": {
+                "default_high_confidence_threshold": 0.35,
+                "threshold_mode": "donor_section",
+                "donor_overrides": {
+                  "eu": 0.34,
+                  "giz": 0.32,
+                  "state_department": 0.4,
+                  "us_state_department": 0.4,
+                  "usaid": 0.38,
+                  "worldbank": 0.34
+                },
+                "low_confidence_type": "rag_low_confidence"
+              }
+            },
+            "validation": {
+              "valid": true,
+              "schema_name": "WorldBank_TOC",
+              "error_count": 0,
+              "errors": []
+            },
+            "architect_retrieval": {
+              "enabled": true,
+              "namespace": "worldbank_ads301",
+              "query": "Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan | worldbank",
+              "top_k": 3,
+              "hits_count": 3,
+              "used_results": 3,
+              "hit_labels": [
+                "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+                "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_vfvy2v5s.pdf",
+                "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_woxz6tyt.pdf"
+              ]
+            }
+          },
+          "content_hash": "{\"architect_retrieval\":{\"enabled\":true,\"hit_labels\":[\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf\",\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_vfvy2v5s.pdf\",\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_woxz6tyt.pdf\"],\"hits_count\":3,\"namespace\":\"worldbank_ads301\",\"query\":\"Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan | worldbank\",\"top_k\":3,\"used_results\":3},\"citation\":\"Based on worldbank_ads301\",\"generation_meta\":{\"citation_policy\":{\"default_high_confidence_threshold\":0.35,\"donor_overrides\":{\"eu\":0.34,\"giz\":0.32,\"state_department\":0.4,\"us_state_department\":0.4,\"usaid\":0.38,\"worldbank\":0.34},\"low_confidence_type\":\"rag_low_confidence\",\"threshold_mode\":\"donor_section\"},\"engine\":\"llm:gpt-4o\",\"llm_used\":true,\"retrieval_used\":true,\"schema_name\":\"WorldBank_TOC\"},\"toc\":{\"objectives\":[{\"description\":\"Improve efficiency, transparency, and accountability in public sector operations to better serve citizens.\",\"objective_id\":\"1\",\"title\":\"Enhance Public Sector Performance\"},{\"description\":\"Build institutional capacity to deliver quality public services effectively and equitably across Uzbekistan.\",\"objective_id\":\"2\",\"title\":\"Strengthen Service Delivery Capacity\"},{\"description\":\"Support the use of data and evidence in policy formulation and implementation to ensure informed decision-making.\",\"objective_id\":\"3\",\"title\":\"Promote Evidence-Based Policy Making\"},{\"description\":\"Encourage participatory governance practices to ensure that diverse voices are heard and considered in public sector decision-making.\",\"objective_id\":\"4\",\"title\":\"Foster Inclusive Governance\"},{\"description\":\"Enhance financial management systems to ensure efficient allocation and use of public resources.\",\"objective_id\":\"5\",\"title\":\"Improve Financial Management Systems\"}]},\"validation\":{\"error_count\":0,\"errors\":[],\"schema_name\":\"WorldBank_TOC\",\"valid\":true}}"
+        },
+        {
+          "version_id": "logframe_v1",
+          "sequence": 2,
+          "section": "logframe",
+          "node": "mel_specialist",
+          "iteration": 0,
+          "content": {
+            "indicators": [
+              {
+                "indicator_id": "IND_001",
+                "name": "Indicator from worldbank_ads301 #1",
+                "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+                "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+                "baseline": "TBD",
+                "target": "TBD",
+                "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+              },
+              {
+                "indicator_id": "IND_002",
+                "name": "Indicator from worldbank_ads301 #2",
+                "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+                "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+                "baseline": "TBD",
+                "target": "TBD",
+                "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+              },
+              {
+                "indicator_id": "IND_003",
+                "name": "Indicator from worldbank_ads301 #3",
+                "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+                "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+                "baseline": "TBD",
+                "target": "TBD",
+                "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+              }
+            ],
+            "rag_trace": {
+              "namespace": "worldbank_ads301",
+              "query": "Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan",
+              "top_k": 3,
+              "used_results": 3,
+              "citation_count": 3
+            },
+            "citations": [
+              {
+                "stage": "mel",
+                "citation_type": "rag_result",
+                "namespace": "worldbank_ads301",
+                "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+                "page": 1,
+                "page_start": 1,
+                "page_end": 1,
+                "chunk": 4,
+                "chunk_id": "worldbank_ads301_grantflow_ingest_pc7x3jz2_p1_c4",
+                "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+                "used_for": "IND_001",
+                "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+                "citation_confidence": 0.8,
+                "evidence_score": 0.8,
+                "evidence_rank": 1
+              },
+              {
+                "stage": "mel",
+                "citation_type": "rag_result",
+                "namespace": "worldbank_ads301",
+                "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+                "page": 1,
+                "page_start": 1,
+                "page_end": 1,
+                "chunk": 4,
+                "chunk_id": "worldbank_ads301_grantflow_ingest_wp54su3z_p1_c4",
+                "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+                "used_for": "IND_002",
+                "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+                "citation_confidence": 0.8,
+                "evidence_score": 0.8,
+                "evidence_rank": 2
+              },
+              {
+                "stage": "mel",
+                "citation_type": "rag_result",
+                "namespace": "worldbank_ads301",
+                "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+                "page": 1,
+                "page_start": 1,
+                "page_end": 1,
+                "chunk": 4,
+                "chunk_id": "worldbank_ads301_grantflow_ingest_8b8lr0om_p1_c4",
+                "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+                "used_for": "IND_003",
+                "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+                "citation_confidence": 0.8,
+                "evidence_score": 0.8,
+                "evidence_rank": 3
+              }
+            ]
+          },
+          "content_hash": "{\"citations\":[{\"chunk\":4,\"chunk_id\":\"worldbank_ads301_grantflow_ingest_pc7x3jz2_p1_c4\",\"citation_confidence\":0.8,\"citation_type\":\"rag_result\",\"evidence_rank\":1,\"evidence_score\":0.8,\"excerpt\":\"                                       \\n                                                                                \\n                                                                                \\n                                      \",\"label\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf\",\"namespace\":\"worldbank_ads301\",\"page\":1,\"page_end\":1,\"page_start\":1,\"source\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf\",\"stage\":\"mel\",\"used_for\":\"IND_001\"},{\"chunk\":4,\"chunk_id\":\"worldbank_ads301_grantflow_ingest_wp54su3z_p1_c4\",\"citation_confidence\":0.8,\"citation_type\":\"rag_result\",\"evidence_rank\":2,\"evidence_score\":0.8,\"excerpt\":\"                                       \\n                                                                                \\n                                                                                \\n                                      \",\"label\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf\",\"namespace\":\"worldbank_ads301\",\"page\":1,\"page_end\":1,\"page_start\":1,\"source\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf\",\"stage\":\"mel\",\"used_for\":\"IND_002\"},{\"chunk\":4,\"chunk_id\":\"worldbank_ads301_grantflow_ingest_8b8lr0om_p1_c4\",\"citation_confidence\":0.8,\"citation_type\":\"rag_result\",\"evidence_rank\":3,\"evidence_score\":0.8,\"excerpt\":\"                                       \\n                                                                                \\n                                                                                \\n                                      \",\"label\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf\",\"namespace\":\"worldbank_ads301\",\"page\":1,\"page_end\":1,\"page_start\":1,\"source\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf\",\"stage\":\"mel\",\"used_for\":\"IND_003\"}],\"indicators\":[{\"baseline\":\"TBD\",\"citation\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf\",\"evidence_excerpt\":\"                                       \\n                                                                                \\n                                                                                \\n                                      \",\"indicator_id\":\"IND_001\",\"justification\":\"Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.\",\"name\":\"Indicator from worldbank_ads301 #1\",\"target\":\"TBD\"},{\"baseline\":\"TBD\",\"citation\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf\",\"evidence_excerpt\":\"                                       \\n                                                                                \\n                                                                                \\n                                      \",\"indicator_id\":\"IND_002\",\"justification\":\"Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.\",\"name\":\"Indicator from worldbank_ads301 #2\",\"target\":\"TBD\"},{\"baseline\":\"TBD\",\"citation\":\"/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf\",\"evidence_excerpt\":\"                                       \\n                                                                                \\n                                                                                \\n                                      \",\"indicator_id\":\"IND_003\",\"justification\":\"Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.\",\"name\":\"Indicator from worldbank_ads301 #3\",\"target\":\"TBD\"}],\"rag_trace\":{\"citation_count\":3,\"namespace\":\"worldbank_ads301\",\"query\":\"Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan\",\"top_k\":3,\"used_results\":3}}"
+        }
+      ],
+      "citations": [
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[0].title",
+          "statement": "Enhance Public Sector Performance",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[0].description",
+          "statement": "Improve efficiency, transparency, and accountability in public sector operations to better serve citizens.",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[1].title",
+          "statement": "Strengthen Service Delivery Capacity",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[1].description",
+          "statement": "Build institutional capacity to deliver quality public services effectively and equitably across Uzbekistan.",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[2].title",
+          "statement": "Promote Evidence-Based Policy Making",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[2].description",
+          "statement": "Support the use of data and evidence in policy formulation and implementation to ensure informed decision-making.",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[3].title",
+          "statement": "Foster Inclusive Governance",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[3].description",
+          "statement": "Encourage participatory governance practices to ensure that diverse voices are heard and considered in public sector decision-making.",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[4].title",
+          "statement": "Improve Financial Management Systems",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_qg0387bb_p1_c3",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_qg0387bb.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.objectives[4].description",
+          "statement": "Enhance financial management systems to ensure efficient allocation and use of public resources.",
+          "excerpt": "                             \n                                                                                \n                                                                                \n                                                ",
+          "citation_confidence": 0.25,
+          "evidence_score": 0.25,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.25
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 4,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_pc7x3jz2_p1_c4",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+          "used_for": "IND_001",
+          "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+          "citation_confidence": 0.8,
+          "evidence_score": 0.8,
+          "evidence_rank": 1
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 4,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_wp54su3z_p1_c4",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+          "used_for": "IND_002",
+          "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+          "citation_confidence": 0.8,
+          "evidence_score": 0.8,
+          "evidence_rank": 2
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "worldbank_ads301",
+          "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 4,
+          "chunk_id": "worldbank_ads301_grantflow_ingest_8b8lr0om_p1_c4",
+          "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+          "used_for": "IND_003",
+          "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+          "citation_confidence": 0.8,
+          "evidence_score": 0.8,
+          "evidence_rank": 3
+        }
+      ],
+      "mel": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Indicator from worldbank_ads301 #1",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          },
+          {
+            "indicator_id": "IND_002",
+            "name": "Indicator from worldbank_ads301 #2",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          },
+          {
+            "indicator_id": "IND_003",
+            "name": "Indicator from worldbank_ads301 #3",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          }
+        ],
+        "rag_trace": {
+          "namespace": "worldbank_ads301",
+          "query": "Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan",
+          "top_k": 3,
+          "used_results": 3,
+          "citation_count": 3
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_pc7x3jz2_p1_c4",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+            "used_for": "IND_001",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 1
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_wp54su3z_p1_c4",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+            "used_for": "IND_002",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 2
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_8b8lr0om_p1_c4",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+            "used_for": "IND_003",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 3
+          }
+        ]
+      },
+      "logframe_draft": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Indicator from worldbank_ads301 #1",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          },
+          {
+            "indicator_id": "IND_002",
+            "name": "Indicator from worldbank_ads301 #2",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          },
+          {
+            "indicator_id": "IND_003",
+            "name": "Indicator from worldbank_ads301 #3",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          }
+        ],
+        "rag_trace": {
+          "namespace": "worldbank_ads301",
+          "query": "Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan",
+          "top_k": 3,
+          "used_results": 3,
+          "citation_count": 3
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_pc7x3jz2_p1_c4",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_pc7x3jz2.pdf",
+            "used_for": "IND_001",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 1
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_wp54su3z_p1_c4",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_wp54su3z.pdf",
+            "used_for": "IND_002",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 2
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_8b8lr0om_p1_c4",
+            "label": "/var/folders/dq/zd41vh411gl0b0mv6bcpqsp40000gn/T/grantflow_ingest_8b8lr0om.pdf",
+            "used_for": "IND_003",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 3
+          }
+        ]
+      },
+      "critic_fatal_flaws": [
+        {
+          "finding_id": "f87d3778-5abc-4163-8d36-3fadc9c27e10",
+          "code": "LLM_REVIEW_FLAG_1",
+          "label": "BASELINE_TARGET_MISSING",
+          "severity": "medium",
+          "section": "logframe",
+          "status": "open",
+          "version_id": null,
+          "message": "Indicators lack baseline and target values, making it impossible to measure progress.",
+          "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+          "source": "llm"
+        },
+        {
+          "finding_id": "c44a7707-bfa9-430d-aa9b-cc9e812ddaeb",
+          "code": "LLM_REVIEW_FLAG_2",
+          "label": "INDICATOR_EVIDENCE_EXCERPTS",
+          "severity": "low",
+          "section": "logframe",
+          "status": "open",
+          "version_id": null,
+          "message": "Evidence excerpts for indicators are missing, reducing the credibility of the indicators.",
+          "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+          "source": "llm"
+        },
+        {
+          "finding_id": "bf5e08f6-d94e-4b8b-a611-443d3cc50b08",
+          "code": "LLM_REVIEW_FLAG_3",
+          "label": "OBJECTIVE_SPECIFICITY",
+          "severity": "low",
+          "section": "toc",
+          "status": "open",
+          "version_id": null,
+          "message": "The Theory of Change does not clearly link objectives to specific, measurable outcomes.",
+          "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+          "source": "llm"
+        }
+      ],
+      "next_step": "end"
+    },
+    "critic_findings": [
+      {
+        "finding_id": "f87d3778-5abc-4163-8d36-3fadc9c27e10",
+        "code": "LLM_REVIEW_FLAG_1",
+        "label": "BASELINE_TARGET_MISSING",
+        "severity": "medium",
+        "section": "logframe",
+        "status": "open",
+        "version_id": null,
+        "message": "Indicators lack baseline and target values, making it impossible to measure progress.",
+        "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+        "source": "llm"
+      },
+      {
+        "finding_id": "c44a7707-bfa9-430d-aa9b-cc9e812ddaeb",
+        "code": "LLM_REVIEW_FLAG_2",
+        "label": "INDICATOR_EVIDENCE_EXCERPTS",
+        "severity": "low",
+        "section": "logframe",
+        "status": "open",
+        "version_id": null,
+        "message": "Evidence excerpts for indicators are missing, reducing the credibility of the indicators.",
+        "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+        "source": "llm"
+      },
+      {
+        "finding_id": "bf5e08f6-d94e-4b8b-a611-443d3cc50b08",
+        "code": "LLM_REVIEW_FLAG_3",
+        "label": "OBJECTIVE_SPECIFICITY",
+        "severity": "low",
+        "section": "toc",
+        "status": "open",
+        "version_id": null,
+        "message": "The Theory of Change does not clearly link objectives to specific, measurable outcomes.",
+        "fix_hint": "Incorporate this reviewer feedback in the next draft iteration.",
+        "source": "llm"
+      }
+    ],
+    "review_comments": [],
+    "readiness": null
+  }
+}
