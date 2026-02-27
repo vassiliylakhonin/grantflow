@@ -1533,6 +1533,7 @@ def export_artifacts(req: ExportRequest, request: Request):
             xlsx_bytes = build_xlsx_from_logframe(
                 logframe_draft,
                 donor_id,
+                toc_draft=toc_draft,
                 citations=citations,
                 critic_findings=critic_findings,
                 review_comments=review_comments,

@@ -82,6 +82,66 @@ def test_word_export_includes_citation_traceability_section():
     assert "Adjusted objective wording and assumptions." in text
 
 
+def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
+    usaid_toc = {
+        "toc": {
+            "project_goal": "Improve civic services",
+            "development_objectives": [
+                {
+                    "do_id": "DO1",
+                    "description": "Improved digital delivery",
+                    "intermediate_results": [
+                        {
+                            "ir_id": "IR1.1",
+                            "description": "Civil service capacity strengthened",
+                            "outputs": [
+                                {
+                                    "output_id": "O1.1.1",
+                                    "description": "Training delivered",
+                                    "indicators": [
+                                        {
+                                            "indicator_code": "EG.1-1",
+                                            "name": "Officials trained",
+                                            "target": "300",
+                                            "justification": "Capacity milestone",
+                                            "citation": "USAID ADS 201 p.12",
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+            "critical_assumptions": ["Government commitment remains stable"],
+        }
+    }
+    eu_toc = {
+        "toc": {"overall_objective": {"objective_id": "OO1", "title": "Digital governance", "rationale": "EU fit"}}
+    }
+    wb_toc = {
+        "toc": {
+            "objectives": [
+                {"objective_id": "PDO1", "title": "Service delivery quality", "description": "Better outcomes"}
+            ]
+        }
+    }
+
+    usaid_doc = Document(BytesIO(build_docx_from_toc(usaid_toc, "usaid")))
+    eu_doc = Document(BytesIO(build_docx_from_toc(eu_toc, "eu")))
+    wb_doc = Document(BytesIO(build_docx_from_toc(wb_toc, "worldbank")))
+    usaid_text = "\n".join(p.text for p in usaid_doc.paragraphs)
+    eu_text = "\n".join(p.text for p in eu_doc.paragraphs)
+    wb_text = "\n".join(p.text for p in wb_doc.paragraphs)
+
+    assert "USAID Results Framework" in usaid_text
+    assert "Critical Assumptions" in usaid_text
+    assert "EU Intervention Logic" in eu_text
+    assert "Overall Objective" in eu_text
+    assert "World Bank Results Framework" in wb_text
+    assert "PDO1" in wb_text
+
+
 def test_excel_export_includes_citations_sheet():
     logframe_draft = {
         "indicators": [
@@ -121,3 +181,59 @@ def test_excel_export_includes_citations_sheet():
     comments_rows = list(wb["Review Comments"].iter_rows(values_only=True))
     assert comments_rows[0][:4] == ("Status", "Section", "Author", "Message")
     assert any(row[6] == "2026-02-25T10:00:00Z" for row in comments_rows[1:])
+
+
+def test_excel_export_includes_donor_specific_sheets():
+    usaid_toc = {
+        "toc": {
+            "development_objectives": [
+                {
+                    "do_id": "DO1",
+                    "description": "Improved digital delivery",
+                    "intermediate_results": [
+                        {
+                            "ir_id": "IR1.1",
+                            "description": "Civil service capacity strengthened",
+                            "outputs": [
+                                {
+                                    "output_id": "O1.1.1",
+                                    "description": "Training delivered",
+                                    "indicators": [
+                                        {
+                                            "indicator_code": "EG.1-1",
+                                            "name": "Officials trained",
+                                            "target": "300",
+                                            "justification": "Capacity milestone",
+                                            "citation": "USAID ADS 201 p.12",
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ]
+        }
+    }
+    eu_toc = {
+        "toc": {"overall_objective": {"objective_id": "OO1", "title": "Digital governance", "rationale": "EU fit"}}
+    }
+    wb_toc = {
+        "toc": {
+            "objectives": [
+                {"objective_id": "PDO1", "title": "Service delivery quality", "description": "Better outcomes"}
+            ]
+        }
+    }
+
+    usaid_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "usaid", toc_draft=usaid_toc)))
+    eu_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "eu", toc_draft=eu_toc)))
+    wb_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "worldbank", toc_draft=wb_toc)))
+
+    assert "USAID_RF" in usaid_wb.sheetnames
+    assert "EU_Intervention" in eu_wb.sheetnames
+    assert "WB_Results" in wb_wb.sheetnames
+
+    usaid_rows = list(usaid_wb["USAID_RF"].iter_rows(values_only=True))
+    assert usaid_rows[0][0] == "DO ID"
+    assert any(row[0] == "DO1" and row[6] == "EG.1-1" for row in usaid_rows[1:])
