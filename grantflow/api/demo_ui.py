@@ -2063,6 +2063,8 @@ def render_demo_ui_html() -> str:
       function renderPortfolioQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
+        const highWarningCount = Number(summary?.warning_level_high_job_count ?? 0);
+        const mediumWarningCount = Number(summary?.warning_level_medium_job_count ?? 0);
         const needsRevisionRate =
           typeof critic.needs_revision_rate === "number"
             ? `${(Number(critic.needs_revision_rate) * 100).toFixed(1)}%`
@@ -2091,9 +2093,20 @@ def render_demo_ui_html() -> str:
           highWarningRate,
           mediumWarningRate,
         ];
-        [...els.portfolioQualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
+        const portfolioQualityValueNodes = [...els.portfolioQualityCards.querySelectorAll(".kpi .value")];
+        portfolioQualityValueNodes.forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
+        const highWarningNode = portfolioQualityValueNodes[8];
+        if (highWarningNode) {
+          highWarningNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          highWarningNode.classList.add(highWarningCount > 0 ? "risk-high" : "risk-none");
+        }
+        const mediumWarningNode = portfolioQualityValueNodes[9];
+        if (mediumWarningNode) {
+          mediumWarningNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          mediumWarningNode.classList.add(mediumWarningCount > 0 ? "risk-medium" : "risk-none");
+        }
         renderPortfolioQualityLlmLabelDrilldown(summary);
         renderPortfolioQualityAdvisoryDrilldown(summary);
         renderPortfolioQualityFocusedDonorCard(summary);
