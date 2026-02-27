@@ -6,7 +6,8 @@ from typing import Any, Dict, List, Tuple
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
-from grantflow.swarm.state_contract import state_donor_id, state_input_context
+from grantflow.swarm.retrieval_query import build_stage_query_text
+from grantflow.swarm.state_contract import state_input_context
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 _GENERIC_EXCERPT_TOKENS = {
@@ -53,7 +54,6 @@ def build_architect_query_text(state: Dict[str, Any]) -> str:
     input_context = state_input_context(state)
     project = str(input_context.get("project") or "project").strip()
     country = str(input_context.get("country") or "").strip()
-    donor_id = state_donor_id(state, default="donor")
 
     critic_notes = state.get("critic_notes") or {}
     revision_hint = ""
@@ -62,8 +62,14 @@ def build_architect_query_text(state: Dict[str, Any]) -> str:
     elif isinstance(critic_notes, str):
         revision_hint = critic_notes.strip()
 
-    parts = [project, country, donor_id, revision_hint]
-    return " | ".join([p for p in parts if p])
+    return build_stage_query_text(
+        state=state,
+        stage="architect",
+        project=project,
+        country=country,
+        revision_hint=revision_hint,
+        toc_payload=(state.get("toc_draft") or {}).get("toc") if isinstance(state.get("toc_draft"), dict) else None,
+    )
 
 
 def _tokenize(text: Any) -> set[str]:

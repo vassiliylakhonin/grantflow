@@ -1156,6 +1156,78 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["readiness"]["inventory_family_count"] == 2
 
 
+def test_quality_summary_readiness_emits_namespace_empty_and_low_coverage_warnings():
+    job_id = "quality-job-readiness-warn"
+    api_app_module.INGEST_AUDIT_STORE.clear()
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "client_metadata": {
+                "demo_generate_preset_key": "usaid_gov_ai_kazakhstan",
+                "rag_readiness": {
+                    "expected_doc_families": [
+                        "donor_policy",
+                        "responsible_ai_guidance",
+                        "country_context",
+                    ],
+                    "donor_id": "usaid",
+                },
+            },
+            "state": {
+                "donor_id": "usaid",
+                "quality_score": 8.0,
+                "critic_score": 8.0,
+                "needs_revision": False,
+                "toc_validation": {"valid": True, "schema_name": "USAID_TOC"},
+                "toc_generation_meta": {"engine": "fallback:contract_synthesizer"},
+                "architect_retrieval": {"enabled": True, "hits_count": 0, "namespace": "usaid_ads201"},
+                "critic_notes": {"fatal_flaws": [], "rule_checks": []},
+                "citations": [],
+            },
+            "job_events": [
+                {
+                    "event_id": "rw1",
+                    "ts": "2026-02-24T10:00:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                    "status": "accepted",
+                },
+                {
+                    "event_id": "rw2",
+                    "ts": "2026-02-24T10:00:05+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                    "status": "running",
+                },
+                {
+                    "event_id": "rw3",
+                    "ts": "2026-02-24T10:01:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "done",
+                    "status": "done",
+                },
+            ],
+        },
+    )
+
+    response = client.get(f"/status/{job_id}/quality")
+    assert response.status_code == 200
+    body = response.json()
+    readiness = body.get("readiness") or {}
+    assert readiness["namespace_empty"] is True
+    assert readiness["low_doc_coverage"] is True
+    assert readiness["architect_retrieval_enabled"] is True
+    assert readiness["architect_retrieval_hits_count"] == 0
+    assert readiness["retrieval_namespace"] == "usaid_ads201"
+    assert readiness["warning_count"] >= 2
+    assert readiness["warning_level"] in {"high", "medium"}
+    warning_codes = {str(row.get("code") or "") for row in (readiness.get("warnings") or []) if isinstance(row, dict)}
+    assert "NAMESPACE_EMPTY" in warning_codes
+    assert "LOW_DOC_COVERAGE" in warning_codes
+    assert "ARCHITECT_RETRIEVAL_NO_HITS" in warning_codes
+
+
 def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     api_app_module.JOB_STORE.set(
         "portfolio-job-1",

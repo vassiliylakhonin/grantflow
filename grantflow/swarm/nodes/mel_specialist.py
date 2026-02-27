@@ -8,18 +8,24 @@ from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
 from grantflow.swarm.citations import append_citations
+from grantflow.swarm.retrieval_query import build_stage_query_text
 from grantflow.swarm.state_contract import normalize_state_contract, state_input_context
 from grantflow.swarm.versioning import append_draft_version
 
 
 def _build_query_text(state: Dict[str, Any]) -> str:
     input_context = state_input_context(state)
-    project = input_context.get("project", "project")
-    country = input_context.get("country", "")
+    project = str(input_context.get("project") or "project")
+    country = str(input_context.get("country") or "")
     toc = state.get("toc_draft", {}) or {}
-    brief = ((toc.get("toc") or {}).get("brief") if isinstance(toc, dict) else "") or ""
-    parts = [str(project), str(country), str(brief)]
-    return " | ".join([p for p in parts if p])
+    toc_payload = (toc.get("toc") or {}) if isinstance(toc, dict) else {}
+    return build_stage_query_text(
+        state=state,
+        stage="mel",
+        project=project,
+        country=country,
+        toc_payload=toc_payload,
+    )
 
 
 def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:

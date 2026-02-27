@@ -269,6 +269,14 @@ class JobQualityReadinessSummaryPublicResponse(BaseModel):
     inventory_total_uploads: Optional[int] = None
     inventory_family_count: Optional[int] = None
     doc_family_counts: Optional[Dict[str, int]] = None
+    namespace_empty: Optional[bool] = None
+    low_doc_coverage: Optional[bool] = None
+    architect_retrieval_enabled: Optional[bool] = None
+    architect_retrieval_hits_count: Optional[int] = None
+    retrieval_namespace: Optional[str] = None
+    warning_count: Optional[int] = None
+    warning_level: Optional[str] = None
+    warnings: Optional[list[Dict[str, Any]]] = None
 
     model_config = ConfigDict(extra="allow")
 

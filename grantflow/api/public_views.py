@@ -532,6 +532,57 @@ def _public_job_quality_readiness_payload(
     expected_count = len(expected_doc_families)
     loaded_count = len(present_doc_families)
     coverage_rate = round(loaded_count / expected_count, 4) if expected_count else None
+    inventory_total_uploads = int(inventory_payload.get("total_uploads") or 0)
+    namespace_empty = inventory_total_uploads <= 0
+    low_doc_coverage = bool(coverage_rate is not None and coverage_rate < 0.5)
+
+    raw_architect_retrieval = state_dict.get("architect_retrieval")
+    architect_retrieval = raw_architect_retrieval if isinstance(raw_architect_retrieval, dict) else {}
+    architect_retrieval_enabled = (
+        bool(architect_retrieval.get("enabled")) if isinstance(architect_retrieval.get("enabled"), bool) else None
+    )
+    architect_retrieval_hits_count_raw = architect_retrieval.get("hits_count")
+    try:
+        architect_retrieval_hits_count = (
+            int(architect_retrieval_hits_count_raw) if architect_retrieval_hits_count_raw is not None else None
+        )
+    except (TypeError, ValueError):
+        architect_retrieval_hits_count = None
+    retrieval_namespace = str(architect_retrieval.get("namespace") or "").strip() or None
+
+    warnings: list[Dict[str, Any]] = []
+    if namespace_empty:
+        warnings.append(
+            {
+                "code": "NAMESPACE_EMPTY",
+                "severity": "high",
+                "message": "No donor documents are currently uploaded for this readiness scope.",
+            }
+        )
+    if low_doc_coverage:
+        coverage_label = f"{loaded_count}/{expected_count}" if expected_count else "0/0"
+        severity = "high" if loaded_count == 0 else "medium"
+        warnings.append(
+            {
+                "code": "LOW_DOC_COVERAGE",
+                "severity": severity,
+                "message": f"Recommended document-family coverage is low ({coverage_label}).",
+            }
+        )
+    if architect_retrieval_enabled and architect_retrieval_hits_count == 0:
+        warnings.append(
+            {
+                "code": "ARCHITECT_RETRIEVAL_NO_HITS",
+                "severity": "medium",
+                "message": "Architect retrieval returned no hits; outputs may rely on fallback citations.",
+            }
+        )
+    severity_rank = {"none": 0, "low": 1, "medium": 2, "high": 3}
+    warning_level = "none"
+    for row in warnings:
+        level = str(row.get("severity") or "low").lower()
+        if severity_rank.get(level, 1) > severity_rank.get(warning_level, 0):
+            warning_level = level
 
     return {
         "preset_key": sanitize_for_public_response(client_metadata.get("demo_generate_preset_key")),
@@ -542,9 +593,17 @@ def _public_job_quality_readiness_payload(
         "expected_count": expected_count,
         "loaded_count": loaded_count,
         "coverage_rate": coverage_rate,
-        "inventory_total_uploads": sanitize_for_public_response(inventory_payload.get("total_uploads")),
+        "inventory_total_uploads": inventory_total_uploads,
         "inventory_family_count": sanitize_for_public_response(inventory_payload.get("family_count")),
         "doc_family_counts": sanitize_for_public_response(doc_family_counts),
+        "namespace_empty": namespace_empty,
+        "low_doc_coverage": low_doc_coverage,
+        "architect_retrieval_enabled": architect_retrieval_enabled,
+        "architect_retrieval_hits_count": architect_retrieval_hits_count,
+        "retrieval_namespace": retrieval_namespace,
+        "warning_count": len(warnings),
+        "warning_level": warning_level,
+        "warnings": warnings,
     }
 
 

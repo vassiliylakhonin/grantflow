@@ -389,6 +389,12 @@ def render_demo_ui_html() -> str:
                 <div class="list" id="qualityLlmFindingLabelsList"></div>
               </div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>RAG Readiness Warnings</label>
+                <div class="list" id="qualityReadinessWarningsList"></div>
+              </div>
+            </div>
             <div style="margin-top:10px;">
               <pre id="qualityJson">{}</pre>
             </div>
@@ -991,6 +997,7 @@ def render_demo_ui_html() -> str:
         qualityJson: $("qualityJson"),
         qualityAdvisoryBadgeList: $("qualityAdvisoryBadgeList"),
         qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
+        qualityReadinessWarningsList: $("qualityReadinessWarningsList"),
         portfolioMetricsJson: $("portfolioMetricsJson"),
         portfolioQualityJson: $("portfolioQualityJson"),
         criticJson: $("criticJson"),
@@ -1686,6 +1693,7 @@ def render_demo_ui_html() -> str:
       function renderQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
+        const readiness = summary?.readiness || {};
         const advisoryDiagnostics =
           critic && typeof critic.llm_advisory_diagnostics === "object" ? critic.llm_advisory_diagnostics : null;
         const values = [
@@ -1708,6 +1716,37 @@ def render_demo_ui_html() -> str:
           "No LLM finding labels in this job.",
           8
         );
+        renderQualityReadinessWarnings(readiness);
+      }
+
+      function renderQualityReadinessWarnings(readiness) {
+        if (!els.qualityReadinessWarningsList) return;
+        const warnings = Array.isArray(readiness?.warnings) ? readiness.warnings : [];
+        const level = String(readiness?.warning_level || "none").toLowerCase();
+        const warningCount = Number(readiness?.warning_count || warnings.length || 0);
+        els.qualityReadinessWarningsList.innerHTML = "";
+        if (!warnings.length) {
+          const div = document.createElement("div");
+          div.className = "item severity-low";
+          div.innerHTML = `<div class="title">No readiness warnings</div><div class="sub">Coverage and retrieval look acceptable for this job context.</div>`;
+          els.qualityReadinessWarningsList.appendChild(div);
+          return;
+        }
+        const header = document.createElement("div");
+        header.className = `item ${level === "high" ? "severity-high" : level === "medium" ? "severity-medium" : "severity-low"}`;
+        header.innerHTML = `<div class="title">Warnings: ${warningCount}</div><div class="sub mono">level=${escapeHtml(level)}</div>`;
+        els.qualityReadinessWarningsList.appendChild(header);
+        for (const row of warnings) {
+          if (!row || typeof row !== "object") continue;
+          const severity = String(row.severity || "low").toLowerCase();
+          const cls = severity === "high" ? "severity-high" : severity === "medium" ? "severity-medium" : "severity-low";
+          const code = String(row.code || "READINESS_WARNING");
+          const message = String(row.message || "");
+          const div = document.createElement("div");
+          div.className = `item ${cls}`;
+          div.innerHTML = `<div class="title mono">${escapeHtml(code)}</div><div class="sub">${escapeHtml(message)}</div>`;
+          els.qualityReadinessWarningsList.appendChild(div);
+        }
       }
 
       function renderPortfolioMetricsCards(metrics) {
