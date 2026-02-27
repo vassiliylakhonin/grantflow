@@ -250,14 +250,35 @@ def public_job_comments_payload(
     }
 
 
-def public_job_review_workflow_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+def public_job_review_workflow_payload(
+    job_id: str,
+    job: Dict[str, Any],
+    *,
+    event_type: Optional[str] = None,
+    finding_id: Optional[str] = None,
+    comment_status: Optional[str] = None,
+) -> Dict[str, Any]:
+    event_type_filter = str(event_type or "").strip() or None
+    finding_id_filter = str(finding_id or "").strip() or None
+    comment_status_filter = str(comment_status or "").strip().lower() or None
+
     critic_payload = public_job_critic_payload(job_id, job)
     findings = critic_payload.get("fatal_flaws") if isinstance(critic_payload, dict) else []
     findings_list = [item for item in findings if isinstance(item, dict)] if isinstance(findings, list) else []
+    if finding_id_filter:
+        findings_list = [item for item in findings_list if finding_primary_id(item) == finding_id_filter]
 
     comments_payload = public_job_comments_payload(job_id, job)
     comments = comments_payload.get("comments") if isinstance(comments_payload, dict) else []
     comments_list = [item for item in comments if isinstance(item, dict)] if isinstance(comments, list) else []
+    if finding_id_filter:
+        comments_list = [
+            item for item in comments_list if str(item.get("linked_finding_id") or "") == finding_id_filter
+        ]
+    if comment_status_filter:
+        comments_list = [
+            item for item in comments_list if str(item.get("status") or "").strip().lower() == comment_status_filter
+        ]
 
     finding_status_counts = {"open": 0, "acknowledged": 0, "resolved": 0}
     finding_severity_counts = {"high": 0, "medium": 0, "low": 0}
@@ -270,6 +291,9 @@ def public_job_review_workflow_payload(job_id: str, job: Dict[str, Any]) -> Dict
             finding_severity_counts[severity] += 1
 
     finding_ids = {finding_primary_id(row) for row in findings_list if finding_primary_id(row)}
+    comment_ids = {
+        str(row.get("comment_id") or "").strip() for row in comments_list if str(row.get("comment_id") or "").strip()
+    }
     linked_comment_count = 0
     orphan_linked_comment_count = 0
     comment_status_counts: Dict[str, int] = {}
@@ -317,6 +341,22 @@ def public_job_review_workflow_payload(job_id: str, job: Dict[str, Any]) -> Dict
                     "message": event.get("message"),
                 }
             )
+    if finding_id_filter:
+        timeline = [
+            row
+            for row in timeline
+            if str(row.get("finding_id") or "").strip() == finding_id_filter
+            or str(row.get("comment_id") or "").strip() in comment_ids
+        ]
+    if comment_status_filter:
+        timeline = [
+            row
+            for row in timeline
+            if str(row.get("kind") or "") not in {"comment_added", "comment_status"}
+            or str(row.get("comment_id") or "").strip() in comment_ids
+        ]
+    if event_type_filter:
+        timeline = [row for row in timeline if str(row.get("type") or "") == event_type_filter]
     timeline.sort(key=lambda row: str(row.get("ts") or ""), reverse=True)
 
     activity_ts_values: list[str] = []
@@ -354,6 +394,11 @@ def public_job_review_workflow_payload(job_id: str, job: Dict[str, Any]) -> Dict
     return {
         "job_id": str(job_id),
         "status": str(job.get("status") or ""),
+        "filters": {
+            "event_type": event_type_filter,
+            "finding_id": finding_id_filter,
+            "comment_status": comment_status_filter,
+        },
         "summary": summary,
         "findings": findings_list,
         "comments": comments_list,
@@ -1668,6 +1713,10 @@ def public_portfolio_metrics_csv_text(payload: Dict[str, Any]) -> str:
 
 
 def public_ingest_inventory_csv_text(payload: Dict[str, Any]) -> str:
+    return csv_text_from_mapping(payload)
+
+
+def public_job_review_workflow_csv_text(payload: Dict[str, Any]) -> str:
     return csv_text_from_mapping(payload)
 
 

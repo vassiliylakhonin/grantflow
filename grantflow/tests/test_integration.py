@@ -207,7 +207,17 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowSummaryLine" in body
     assert "reviewWorkflowTimelineList" in body
     assert "reviewWorkflowJson" in body
+    assert "reviewWorkflowEventTypeFilter" in body
+    assert "reviewWorkflowFindingIdFilter" in body
+    assert "reviewWorkflowCommentStatusFilter" in body
+    assert "reviewWorkflowClearFiltersBtn" in body
+    assert "reviewWorkflowExportJsonBtn" in body
+    assert "reviewWorkflowExportCsvBtn" in body
+    assert "grantflow_demo_review_workflow_event_type" in body
+    assert "grantflow_demo_review_workflow_finding_id" in body
+    assert "grantflow_demo_review_workflow_comment_status" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
+    assert "/status/${encodeURIComponent(jobId)}/review/workflow/export" in body
 
 
 def test_ready_endpoint():
@@ -1364,6 +1374,9 @@ def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeli
     body = response.json()
     assert body["job_id"] == job_id
     assert body["status"] == "done"
+    assert body.get("filters", {}).get("event_type") is None
+    assert body.get("filters", {}).get("finding_id") is None
+    assert body.get("filters", {}).get("comment_status") is None
     assert len(body["findings"]) == 2
     assert len(body["comments"]) == 2
 
@@ -1396,6 +1409,122 @@ def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeli
         "review_comment_added",
         "review_comment_status_changed",
     }
+
+    finding_filtered = client.get(f"/status/{job_id}/review/workflow", params={"finding_id": "finding-1"})
+    assert finding_filtered.status_code == 200
+    finding_filtered_body = finding_filtered.json()
+    assert finding_filtered_body["filters"]["finding_id"] == "finding-1"
+    assert len(finding_filtered_body["findings"]) == 1
+    assert all((row.get("finding_id") or row.get("id")) == "finding-1" for row in finding_filtered_body["findings"])
+    assert all(str(row.get("linked_finding_id") or "") == "finding-1" for row in finding_filtered_body["comments"])
+
+    event_type_filtered = client.get(
+        f"/status/{job_id}/review/workflow",
+        params={"event_type": "review_comment_status_changed"},
+    )
+    assert event_type_filtered.status_code == 200
+    event_type_filtered_body = event_type_filtered.json()
+    assert event_type_filtered_body["filters"]["event_type"] == "review_comment_status_changed"
+    assert event_type_filtered_body["timeline"]
+    assert all(row["type"] == "review_comment_status_changed" for row in event_type_filtered_body["timeline"])
+
+    comment_status_filtered = client.get(
+        f"/status/{job_id}/review/workflow",
+        params={"comment_status": "resolved"},
+    )
+    assert comment_status_filtered.status_code == 200
+    comment_status_filtered_body = comment_status_filtered.json()
+    assert comment_status_filtered_body["filters"]["comment_status"] == "resolved"
+    assert len(comment_status_filtered_body["comments"]) == 1
+    assert all(str(row.get("status") or "") == "resolved" for row in comment_status_filtered_body["comments"])
+
+
+def test_status_review_workflow_export_supports_csv_json_and_gzip():
+    job_id = "review-workflow-export-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "finding-export-1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "message": "ToC schema mismatch.",
+                        }
+                    ]
+                }
+            },
+            "review_comments": [
+                {
+                    "comment_id": "comment-export-1",
+                    "ts": "2026-02-27T11:00:00+00:00",
+                    "section": "toc",
+                    "status": "open",
+                    "message": "Need update before submission.",
+                    "linked_finding_id": "finding-export-1",
+                }
+            ],
+            "job_events": [
+                {
+                    "event_id": "rwf-exp-1",
+                    "ts": "2026-02-27T11:00:00+00:00",
+                    "type": "review_comment_added",
+                    "comment_id": "comment-export-1",
+                    "section": "toc",
+                },
+                {
+                    "event_id": "rwf-exp-2",
+                    "ts": "2026-02-27T11:01:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-export-1",
+                    "status": "acknowledged",
+                    "section": "toc",
+                    "severity": "high",
+                },
+            ],
+        },
+    )
+
+    csv_resp = client.get(
+        f"/status/{job_id}/review/workflow/export",
+        params={"finding_id": "finding-export-1", "comment_status": "open", "format": "csv"},
+    )
+    assert csv_resp.status_code == 200
+    assert csv_resp.headers["content-type"].startswith("text/csv")
+    csv_disposition = csv_resp.headers.get("content-disposition", "")
+    assert f"grantflow_review_workflow_{job_id}.csv" in csv_disposition
+    csv_text = csv_resp.text
+    assert csv_text.startswith("field,value\n")
+    assert "filters.finding_id,finding-export-1" in csv_text
+    assert "filters.comment_status,open" in csv_text
+    assert "summary.finding_count,1" in csv_text
+
+    json_resp = client.get(
+        f"/status/{job_id}/review/workflow/export",
+        params={"event_type": "critic_finding_status_changed", "format": "json"},
+    )
+    assert json_resp.status_code == 200
+    assert json_resp.headers["content-type"].startswith("application/json")
+    json_payload = json_resp.json()
+    assert json_payload["filters"]["event_type"] == "critic_finding_status_changed"
+    assert json_payload["timeline"]
+    assert all(row["type"] == "critic_finding_status_changed" for row in json_payload["timeline"])
+
+    gzip_resp = client.get(
+        f"/status/{job_id}/review/workflow/export",
+        params={"finding_id": "finding-export-1", "format": "json", "gzip": "true"},
+    )
+    assert gzip_resp.status_code == 200
+    assert gzip_resp.headers["content-type"].startswith("application/gzip")
+    gzip_disposition = gzip_resp.headers.get("content-disposition", "")
+    assert f"grantflow_review_workflow_{job_id}.json.gz" in gzip_disposition
+    gzip_payload = json.loads(gzip.decompress(gzip_resp.content).decode("utf-8"))
+    assert gzip_payload["filters"]["finding_id"] == "finding-export-1"
 
 
 def test_metrics_endpoint_derives_timeline_metrics_from_events():
@@ -2673,6 +2802,15 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     review_workflow_auth = client.get(f"/status/{job_id}/review/workflow", headers={"X-API-Key": "test-secret"})
     assert review_workflow_auth.status_code == 200
 
+    review_workflow_export_unauth = client.get(f"/status/{job_id}/review/workflow/export")
+    assert review_workflow_export_unauth.status_code == 401
+
+    review_workflow_export_auth = client.get(
+        f"/status/{job_id}/review/workflow/export",
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert review_workflow_export_auth.status_code == 200
+
     add_comment_unauth = client.post(
         f"/status/{job_id}/comments",
         json={"section": "general", "message": "Needs management review"},
@@ -2820,6 +2958,9 @@ def test_openapi_declares_api_key_security_scheme():
     ).get("security")
     status_review_workflow_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow") or {}).get("get") or {}
+    ).get("security")
+    status_review_workflow_export_security = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/export") or {}).get("get") or {}
     ).get("security")
     status_comments_post_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}
@@ -3059,6 +3200,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_critic_finding_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_get_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_security == [{"ApiKeyAuth": []}]
+    assert status_review_workflow_export_security == [{"ApiKeyAuth": []}]
     assert status_comments_post_security == [{"ApiKeyAuth": []}]
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_reopen_security == [{"ApiKeyAuth": []}]
@@ -3105,6 +3247,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobQualitySummaryPublicResponse" in schemas
     assert "JobCriticPublicResponse" in schemas
     assert "JobReviewWorkflowPublicResponse" in schemas
+    assert "JobReviewWorkflowFiltersPublicResponse" in schemas
+    assert "JobReviewWorkflowSummaryPublicResponse" in schemas
+    assert "ReviewWorkflowTimelineEventPublicResponse" in schemas
     assert "CriticRuleCheckPublicResponse" in schemas
     assert "CriticFatalFlawPublicResponse" in schemas
     assert "JobCommentsPublicResponse" in schemas

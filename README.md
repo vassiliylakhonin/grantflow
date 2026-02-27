@@ -181,7 +181,7 @@ curl -s -X POST http://127.0.0.1:8000/export \
 - `GET /health`, `GET /ready`, `GET /donors`
 - `POST /generate/preflight`, `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
 - `GET /status/{job_id}` plus:
-  - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`
+  - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/export`
 - `GET /portfolio/metrics` and `/portfolio/metrics/export` support filters:
   - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`
 - `GET /portfolio/quality` and `/portfolio/quality/export` support filters:

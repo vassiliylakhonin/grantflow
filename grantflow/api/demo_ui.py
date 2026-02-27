@@ -915,7 +915,38 @@ def render_demo_ui_html() -> str:
             <div style="margin-top:10px;">
               <div class="list" id="commentsList"></div>
             </div>
+            <div class="row4" style="margin-top:10px;">
+              <div>
+                <label for="reviewWorkflowEventTypeFilter">Workflow Filter: Event Type</label>
+                <select id="reviewWorkflowEventTypeFilter">
+                  <option value="">all</option>
+                  <option value="critic_finding_status_changed">critic_finding_status_changed</option>
+                  <option value="review_comment_added">review_comment_added</option>
+                  <option value="review_comment_status_changed">review_comment_status_changed</option>
+                </select>
+              </div>
+              <div>
+                <label for="reviewWorkflowFindingIdFilter">Workflow Filter: Finding ID</label>
+                <input id="reviewWorkflowFindingIdFilter" placeholder="finding-id" />
+              </div>
+              <div>
+                <label for="reviewWorkflowCommentStatusFilter">Workflow Filter: Comment Status</label>
+                <select id="reviewWorkflowCommentStatusFilter">
+                  <option value="">all</option>
+                  <option value="open">open</option>
+                  <option value="resolved">resolved</option>
+                </select>
+              </div>
+              <div style="align-self:end;">
+                <button id="reviewWorkflowClearFiltersBtn" class="ghost">Clear Workflow Filters</button>
+              </div>
+            </div>
             <div id="reviewWorkflowSummaryLine" class="footer-note mono" style="margin-top:10px;">workflow: timeline=- · findings=- · comments=-</div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="reviewWorkflowExportJsonBtn" class="ghost">Export Workflow JSON</button>
+              <button id="reviewWorkflowExportCsvBtn" class="secondary">Export Workflow CSV</button>
+              <div class="sub" style="align-self:center;">Export uses current workflow filters.</div>
+            </div>
             <div style="margin-top:10px;">
               <label>Review Workflow Timeline</label>
               <div class="list" id="reviewWorkflowTimelineList"></div>
@@ -950,6 +981,9 @@ def render_demo_ui_html() -> str:
         ["commentsFilterSection", "grantflow_demo_comments_filter_section"],
         ["commentsFilterStatus", "grantflow_demo_comments_filter_status"],
         ["commentsFilterVersionId", "grantflow_demo_comments_filter_version_id"],
+        ["reviewWorkflowEventTypeFilter", "grantflow_demo_review_workflow_event_type"],
+        ["reviewWorkflowFindingIdFilter", "grantflow_demo_review_workflow_finding_id"],
+        ["reviewWorkflowCommentStatusFilter", "grantflow_demo_review_workflow_comment_status"],
         ["selectedCommentId", "grantflow_demo_selected_comment_id"],
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
         ["generatePresetSelect", "grantflow_demo_generate_preset"],
@@ -1188,6 +1222,12 @@ def render_demo_ui_html() -> str:
         reviewWorkflowTimelineList: $("reviewWorkflowTimelineList"),
         reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
         reviewWorkflowJson: $("reviewWorkflowJson"),
+        reviewWorkflowEventTypeFilter: $("reviewWorkflowEventTypeFilter"),
+        reviewWorkflowFindingIdFilter: $("reviewWorkflowFindingIdFilter"),
+        reviewWorkflowCommentStatusFilter: $("reviewWorkflowCommentStatusFilter"),
+        reviewWorkflowClearFiltersBtn: $("reviewWorkflowClearFiltersBtn"),
+        reviewWorkflowExportJsonBtn: $("reviewWorkflowExportJsonBtn"),
+        reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
         metricsCards: $("metricsCards"),
         qualityCards: $("qualityCards"),
         portfolioMetricsCards: $("portfolioMetricsCards"),
@@ -1330,6 +1370,13 @@ def render_demo_ui_html() -> str:
         els.portfolioGroundingRiskLevelFilter.value = "";
         els.portfolioFindingStatusFilter.value = "";
         els.portfolioFindingSeverityFilter.value = "";
+        persistUiState();
+      }
+
+      function clearReviewWorkflowFilters() {
+        els.reviewWorkflowEventTypeFilter.value = "";
+        els.reviewWorkflowFindingIdFilter.value = "";
+        els.reviewWorkflowCommentStatusFilter.value = "";
         persistUiState();
       }
 
@@ -2671,7 +2718,9 @@ def render_demo_ui_html() -> str:
               div.title = "Click to link finding in comment form";
               div.addEventListener("click", () => {
                 els.linkedFindingId.value = findingId;
+                els.reviewWorkflowFindingIdFilter.value = findingId;
                 persistUiState();
+                refreshReviewWorkflow().catch(showError);
               });
             }
             els.reviewWorkflowTimelineList.appendChild(div);
@@ -3254,7 +3303,9 @@ def render_demo_ui_html() -> str:
       async function refreshReviewWorkflow() {
         const jobId = currentJobId();
         if (!jobId) return;
-        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/review/workflow`);
+        persistUiState();
+        const q = buildReviewWorkflowFilterQueryString();
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/review/workflow${q}`);
         renderReviewWorkflowTimeline(body);
         setJson(els.reviewWorkflowJson, body);
         return body;
@@ -3344,6 +3395,19 @@ def render_demo_ui_html() -> str:
         if (els.commentsFilterSection.value) params.set("section", els.commentsFilterSection.value);
         if (els.commentsFilterStatus.value) params.set("status", els.commentsFilterStatus.value);
         if (els.commentsFilterVersionId.value.trim()) params.set("version_id", els.commentsFilterVersionId.value.trim());
+        const q = params.toString();
+        return q ? `?${q}` : "";
+      }
+
+      function buildReviewWorkflowFilterQueryString() {
+        const params = new URLSearchParams();
+        if (els.reviewWorkflowEventTypeFilter.value) params.set("event_type", els.reviewWorkflowEventTypeFilter.value);
+        if (els.reviewWorkflowFindingIdFilter.value.trim()) {
+          params.set("finding_id", els.reviewWorkflowFindingIdFilter.value.trim());
+        }
+        if (els.reviewWorkflowCommentStatusFilter.value) {
+          params.set("comment_status", els.reviewWorkflowCommentStatusFilter.value);
+        }
         const q = params.toString();
         return q ? `?${q}` : "";
       }
@@ -3585,6 +3649,37 @@ def render_demo_ui_html() -> str:
         downloadBlob(blob, filename);
       }
 
+      async function exportReviewWorkflowAggregate(format) {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        persistUiState();
+        persistBasics();
+        const q = buildReviewWorkflowFilterQueryString();
+        const params = new URLSearchParams(q.startsWith("?") ? q.slice(1) : "");
+        params.set("format", format);
+        if (exportGzipEnabled()) params.set("gzip", "true");
+        const query = params.toString();
+        const endpointPath = `/status/${encodeURIComponent(jobId)}/review/workflow/export`;
+        const res = await fetch(`${apiBase()}${endpointPath}?${query}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          const ct = res.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const body = await res.json();
+            throw new Error(JSON.stringify(body, null, 2));
+          }
+          throw new Error(await res.text());
+        }
+        const fallbackFilename = `grantflow_review_workflow_${jobId}.${format}${exportGzipEnabled() ? ".gz" : ""}`;
+        const filename = parseDownloadFilenameFromDisposition(
+          res.headers.get("content-disposition"),
+          fallbackFilename
+        );
+        const blob = await res.blob();
+        downloadBlob(blob, filename);
+      }
+
       async function copyPortfolioMetricsJson() {
         const text = await ensurePortfolioMetricsLoaded();
         if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
@@ -3679,6 +3774,16 @@ def render_demo_ui_html() -> str:
       async function downloadPortfolioMetricsCsv() {
         await ensurePortfolioMetricsLoaded();
         await exportPortfolioAggregate("/portfolio/metrics/export", "csv", "grantflow_portfolio_metrics.csv");
+      }
+
+      async function downloadReviewWorkflowJson() {
+        await refreshReviewWorkflow();
+        await exportReviewWorkflowAggregate("json");
+      }
+
+      async function downloadReviewWorkflowCsv() {
+        await refreshReviewWorkflow();
+        await exportReviewWorkflowAggregate("csv");
       }
 
       async function exportZipFromPayload() {
@@ -3939,6 +4044,16 @@ def render_demo_ui_html() -> str:
         );
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
         els.reviewWorkflowBtn.addEventListener("click", () => refreshReviewWorkflow().catch(showError));
+        els.reviewWorkflowClearFiltersBtn.addEventListener("click", () => {
+          clearReviewWorkflowFilters();
+          refreshReviewWorkflow().catch(showError);
+        });
+        els.reviewWorkflowExportJsonBtn.addEventListener("click", () =>
+          downloadReviewWorkflowJson().catch((err) => showError(err))
+        );
+        els.reviewWorkflowExportCsvBtn.addEventListener("click", () =>
+          downloadReviewWorkflowCsv().catch((err) => showError(err))
+        );
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
@@ -3974,6 +4089,16 @@ def render_demo_ui_html() -> str:
             refreshComments().catch(showError);
           })
         );
+        [els.reviewWorkflowEventTypeFilter, els.reviewWorkflowCommentStatusFilter].forEach((el) =>
+          el.addEventListener("change", () => {
+            persistUiState();
+            refreshReviewWorkflow().catch(showError);
+          })
+        );
+        els.reviewWorkflowFindingIdFilter.addEventListener("change", () => {
+          persistUiState();
+          refreshReviewWorkflow().catch(showError);
+        });
         els.commentsFilterVersionId.addEventListener("change", () => {
           persistUiState();
           refreshComments().catch(showError);

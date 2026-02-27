@@ -191,9 +191,18 @@ class JobReviewWorkflowSummaryPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobReviewWorkflowFiltersPublicResponse(BaseModel):
+    event_type: Optional[str] = None
+    finding_id: Optional[str] = None
+    comment_status: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 class JobReviewWorkflowPublicResponse(BaseModel):
     job_id: str
     status: str
+    filters: JobReviewWorkflowFiltersPublicResponse
     summary: JobReviewWorkflowSummaryPublicResponse
     findings: list[CriticFatalFlawPublicResponse]
     comments: list[ReviewCommentPublicResponse]
