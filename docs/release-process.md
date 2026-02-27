@@ -28,13 +28,28 @@ git push origin main
 git push origin vX.Y.Z
 ```
 
-## 5) GitHub Release
+## 5) GitHub Release Automation
+
+The repository includes `.github/workflows/release.yml`:
+
+- auto-runs on pushed tags matching `v*.*.*`
+- extracts release notes for that version from `CHANGELOG.md`
+- publishes a GitHub Release with the extracted notes
+
+Manual runs are also supported via `workflow_dispatch`:
+
+- set `tag_name` (required)
+- optional `target_commitish`
+- optional `prerelease`
+- optional `dry_run=true` to validate changelog extraction without publishing
+
+## 6) GitHub Release
 
 - Create release from tag `vX.Y.Z`.
 - Use the changelog section as release notes.
 - Include any migration notes and rollout caveats.
 
-## 6) Post-Release
+## 7) Post-Release
 
 - Create next `Unreleased` section if needed.
 - Monitor CI and key runtime endpoints:
@@ -42,4 +57,3 @@ git push origin vX.Y.Z
   - `/ready`
   - `/status/{job_id}`
   - `/status/{job_id}/quality`
-

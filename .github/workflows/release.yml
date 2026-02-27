@@ -1,0 +1,124 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (example: v2.1.0)"
+        required: true
+        type: string
+      target_commitish:
+        description: "Branch/SHA used when creating tag from manual run"
+        required: false
+        default: "main"
+        type: string
+      prerelease:
+        description: "Mark release as pre-release"
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: "Validate changelog extraction without publishing a release"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release tag
+        id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_TAG: ${{ github.ref_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag_name }}
+          INPUT_TARGET_COMMITISH: ${{ github.event.inputs.target_commitish }}
+        run: |
+          if [ "${EVENT_NAME}" = "push" ]; then
+            TAG_NAME="${PUSH_TAG}"
+            TARGET_COMMITISH=""
+          else
+            TAG_NAME="${INPUT_TAG}"
+            TARGET_COMMITISH="${INPUT_TARGET_COMMITISH}"
+          fi
+
+          if [ -z "${TAG_NAME}" ]; then
+            echo "tag_name is required"
+            exit 1
+          fi
+          if ! echo "${TAG_NAME}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$'; then
+            echo "Invalid tag format: ${TAG_NAME}. Expected vX.Y.Z"
+            exit 1
+          fi
+
+          VERSION="${TAG_NAME#v}"
+          echo "tag_name=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "target_commitish=${TARGET_COMMITISH}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved tag: ${TAG_NAME} (version ${VERSION})"
+
+      - name: Extract release notes from CHANGELOG.md
+        id: changelog
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          version = os.environ["VERSION"].strip()
+          changelog_path = Path("CHANGELOG.md")
+          if not changelog_path.exists():
+              raise SystemExit("CHANGELOG.md not found")
+
+          lines = changelog_path.read_text(encoding="utf-8").splitlines()
+          marker = f"## [{version}]"
+          start = None
+          for i, line in enumerate(lines):
+              if line.startswith(marker):
+                  start = i
+                  break
+          if start is None:
+              raise SystemExit(f"Version section not found in CHANGELOG.md: {marker}")
+
+          end = len(lines)
+          for i in range(start + 1, len(lines)):
+              if lines[i].startswith("## ["):
+                  end = i
+                  break
+
+          section = "\n".join(lines[start:end]).strip()
+          if not section:
+              raise SystemExit(f"Empty changelog section for version: {version}")
+
+          out = Path("release-notes.md")
+          out.write_text(section + "\n", encoding="utf-8")
+          print(f"Wrote {out} with {len(section.splitlines())} lines")
+          PY
+
+      - name: Show release notes (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true' }}
+        run: |
+          echo "Dry run enabled. Extracted release notes:"
+          echo "----------------------------------------"
+          cat release-notes.md
+
+      - name: Create GitHub release
+        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run == 'true') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag_name }}
+          target_commitish: ${{ steps.tag.outputs.target_commitish }}
+          name: GrantFlow ${{ steps.tag.outputs.tag_name }}
+          body_path: release-notes.md
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.prerelease == 'true' }}
+          generate_release_notes: false

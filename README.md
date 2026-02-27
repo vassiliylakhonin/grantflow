@@ -1118,6 +1118,7 @@ GrantFlow release notes and version bumps follow SemVer (`MAJOR.MINOR.PATCH`) wi
 - Changelog source of truth: `CHANGELOG.md`
 - Step-by-step release procedure: `docs/release-process.md`
 - Recommended tag format: `vX.Y.Z` (annotated git tags)
+- GitHub release automation: `.github/workflows/release.yml` (tag-triggered, changelog-backed notes)
 
 ## API Stability Policy
 
