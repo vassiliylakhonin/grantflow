@@ -7,6 +7,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-02-27
+
 ### Added
 - Graph-level HITL pause/resume gates with checkpoint-driven continuation.
 - Donor-specific export templates/sheets for USAID, EU, and World Bank.
