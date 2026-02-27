@@ -146,6 +146,14 @@ def pick_best_architect_evidence_hit(
     return best_hit, best_score
 
 
+def _hit_traceability_status(*, doc_id: str, chunk_id: str, source: str, page: Any) -> str:
+    if doc_id and source:
+        return "complete"
+    if doc_id or chunk_id or source or page is not None:
+        return "partial"
+    return "missing"
+
+
 def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     enabled = bool(state.get("architect_rag_enabled", True))
     top_k = max(1, min(int(config.rag.default_top_k or 3), 3))
@@ -169,35 +177,64 @@ def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[
         metas = ((result or {}).get("metadatas") or [[]])[0]
         ids = ((result or {}).get("ids") or [[]])[0]
         distances = ((result or {}).get("distances") or [[]])[0]
+        seen_signatures: set[tuple[Any, ...]] = set()
+        traceability_counts = {"complete": 0, "partial": 0, "missing": 0}
 
         for idx, doc in enumerate(docs):
             meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
             source = citation_source_from_metadata(meta)
             rank = idx + 1
-            doc_id = meta.get("doc_id") or meta.get("chunk_id") or (ids[idx] if idx < len(ids) else None)
+            raw_doc_id = meta.get("doc_id") or meta.get("chunk_id") or (ids[idx] if idx < len(ids) else None)
+            raw_chunk_id = meta.get("chunk_id") or raw_doc_id
+            doc_id = str(raw_doc_id or "").strip()
+            chunk_id = str(raw_chunk_id or "").strip()
+            if not doc_id and chunk_id:
+                doc_id = chunk_id
+            if not chunk_id and doc_id:
+                chunk_id = doc_id
+            if not doc_id:
+                doc_id = f"{namespace}#hit-{rank}"
+            if not chunk_id:
+                chunk_id = doc_id
+            source = str(source or "").strip() or None
+            page = meta.get("page")
+            signature = (doc_id, chunk_id, source, page)
+            if signature in seen_signatures:
+                continue
+            seen_signatures.add(signature)
             raw_distance = distances[idx] if idx < len(distances) else None
             if isinstance(raw_distance, (int, float)):
                 retrieval_confidence = round(max(0.0, min(1.0, 1.0 / (1.0 + float(raw_distance)))), 4)
             else:
                 retrieval_confidence = round(max(0.1, 1.0 - (idx * 0.2)), 4)
+            traceability_status = _hit_traceability_status(
+                doc_id=doc_id,
+                chunk_id=chunk_id,
+                source=str(source or ""),
+                page=page,
+            )
+            traceability_counts[traceability_status] = int(traceability_counts.get(traceability_status, 0)) + 1
             hits.append(
                 {
                     "rank": rank,
                     "retrieval_rank": rank,
                     "doc_id": doc_id,
-                    "chunk_id": meta.get("chunk_id") or doc_id,
+                    "chunk_id": chunk_id,
                     "source": source,
-                    "page": meta.get("page"),
+                    "page": page,
                     "page_start": meta.get("page_start"),
                     "page_end": meta.get("page_end"),
                     "chunk": meta.get("chunk"),
                     "label": citation_label_from_metadata(meta, namespace=namespace, rank=rank),
                     "excerpt": str(doc)[:320],
                     "retrieval_confidence": retrieval_confidence,
+                    "namespace": namespace,
+                    "traceability_status": traceability_status,
                 }
             )
         summary["hits_count"] = len(hits)
         summary["used_results"] = len(hits)
+        summary["traceability_counts"] = traceability_counts
         if hits:
             summary["hit_labels"] = [str(h.get("label") or "") for h in hits[:3]]
             summary["avg_retrieval_confidence"] = round(
@@ -212,6 +249,8 @@ def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[
                     "page": h.get("page"),
                     "chunk_id": h.get("chunk_id"),
                     "retrieval_confidence": h.get("retrieval_confidence"),
+                    "traceability_status": h.get("traceability_status"),
+                    "namespace": h.get("namespace"),
                 }
                 for h in hits[:5]
             ]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.nodes import architect_generation as architect_generation_module
+from grantflow.swarm.nodes import architect_retrieval as architect_retrieval_module
 from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes.architect_generation import (
     _extract_claim_strings,
@@ -10,7 +11,11 @@ from grantflow.swarm.nodes.architect_generation import (
     generate_toc_under_contract,
 )
 from grantflow.swarm.nodes.architect_policy import architect_claim_confidence_threshold
-from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit, score_architect_evidence_hit
+from grantflow.swarm.nodes.architect_retrieval import (
+    pick_best_architect_evidence_hit,
+    retrieve_architect_evidence,
+    score_architect_evidence_hit,
+)
 
 
 def test_architect_generates_contract_validated_toc_with_optional_retrieval_disabled():
@@ -116,6 +121,34 @@ def test_architect_evidence_scoring_penalizes_generic_excerpt_and_rewards_worldb
     assert confidence == wb_score
 
 
+def test_retrieve_architect_evidence_normalizes_traceability_and_deduplicates_hits(monkeypatch):
+    def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
+        return {
+            "documents": [["Relevant donor paragraph", "Duplicate entry"]],
+            "metadatas": [
+                [
+                    {"source": "guide.pdf", "chunk_id": "ch_1", "page": 2},
+                    {"source": "guide.pdf", "chunk_id": "ch_1", "page": 2},
+                ]
+            ],
+            "ids": [["id_1", "id_1"]],
+            "distances": [[0.1, 0.2]],
+        }
+
+    monkeypatch.setattr(architect_retrieval_module.vector_store, "query", fake_query)
+
+    summary, hits = retrieve_architect_evidence(
+        {"donor_id": "usaid", "input_context": {"project": "Water", "country": "Kenya"}},
+        "usaid_ads201",
+    )
+    assert len(hits) == 1
+    hit = hits[0]
+    assert hit["doc_id"]
+    assert hit["chunk_id"] == "ch_1"
+    assert hit["traceability_status"] == "complete"
+    assert summary["traceability_counts"]["complete"] == 1
+
+
 def test_architect_claim_citation_policy_marks_low_confidence_hits():
     toc_payload = {"project_goal": "Improve water sanitation outcomes", "objectives": []}
     citations = build_architect_claim_citations(
@@ -146,6 +179,55 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
     assert 0.0 < float(citations[0]["confidence_threshold"]) < 1.0
     if citations[0]["citation_type"] == "rag_low_confidence":
         assert float(citations[0]["citation_confidence"]) < float(citations[0]["confidence_threshold"])
+
+
+def test_architect_claim_citations_without_hits_emit_single_fallback_summary():
+    toc_payload = {
+        "project_goal": "Improve water sanitation outcomes",
+        "development_objectives": [
+            {"description": "Improve governance and service quality"},
+            {"description": "Improve coverage and reliability"},
+        ],
+    }
+    citations = build_architect_claim_citations(
+        toc_payload=toc_payload,
+        namespace="usaid_ads201",
+        donor_id="usaid",
+        evidence_hits=[],
+    )
+    assert len(citations) == 1
+    citation = citations[0]
+    assert citation["citation_type"] == "fallback_namespace"
+    assert citation["missing_claim_count"] >= 1
+    assert citation["traceability_status"] == "missing"
+    assert citation["traceability_complete"] is False
+    assert "no retrieved evidence" in str(citation.get("label") or "").lower()
+
+
+def test_architect_claim_support_requires_traceable_hit_even_when_overlap_is_high():
+    statement = "Improve water sanitation outcomes in Kenya through community systems"
+    toc_payload = {"project_goal": statement}
+    citations = build_architect_claim_citations(
+        toc_payload=toc_payload,
+        namespace="usaid_ads201",
+        donor_id="usaid",
+        evidence_hits=[
+            {
+                "rank": 1,
+                "retrieval_rank": 1,
+                "label": "Untyped fragment",
+                "excerpt": statement,
+                "source": None,
+                "doc_id": None,
+                "chunk_id": None,
+            }
+        ],
+    )
+    assert citations
+    citation = citations[0]
+    assert citation["citation_type"] == "rag_low_confidence"
+    assert citation["traceability_complete"] is False
+    assert citation["traceability_status"] == "missing"
 
 
 def test_extract_claim_strings_skips_identifier_fields():
@@ -202,12 +284,14 @@ def test_extract_claim_strings_skips_assumptions_and_risks():
     toc_payload = {
         "project_goal": "Improve service delivery",
         "critical_assumptions": ["Leadership support remains stable"],
+        "assumptions": ["Local adoption remains strong"],
         "risks": ["Policy turnover delays adoption"],
     }
     claims = _extract_claim_strings(toc_payload, "toc")
     paths = [p for p, _ in claims]
     assert "toc.project_goal" in paths
     assert "toc.critical_assumptions[0]" not in paths
+    assert "toc.assumptions[0]" not in paths
     assert "toc.risks[0]" not in paths
 
 

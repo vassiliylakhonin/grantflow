@@ -324,7 +324,7 @@ def _extract_claim_strings(value: Any, path: str = "toc") -> list[tuple[str, str
             return claims
         # Assumptions/risks are often design hypotheses rather than evidence-backed claims.
         # Treating them as architect claim citations inflates low-confidence noise.
-        if ".critical_assumptions[" in lowered_path or ".risks[" in lowered_path:
+        if ".critical_assumptions[" in lowered_path or ".assumptions[" in lowered_path or ".risks[" in lowered_path:
             return claims
         identifier_tokens = ("_id", ".id", "indicator_code", "code]")
         if any(token in lowered_path for token in identifier_tokens):
@@ -333,6 +333,17 @@ def _extract_claim_strings(value: Any, path: str = "toc") -> list[tuple[str, str
         if any(k in lowered_path for k in keywords):
             claims.append((path, text))
     return claims
+
+
+def _hit_traceability_status(hit: Dict[str, Any]) -> str:
+    doc_id = str(hit.get("doc_id") or hit.get("chunk_id") or "").strip()
+    source = str(hit.get("source") or "").strip()
+    page = hit.get("page")
+    if doc_id and source:
+        return "complete"
+    if doc_id or source or page is not None:
+        return "partial"
+    return "missing"
 
 
 def build_architect_claim_citations(
@@ -359,20 +370,42 @@ def build_architect_claim_citations(
         )
         return citations
 
-    for idx, (statement_path, statement) in enumerate(claims[:24]):
+    bounded_claims = claims[:24]
+    if not hits:
+        sample_paths = [path for path, _ in bounded_claims[:5]]
+        citations.append(
+            {
+                "stage": "architect",
+                "citation_type": "fallback_namespace",
+                "namespace": namespace,
+                "label": f"{namespace} (no retrieved evidence)",
+                "used_for": "toc_claims",
+                "statement_path": "toc",
+                "statement": f"{len(bounded_claims)} ToC claims generated without retrieval evidence.",
+                "missing_claim_count": len(bounded_claims),
+                "missing_statement_paths_preview": " | ".join(sample_paths),
+                "citation_confidence": 0.1,
+                "evidence_score": 0.1,
+                "retrieval_confidence": 0.1,
+                "confidence_threshold": architect_claim_confidence_threshold(donor_id=donor_id, statement_path="toc"),
+                "traceability_status": "missing",
+                "traceability_complete": False,
+            }
+        )
+        return citations
+
+    for idx, (statement_path, statement) in enumerate(bounded_claims):
         hit: Dict[str, Any]
         confidence: float
-        if hits:
-            hit, confidence = pick_best_architect_evidence_hit(
-                statement,
-                hits,
-                donor_id=donor_id,
-                statement_path=statement_path,
-            )
-        else:
-            hit, confidence = {}, 0.0
+        hit, confidence = pick_best_architect_evidence_hit(
+            statement,
+            hits,
+            donor_id=donor_id,
+            statement_path=statement_path,
+        )
+        traceability_status = _hit_traceability_status(hit) if hit else "missing"
         confidence_threshold = architect_claim_confidence_threshold(donor_id=donor_id, statement_path=statement_path)
-        if hit and confidence >= confidence_threshold:
+        if hit and traceability_status == "complete" and confidence >= confidence_threshold:
             citation_type = "rag_claim_support"
         elif hit:
             citation_type = "rag_low_confidence"
@@ -401,6 +434,8 @@ def build_architect_claim_citations(
                 "retrieval_rank": hit.get("retrieval_rank") if hit else None,
                 "retrieval_confidence": hit.get("retrieval_confidence") if hit else 0.1,
                 "confidence_threshold": confidence_threshold,
+                "traceability_status": traceability_status,
+                "traceability_complete": traceability_status == "complete",
             }
         )
     return citations
