@@ -60,6 +60,8 @@ def test_demo_console_page_loads():
     assert "Don't ask again for this preset" in body
     assert "RAG Readiness (for selected preset)" in body
     assert "Generate anyway?" in body
+    assert "strictPreflight" in body
+    assert "Strict Preflight" in body
     assert "inputContextJson" in body
     assert "usaid_gov_ai_kazakhstan" in body
     assert "worldbank_public_sector_uzbekistan" in body
@@ -110,6 +112,7 @@ def test_demo_console_page_loads():
     assert "commentsFilterStatus" in body
     assert "commentsFilterVersionId" in body
     assert "grantflow_demo_diff_section" in body
+    assert "grantflow_demo_strict_preflight" in body
     assert "portfolioBtn" in body
     assert "portfolioClearBtn" in body
     assert "/portfolio/quality" in body

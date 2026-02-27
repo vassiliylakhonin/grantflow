@@ -70,7 +70,17 @@ curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/ready
 ```
 
-### 4) Start a job
+### 4) (Optional) Run preflight readiness check
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/generate/preflight \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "donor_id": "usaid"
+  }'
+```
+
+### 5) Start a job
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate \
@@ -88,13 +98,44 @@ curl -s -X POST http://127.0.0.1:8000/generate \
 
 `/generate` is async and returns `job_id`.
 
-### 5) Poll result
+### 6) (Optional) Enforce strict preflight gate
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/generate \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "donor_id": "usaid",
+    "input_context": {
+      "project": "Youth Employment Initiative",
+      "country": "Kenya"
+    },
+    "llm_mode": false,
+    "hitl_enabled": false,
+    "strict_preflight": true
+  }'
+```
+
+If preflight risk is `high`, API returns `409`:
+
+```json
+{
+  "detail": {
+    "reason": "preflight_high_risk_block",
+    "message": "Generation blocked by strict_preflight because donor readiness risk is high.",
+    "preflight": {
+      "risk_level": "high"
+    }
+  }
+}
+```
+
+### 7) Poll result
 
 ```bash
 curl -s http://127.0.0.1:8000/status/<JOB_ID>
 ```
 
-### 6) Export artifacts
+### 8) Export artifacts
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/export \
@@ -106,7 +147,7 @@ curl -s -X POST http://127.0.0.1:8000/export \
 ## Core API
 
 - `GET /health`, `GET /ready`, `GET /donors`
-- `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
+- `POST /generate/preflight`, `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
 - `GET /status/{job_id}` plus:
   - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`
 - `POST /hitl/approve`, `GET /hitl/pending`

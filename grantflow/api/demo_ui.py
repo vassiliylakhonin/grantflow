@@ -199,8 +199,9 @@ def render_demo_ui_html() -> str:
                 <select id="hitlEnabled"><option value="false">false</option><option value="true">true</option></select>
               </div>
             </div>
-            <div class="row3" style="margin-top:10px;">
+            <div class="row4" style="margin-top:10px;">
               <div><label for="llmMode">LLM Mode</label><select id="llmMode"><option value="false">false</option><option value="true">true</option></select></div>
+              <div><label for="strictPreflight">Strict Preflight</label><select id="strictPreflight"><option value="false">false</option><option value="true">true</option></select></div>
               <div><label for="webhookUrl">Webhook URL (optional)</label><input id="webhookUrl" placeholder="https://example.com/webhook" /></div>
               <div><label for="webhookSecret">Webhook Secret (optional)</label><input id="webhookSecret" placeholder="secret" /></div>
             </div>
@@ -791,6 +792,7 @@ def render_demo_ui_html() -> str:
         ["selectedCommentId", "grantflow_demo_selected_comment_id"],
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
         ["generatePresetSelect", "grantflow_demo_generate_preset"],
+        ["strictPreflight", "grantflow_demo_strict_preflight"],
         ["inputContextJson", "grantflow_demo_input_context_json"],
         ["ingestPresetSelect", "grantflow_demo_ingest_preset"],
         ["ingestDonorId", "grantflow_demo_ingest_donor_id"],
@@ -812,6 +814,7 @@ def render_demo_ui_html() -> str:
           country: "Kazakhstan",
           llm_mode: true,
           hitl_enabled: true,
+          strict_preflight: false,
           input_context: {
             region: "National with pilot cohorts in Astana and Almaty",
             timeframe: "2026-2027 (24 months)",
@@ -836,6 +839,7 @@ def render_demo_ui_html() -> str:
           country: "Moldova",
           llm_mode: true,
           hitl_enabled: true,
+          strict_preflight: false,
           input_context: {
             region: "National and selected municipalities",
             timeframe: "2026-2028 (30 months)",
@@ -859,6 +863,7 @@ def render_demo_ui_html() -> str:
           country: "Uzbekistan",
           llm_mode: true,
           hitl_enabled: true,
+          strict_preflight: false,
           input_context: {
             region: "National ministries and selected subnational administrations",
             timeframe: "2026-2028 (36 months)",
@@ -955,6 +960,7 @@ def render_demo_ui_html() -> str:
         country: $("country"),
         hitlEnabled: $("hitlEnabled"),
         llmMode: $("llmMode"),
+        strictPreflight: $("strictPreflight"),
         webhookUrl: $("webhookUrl"),
         webhookSecret: $("webhookSecret"),
         generatePresetSelect: $("generatePresetSelect"),
@@ -1413,6 +1419,7 @@ def render_demo_ui_html() -> str:
         els.country.value = String(preset.country || "");
         els.llmMode.value = preset.llm_mode ? "true" : "false";
         els.hitlEnabled.value = preset.hitl_enabled ? "true" : "false";
+        els.strictPreflight.value = preset.strict_preflight ? "true" : "false";
         const extra = { ...(preset.input_context || {}) };
         delete extra.project;
         delete extra.country;
@@ -2537,6 +2544,7 @@ def render_demo_ui_html() -> str:
           },
           llm_mode: els.llmMode.value === "true",
           hitl_enabled: els.hitlEnabled.value === "true",
+          strict_preflight: els.strictPreflight.value === "true",
         };
         if (readiness.presetKey) {
           const ingestPreset = INGEST_PRESETS[readiness.presetKey];
@@ -2576,6 +2584,11 @@ def render_demo_ui_html() -> str:
             typeof preflight.coverage_rate === "number"
               ? `${Math.round(Number(preflight.coverage_rate) * 100)}%`
               : "-";
+          if (payload.strict_preflight) {
+            throw new Error(
+              `Strict preflight is enabled and server preflight risk is HIGH (coverage=${coverageLabel}, warnings=${warningPreview || "n/a"}).`
+            );
+          }
           const ok = window.confirm(
             `Server preflight risk is HIGH (coverage=${coverageLabel}, warnings=${warningPreview || "n/a"}). Generate anyway?`
           );
