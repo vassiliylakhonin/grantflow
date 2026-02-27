@@ -214,6 +214,25 @@ def test_generate_basic_async_job_flow():
     assert isinstance(critic_notes.get("rule_checks"), list)
 
 
+def test_generate_llm_mode_false_uses_non_llm_toc_engine():
+    payload = {
+        "donor_id": "usaid",
+        "input_context": {"project": "Public Administration", "country": "Kazakhstan"},
+        "llm_mode": False,
+        "hitl_enabled": False,
+    }
+    response = client.post("/generate", json=payload)
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+    state = status["state"]
+    generation_meta = state.get("toc_generation_meta") or {}
+    assert generation_meta.get("llm_used") is False
+    assert str(generation_meta.get("engine") or "").startswith("fallback:")
+
+
 def test_status_redacts_internal_strategy_objects():
     response = client.post(
         "/generate",

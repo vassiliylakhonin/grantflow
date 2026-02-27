@@ -1,0 +1,13 @@
+{
+  "status": "done",
+  "hitl_enabled": false,
+  "state": {
+    "donor_id": "usaid",
+    "toc_draft": {
+      "toc": {
+        "brief": "Sample"
+      }
+    }
+  },
+  "webhook_configured": true
+}
