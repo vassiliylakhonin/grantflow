@@ -9,6 +9,7 @@ from typing import Any
 
 from grantflow.core.config import config
 from grantflow.core.strategies.factory import DonorFactory
+from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.graph import grantflow_graph
 
 FIXTURES_DIR = Path(__file__).with_name("fixtures")
@@ -32,6 +33,9 @@ LOWER_IS_BETTER_METRICS = (
     "low_confidence_citation_count",
     "rag_low_confidence_citation_count",
     "fallback_namespace_citation_count",
+    "traceability_gap_citation_count",
+    "traceability_partial_citation_count",
+    "traceability_missing_citation_count",
 )
 BOOLEAN_GUARDRAIL_METRICS = (
     "toc_schema_valid",
@@ -58,6 +62,8 @@ REGRESSION_PRIORITY_WEIGHTS: dict[str, int] = {
 GROUNDING_RISK_MIN_CITATIONS = 5
 FALLBACK_DOMINANCE_WARN_RATIO = 0.6
 FALLBACK_DOMINANCE_HIGH_RATIO = 0.85
+TRACEABILITY_GAP_WARN_RATIO = 0.4
+TRACEABILITY_GAP_HIGH_RATIO = 0.7
 
 
 def _fallback_dominance_label(*, fallback_count: int, citation_count: int) -> tuple[str | None, float | None]:
@@ -67,6 +73,17 @@ def _fallback_dominance_label(*, fallback_count: int, citation_count: int) -> tu
     if ratio >= FALLBACK_DOMINANCE_HIGH_RATIO:
         return "high", round(ratio, 4)
     if ratio >= FALLBACK_DOMINANCE_WARN_RATIO:
+        return "warn", round(ratio, 4)
+    return None, round(ratio, 4)
+
+
+def _traceability_gap_label(*, gap_count: int, citation_count: int) -> tuple[str | None, float | None]:
+    if citation_count < GROUNDING_RISK_MIN_CITATIONS or citation_count <= 0:
+        return None, None
+    ratio = gap_count / citation_count
+    if ratio >= TRACEABILITY_GAP_HIGH_RATIO:
+        return "high", round(ratio, 4)
+    if ratio >= TRACEABILITY_GAP_WARN_RATIO:
         return "warn", round(ratio, 4)
     return None, round(ratio, 4)
 
@@ -233,6 +250,9 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
     high_confidence_count = 0
     rag_low_confidence_count = 0
     fallback_namespace_count = 0
+    traceability_complete_count = 0
+    traceability_partial_count = 0
+    traceability_missing_count = 0
     architect_threshold_considered = 0
     architect_threshold_hits = 0
     for citation in citations:
@@ -256,6 +276,13 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
             rag_low_confidence_count += 1
         if str(citation.get("citation_type") or "") == "fallback_namespace":
             fallback_namespace_count += 1
+        traceability_status = citation_traceability_status(citation)
+        if traceability_status == "complete":
+            traceability_complete_count += 1
+        elif traceability_status == "partial":
+            traceability_partial_count += 1
+        else:
+            traceability_missing_count += 1
         confidence = citation.get("citation_confidence")
         if confidence is None:
             continue
@@ -296,6 +323,13 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
         "low_confidence_citation_count": low_confidence_count,
         "rag_low_confidence_citation_count": rag_low_confidence_count,
         "fallback_namespace_citation_count": fallback_namespace_count,
+        "traceability_complete_citation_count": traceability_complete_count,
+        "traceability_partial_citation_count": traceability_partial_count,
+        "traceability_missing_citation_count": traceability_missing_count,
+        "traceability_gap_citation_count": traceability_partial_count + traceability_missing_count,
+        "traceability_gap_citation_rate": (
+            round((traceability_partial_count + traceability_missing_count) / len(citations), 4) if citations else 0.0
+        ),
         "draft_version_count": len(draft_versions),
         "error_count": len(errors),
     }
@@ -427,15 +461,25 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
             fallback_count=fallback_count,
             citation_count=citation_count,
         )
+        traceability_gap_count = int(metrics.get("traceability_gap_citation_count") or 0)
+        traceability_risk_label, traceability_ratio = _traceability_gap_label(
+            gap_count=traceability_gap_count,
+            citation_count=citation_count,
+        )
         grounding_suffix = ""
         if grounding_risk_label and fallback_ratio is not None:
             grounding_suffix = f" grounding_risk=fallback_dominant:{grounding_risk_label}({fallback_ratio:.0%})"
+        traceability_suffix = ""
+        if traceability_risk_label and traceability_ratio is not None:
+            traceability_suffix = (
+                f" traceability_risk=traceability_gap:{traceability_risk_label}({traceability_ratio:.0%})"
+            )
         lines.append(
             (
                 f"- {prefix} {case.get('case_id')} ({case.get('donor_id')}): "
                 f"q={metrics.get('quality_score')} critic={metrics.get('critic_score')} "
                 f"toc_valid={metrics.get('toc_schema_valid')} flaws={metrics.get('fatal_flaw_count')} "
-                f"citations={metrics.get('citations_total')}{grounding_suffix}"
+                f"citations={metrics.get('citations_total')}{grounding_suffix}{traceability_suffix}"
             )
         )
         for check in case.get("failed_checks") or []:
@@ -460,6 +504,10 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                 "high_flaw_total": 0,
                 "low_conf_total": 0,
                 "fallback_ns_total": 0,
+                "traceability_gap_total": 0,
+                "traceability_partial_total": 0,
+                "traceability_missing_total": 0,
+                "traceability_complete_total": 0,
                 "citation_total": 0,
             },
         )
@@ -477,6 +525,18 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         row["citation_total"] = int(row["citation_total"]) + int(metrics.get("citations_total") or 0)
         row["fallback_ns_total"] = int(row["fallback_ns_total"]) + int(
             metrics.get("fallback_namespace_citation_count") or 0
+        )
+        row["traceability_gap_total"] = int(row["traceability_gap_total"]) + int(
+            metrics.get("traceability_gap_citation_count") or 0
+        )
+        row["traceability_partial_total"] = int(row["traceability_partial_total"]) + int(
+            metrics.get("traceability_partial_citation_count") or 0
+        )
+        row["traceability_missing_total"] = int(row["traceability_missing_total"]) + int(
+            metrics.get("traceability_missing_citation_count") or 0
+        )
+        row["traceability_complete_total"] = int(row["traceability_complete_total"]) + int(
+            metrics.get("traceability_complete_citation_count") or 0
         )
         row_label_counts = row.setdefault("llm_finding_label_counts", {})
         if not isinstance(row_label_counts, dict):
@@ -538,7 +598,8 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                     f"needs_revision={needs_revision_count} ({needs_revision_rate:.0%}) "
                     f"high_flaws={int(row.get('high_flaw_total') or 0)} "
                     f"low_conf_citations={int(row.get('low_conf_total') or 0)} "
-                    f"fallback_ns_citations={int(row.get('fallback_ns_total') or 0)}"
+                    f"fallback_ns_citations={int(row.get('fallback_ns_total') or 0)} "
+                    f"traceability_gap_citations={int(row.get('traceability_gap_total') or 0)}"
                 )
             )
         risky_donors: list[tuple[str, dict[str, Any], float, str]] = []

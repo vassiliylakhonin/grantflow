@@ -191,6 +191,11 @@ def test_compute_state_metrics_splits_fallback_namespace_from_rag_low_confidence
     assert metrics["low_confidence_citation_count"] == 2
     assert metrics["rag_low_confidence_citation_count"] == 1
     assert metrics["fallback_namespace_citation_count"] == 1
+    assert metrics["traceability_complete_citation_count"] == 0
+    assert metrics["traceability_partial_citation_count"] == 0
+    assert metrics["traceability_missing_citation_count"] == 3
+    assert metrics["traceability_gap_citation_count"] == 3
+    assert metrics["traceability_gap_citation_rate"] == 1.0
     assert metrics["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] == 2
     assert metrics["llm_finding_label_counts"]["BASELINE_TARGET_MISSING"] == 1
     assert metrics["llm_advisory_applied_label_counts"]["CAUSAL_LINK_DETAIL"] == 2

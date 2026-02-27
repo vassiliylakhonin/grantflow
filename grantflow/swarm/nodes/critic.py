@@ -11,6 +11,7 @@ from grantflow.swarm.critic_llm_policy import is_advisory_llm_finding as _is_adv
 from grantflow.swarm.critic_llm_policy import is_advisory_llm_message as _is_advisory_llm_message  # noqa: F401
 from grantflow.swarm.critic_llm_policy import llm_finding_policy_class as _llm_finding_policy_class
 from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
+from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.findings import normalize_findings
 from grantflow.swarm.grounding_gate import evaluate_grounding_gate
 from grantflow.swarm.llm_provider import (
@@ -24,6 +25,7 @@ WEAK_GROUNDING_LLM_SCORE_MAX_PENALTY = 1.5
 WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION = 5
 WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD = 0.75
 WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD = 0.6
+WEAK_GROUNDING_TRACEABILITY_GAP_RATIO_THRESHOLD = 0.6
 ADVISORY_ONLY_LLM_SCORE_MAX_PENALTY = 0.75
 ADVISORY_GROUNDING_MIN_THRESHOLD_HIT_RATE = 0.5
 ADVISORY_GROUNDING_MAX_ARCHITECT_RAG_LOW_RATIO = 0.5
@@ -232,15 +234,33 @@ def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:
     low_confidence_count = 0
     rag_low_confidence_count = 0
     fallback_namespace_count = 0
+    traceability_complete_count = 0
+    traceability_partial_count = 0
+    traceability_missing_count = 0
+    architect_traceability_gap_count = 0
+    architect_citation_count = 0
     for citation in citations:
         if not isinstance(citation, dict):
             continue
         citation_count += 1
+        if str(citation.get("stage") or "") == "architect":
+            architect_citation_count += 1
         citation_type = str(citation.get("citation_type") or "")
         if citation_type == "rag_low_confidence":
             rag_low_confidence_count += 1
         if citation_type == "fallback_namespace":
             fallback_namespace_count += 1
+        traceability_status = citation_traceability_status(citation)
+        if traceability_status == "complete":
+            traceability_complete_count += 1
+        elif traceability_status == "partial":
+            traceability_partial_count += 1
+            if str(citation.get("stage") or "") == "architect":
+                architect_traceability_gap_count += 1
+        else:
+            traceability_missing_count += 1
+            if str(citation.get("stage") or "") == "architect":
+                architect_traceability_gap_count += 1
         confidence = citation.get("citation_confidence")
         try:
             conf_value = float(confidence) if confidence is not None else None
@@ -262,6 +282,11 @@ def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:
     low_confidence_ratio = round(low_confidence_count / citation_count, 4) if citation_count else None
     weak_rag_or_fallback_count = rag_low_confidence_count + fallback_namespace_count
     weak_rag_or_fallback_ratio = round(weak_rag_or_fallback_count / citation_count, 4) if citation_count else None
+    traceability_gap_count = traceability_partial_count + traceability_missing_count
+    traceability_gap_ratio = round(traceability_gap_count / citation_count, 4) if citation_count else None
+    architect_traceability_gap_ratio = (
+        round(architect_traceability_gap_count / architect_citation_count, 4) if architect_citation_count else None
+    )
 
     weak_grounding_reasons: list[str] = []
     if retrieval_enabled and retrieval_hits_count == 0:
@@ -278,12 +303,25 @@ def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:
         and low_confidence_ratio >= WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD
     ):
         weak_grounding_reasons.append("low_confidence_citations_dominate")
+    if (
+        citation_count >= WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION
+        and traceability_gap_ratio is not None
+        and traceability_gap_ratio >= WEAK_GROUNDING_TRACEABILITY_GAP_RATIO_THRESHOLD
+    ):
+        weak_grounding_reasons.append("citation_traceability_gaps_dominate")
 
     return {
         "citation_count": citation_count,
         "low_confidence_citation_count": low_confidence_count,
         "rag_low_confidence_citation_count": rag_low_confidence_count,
         "fallback_namespace_citation_count": fallback_namespace_count,
+        "traceability_complete_citation_count": traceability_complete_count,
+        "traceability_partial_citation_count": traceability_partial_count,
+        "traceability_missing_citation_count": traceability_missing_count,
+        "traceability_gap_citation_count": traceability_gap_count,
+        "traceability_gap_ratio": traceability_gap_ratio,
+        "architect_traceability_gap_citation_count": architect_traceability_gap_count,
+        "architect_traceability_gap_ratio": architect_traceability_gap_ratio,
         "low_confidence_ratio": low_confidence_ratio,
         "weak_rag_or_fallback_ratio": weak_rag_or_fallback_ratio,
         "architect_retrieval_enabled": retrieval_enabled,
@@ -430,6 +468,14 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         max_low_confidence_ratio=float(
             getattr(config.graph, "grounding_max_low_confidence_ratio", WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD)
             or WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD
+        ),
+        max_traceability_gap_ratio=float(
+            getattr(
+                config.graph,
+                "grounding_max_traceability_gap_ratio",
+                WEAK_GROUNDING_TRACEABILITY_GAP_RATIO_THRESHOLD,
+            )
+            or WEAK_GROUNDING_TRACEABILITY_GAP_RATIO_THRESHOLD
         ),
     )
     if grounding_gate.get("blocking"):

@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any, Dict, Optional, cast
 
 from grantflow.api.csv_utils import csv_text_from_mapping
+from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.findings import normalize_findings
 
 PORTFOLIO_QUALITY_SIGNAL_WEIGHTS: dict[str, int] = {
@@ -15,6 +16,7 @@ PORTFOLIO_QUALITY_SIGNAL_WEIGHTS: dict[str, int] = {
     "open_findings_total": 4,
     "needs_revision_job_count": 4,
     "rag_low_confidence_citation_count": 3,
+    "traceability_gap_citation_count": 2,
     "low_confidence_citation_count": 1,
 }
 PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS = {
@@ -22,6 +24,7 @@ PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS = {
     "open_findings_total",
     "needs_revision_job_count",
     "rag_low_confidence_citation_count",
+    "traceability_gap_citation_count",
 }
 
 
@@ -575,6 +578,9 @@ def public_job_quality_payload(
     low_conf = 0
     rag_low_conf = 0
     fallback_ns = 0
+    traceability_complete = 0
+    traceability_partial = 0
+    traceability_missing = 0
     architect_threshold_considered = 0
     architect_threshold_hits = 0
     for c in citations:
@@ -584,6 +590,13 @@ def public_job_quality_payload(
             rag_low_conf += 1
         if str(c.get("citation_type") or "") == "fallback_namespace":
             fallback_ns += 1
+        traceability_status = citation_traceability_status(c)
+        if traceability_status == "complete":
+            traceability_complete += 1
+        elif traceability_status == "partial":
+            traceability_partial += 1
+        else:
+            traceability_missing += 1
         conf_raw = c.get("citation_confidence")
         try:
             conf = float(conf_raw) if conf_raw is not None else None
@@ -642,6 +655,7 @@ def public_job_quality_payload(
         cast(Dict[str, Any], raw_architect_retrieval) if isinstance(raw_architect_retrieval, dict) else {}
     )
     readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
+    traceability_gap = traceability_partial + traceability_missing
 
     return {
         "job_id": str(job_id),
@@ -683,6 +697,11 @@ def public_job_quality_payload(
             ),
             "rag_low_confidence_citation_count": rag_low_conf,
             "fallback_namespace_citation_count": fallback_ns,
+            "traceability_complete_citation_count": traceability_complete,
+            "traceability_partial_citation_count": traceability_partial,
+            "traceability_missing_citation_count": traceability_missing,
+            "traceability_gap_citation_count": traceability_gap,
+            "traceability_gap_citation_rate": round(traceability_gap / len(citations), 4) if citations else None,
             "citation_confidence_avg": (
                 round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else None
             ),
@@ -848,6 +867,10 @@ def public_portfolio_quality_payload(
     architect_rag_low_confidence_citation_count = 0
     mel_rag_low_confidence_citation_count = 0
     fallback_namespace_citation_count = 0
+    traceability_complete_citation_count = 0
+    traceability_partial_citation_count = 0
+    traceability_missing_citation_count = 0
+    traceability_gap_citation_count = 0
     llm_finding_label_counts_total: Dict[str, int] = {}
     llm_advisory_diagnostics_job_count = 0
     llm_advisory_applied_job_count = 0
@@ -900,6 +923,10 @@ def public_portfolio_quality_payload(
         )
         mel_rag_low_confidence_citation_count += int(row_citations.get("mel_rag_low_confidence_citation_count") or 0)
         fallback_namespace_citation_count += int(row_citations.get("fallback_namespace_citation_count") or 0)
+        traceability_complete_citation_count += int(row_citations.get("traceability_complete_citation_count") or 0)
+        traceability_partial_citation_count += int(row_citations.get("traceability_partial_citation_count") or 0)
+        traceability_missing_citation_count += int(row_citations.get("traceability_missing_citation_count") or 0)
+        traceability_gap_citation_count += int(row_citations.get("traceability_gap_citation_count") or 0)
 
         donor_for_row = str(row.get("_donor_id") or "unknown")
         donor_row = donor_weighted_risk_breakdown.setdefault(
@@ -915,6 +942,10 @@ def public_portfolio_quality_payload(
                 "architect_rag_low_confidence_citation_count": 0,
                 "mel_rag_low_confidence_citation_count": 0,
                 "fallback_namespace_citation_count": 0,
+                "traceability_complete_citation_count": 0,
+                "traceability_partial_citation_count": 0,
+                "traceability_missing_citation_count": 0,
+                "traceability_gap_citation_count": 0,
                 "llm_finding_label_counts": {},
                 "llm_advisory_applied_label_counts": {},
                 "llm_advisory_rejected_label_counts": {},
@@ -939,6 +970,16 @@ def public_portfolio_quality_payload(
         donor_row["fallback_namespace_citation_count"] += int(
             row_citations.get("fallback_namespace_citation_count") or 0
         )
+        donor_row["traceability_complete_citation_count"] += int(
+            row_citations.get("traceability_complete_citation_count") or 0
+        )
+        donor_row["traceability_partial_citation_count"] += int(
+            row_citations.get("traceability_partial_citation_count") or 0
+        )
+        donor_row["traceability_missing_citation_count"] += int(
+            row_citations.get("traceability_missing_citation_count") or 0
+        )
+        donor_row["traceability_gap_citation_count"] += int(row_citations.get("traceability_gap_citation_count") or 0)
         donor_label_counts = donor_row.get("llm_finding_label_counts")
         if not isinstance(donor_label_counts, dict):
             donor_label_counts = {}
@@ -1002,6 +1043,7 @@ def public_portfolio_quality_payload(
         "open_findings_total": critic_open_findings_total,
         "needs_revision_job_count": needs_revision_job_count,
         "rag_low_confidence_citation_count": rag_low_confidence_citation_count,
+        "traceability_gap_citation_count": traceability_gap_citation_count,
         "low_confidence_citation_count": low_confidence_citation_count,
     }
     priority_signal_breakdown: Dict[str, Dict[str, int]] = {}
@@ -1026,6 +1068,8 @@ def public_portfolio_quality_payload(
             + donor_row["needs_revision_job_count"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["needs_revision_job_count"]
             + donor_row["rag_low_confidence_citation_count"]
             * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["rag_low_confidence_citation_count"]
+            + donor_row["traceability_gap_citation_count"]
+            * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["traceability_gap_citation_count"]
             + donor_row["low_confidence_citation_count"]
             * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["low_confidence_citation_count"]
         )
@@ -1034,6 +1078,7 @@ def public_portfolio_quality_payload(
             + donor_row["open_findings_total"]
             + donor_row["needs_revision_job_count"]
             + donor_row["rag_low_confidence_citation_count"]
+            + donor_row["traceability_gap_citation_count"]
         )
         donor_diag_jobs = int(donor_row.get("llm_advisory_diagnostics_job_count") or 0)
         donor_applied_jobs = int(donor_row.get("llm_advisory_applied_job_count") or 0)
@@ -1107,6 +1152,22 @@ def public_portfolio_quality_payload(
             "fallback_namespace_citation_count": fallback_namespace_citation_count,
             "fallback_namespace_citation_rate": (
                 round(fallback_namespace_citation_count / citation_count_total, 4) if citation_count_total else None
+            ),
+            "traceability_complete_citation_count": traceability_complete_citation_count,
+            "traceability_complete_citation_rate": (
+                round(traceability_complete_citation_count / citation_count_total, 4) if citation_count_total else None
+            ),
+            "traceability_partial_citation_count": traceability_partial_citation_count,
+            "traceability_partial_citation_rate": (
+                round(traceability_partial_citation_count / citation_count_total, 4) if citation_count_total else None
+            ),
+            "traceability_missing_citation_count": traceability_missing_citation_count,
+            "traceability_missing_citation_rate": (
+                round(traceability_missing_citation_count / citation_count_total, 4) if citation_count_total else None
+            ),
+            "traceability_gap_citation_count": traceability_gap_citation_count,
+            "traceability_gap_citation_rate": (
+                round(traceability_gap_citation_count / citation_count_total, 4) if citation_count_total else None
             ),
             "architect_threshold_hit_rate_avg": _avg(citation_summary_rows, "architect_threshold_hit_rate"),
         },

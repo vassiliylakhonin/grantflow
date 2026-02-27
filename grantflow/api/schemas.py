@@ -213,6 +213,11 @@ class JobQualityCitationSummaryPublicResponse(BaseModel):
     mel_rag_low_confidence_citation_count: int = 0
     rag_low_confidence_citation_count: int
     fallback_namespace_citation_count: Optional[int] = None
+    traceability_complete_citation_count: Optional[int] = None
+    traceability_partial_citation_count: Optional[int] = None
+    traceability_missing_citation_count: Optional[int] = None
+    traceability_gap_citation_count: Optional[int] = None
+    traceability_gap_citation_rate: Optional[float] = None
     citation_confidence_avg: Optional[float] = None
     architect_threshold_hit_rate: Optional[float] = None
 
@@ -339,6 +344,14 @@ class PortfolioQualityCitationSummaryPublicResponse(BaseModel):
     rag_low_confidence_citation_rate: Optional[float] = None
     fallback_namespace_citation_count: Optional[int] = None
     fallback_namespace_citation_rate: Optional[float] = None
+    traceability_complete_citation_count: Optional[int] = None
+    traceability_complete_citation_rate: Optional[float] = None
+    traceability_partial_citation_count: Optional[int] = None
+    traceability_partial_citation_rate: Optional[float] = None
+    traceability_missing_citation_count: Optional[int] = None
+    traceability_missing_citation_rate: Optional[float] = None
+    traceability_gap_citation_count: Optional[int] = None
+    traceability_gap_citation_rate: Optional[float] = None
     architect_threshold_hit_rate_avg: Optional[float] = None
 
     model_config = ConfigDict(extra="allow")
@@ -363,6 +376,10 @@ class PortfolioQualityDonorWeightedRiskPublicResponse(BaseModel):
     architect_rag_low_confidence_citation_count: int = 0
     mel_rag_low_confidence_citation_count: int = 0
     fallback_namespace_citation_count: Optional[int] = None
+    traceability_complete_citation_count: Optional[int] = None
+    traceability_partial_citation_count: Optional[int] = None
+    traceability_missing_citation_count: Optional[int] = None
+    traceability_gap_citation_count: Optional[int] = None
     llm_finding_label_counts: Optional[Dict[str, int]] = None
     llm_advisory_applied_label_counts: Optional[Dict[str, int]] = None
     llm_advisory_rejected_label_counts: Optional[Dict[str, int]] = None

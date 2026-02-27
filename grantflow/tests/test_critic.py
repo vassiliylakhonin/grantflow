@@ -153,9 +153,15 @@ def test_citation_grounding_context_tracks_fallback_and_weak_grounding():
     assert ctx["fallback_namespace_citation_count"] == 2
     assert ctx["rag_low_confidence_citation_count"] == 2
     assert ctx["low_confidence_citation_count"] == 4
+    assert ctx["traceability_complete_citation_count"] == 0
+    assert ctx["traceability_partial_citation_count"] == 0
+    assert ctx["traceability_missing_citation_count"] == 5
+    assert ctx["traceability_gap_citation_count"] == 5
+    assert ctx["traceability_gap_ratio"] == 1.0
     assert ctx["architect_retrieval_hits_count"] == 0
     assert ctx["weak_grounding"] is True
     assert "architect_retrieval_no_hits" in ctx["weak_grounding_reasons"]
+    assert "citation_traceability_gaps_dominate" in ctx["weak_grounding_reasons"]
 
 
 def test_combine_critic_scores_caps_llm_penalty_in_weak_grounding_context():

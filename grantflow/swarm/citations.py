@@ -56,3 +56,22 @@ def append_citations(state: Dict[str, Any], citations: Iterable[Dict[str, Any]],
     if len(merged) > max_items:
         merged = merged[-max_items:]
     state["citations"] = merged
+
+
+def citation_traceability_status(record: Dict[str, Any]) -> str:
+    status = str(record.get("traceability_status") or "").strip().lower()
+    if status in {"complete", "partial", "missing"}:
+        return status
+
+    doc_id = str(record.get("doc_id") or record.get("chunk_id") or "").strip()
+    source = str(record.get("source") or "").strip()
+    page = record.get("page")
+    page_start = record.get("page_start")
+    page_end = record.get("page_end")
+    chunk = record.get("chunk")
+
+    if doc_id and source:
+        return "complete"
+    if doc_id or source or page is not None or page_start is not None or page_end is not None or chunk is not None:
+        return "partial"
+    return "missing"

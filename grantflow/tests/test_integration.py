@@ -1130,6 +1130,11 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["citations"]["mel_rag_low_confidence_citation_count"] == 0
     assert body["citations"]["rag_low_confidence_citation_count"] == 1
     assert body["citations"]["fallback_namespace_citation_count"] == 1
+    assert body["citations"]["traceability_complete_citation_count"] == 0
+    assert body["citations"]["traceability_partial_citation_count"] == 0
+    assert body["citations"]["traceability_missing_citation_count"] == 4
+    assert body["citations"]["traceability_gap_citation_count"] == 4
+    assert body["citations"]["traceability_gap_citation_rate"] == 1.0
     assert body["citations"]["architect_threshold_hit_rate"] == 0.3333
     assert body["architect"]["retrieval_enabled"] is True
     assert body["architect"]["retrieval_hits_count"] == 3
@@ -1285,10 +1290,19 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                             "severity": "high",
                             "status": "open",
                             "section": "toc",
+                            "code": "CAUSAL_LINK_DETAIL",
+                            "message": "Causal links are underspecified for core pathway.",
                             "source": "llm",
                             "label": "CAUSAL_LINK_DETAIL",
                         },
-                        {"finding_id": "f2", "severity": "low", "status": "resolved", "section": "general"},
+                        {
+                            "finding_id": "f2",
+                            "severity": "low",
+                            "status": "resolved",
+                            "section": "general",
+                            "code": "GENERAL_NOTE",
+                            "message": "Minor editorial improvement.",
+                        },
                     ],
                     "rule_checks": [
                         {"code": "toc.complete", "status": "fail"},
@@ -1357,6 +1371,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                             "severity": "medium",
                             "status": "acknowledged",
                             "section": "logframe",
+                            "code": "BASELINE_TARGET_MISSING",
+                            "message": "Indicators are missing complete baseline and target fields.",
                             "source": "llm",
                             "label": "BASELINE_TARGET_MISSING",
                         }
@@ -1450,6 +1466,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert "architect_rag_low_confidence_citation_rate" in body["citations"]
     assert "mel_rag_low_confidence_citation_rate" in body["citations"]
     assert "fallback_namespace_citation_count" in body["citations"]
+    assert "traceability_gap_citation_count" in body["citations"]
+    assert "traceability_gap_citation_rate" in body["citations"]
     assert body["citations"]["architect_threshold_hit_rate_avg"] is not None
     assert body["priority_signal_breakdown"]["high_severity_findings_total"]["weight"] >= 1
     assert body["priority_signal_breakdown"]["open_findings_total"]["weighted_score"] >= 1
@@ -1457,6 +1475,7 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["donor_weighted_risk_breakdown"]["usaid"]["high_priority_signal_count"] >= 1
     assert "architect_rag_low_confidence_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "mel_rag_low_confidence_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "traceability_gap_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "llm_finding_label_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
     assert "llm_advisory_rejected_reason_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
