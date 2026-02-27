@@ -124,6 +124,7 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_strict_preflight" in body
     assert "grantflow_demo_portfolio_warning_level" in body
     assert "grantflow_demo_portfolio_grounding_risk_level" in body
+    assert "grantflow_demo_export_gzip_enabled" in body
     assert "generatePreflightAlert" in body
     assert "generatePreflightAlertTitle" in body
     assert "generatePreflightAlertBody" in body
@@ -172,6 +173,15 @@ def test_demo_console_page_loads():
     assert "copyPortfolioMetricsJsonBtn" in body
     assert "downloadPortfolioMetricsJsonBtn" in body
     assert "downloadPortfolioMetricsCsvBtn" in body
+    assert "exportGzipEnabled" in body
+    assert "exportInventoryJsonBtn" in body
+    assert "exportInventoryCsvBtn" in body
+    assert "exportPortfolioMetricsJsonBtn" in body
+    assert "exportPortfolioMetricsCsvBtn" in body
+    assert "exportPortfolioQualityJsonBtn" in body
+    assert "exportPortfolioQualityCsvBtn" in body
+    assert "Export (Server-side)" in body
+    assert 'params.set("gzip", "true")' in body
     assert "grantflow_portfolio_metrics.csv" in body
     assert "copyPortfolioQualityJsonBtn" in body
     assert "downloadPortfolioQualityJsonBtn" in body

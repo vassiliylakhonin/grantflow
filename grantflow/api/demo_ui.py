@@ -545,6 +545,40 @@ def render_demo_ui_html() -> str:
               <button id="downloadPortfolioQualityJsonBtn" class="ghost">Export Quality JSON</button>
               <button id="downloadPortfolioQualityCsvBtn" class="secondary">Export Quality CSV</button>
             </div>
+            <div style="margin-top:14px;">
+              <label>Export (Server-side)</label>
+              <div class="sub" style="margin-top:4px;">Uses current filters for portfolio endpoints and selected donor for inventory.</div>
+            </div>
+            <div class="row4" style="margin-top:10px;">
+              <div>
+                <label for="exportGzipEnabled">Gzip</label>
+                <select id="exportGzipEnabled">
+                  <option value="false">false</option>
+                  <option value="true">true</option>
+                </select>
+              </div>
+              <div style="align-self:end;">
+                <button id="exportInventoryJsonBtn" class="ghost">Inventory JSON</button>
+              </div>
+              <div style="align-self:end;">
+                <button id="exportInventoryCsvBtn" class="ghost">Inventory CSV</button>
+              </div>
+              <div style="align-self:end;"></div>
+            </div>
+            <div class="row4" style="margin-top:10px;">
+              <div style="align-self:end;">
+                <button id="exportPortfolioMetricsJsonBtn" class="ghost">Metrics JSON</button>
+              </div>
+              <div style="align-self:end;">
+                <button id="exportPortfolioMetricsCsvBtn" class="ghost">Metrics CSV</button>
+              </div>
+              <div style="align-self:end;">
+                <button id="exportPortfolioQualityJsonBtn" class="ghost">Quality JSON</button>
+              </div>
+              <div style="align-self:end;">
+                <button id="exportPortfolioQualityCsvBtn" class="secondary">Quality CSV</button>
+              </div>
+            </div>
             <div class="row" style="margin-top:10px;">
               <div>
                 <label>Top Donors (Needs Revision)</label>
@@ -874,6 +908,7 @@ def render_demo_ui_html() -> str:
         ["portfolioHitlFilter", "grantflow_demo_portfolio_hitl"],
         ["portfolioWarningLevelFilter", "grantflow_demo_portfolio_warning_level"],
         ["portfolioGroundingRiskLevelFilter", "grantflow_demo_portfolio_grounding_risk_level"],
+        ["exportGzipEnabled", "grantflow_demo_export_gzip_enabled"],
         ["commentsFilterSection", "grantflow_demo_comments_filter_section"],
         ["commentsFilterStatus", "grantflow_demo_comments_filter_status"],
         ["commentsFilterVersionId", "grantflow_demo_comments_filter_version_id"],
@@ -1149,6 +1184,7 @@ def render_demo_ui_html() -> str:
         portfolioHitlFilter: $("portfolioHitlFilter"),
         portfolioWarningLevelFilter: $("portfolioWarningLevelFilter"),
         portfolioGroundingRiskLevelFilter: $("portfolioGroundingRiskLevelFilter"),
+        exportGzipEnabled: $("exportGzipEnabled"),
         commentsFilterSection: $("commentsFilterSection"),
         commentsFilterStatus: $("commentsFilterStatus"),
         commentsFilterVersionId: $("commentsFilterVersionId"),
@@ -1183,6 +1219,12 @@ def render_demo_ui_html() -> str:
         copyPortfolioQualityJsonBtn: $("copyPortfolioQualityJsonBtn"),
         downloadPortfolioQualityJsonBtn: $("downloadPortfolioQualityJsonBtn"),
         downloadPortfolioQualityCsvBtn: $("downloadPortfolioQualityCsvBtn"),
+        exportInventoryJsonBtn: $("exportInventoryJsonBtn"),
+        exportInventoryCsvBtn: $("exportInventoryCsvBtn"),
+        exportPortfolioMetricsJsonBtn: $("exportPortfolioMetricsJsonBtn"),
+        exportPortfolioMetricsCsvBtn: $("exportPortfolioMetricsCsvBtn"),
+        exportPortfolioQualityJsonBtn: $("exportPortfolioQualityJsonBtn"),
+        exportPortfolioQualityCsvBtn: $("exportPortfolioQualityCsvBtn"),
         commentsBtn: $("commentsBtn"),
         addCommentBtn: $("addCommentBtn"),
         resolveCommentBtn: $("resolveCommentBtn"),
@@ -1241,6 +1283,10 @@ def render_demo_ui_html() -> str:
         els.portfolioWarningLevelFilter.value = "";
         els.portfolioGroundingRiskLevelFilter.value = "";
         persistUiState();
+      }
+
+      function exportGzipEnabled() {
+        return String(els.exportGzipEnabled.value || "").toLowerCase() === "true";
       }
 
       async function clearDemoFilters() {
@@ -3374,6 +3420,7 @@ def render_demo_ui_html() -> str:
         const q = buildPortfolioFilterQueryString();
         const params = new URLSearchParams(q.startsWith("?") ? q.slice(1) : "");
         params.set("format", format);
+        if (exportGzipEnabled()) params.set("gzip", "true");
         const query = params.toString();
         const res = await fetch(`${apiBase()}${endpointPath}?${query}`, {
           headers: { ...headers() },
@@ -3400,6 +3447,38 @@ def render_demo_ui_html() -> str:
           throw new Error("Clipboard API is not available in this browser");
         }
         await navigator.clipboard.writeText(text);
+      }
+
+      function currentInventoryDonorIdForExport() {
+        const ingestDonor = String(els.ingestDonorId?.value || "").trim();
+        if (ingestDonor) return ingestDonor;
+        const portfolioDonor = String(els.portfolioDonorFilter?.value || "").trim();
+        if (portfolioDonor) return portfolioDonor;
+        const generateDonor = String(els.donorId?.value || "").trim();
+        if (generateDonor) return generateDonor;
+        return "";
+      }
+
+      async function exportIngestInventory(format) {
+        const donorId = currentInventoryDonorIdForExport();
+        if (!donorId) throw new Error("Missing donor_id for inventory export");
+        persistUiState();
+        persistBasics();
+        const query = new URLSearchParams({ donor_id: donorId, format });
+        if (exportGzipEnabled()) query.set("gzip", "true");
+        const res = await fetch(`${apiBase()}/ingest/inventory/export?${query.toString()}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          throw new Error(await res.text());
+        }
+        const fallbackFilename = `grantflow_ingest_inventory_${donorId}.${format}${exportGzipEnabled() ? ".gz" : ""}`;
+        const filename = parseDownloadFilenameFromDisposition(
+          res.headers.get("content-disposition"),
+          fallbackFilename
+        );
+        const blob = await res.blob();
+        downloadBlob(blob, filename);
       }
 
       async function copyPortfolioQualityJson() {
@@ -3431,33 +3510,11 @@ def render_demo_ui_html() -> str:
       }
 
       async function downloadIngestInventoryJson() {
-        const donorId = String(els.ingestDonorId.value || "").trim();
-        if (!donorId) throw new Error("Missing ingest donor_id");
-        persistBasics();
-        const query = new URLSearchParams({ donor_id: donorId, format: "json" });
-        const res = await fetch(`${apiBase()}/ingest/inventory/export?${query.toString()}`, {
-          headers: { ...headers() },
-        });
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-        const blob = await res.blob();
-        downloadBlob(blob, `grantflow_ingest_inventory_${donorId}.json`);
+        await exportIngestInventory("json");
       }
 
       async function downloadIngestInventoryCsv() {
-        const donorId = String(els.ingestDonorId.value || "").trim();
-        if (!donorId) throw new Error("Missing ingest donor_id");
-        persistBasics();
-        const query = new URLSearchParams({ donor_id: donorId, format: "csv" });
-        const res = await fetch(`${apiBase()}/ingest/inventory/export?${query.toString()}`, {
-          headers: { ...headers() },
-        });
-        if (!res.ok) {
-          throw new Error(await res.text());
-        }
-        const blob = await res.blob();
-        downloadBlob(blob, `grantflow_ingest_inventory_${donorId}.csv`);
+        await exportIngestInventory("csv");
       }
 
       async function downloadPortfolioQualityJson() {
@@ -3703,6 +3760,24 @@ def render_demo_ui_html() -> str:
         els.downloadPortfolioMetricsCsvBtn.addEventListener("click", () =>
           downloadPortfolioMetricsCsv().catch((err) => showError(err))
         );
+        els.exportInventoryJsonBtn.addEventListener("click", () =>
+          exportIngestInventory("json").catch((err) => showError(err))
+        );
+        els.exportInventoryCsvBtn.addEventListener("click", () =>
+          exportIngestInventory("csv").catch((err) => showError(err))
+        );
+        els.exportPortfolioMetricsJsonBtn.addEventListener("click", () =>
+          downloadPortfolioMetricsJson().catch((err) => showError(err))
+        );
+        els.exportPortfolioMetricsCsvBtn.addEventListener("click", () =>
+          downloadPortfolioMetricsCsv().catch((err) => showError(err))
+        );
+        els.exportPortfolioQualityJsonBtn.addEventListener("click", () =>
+          downloadPortfolioQualityJson().catch((err) => showError(err))
+        );
+        els.exportPortfolioQualityCsvBtn.addEventListener("click", () =>
+          downloadPortfolioQualityCsv().catch((err) => showError(err))
+        );
         els.copyPortfolioQualityJsonBtn.addEventListener("click", () =>
           copyPortfolioQualityJson().catch((err) => showError(err))
         );
@@ -3765,6 +3840,7 @@ def render_demo_ui_html() -> str:
           renderGeneratePresetReadiness();
           renderZeroReadinessWarningPreference();
         });
+        els.exportGzipEnabled.addEventListener("change", persistUiState);
         els.inputContextJson.addEventListener("change", persistUiState);
         els.ingestPresetSelect.addEventListener("change", () => {
           persistUiState();
