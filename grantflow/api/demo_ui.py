@@ -112,6 +112,10 @@ def render_demo_ui_html() -> str:
     }
     .kpi .label { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
     .kpi .value { font-family: var(--mono); font-size: 1rem; }
+    .kpi .value.risk-high { color: var(--bad); font-weight: 700; }
+    .kpi .value.risk-medium { color: var(--warn); font-weight: 700; }
+    .kpi .value.risk-low { color: var(--good); font-weight: 700; }
+    .kpi .value.risk-none { color: var(--muted); font-weight: 600; }
     pre {
       margin: 0; white-space: pre-wrap; word-break: break-word;
       background: #1f2329; color: #e5e7eb; border-radius: 10px; padding: 12px;
@@ -1726,9 +1730,18 @@ def render_demo_ui_html() -> str:
           preflightRiskValue,
           strictPreflightValue,
         ];
-        [...els.qualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
+        const qualityValueNodes = [...els.qualityCards.querySelectorAll(".kpi .value")];
+        qualityValueNodes.forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
+        const preflightRiskNode = qualityValueNodes[6];
+        if (preflightRiskNode) {
+          const level = String(preflightRiskLevel || "").toLowerCase();
+          preflightRiskNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (level === "high" || level === "medium" || level === "low" || level === "none") {
+            preflightRiskNode.classList.add(`risk-${level}`);
+          }
+        }
         renderQualityAdvisoryBadge(advisoryDiagnostics);
         renderKeyValueList(
           els.qualityLlmFindingLabelsList,
