@@ -127,6 +127,8 @@ def test_demo_console_page_loads():
     assert "portfolioQualityWarningLevelsList" in body
     assert "portfolioQualityPrioritySignalsList" in body
     assert "portfolioQualityWeightedDonorsList" in body
+    assert "% High-warning Jobs" in body
+    assert "% Medium-warning Jobs" in body
     assert "qualityLlmFindingLabelsList" in body
     assert "qualityAdvisoryBadgeList" in body
     assert "qualityReadinessWarningLevelPill" in body
@@ -1650,6 +1652,10 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["filters"]["hitl_enabled"] is True
     assert body["warning_level_counts"]["medium"] >= 1
     assert body["warning_level_counts"]["low"] >= 1
+    assert body["warning_level_high_job_count"] == 0
+    assert body["warning_level_medium_job_count"] >= 1
+    assert body["warning_level_high_rate"] == 0.0
+    assert body["warning_level_medium_rate"] is not None
     assert body["job_count"] >= 2
     assert body["avg_quality_score"] is not None
     assert body["avg_critic_score"] is not None

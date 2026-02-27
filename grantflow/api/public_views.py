@@ -1220,6 +1220,14 @@ def public_portfolio_quality_payload(
         "status_counts": status_counts,
         "donor_counts": donor_counts,
         "warning_level_counts": warning_level_counts,
+        "warning_level_high_job_count": int(warning_level_counts.get("high") or 0),
+        "warning_level_medium_job_count": int(warning_level_counts.get("medium") or 0),
+        "warning_level_high_rate": (
+            round(int(warning_level_counts.get("high") or 0) / job_count, 4) if job_count else None
+        ),
+        "warning_level_medium_rate": (
+            round(int(warning_level_counts.get("medium") or 0) / job_count, 4) if job_count else None
+        ),
         "terminal_job_count": len(terminal_rows),
         "quality_score_job_count": quality_score_job_count,
         "critic_score_job_count": critic_score_job_count,

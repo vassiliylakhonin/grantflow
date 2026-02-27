@@ -497,6 +497,8 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Threshold Hit-rate</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Weighted Risk</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">High-Priority Signals</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">% High-warning Jobs</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">% Medium-warning Jobs</div><div class="value mono">-</div></div>
             </div>
             <div class="row" style="margin-top:10px;">
               <button id="copyPortfolioQualityJsonBtn" class="ghost">Copy Quality JSON</button>
@@ -2069,6 +2071,14 @@ def render_demo_ui_html() -> str:
           typeof citations.architect_threshold_hit_rate_avg === "number"
             ? `${(Number(citations.architect_threshold_hit_rate_avg) * 100).toFixed(1)}%`
             : "-";
+        const highWarningRate =
+          typeof summary?.warning_level_high_rate === "number"
+            ? `${(Number(summary.warning_level_high_rate) * 100).toFixed(1)}%`
+            : "-";
+        const mediumWarningRate =
+          typeof summary?.warning_level_medium_rate === "number"
+            ? `${(Number(summary.warning_level_medium_rate) * 100).toFixed(1)}%`
+            : "-";
         const values = [
           typeof summary?.avg_quality_score === "number" ? Number(summary.avg_quality_score).toFixed(2) : "-",
           needsRevisionRate,
@@ -2078,6 +2088,8 @@ def render_demo_ui_html() -> str:
           thresholdHitRate,
           String(summary?.severity_weighted_risk_score ?? "-"),
           String(summary?.high_priority_signal_count ?? "-"),
+          highWarningRate,
+          mediumWarningRate,
         ];
         [...els.portfolioQualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";
