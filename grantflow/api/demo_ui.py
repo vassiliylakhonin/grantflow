@@ -1008,6 +1008,7 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row3" style="margin-top:10px;">
               <button id="reviewWorkflowSlaBtn" class="ghost">Load Workflow SLA</button>
+              <button id="reviewWorkflowSlaProfileBtn" class="ghost">Load SLA Profile</button>
               <button id="reviewWorkflowSlaRecomputeBtn" class="secondary">Recompute SLA</button>
               <div id="reviewWorkflowSlaSummaryLine" class="footer-note mono" style="align-self:center;">
                 sla: overdue=- · breach_rate=- · oldest=-
@@ -1047,6 +1048,12 @@ def render_demo_ui_html() -> str:
             </div>
             <div style="margin-top:10px;">
               <pre id="reviewWorkflowSlaJson">{}</pre>
+            </div>
+            <div style="margin-top:10px;">
+              <div id="reviewWorkflowSlaProfileSummaryLine" class="footer-note mono">profile: source=- · updated=-</div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="reviewWorkflowSlaProfileJson">{}</pre>
             </div>
           </div>
         </div>
@@ -1341,10 +1348,13 @@ def render_demo_ui_html() -> str:
         reviewWorkflowExportJsonBtn: $("reviewWorkflowExportJsonBtn"),
         reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
         reviewWorkflowSlaBtn: $("reviewWorkflowSlaBtn"),
+        reviewWorkflowSlaProfileBtn: $("reviewWorkflowSlaProfileBtn"),
         reviewWorkflowSlaRecomputeBtn: $("reviewWorkflowSlaRecomputeBtn"),
         reviewWorkflowSlaSummaryLine: $("reviewWorkflowSlaSummaryLine"),
         reviewWorkflowSlaHotspotsList: $("reviewWorkflowSlaHotspotsList"),
         reviewWorkflowSlaJson: $("reviewWorkflowSlaJson"),
+        reviewWorkflowSlaProfileSummaryLine: $("reviewWorkflowSlaProfileSummaryLine"),
+        reviewWorkflowSlaProfileJson: $("reviewWorkflowSlaProfileJson"),
         metricsCards: $("metricsCards"),
         qualityCards: $("qualityCards"),
         portfolioMetricsCards: $("portfolioMetricsCards"),
@@ -3543,6 +3553,30 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshReviewWorkflowSlaProfile() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        persistUiState();
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/review/workflow/sla/profile`);
+        const findingProfile = body?.finding_sla_hours && typeof body.finding_sla_hours === "object" ? body.finding_sla_hours : {};
+        if (findingProfile.high != null) els.reviewWorkflowSlaHighHours.value = String(findingProfile.high);
+        if (findingProfile.medium != null) els.reviewWorkflowSlaMediumHours.value = String(findingProfile.medium);
+        if (findingProfile.low != null) els.reviewWorkflowSlaLowHours.value = String(findingProfile.low);
+        if (body?.default_comment_sla_hours != null) {
+          els.reviewWorkflowSlaCommentDefaultHours.value = String(body.default_comment_sla_hours);
+        }
+        if (body?.source) {
+          els.reviewWorkflowSlaUseSavedProfile.value = body.source === "saved" ? "true" : "false";
+        }
+        persistUiState();
+        const updatedMarker = String(body?.saved_profile_updated_at || "-");
+        if (els.reviewWorkflowSlaProfileSummaryLine) {
+          els.reviewWorkflowSlaProfileSummaryLine.textContent = `profile: source=${String(body?.source || "-")} · updated=${updatedMarker}`;
+        }
+        setJson(els.reviewWorkflowSlaProfileJson, body);
+        return body;
+      }
+
       async function recomputeReviewWorkflowSla() {
         const jobId = currentJobId();
         if (!jobId) throw new Error("No job_id");
@@ -3569,7 +3603,7 @@ def render_demo_ui_html() -> str:
         const slaPayload = body?.sla && typeof body.sla === "object" ? body.sla : {};
         renderReviewWorkflowSla(slaPayload);
         setJson(els.reviewWorkflowSlaJson, body);
-        await Promise.allSettled([refreshReviewWorkflow(), refreshComments(), refreshCritic()]);
+        await Promise.allSettled([refreshReviewWorkflow(), refreshComments(), refreshCritic(), refreshReviewWorkflowSlaProfile()]);
         return body;
       }
 
@@ -3827,6 +3861,7 @@ def render_demo_ui_html() -> str:
           refreshComments(),
           refreshReviewWorkflow(),
           refreshReviewWorkflowSla(),
+          refreshReviewWorkflowSlaProfile(),
         ]);
       }
 
@@ -4352,13 +4387,14 @@ def render_demo_ui_html() -> str:
         );
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
         els.reviewWorkflowBtn.addEventListener("click", () => {
-          Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
+          Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla(), refreshReviewWorkflowSlaProfile()]).catch(showError);
         });
         els.reviewWorkflowSlaBtn.addEventListener("click", () => refreshReviewWorkflowSla().catch(showError));
+        els.reviewWorkflowSlaProfileBtn.addEventListener("click", () => refreshReviewWorkflowSlaProfile().catch(showError));
         els.reviewWorkflowSlaRecomputeBtn.addEventListener("click", () => recomputeReviewWorkflowSla().catch(showError));
         els.reviewWorkflowClearFiltersBtn.addEventListener("click", () => {
           clearReviewWorkflowFilters();
-          Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
+          Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla(), refreshReviewWorkflowSlaProfile()]).catch(showError);
         });
         els.reviewWorkflowExportJsonBtn.addEventListener("click", () =>
           downloadReviewWorkflowJson().catch((err) => showError(err))

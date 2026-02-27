@@ -54,6 +54,7 @@ from grantflow.api.schemas import (
     JobMetricsPublicResponse,
     JobQualitySummaryPublicResponse,
     JobReviewWorkflowPublicResponse,
+    JobReviewWorkflowSLAProfilePublicResponse,
     JobReviewWorkflowSLARecomputePublicResponse,
     JobReviewWorkflowSLAPublicResponse,
     JobStatusPublicResponse,
@@ -771,6 +772,52 @@ def _resolve_sla_profile_for_recompute(
     else:
         resolved_comment = _normalize_comment_sla_hours(default_comment_sla_hours)
     return resolved_finding, resolved_comment
+
+
+def _review_workflow_sla_profile_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    client_metadata = job.get("client_metadata")
+    metadata = client_metadata if isinstance(client_metadata, dict) else {}
+    saved_profile = metadata.get("sla_profile")
+    saved_profile_dict = saved_profile if isinstance(saved_profile, dict) else {}
+    has_saved_profile = bool(saved_profile_dict)
+
+    finding_sla_hours_default = dict(CRITIC_FINDING_SLA_HOURS)
+    comment_sla_default = int(REVIEW_COMMENT_DEFAULT_SLA_HOURS)
+    source = "default"
+    saved_profile_valid = True
+    saved_profile_error: Optional[str] = None
+    finding_sla_hours = finding_sla_hours_default
+    default_comment_sla_hours = comment_sla_default
+
+    if has_saved_profile:
+        try:
+            finding_sla_hours = _normalize_finding_sla_profile(
+                saved_profile_dict.get("finding_sla_hours"),
+                default=finding_sla_hours_default,
+            )
+            default_comment_sla_hours = _normalize_comment_sla_hours(
+                saved_profile_dict.get("default_comment_sla_hours")
+            )
+            source = "saved"
+        except HTTPException as exc:
+            saved_profile_valid = False
+            saved_profile_error = str(exc.detail)
+            finding_sla_hours = finding_sla_hours_default
+            default_comment_sla_hours = comment_sla_default
+            source = "default"
+
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "source": source,
+        "finding_sla_hours": finding_sla_hours,
+        "default_comment_sla_hours": default_comment_sla_hours,
+        "saved_profile_available": has_saved_profile,
+        "saved_profile_valid": saved_profile_valid,
+        "saved_profile_error": saved_profile_error,
+        "saved_profile_updated_at": str(saved_profile_dict.get("updated_at") or "").strip() or None,
+        "saved_profile_updated_by": str(saved_profile_dict.get("updated_by") or "").strip() or None,
+    }
 
 
 def _ensure_finding_due_at(
@@ -2366,6 +2413,20 @@ def get_status_review_workflow_sla(
         job,
         overdue_after_hours=overdue_after_hours,
     )
+
+
+@app.get(
+    "/status/{job_id}/review/workflow/sla/profile",
+    response_model=JobReviewWorkflowSLAProfilePublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_review_workflow_sla_profile(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    job = _normalize_review_comments_for_job(job_id) or job
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return _review_workflow_sla_profile_payload(job_id, job)
 
 
 @app.post(

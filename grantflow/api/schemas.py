@@ -260,6 +260,21 @@ class JobReviewWorkflowSLAPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobReviewWorkflowSLAProfilePublicResponse(BaseModel):
+    job_id: str
+    status: str
+    source: str
+    finding_sla_hours: Dict[str, int]
+    default_comment_sla_hours: int
+    saved_profile_available: bool = False
+    saved_profile_valid: bool = True
+    saved_profile_error: Optional[str] = None
+    saved_profile_updated_at: Optional[str] = None
+    saved_profile_updated_by: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 class JobReviewWorkflowSLARecomputePublicResponse(BaseModel):
     job_id: str
     status: str

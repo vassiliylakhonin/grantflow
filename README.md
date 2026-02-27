@@ -183,6 +183,7 @@ curl -s -X POST http://127.0.0.1:8000/export \
 - `POST /generate/preflight`, `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
 - `GET /status/{job_id}` plus:
   - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/sla`, `/review/workflow/export`
+  - `GET /status/{job_id}/review/workflow/sla/profile`
   - `POST /status/{job_id}/review/workflow/sla/recompute`
     - optional body: `finding_sla_hours` (`high|medium|low`), `default_comment_sla_hours`, `use_saved_profile`
     - applied profile is stored in `client_metadata.sla_profile`
