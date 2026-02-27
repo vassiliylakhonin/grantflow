@@ -4680,6 +4680,43 @@ def test_hitl_pause_resume_flow():
     assert engine in {"rules", ""} or engine.startswith("rules+llm:")
 
 
+def test_hitl_checkpoint_selection_logframe_only_flow():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Education", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": True,
+            "hitl_checkpoints": ["logframe"],
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "pending_hitl"
+    assert status["checkpoint_stage"] == "logframe"
+    assert status["state"]["hitl_pending"] is True
+    assert status["state"]["toc_draft"]
+    assert status["state"]["logframe_draft"]
+
+    cp_id = status["checkpoint_id"]
+    approve = client.post(
+        "/hitl/approve",
+        json={"checkpoint_id": cp_id, "approved": True, "feedback": "Logframe approved"},
+    )
+    assert approve.status_code == 200
+
+    resume = client.post(f"/resume/{job_id}", json={})
+    assert resume.status_code == 200
+    assert resume.json()["resuming_from"] == "critic"
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+    assert status["state"]["hitl_pending"] is False
+
+
 def test_resume_requires_checkpoint_decision_before_running_again():
     response = client.post(
         "/generate",

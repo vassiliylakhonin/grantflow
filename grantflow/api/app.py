@@ -109,6 +109,7 @@ RUNTIME_PIPELINE_STATE_KEYS = {
     "_start_at",
     "hitl_checkpoint_stage",
     "hitl_resume_from",
+    "hitl_checkpoint_id",
 }
 GENERATE_PREFLIGHT_DEFAULT_DOC_FAMILIES: dict[str, list[str]] = {
     "usaid": ["donor_policy", "responsible_ai_guidance", "country_context"],
@@ -717,6 +718,7 @@ class GenerateRequest(BaseModel):
     input_context: Dict[str, Any]
     llm_mode: bool = False
     hitl_enabled: bool = False
+    hitl_checkpoints: Optional[list[Literal["architect", "toc", "mel", "logframe"]]] = None
     strict_preflight: bool = False
     webhook_url: Optional[str] = None
     webhook_secret: Optional[str] = None
@@ -1684,14 +1686,23 @@ install_openapi_api_key_security(app)
 
 
 def _pause_for_hitl(job_id: str, state: dict, stage: Literal["toc", "logframe"], resume_from: HITLStartAt) -> None:
+    existing_checkpoint_id = str(state.get("hitl_checkpoint_id") or "").strip() or None
     if _job_is_canceled(job_id):
+        if existing_checkpoint_id:
+            hitl_manager.cancel(existing_checkpoint_id, "Canceled before HITL checkpoint was published")
         return
     for key in RUNTIME_PIPELINE_STATE_KEYS:
         state.pop(key, None)
     state["hitl_pending"] = True
     normalize_state_contract(state)
     donor_id = state_donor_id(state, default="unknown")
-    checkpoint_id = hitl_manager.create_checkpoint(stage, state, donor_id)
+    checkpoint_id = existing_checkpoint_id
+    if checkpoint_id:
+        checkpoint = hitl_manager.get_checkpoint(checkpoint_id)
+        if not checkpoint:
+            checkpoint_id = None
+    if not checkpoint_id:
+        checkpoint_id = hitl_manager.create_checkpoint(stage, state, donor_id)
     if _job_is_canceled(job_id):
         hitl_manager.cancel(checkpoint_id, "Canceled before HITL checkpoint was published")
         return
@@ -2220,6 +2231,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         "generate_preflight": preflight,
         "strict_preflight": req.strict_preflight,
         "llm_mode": req.llm_mode,
+        "hitl_checkpoints": list(req.hitl_checkpoints or []),
         "iteration_count": 0,
         "max_iterations": config.graph.max_iterations,
         "critic_score": 0.0,

@@ -20,6 +20,7 @@ class GrantFlowState(TypedDict, total=False):
     critic_notes: dict[str, Any]
     critic_feedback_history: list[str]
     hitl_pending: bool
+    hitl_checkpoints: list[str]
     errors: list[str]
 
 
@@ -103,6 +104,19 @@ def normalize_state_contract(state: MutableMapping[str, Any]) -> GrantFlowState:
     state["llm_mode"] = _as_bool(state.get("llm_mode"), default=False)
     state["needs_revision"] = _as_bool(state.get("needs_revision"), default=False)
     state["hitl_pending"] = _as_bool(state.get("hitl_pending"), default=False)
+    hitl_checkpoints = state.get("hitl_checkpoints")
+    if isinstance(hitl_checkpoints, (list, tuple, set)):
+        normalized_checkpoints: list[str] = []
+        for item in hitl_checkpoints:
+            token = str(item or "").strip().lower()
+            if token:
+                normalized_checkpoints.append(token)
+        state["hitl_checkpoints"] = normalized_checkpoints
+    elif isinstance(hitl_checkpoints, str):
+        tokens = [part.strip().lower() for part in hitl_checkpoints.split(",") if part.strip()]
+        state["hitl_checkpoints"] = tokens
+    else:
+        state["hitl_checkpoints"] = []
 
     critic_notes = state.get("critic_notes")
     state["critic_notes"] = critic_notes if isinstance(critic_notes, dict) else {}
