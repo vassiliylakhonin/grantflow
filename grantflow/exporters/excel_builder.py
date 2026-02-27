@@ -88,6 +88,7 @@ def _add_critic_findings_sheet(wb: Workbook, critic_findings: list[Dict[str, Any
     ]
     ws.append(headers)
     for f in critic_findings:
+        finding_id = f.get("id") or f.get("finding_id", "")
         ws.append(
             [
                 f.get("status", ""),
@@ -97,7 +98,7 @@ def _add_critic_findings_sheet(wb: Workbook, critic_findings: list[Dict[str, Any
                 f.get("message", ""),
                 f.get("fix_hint", ""),
                 f.get("version_id", ""),
-                f.get("finding_id", ""),
+                finding_id,
                 f.get("source", ""),
             ]
         )

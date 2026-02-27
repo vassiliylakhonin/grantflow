@@ -10,6 +10,7 @@ from grantflow.swarm.versioning import filter_versions
 
 
 class CriticFatalFlaw(BaseModel):
+    id: Optional[str] = Field(default=None, description="Canonical finding identifier within a job")
     finding_id: Optional[str] = Field(default=None, description="Stable finding identifier within a job")
     code: str = Field(description="Stable rule/check code")
     label: Optional[str] = Field(default=None, description="Normalized finding label for stable downstream handling")

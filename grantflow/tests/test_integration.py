@@ -634,7 +634,9 @@ def test_status_critic_endpoint_returns_typed_payload():
         assert "section" in check
     if body["fatal_flaws"]:
         flaw = body["fatal_flaws"][0]
+        assert "id" in flaw and flaw["id"]
         assert "finding_id" in flaw and flaw["finding_id"]
+        assert flaw["id"] == flaw["finding_id"]
         assert flaw.get("status") in {"open", "acknowledged", "resolved"}
         assert "code" in flaw
         assert "severity" in flaw
@@ -695,6 +697,7 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     ack_resp = client.post(f"/status/{job_id}/critic/findings/{finding_id}/ack")
     assert ack_resp.status_code == 200
     ack_body = ack_resp.json()
+    assert ack_body["id"] == finding_id
     assert ack_body["finding_id"] == finding_id
     assert ack_body["status"] == "acknowledged"
     assert ack_body.get("acknowledged_at")
@@ -720,6 +723,7 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     resolve_resp = client.post(f"/status/{job_id}/critic/findings/{finding_id}/resolve")
     assert resolve_resp.status_code == 200
     resolve_body = resolve_resp.json()
+    assert resolve_body["id"] == finding_id
     assert resolve_body["finding_id"] == finding_id
     assert resolve_body["status"] == "resolved"
     assert resolve_body.get("resolved_at")
@@ -752,6 +756,7 @@ def test_status_critic_normalizes_legacy_string_findings_into_entities():
     critic_body = critic_resp.json()
     assert critic_body["fatal_flaw_count"] == 1
     flaw = critic_body["fatal_flaws"][0]
+    assert flaw["id"] == flaw["finding_id"]
     assert flaw["finding_id"]
     assert flaw["code"] == "LEGACY_UNSTRUCTURED_FINDING"
     assert flaw["status"] == "open"
@@ -764,6 +769,52 @@ def test_status_critic_normalizes_legacy_string_findings_into_entities():
     ack_body = ack_resp.json()
     assert ack_body["status"] == "acknowledged"
     assert ack_body.get("acknowledged_at")
+
+
+def test_status_critic_accepts_id_only_finding_entities():
+    job_id = "critic-findings-id-only-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "quality_score": 6.0,
+                "critic_score": 6.0,
+                "needs_revision": True,
+                "critic_notes": {
+                    "engine": "rules",
+                    "fatal_flaws": [
+                        {
+                            "id": "finding-id-only-1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "message": "Theory of Change draft does not match expected donor schema.",
+                            "fix_suggestion": "Regenerate ToC with valid structured output.",
+                            "source": "rules",
+                        }
+                    ],
+                    "fatal_flaw_messages": ["Theory of Change draft does not match expected donor schema."],
+                    "rule_checks": [{"code": "TOC_SCHEMA_VALID", "status": "fail", "section": "toc"}],
+                },
+            },
+            "review_comments": [],
+        },
+    )
+
+    critic_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_resp.status_code == 200
+    flaw = critic_resp.json()["fatal_flaws"][0]
+    assert flaw["id"] == "finding-id-only-1"
+    assert flaw["finding_id"] == "finding-id-only-1"
+
+    ack_resp = client.post(f"/status/{job_id}/critic/findings/{flaw['id']}/ack")
+    assert ack_resp.status_code == 200
+    ack_body = ack_resp.json()
+    assert ack_body["id"] == "finding-id-only-1"
+    assert ack_body["finding_id"] == "finding-id-only-1"
+    assert ack_body["status"] == "acknowledged"
 
 
 def test_status_export_payload_endpoint_returns_review_ready_payload():
@@ -847,6 +898,7 @@ def test_status_export_payload_endpoint_returns_review_ready_payload():
     assert "donor_strategy" not in payload["state"]
     assert payload["state"]["toc_draft"]["toc"]["brief"] == "Sample ToC"
     assert isinstance(payload["critic_findings"], list)
+    assert payload["critic_findings"][0]["id"] == "finding-1"
     assert payload["critic_findings"][0]["finding_id"] == "finding-1"
     assert payload["critic_findings"][0]["linked_comment_ids"] == ["comment-1"]
     assert isinstance(payload["review_comments"], list)

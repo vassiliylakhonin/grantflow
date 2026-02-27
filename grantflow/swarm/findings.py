@@ -8,6 +8,10 @@ _VALID_SECTIONS = {"toc", "logframe", "general"}
 _VALID_STATUSES = {"open", "acknowledged", "resolved"}
 
 
+def finding_primary_id(item: Dict[str, Any]) -> str:
+    return str(item.get("finding_id") or item.get("id") or "").strip()
+
+
 def _coerce_section(value: Any, *, message: str = "") -> str:
     section = str(value or "").strip().lower()
     if section in _VALID_SECTIONS:
@@ -50,8 +54,10 @@ def normalize_finding_item(
         if not message:
             return None
         section = _coerce_section(None, message=message)
+        canonical_id = str(uuid.uuid4())
         normalized: Dict[str, Any] = {
-            "finding_id": str(uuid.uuid4()),
+            "id": canonical_id,
+            "finding_id": canonical_id,
             "code": "LEGACY_UNSTRUCTURED_FINDING",
             "severity": "medium",
             "section": section,
@@ -78,12 +84,13 @@ def normalize_finding_item(
     status = _coerce_status(current.get("status"))
     source = str(current.get("source") or "").strip() or default_source
     code = str(current.get("code") or "").strip() or "FINDING_UNSPECIFIED"
-    finding_id = str(current.get("finding_id") or "").strip() or str(uuid.uuid4())
+    canonical_id = finding_primary_id(current) or str(uuid.uuid4())
     rationale = str(current.get("rationale") or "").strip() or None
     fix_suggestion = str(current.get("fix_suggestion") or current.get("fix_hint") or "").strip() or None
 
     normalized = dict(current)
-    normalized["finding_id"] = finding_id
+    normalized["id"] = canonical_id
+    normalized["finding_id"] = canonical_id
     normalized["code"] = code
     normalized["severity"] = severity
     normalized["section"] = section
@@ -94,10 +101,13 @@ def normalize_finding_item(
     normalized["fix_suggestion"] = fix_suggestion
     normalized["fix_hint"] = fix_suggestion
 
-    if status != "acknowledged":
+    if status == "open":
         normalized.pop("acknowledged_at", None)
-    if status != "resolved":
         normalized.pop("resolved_at", None)
+    elif status == "acknowledged":
+        normalized.pop("resolved_at", None)
+    elif status == "resolved":
+        pass
     return normalized
 
 
@@ -123,10 +133,14 @@ def normalize_findings(
         prior = previous_by_key.get(finding_identity_key(normalized))
         if prior:
             raw = item if isinstance(item, dict) else {}
-            for key in ("finding_id", "status", "acknowledged_at", "resolved_at"):
+            for key in ("id", "finding_id", "status", "acknowledged_at", "resolved_at"):
                 raw_has_value = isinstance(raw, dict) and raw.get(key) not in (None, "")
                 if not raw_has_value and prior.get(key) is not None:
                     normalized[key] = prior.get(key)
+            canonical_id = finding_primary_id(normalized)
+            if canonical_id:
+                normalized["id"] = canonical_id
+                normalized["finding_id"] = canonical_id
 
         normalized_items.append(normalized)
     return normalized_items

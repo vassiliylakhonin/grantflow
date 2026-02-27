@@ -67,7 +67,7 @@ from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace
 from grantflow.memory_bank.vector_store import vector_store
-from grantflow.swarm.findings import normalize_findings
+from grantflow.swarm.findings import finding_primary_id, normalize_findings
 from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
 from grantflow.swarm.retrieval_query import donor_query_preset_terms
@@ -678,7 +678,7 @@ def _find_critic_fatal_flaw(job: Dict[str, Any], finding_id: str) -> Optional[Di
     for item in raw_flaws:
         if not isinstance(item, dict):
             continue
-        if str(item.get("finding_id") or "") == finding_id:
+        if finding_primary_id(item) == finding_id:
             return item
     return None
 
@@ -708,9 +708,12 @@ def _set_critic_fatal_flaw_status(job_id: str, *, finding_id: str, next_status: 
     now = _utcnow_iso()
     for item in flaws:
         current = dict(item)
-        if str(current.get("finding_id") or "") != finding_id:
+        current_finding_id = finding_primary_id(current)
+        if current_finding_id != finding_id:
             next_flaws.append(current)
             continue
+        current["id"] = current_finding_id
+        current["finding_id"] = current_finding_id
         current_status = str(current.get("status") or "open")
         if current_status != next_status:
             current["status"] = next_status
@@ -742,7 +745,7 @@ def _set_critic_fatal_flaw_status(job_id: str, *, finding_id: str, next_status: 
         _record_job_event(
             job_id,
             "critic_finding_status_changed",
-            finding_id=finding_id,
+            finding_id=str(updated_finding.get("id") or finding_id),
             status=next_status,
             section=updated_finding.get("section"),
             severity=updated_finding.get("severity"),
@@ -1718,6 +1721,7 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
         finding = _find_critic_fatal_flaw(normalized_job, linked_finding_id)
         if not finding:
             raise HTTPException(status_code=400, detail="Unknown linked_finding_id")
+        linked_finding_id = finding_primary_id(finding) or linked_finding_id
         finding_section = str(finding.get("section") or "")
         if section != "general" and finding_section and section != finding_section:
             raise HTTPException(status_code=400, detail="linked_finding_id section does not match comment section")

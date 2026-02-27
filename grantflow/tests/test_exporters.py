@@ -183,6 +183,31 @@ def test_excel_export_includes_citations_sheet():
     assert any(row[6] == "2026-02-25T10:00:00Z" for row in comments_rows[1:])
 
 
+def test_exporters_accept_critic_finding_id_alias():
+    findings = [
+        {
+            "id": "finding-alias-1",
+            "status": "open",
+            "severity": "medium",
+            "section": "general",
+            "code": "FINDING_ALIAS",
+            "message": "Alias id should be rendered in exports.",
+            "fix_suggestion": "Use canonical finding id field.",
+            "source": "rules",
+        }
+    ]
+
+    docx_content = build_docx_from_toc({"toc": {"brief": "Alias test"}}, "usaid", critic_findings=findings)
+    doc = Document(BytesIO(docx_content))
+    text = "\n".join(p.text for p in doc.paragraphs)
+    assert "finding_id=finding-alias-1" in text
+
+    xlsx_content = build_xlsx_from_logframe({"indicators": []}, "usaid", critic_findings=findings)
+    wb = load_workbook(BytesIO(xlsx_content))
+    rows = list(wb["Critic Findings"].iter_rows(values_only=True))
+    assert any(row[7] == "finding-alias-1" for row in rows[1:])
+
+
 def test_excel_export_includes_donor_specific_sheets():
     usaid_toc = {
         "toc": {

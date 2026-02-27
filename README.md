@@ -15,7 +15,7 @@ It orchestrates proposal drafting as a process, not as a single text generation 
 Current focus:
 - structured draft pipeline (ToC + MEL/LogFrame)
 - donor strategy routing (specialized + generic)
-- critic loop with structured findings
+- critic loop with structured findings entities (`id`, `severity`, `section`, `status`, remediation fields)
 - human-in-the-loop pause/approve/resume
 - citation + version traceability
 - export to `.docx` / `.xlsx` / ZIP

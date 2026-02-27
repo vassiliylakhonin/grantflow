@@ -2616,6 +2616,7 @@ def render_demo_ui_html() -> str:
           els.criticFlawsList.innerHTML = `<div class="item"><div class="sub">No fatal flaws${section ? ` for ${escapeHtml(section)}` : ""}.</div></div>`;
         } else {
           for (const flaw of filteredFlaws) {
+            const flawId = String(flaw.id || flaw.finding_id || "").trim();
             const div = document.createElement("div");
             const flawSeverity = String(flaw.severity || "").toLowerCase();
             div.className = `item${flawSeverity ? ` severity-${flawSeverity}` : ""}`;
@@ -2627,7 +2628,7 @@ def render_demo_ui_html() -> str:
               <div class="sub">${escapeHtml(flaw.message || "")}</div>
               ${flaw.fix_hint ? `<div class="sub" style="margin-top:6px;">Fix: ${escapeHtml(flaw.fix_hint)}</div>` : ""}
               ${meta ? `<div class="sub" style="margin-top:6px;">${escapeHtml(meta)}</div>` : ""}
-              ${flaw.finding_id ? `<div class="sub" style="margin-top:6px;">finding_id: ${escapeHtml(String(flaw.finding_id).slice(0, 12))}${linkedComments.length ? ` · linked comments: ${escapeHtml(String(linkedComments.length))}` : ""}</div>` : ""}
+              ${flawId ? `<div class="sub" style="margin-top:6px;">finding_id: ${escapeHtml(String(flawId).slice(0, 12))}${linkedComments.length ? ` · linked comments: ${escapeHtml(String(linkedComments.length))}` : ""}</div>` : ""}
             `;
             const actionsRow = document.createElement("div");
             actionsRow.style.marginTop = "8px";
@@ -2635,23 +2636,23 @@ def render_demo_ui_html() -> str:
             actionsRow.style.gap = "8px";
             actionsRow.style.flexWrap = "wrap";
 
-            if (flaw.finding_id && flaw.status !== "acknowledged" && flaw.status !== "resolved") {
+            if (flawId && flaw.status !== "acknowledged" && flaw.status !== "resolved") {
               const ackBtn = document.createElement("button");
               ackBtn.className = "ghost";
               ackBtn.textContent = "Acknowledge";
               ackBtn.addEventListener("click", (event) => {
                 event.stopPropagation();
-                setFindingStatus(flaw.finding_id, "acknowledged").catch(showError);
+                setFindingStatus(flawId, "acknowledged").catch(showError);
               });
               actionsRow.appendChild(ackBtn);
             }
-            if (flaw.finding_id && flaw.status !== "resolved") {
+            if (flawId && flaw.status !== "resolved") {
               const resolveBtn = document.createElement("button");
               resolveBtn.className = "ghost";
               resolveBtn.textContent = "Resolve Finding";
               resolveBtn.addEventListener("click", (event) => {
                 event.stopPropagation();
-                setFindingStatus(flaw.finding_id, "resolved").catch(showError);
+                setFindingStatus(flawId, "resolved").catch(showError);
               });
               actionsRow.appendChild(resolveBtn);
             }
@@ -2859,7 +2860,7 @@ def render_demo_ui_html() -> str:
         }
         const versionId = String(flaw?.version_id || "").trim();
         els.commentVersionId.value = versionId;
-        els.linkedFindingId.value = String(flaw?.finding_id || "").trim();
+        els.linkedFindingId.value = String(flaw?.id || flaw?.finding_id || "").trim();
         const code = String(flaw?.code || "FINDING").trim();
         const msg = String(flaw?.message || "").trim();
         const hint = String(flaw?.fix_hint || "").trim();

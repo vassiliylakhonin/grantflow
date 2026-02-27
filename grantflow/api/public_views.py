@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, cast
 
 from grantflow.api.csv_utils import csv_text_from_mapping
 from grantflow.swarm.citations import citation_traceability_status
-from grantflow.swarm.findings import normalize_findings
+from grantflow.swarm.findings import finding_primary_id, normalize_findings
 
 PORTFOLIO_QUALITY_SIGNAL_WEIGHTS: dict[str, int] = {
     "high_severity_findings_total": 5,
@@ -214,9 +214,11 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
         for flaw in fatal_flaws:
             if not isinstance(flaw, dict):
                 continue
-            finding_id = str(flaw.get("finding_id") or "").strip()
+            finding_id = finding_primary_id(flaw)
             if not finding_id:
                 continue
+            flaw["id"] = finding_id
+            flaw["finding_id"] = finding_id
             linked = linked_comment_ids_by_finding.get(finding_id) or []
             if linked:
                 flaw["linked_comment_ids"] = linked

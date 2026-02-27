@@ -75,9 +75,10 @@ def _add_critic_findings_section(doc: Document, critic_findings: list[Dict[str, 
         if fix_hint:
             p = doc.add_paragraph()
             p.add_run(f"Fix hint: {fix_hint}").italic = True
+        finding_id = finding.get("id") or finding.get("finding_id")
         meta_bits = [
             f"version={finding.get('version_id')}" if finding.get("version_id") else None,
-            f"finding_id={finding.get('finding_id')}" if finding.get("finding_id") else None,
+            f"finding_id={finding_id}" if finding_id else None,
             f"source={finding.get('source')}" if finding.get("source") else None,
         ]
         meta_bits = [m for m in meta_bits if m]
