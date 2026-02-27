@@ -7,6 +7,7 @@ from typing import Any, Dict
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citations import append_citations
+from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
 from grantflow.swarm.versioning import append_draft_version
 
 
@@ -47,7 +48,8 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
 
         for idx, doc in enumerate(docs):
             meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
-            citation = meta.get("citation") or meta.get("source") or f"{namespace}"
+            source = citation_source_from_metadata(meta)
+            citation = citation_label_from_metadata(meta, namespace=namespace, rank=idx + 1)
             indicators.append(
                 {
                     "indicator_id": meta.get("indicator_id", f"IND_{idx+1:03d}"),
@@ -66,7 +68,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                     "stage": "mel",
                     "citation_type": "rag_result",
                     "namespace": namespace,
-                    "source": meta.get("source"),
+                    "source": source,
                     "page": meta.get("page"),
                     "page_start": meta.get("page_start"),
                     "page_end": meta.get("page_end"),

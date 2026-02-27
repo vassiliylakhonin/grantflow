@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Tuple
 
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
+from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
 
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
@@ -170,16 +171,17 @@ def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[
 
         for idx, doc in enumerate(docs):
             meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
+            source = citation_source_from_metadata(meta)
             hits.append(
                 {
                     "rank": idx + 1,
                     "chunk_id": meta.get("chunk_id") or (ids[idx] if idx < len(ids) else None),
-                    "source": meta.get("source"),
+                    "source": source,
                     "page": meta.get("page"),
                     "page_start": meta.get("page_start"),
                     "page_end": meta.get("page_end"),
                     "chunk": meta.get("chunk"),
-                    "label": meta.get("citation") or meta.get("source") or f"{namespace}#{idx+1}",
+                    "label": citation_label_from_metadata(meta, namespace=namespace, rank=idx + 1),
                     "excerpt": str(doc)[:320],
                 }
             )

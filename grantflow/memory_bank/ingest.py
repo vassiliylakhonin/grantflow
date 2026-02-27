@@ -82,6 +82,12 @@ def ingest_pdf_to_namespace(
     """Загружает PDF в указанную коллекцию (namespace) донора."""
     pages = load_pdf_pages(pdf_path)
     chunk_records = chunk_pages(pages)
+    metadata_payload = dict(metadata or {})
+    source_ref = str(metadata_payload.get("uploaded_filename") or metadata_payload.get("source") or "").strip()
+    if not source_ref:
+        source_ref = Path(pdf_path).name
+    metadata_payload["source"] = source_ref
+    metadata_payload.setdefault("source_path", pdf_path)
 
     # Fallback for unusual extractors/files that return no per-page chunks but some text.
     if not chunk_records:
@@ -106,12 +112,12 @@ def ingest_pdf_to_namespace(
         metadatas.append(
             {
                 **{
-                    "source": pdf_path,
+                    "source": source_ref,
                     "chunk": chunk_idx,
                     "chunk_id": doc_id,
                     **({k: v for k, v in record.items() if k != "text"}),
                 },
-                **(metadata or {}),
+                **metadata_payload,
             }
         )
 
@@ -119,7 +125,8 @@ def ingest_pdf_to_namespace(
 
     return {
         "namespace": namespace,
-        "source": pdf_path,
+        "source": source_ref,
+        "source_path": pdf_path,
         "chunks_ingested": len(chunks),
         "stats": vector_store.get_stats(namespace),
     }

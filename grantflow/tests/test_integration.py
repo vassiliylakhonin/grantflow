@@ -454,6 +454,7 @@ def test_status_includes_citations_traceability(monkeypatch):
                 [
                     {
                         "source": "/tmp/usaid_guide.pdf",
+                        "uploaded_filename": "usaid_guide.pdf",
                         "page": 12,
                         "page_start": 12,
                         "page_end": 12,
@@ -493,7 +494,7 @@ def test_status_includes_citations_traceability(monkeypatch):
     citation = mel_citations[0]
     assert citation["citation_type"] == "rag_result"
     assert citation["namespace"] == "usaid_ads201"
-    assert citation["source"] == "/tmp/usaid_guide.pdf"
+    assert citation["source"] == "usaid_guide.pdf"
     assert citation["page"] == 12
     assert citation["chunk"] == 3
     assert citation["chunk_id"] == "usaid_ads201_p12_c0"
@@ -507,6 +508,9 @@ def test_status_includes_citations_traceability(monkeypatch):
         c.get("citation_type") in {"rag_claim_support", "rag_low_confidence", "fallback_namespace"}
         for c in architect_citations
     )
+    for c in citations:
+        source = str(c.get("source") or "")
+        assert "grantflow_ingest_" not in source
 
     citations_response = client.get(f"/status/{job_id}/citations")
     assert citations_response.status_code == 200
