@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from typing import Any, Dict, Optional
 
 import chromadb
@@ -36,8 +37,19 @@ class VectorStore:
             self._client_init_error = str(exc)
             self.client = None
 
+    @staticmethod
+    def normalize_namespace(namespace: str) -> str:
+        raw = str(namespace or "default").strip().lower()
+        if not raw:
+            return "default"
+        raw = raw.replace("/", "_").replace("\\", "_").replace(":", "_").replace(" ", "_")
+        # Chroma collection names are safer with a constrained token set.
+        normalized = re.sub(r"[^a-z0-9_.-]+", "_", raw)
+        normalized = re.sub(r"_+", "_", normalized).strip("._-")
+        return normalized or "default"
+
     def _collection_name(self, namespace: str) -> str:
-        ns = (namespace or "default").strip().replace(" ", "_")
+        ns = self.normalize_namespace(namespace)
         return f"{self.prefix}_{ns}"
 
     def _embed_texts(self, texts: list[str], dims: int = 16) -> list[list[float]]:

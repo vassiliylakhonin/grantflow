@@ -383,6 +383,7 @@ def build_architect_claim_citations(
                 "stage": "architect",
                 "citation_type": citation_type,
                 "namespace": namespace,
+                "doc_id": hit.get("doc_id"),
                 "source": hit.get("source"),
                 "page": hit.get("page"),
                 "page_start": hit.get("page_start"),
@@ -397,6 +398,8 @@ def build_architect_claim_citations(
                 "citation_confidence": round(confidence if hit else 0.1, 4),
                 "evidence_score": round(confidence if hit else 0.1, 4),
                 "evidence_rank": hit.get("rank") if hit else None,
+                "retrieval_rank": hit.get("retrieval_rank") if hit else None,
+                "retrieval_confidence": hit.get("retrieval_confidence") if hit else 0.1,
                 "confidence_threshold": confidence_threshold,
             }
         )

@@ -491,6 +491,8 @@ def test_status_includes_citations_traceability(monkeypatch):
     def fake_query(namespace, query_texts, n_results=5, where=None, top_k=None):
         return {
             "documents": [["Official indicator guidance excerpt"]],
+            "ids": [["usaid_ads201_p12_c0"]],
+            "distances": [[0.18]],
             "metadatas": [
                 [
                     {
@@ -538,8 +540,11 @@ def test_status_includes_citations_traceability(monkeypatch):
     assert citation["source"] == "usaid_guide.pdf"
     assert citation["page"] == 12
     assert citation["chunk"] == 3
+    assert citation["doc_id"] == "usaid_ads201_p12_c0"
     assert citation["chunk_id"] == "usaid_ads201_p12_c0"
     assert citation["used_for"] == "EG.3.2-1"
+    assert citation["retrieval_rank"] == 1
+    assert citation["retrieval_confidence"] > 0.0
     assert "excerpt" in citation and citation["excerpt"]
 
     architect_citations = [c for c in citations if c.get("stage") == "architect"]
@@ -549,6 +554,8 @@ def test_status_includes_citations_traceability(monkeypatch):
         c.get("citation_type") in {"rag_claim_support", "rag_low_confidence", "fallback_namespace"}
         for c in architect_citations
     )
+    assert any(c.get("doc_id") == "usaid_ads201_p12_c0" for c in architect_citations)
+    assert any(c.get("retrieval_rank") == 1 for c in architect_citations)
     for c in citations:
         source = str(c.get("source") or "")
         assert "grantflow_ingest_" not in source
@@ -563,9 +570,13 @@ def test_status_includes_citations_traceability(monkeypatch):
     assert citations_body["citations"][0]["stage"]
     assert any("statement_path" in c for c in citations_body["citations"])
     assert any("citation_confidence" in c for c in citations_body["citations"])
+    assert any("doc_id" in c for c in citations_body["citations"])
+    assert any("retrieval_rank" in c for c in citations_body["citations"])
     for c in citations_body["citations"]:
         if c.get("citation_confidence") is not None:
             assert 0.0 <= float(c["citation_confidence"]) <= 1.0
+        if c.get("retrieval_confidence") is not None:
+            assert 0.0 <= float(c["retrieval_confidence"]) <= 1.0
 
 
 def test_status_includes_draft_versions_traceability():
@@ -588,6 +599,11 @@ def test_status_includes_draft_versions_traceability():
     assert state.get("toc_validation", {}).get("schema_name")
     assert state.get("architect_retrieval", {}).get("namespace")
     assert "hits_count" in (state.get("architect_retrieval") or {})
+    retrieval_hits = (state.get("architect_retrieval") or {}).get("hits")
+    if isinstance(retrieval_hits, list) and retrieval_hits:
+        assert "doc_id" in retrieval_hits[0]
+        assert "retrieval_rank" in retrieval_hits[0]
+        assert "retrieval_confidence" in retrieval_hits[0]
     assert state.get("toc_generation_meta", {}).get("engine")
     assert isinstance(state.get("toc_draft", {}).get("validation"), dict)
     assert isinstance(state.get("toc_draft", {}).get("architect_retrieval"), dict)

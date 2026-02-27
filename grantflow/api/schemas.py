@@ -22,6 +22,7 @@ class CitationPublicResponse(BaseModel):
     stage: Optional[str] = None
     citation_type: Optional[str] = None
     namespace: Optional[str] = None
+    doc_id: Optional[str] = None
     statement_path: Optional[str] = None
     statement: Optional[str] = None
     source: Optional[str] = None
@@ -36,6 +37,8 @@ class CitationPublicResponse(BaseModel):
     citation_confidence: Optional[float] = None
     evidence_score: Optional[float] = None
     evidence_rank: Optional[int] = None
+    retrieval_rank: Optional[int] = None
+    retrieval_confidence: Optional[float] = None
 
     model_config = ConfigDict(extra="allow")
 

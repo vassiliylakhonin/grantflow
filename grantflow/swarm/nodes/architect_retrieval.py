@@ -168,27 +168,53 @@ def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[
         docs = ((result or {}).get("documents") or [[]])[0]
         metas = ((result or {}).get("metadatas") or [[]])[0]
         ids = ((result or {}).get("ids") or [[]])[0]
+        distances = ((result or {}).get("distances") or [[]])[0]
 
         for idx, doc in enumerate(docs):
             meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
             source = citation_source_from_metadata(meta)
+            rank = idx + 1
+            doc_id = meta.get("doc_id") or meta.get("chunk_id") or (ids[idx] if idx < len(ids) else None)
+            raw_distance = distances[idx] if idx < len(distances) else None
+            if isinstance(raw_distance, (int, float)):
+                retrieval_confidence = round(max(0.0, min(1.0, 1.0 / (1.0 + float(raw_distance)))), 4)
+            else:
+                retrieval_confidence = round(max(0.1, 1.0 - (idx * 0.2)), 4)
             hits.append(
                 {
-                    "rank": idx + 1,
-                    "chunk_id": meta.get("chunk_id") or (ids[idx] if idx < len(ids) else None),
+                    "rank": rank,
+                    "retrieval_rank": rank,
+                    "doc_id": doc_id,
+                    "chunk_id": meta.get("chunk_id") or doc_id,
                     "source": source,
                     "page": meta.get("page"),
                     "page_start": meta.get("page_start"),
                     "page_end": meta.get("page_end"),
                     "chunk": meta.get("chunk"),
-                    "label": citation_label_from_metadata(meta, namespace=namespace, rank=idx + 1),
+                    "label": citation_label_from_metadata(meta, namespace=namespace, rank=rank),
                     "excerpt": str(doc)[:320],
+                    "retrieval_confidence": retrieval_confidence,
                 }
             )
         summary["hits_count"] = len(hits)
         summary["used_results"] = len(hits)
         if hits:
             summary["hit_labels"] = [str(h.get("label") or "") for h in hits[:3]]
+            summary["avg_retrieval_confidence"] = round(
+                sum(float(h.get("retrieval_confidence") or 0.0) for h in hits) / len(hits),
+                4,
+            )
+            summary["hits"] = [
+                {
+                    "retrieval_rank": int(h.get("retrieval_rank") or 0),
+                    "doc_id": h.get("doc_id"),
+                    "source": h.get("source"),
+                    "page": h.get("page"),
+                    "chunk_id": h.get("chunk_id"),
+                    "retrieval_confidence": h.get("retrieval_confidence"),
+                }
+                for h in hits[:5]
+            ]
     except Exception as exc:
         summary["error"] = str(exc)
     return summary, hits

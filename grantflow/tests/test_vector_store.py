@@ -1,7 +1,6 @@
 # grantflow/tests/test_vector_store.py
 
-
-from grantflow.memory_bank.vector_store import vector_store
+from grantflow.memory_bank.vector_store import VectorStore, vector_store
 
 
 def test_vector_store_upsert_query():
@@ -23,3 +22,14 @@ def test_vector_store_stats():
     assert "namespace" in stats
     assert "document_count" in stats
     assert stats["document_count"] >= 2
+
+
+def test_collection_name_normalizes_namespace_tokens():
+    store = VectorStore()
+    store.prefix = "grantflow"
+    collection = store._collection_name(" Tenant A/USAID ADS 201 :: Phase#1 ")
+    assert collection == "grantflow_tenant_a_usaid_ads_201_phase_1"
+
+
+def test_normalize_namespace_falls_back_to_default():
+    assert VectorStore.normalize_namespace("   ") == "default"

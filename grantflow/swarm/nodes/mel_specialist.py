@@ -47,11 +47,20 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
         result = vector_store.query(namespace=namespace, query_texts=[query_text], n_results=top_k)
         docs = ((result or {}).get("documents") or [[]])[0]
         metas = ((result or {}).get("metadatas") or [[]])[0]
+        ids = ((result or {}).get("ids") or [[]])[0]
+        distances = ((result or {}).get("distances") or [[]])[0]
 
         for idx, doc in enumerate(docs):
             meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
+            rank = idx + 1
+            doc_id = meta.get("doc_id") or meta.get("chunk_id") or (ids[idx] if idx < len(ids) else None)
+            raw_distance = distances[idx] if idx < len(distances) else None
+            if isinstance(raw_distance, (int, float)):
+                retrieval_confidence = round(max(0.0, min(1.0, 1.0 / (1.0 + float(raw_distance)))), 4)
+            else:
+                retrieval_confidence = round(max(0.1, 1.0 - (idx * 0.2)), 4)
             source = citation_source_from_metadata(meta)
-            citation = citation_label_from_metadata(meta, namespace=namespace, rank=idx + 1)
+            citation = citation_label_from_metadata(meta, namespace=namespace, rank=rank)
             indicators.append(
                 {
                     "indicator_id": meta.get("indicator_id", f"IND_{idx+1:03d}"),
@@ -65,26 +74,44 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                     "evidence_excerpt": str(doc)[:240],
                 }
             )
+            rag_trace.setdefault("hits", []).append(
+                {
+                    "retrieval_rank": rank,
+                    "doc_id": doc_id,
+                    "source": source,
+                    "page": meta.get("page"),
+                    "chunk_id": meta.get("chunk_id") or doc_id,
+                    "retrieval_confidence": retrieval_confidence,
+                }
+            )
             citation_records.append(
                 {
                     "stage": "mel",
                     "citation_type": "rag_result",
                     "namespace": namespace,
+                    "doc_id": doc_id,
                     "source": source,
                     "page": meta.get("page"),
                     "page_start": meta.get("page_start"),
                     "page_end": meta.get("page_end"),
                     "chunk": meta.get("chunk"),
-                    "chunk_id": meta.get("chunk_id"),
+                    "chunk_id": meta.get("chunk_id") or doc_id,
                     "label": citation,
                     "used_for": meta.get("indicator_id", f"IND_{idx+1:03d}"),
                     "excerpt": str(doc)[:240],
-                    "citation_confidence": 0.8,
-                    "evidence_score": 0.8,
-                    "evidence_rank": idx + 1,
+                    "citation_confidence": retrieval_confidence,
+                    "evidence_score": retrieval_confidence,
+                    "evidence_rank": rank,
+                    "retrieval_rank": rank,
+                    "retrieval_confidence": retrieval_confidence,
                 }
             )
         rag_trace["used_results"] = len(indicators)
+        if indicators:
+            rag_trace["avg_retrieval_confidence"] = round(
+                sum(float(c.get("retrieval_confidence") or 0.0) for c in citation_records) / len(citation_records),
+                4,
+            )
     except Exception as exc:
         state.setdefault("errors", []).append(f"MEL RAG query failed: {exc}")
         rag_trace["error"] = str(exc)
@@ -109,6 +136,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                 "used_for": "IND_001",
                 "citation_confidence": 0.1,
                 "evidence_score": 0.1,
+                "retrieval_confidence": 0.1,
             }
         )
 

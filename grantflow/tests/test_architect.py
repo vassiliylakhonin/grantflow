@@ -125,6 +125,10 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
         evidence_hits=[
             {
                 "rank": 1,
+                "retrieval_rank": 1,
+                "retrieval_confidence": 0.62,
+                "doc_id": "usaid_ads201_p3_c0",
+                "chunk_id": "usaid_ads201_p3_c0",
                 "label": "Unrelated guidance",
                 "source": "a.pdf",
                 "excerpt": "Procurement templates and financial reporting annexes only",
@@ -135,6 +139,9 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
     assert citations[0]["citation_type"] in {"rag_low_confidence", "fallback_namespace", "rag_claim_support"}
     assert "citation_confidence" in citations[0]
     assert "confidence_threshold" in citations[0]
+    assert "doc_id" in citations[0]
+    assert "retrieval_rank" in citations[0]
+    assert "retrieval_confidence" in citations[0]
     assert 0.0 <= float(citations[0]["citation_confidence"]) <= 1.0
     assert 0.0 < float(citations[0]["confidence_threshold"]) < 1.0
     if citations[0]["citation_type"] == "rag_low_confidence":
