@@ -90,3 +90,60 @@ def test_usaid_complete_hierarchy_passes_core_checks_without_high_flaws():
     assert any(c["code"] == "USAID_OUTPUT_HIERARCHY" and c["status"] == "pass" for c in checks)
     assert any(c["code"] == "USAID_CRITICAL_ASSUMPTIONS_PRESENT" and c["status"] == "pass" for c in checks)
     assert not any(f["severity"] == "high" for f in flaws)
+
+
+def test_eu_complete_payload_passes_new_structure_checks():
+    toc_payload = {
+        "overall_objective": {
+            "objective_id": "OO1",
+            "title": "Inclusive growth",
+            "rationale": "Aligned with EU country priorities",
+        },
+        "specific_objectives": [
+            {
+                "objective_id": "SO1",
+                "title": "Improve SME access",
+                "rationale": "Supports jobs and resilience",
+            }
+        ],
+        "expected_outcomes": [
+            {
+                "outcome_id": "OUT1",
+                "title": "More SMEs financed",
+                "expected_change": "15% increase in formal credit uptake",
+            }
+        ],
+    }
+    checks, flaws = _run_policy("eu", toc_payload)
+    assert any(c["code"] == "EU_OVERALL_OBJECTIVE_COMPLETE" and c["status"] == "pass" for c in checks)
+    assert any(c["code"] == "EU_SPECIFIC_OBJECTIVES_COMPLETE" and c["status"] == "pass" for c in checks)
+    assert any(c["code"] == "EU_EXPECTED_OUTCOMES_PRESENT" and c["status"] == "pass" for c in checks)
+    assert not any(f["severity"] == "high" for f in flaws)
+
+
+def test_worldbank_complete_payload_passes_structure_checks():
+    toc_payload = {
+        "project_development_objective": "Improve service delivery outcomes in target districts",
+        "objectives": [
+            {
+                "objective_id": "OBJ1",
+                "title": "Strengthen frontline systems",
+                "description": "Improve local management and accountability",
+            }
+        ],
+        "results_chain": [
+            {
+                "result_id": "R1",
+                "title": "Improved planning quality",
+                "description": "District plans include measurable service targets",
+                "indicator_focus": "District plans with measurable targets (%)",
+            }
+        ],
+    }
+    checks, flaws = _run_policy("worldbank", toc_payload)
+    assert any(c["code"] == "WB_PDO_PRESENT" and c["status"] == "pass" for c in checks)
+    assert any(c["code"] == "WB_OBJECTIVES_PRESENT" and c["status"] == "pass" for c in checks)
+    assert any(c["code"] == "WB_OBJECTIVES_COMPLETE" and c["status"] == "pass" for c in checks)
+    assert any(c["code"] == "WB_RESULTS_CHAIN_PRESENT" and c["status"] == "pass" for c in checks)
+    assert any(c["code"] == "WB_RESULTS_CHAIN_COMPLETE" and c["status"] == "pass" for c in checks)
+    assert not any(f["severity"] == "high" for f in flaws)

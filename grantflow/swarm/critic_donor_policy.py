@@ -142,6 +142,75 @@ def apply_donor_specific_toc_checks(
                 message="EU ToC is missing `overall_objective`.",
                 fix_hint="Provide an EU intervention-logic style `overall_objective` with rationale.",
             )
+
+        specific_objectives = toc_payload.get("specific_objectives")
+        if isinstance(specific_objectives, list) and specific_objectives:
+            incomplete = False
+            for row in specific_objectives:
+                if not isinstance(row, dict):
+                    incomplete = True
+                    break
+                if not all(str(row.get(k) or "").strip() for k in ("objective_id", "title", "rationale")):
+                    incomplete = True
+                    break
+            if incomplete:
+                check_fn(
+                    code="EU_SPECIFIC_OBJECTIVES_COMPLETE",
+                    status="warn",
+                    section="toc",
+                    detail="One or more specific objectives are incomplete",
+                )
+                add_flaw_fn(
+                    code="EU_SPECIFIC_OBJECTIVES_INCOMPLETE",
+                    severity="medium",
+                    section="toc",
+                    message="EU specific objectives should include objective_id, title, and rationale.",
+                    fix_hint="Complete fields for each `specific_objectives[]` entry.",
+                )
+            else:
+                check_fn(
+                    code="EU_SPECIFIC_OBJECTIVES_COMPLETE",
+                    status="pass",
+                    section="toc",
+                    detail=f"{len(specific_objectives)} specific objective(s)",
+                )
+        else:
+            check_fn(
+                code="EU_SPECIFIC_OBJECTIVES_COMPLETE",
+                status="warn",
+                section="toc",
+                detail="No specific_objectives",
+            )
+            add_flaw_fn(
+                code="EU_SPECIFIC_OBJECTIVES_MISSING",
+                severity="medium",
+                section="toc",
+                message="EU ToC should include at least one specific objective.",
+                fix_hint="Populate `specific_objectives[]` aligned with intervention logic.",
+            )
+
+        outcomes = toc_payload.get("expected_outcomes")
+        if isinstance(outcomes, list) and outcomes:
+            check_fn(
+                code="EU_EXPECTED_OUTCOMES_PRESENT",
+                status="pass",
+                section="toc",
+                detail=f"{len(outcomes)} expected outcome(s)",
+            )
+        else:
+            check_fn(
+                code="EU_EXPECTED_OUTCOMES_PRESENT",
+                status="warn",
+                section="toc",
+                detail="No expected_outcomes",
+            )
+            add_flaw_fn(
+                code="EU_EXPECTED_OUTCOMES_MISSING",
+                severity="medium",
+                section="toc",
+                message="EU ToC should include expected outcomes for intervention logic traceability.",
+                fix_hint="Add `expected_outcomes[]` entries with measurable expected change.",
+            )
         return
 
     if donor == "giz":
@@ -242,6 +311,21 @@ def apply_donor_specific_toc_checks(
         return
 
     if donor == "worldbank":
+        pdo = str(toc_payload.get("project_development_objective") or "").strip()
+        if pdo:
+            check_fn(code="WB_PDO_PRESENT", status="pass", section="toc")
+        else:
+            check_fn(
+                code="WB_PDO_PRESENT", status="warn", section="toc", detail="Missing project_development_objective"
+            )
+            add_flaw_fn(
+                code="WB_PDO_MISSING",
+                severity="medium",
+                section="toc",
+                message="World Bank ToC should include a project development objective (PDO).",
+                fix_hint="Populate `project_development_objective` with a concise PDO statement.",
+            )
+
         objectives = toc_payload.get("objectives")
         if isinstance(objectives, list) and objectives:
             check_fn(code="WB_OBJECTIVES_PRESENT", status="pass", section="toc", detail=f"{len(objectives)} objectives")
@@ -275,3 +359,45 @@ def apply_donor_specific_toc_checks(
                 message="World Bank ToC is missing objectives.",
                 fix_hint="Add at least one objective with ID, title, and description.",
             )
+
+        results_chain = toc_payload.get("results_chain")
+        if isinstance(results_chain, list) and results_chain:
+            check_fn(
+                code="WB_RESULTS_CHAIN_PRESENT", status="pass", section="toc", detail=f"{len(results_chain)} results"
+            )
+            incomplete_result = False
+            for row in results_chain:
+                if not isinstance(row, dict):
+                    incomplete_result = True
+                    break
+                if not all(
+                    str(row.get(k) or "").strip() for k in ("result_id", "title", "description", "indicator_focus")
+                ):
+                    incomplete_result = True
+                    break
+            if incomplete_result:
+                check_fn(
+                    code="WB_RESULTS_CHAIN_COMPLETE",
+                    status="warn",
+                    section="toc",
+                    detail="One or more results_chain entries are incomplete",
+                )
+                add_flaw_fn(
+                    code="WB_RESULTS_CHAIN_INCOMPLETE",
+                    severity="medium",
+                    section="toc",
+                    message="World Bank results chain entries should include ID, title, description, and indicator focus.",
+                    fix_hint="Complete fields for each `results_chain[]` entry.",
+                )
+            else:
+                check_fn(code="WB_RESULTS_CHAIN_COMPLETE", status="pass", section="toc")
+        else:
+            check_fn(code="WB_RESULTS_CHAIN_PRESENT", status="warn", section="toc", detail="No results_chain")
+            add_flaw_fn(
+                code="WB_RESULTS_CHAIN_MISSING",
+                severity="medium",
+                section="toc",
+                message="World Bank ToC should include a simple results chain.",
+                fix_hint="Add `results_chain[]` entries linked to the objectives and indicator focus.",
+            )
+        return
