@@ -392,6 +392,7 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Preflight risk</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Strict preflight</div><div class="value mono">-</div></div>
             </div>
+            <div id="qualityPreflightMetaLine" class="footer-note mono">warning_count=- · coverage_rate=-</div>
             <div class="row" style="margin-top:10px;">
               <div>
                 <label>Advisory Normalization (LLM Critic)</label>
@@ -1042,6 +1043,7 @@ def render_demo_ui_html() -> str:
         qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
         qualityReadinessWarningsList: $("qualityReadinessWarningsList"),
         qualityReadinessWarningLevelPill: $("qualityReadinessWarningLevelPill"),
+        qualityPreflightMetaLine: $("qualityPreflightMetaLine"),
         portfolioMetricsJson: $("portfolioMetricsJson"),
         portfolioQualityJson: $("portfolioQualityJson"),
         criticJson: $("criticJson"),
@@ -1786,6 +1788,12 @@ def render_demo_ui_html() -> str:
             preflightRiskLevel === "-"
               ? "No preflight summary in this job"
               : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel}`;
+          if (els.qualityPreflightMetaLine) {
+            els.qualityPreflightMetaLine.textContent =
+              preflightRiskLevel === "-"
+                ? "warning_count=- · coverage_rate=-"
+                : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel}`;
+          }
         }
         renderQualityAdvisoryBadge(advisoryDiagnostics);
         renderKeyValueList(

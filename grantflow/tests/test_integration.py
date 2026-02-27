@@ -106,6 +106,7 @@ def test_demo_console_page_loads():
     assert "architect_threshold_hit_rate" in body
     assert "qualityBtn" in body
     assert "qualityCards" in body
+    assert "qualityPreflightMetaLine" in body
     assert "qualityJson" in body
     assert "exportPayloadBtn" in body
     assert "copyExportPayloadBtn" in body
