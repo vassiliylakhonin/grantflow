@@ -106,6 +106,14 @@ def render_demo_ui_html() -> str:
     .status-pending_hitl .dot { background: var(--warn); }
     .status-done .dot { background: var(--good); }
     .status-error .dot, .status-canceled .dot { background: var(--bad); }
+    .readiness-level-high { border-color: rgba(185,28,28,.35); background: rgba(185,28,28,.08); color: #7f1d1d; }
+    .readiness-level-medium { border-color: rgba(180,83,9,.35); background: rgba(180,83,9,.10); color: #7c2d12; }
+    .readiness-level-low { border-color: rgba(22,101,52,.30); background: rgba(22,101,52,.08); color: #14532d; }
+    .readiness-level-none { border-color: rgba(109,102,93,.30); background: rgba(109,102,93,.08); color: #57534e; }
+    .readiness-level-high .dot { background: var(--bad); }
+    .readiness-level-medium .dot { background: var(--warn); }
+    .readiness-level-low .dot { background: var(--good); }
+    .readiness-level-none .dot { background: var(--muted); }
     .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .kpi {
       border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.8); padding: 10px;
@@ -399,6 +407,9 @@ def render_demo_ui_html() -> str:
             <div class="row" style="margin-top:10px;">
               <div>
                 <label>RAG Readiness Warnings</label>
+                <div id="qualityReadinessWarningLevelPill" class="pill readiness-level-none" style="margin-bottom:8px;">
+                  <span class="dot"></span><span>warning_level=none</span>
+                </div>
                 <div class="list" id="qualityReadinessWarningsList"></div>
               </div>
             </div>
@@ -1010,6 +1021,7 @@ def render_demo_ui_html() -> str:
         qualityAdvisoryBadgeList: $("qualityAdvisoryBadgeList"),
         qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
         qualityReadinessWarningsList: $("qualityReadinessWarningsList"),
+        qualityReadinessWarningLevelPill: $("qualityReadinessWarningLevelPill"),
         portfolioMetricsJson: $("portfolioMetricsJson"),
         portfolioQualityJson: $("portfolioQualityJson"),
         criticJson: $("criticJson"),
@@ -1758,6 +1770,15 @@ def render_demo_ui_html() -> str:
         const level = String(readiness?.warning_level || "none").toLowerCase();
         const warningCount = Number(readiness?.warning_count || warnings.length || 0);
         els.qualityReadinessWarningsList.innerHTML = "";
+        if (els.qualityReadinessWarningLevelPill) {
+          const pill = els.qualityReadinessWarningLevelPill;
+          const normalizedLevel = ["high", "medium", "low", "none"].includes(level) ? level : "none";
+          pill.className = `pill readiness-level-${normalizedLevel}`;
+          const text = pill.querySelector("span:last-child");
+          if (text) {
+            text.textContent = `warning_level=${normalizedLevel} · warnings=${warningCount}`;
+          }
+        }
         if (!warnings.length) {
           const div = document.createElement("div");
           div.className = "item severity-low";
