@@ -2412,6 +2412,9 @@ def test_hitl_pause_resume_flow():
     status = _wait_for_terminal_status(job_id)
     assert status["status"] == "pending_hitl"
     assert status["checkpoint_stage"] == "toc"
+    assert status["state"]["hitl_pending"] is True
+    assert status["state"]["toc_draft"]
+    assert "logframe_draft" not in status["state"]
 
     cp_id = status["checkpoint_id"]
     approve = client.post(
@@ -2427,6 +2430,8 @@ def test_hitl_pause_resume_flow():
     status = _wait_for_terminal_status(job_id)
     assert status["status"] == "pending_hitl"
     assert status["checkpoint_stage"] == "logframe"
+    assert status["state"]["hitl_pending"] is True
+    assert status["state"]["logframe_draft"]
 
     cp_id = status["checkpoint_id"]
     approve = client.post(
@@ -2442,10 +2447,33 @@ def test_hitl_pause_resume_flow():
     status = _wait_for_terminal_status(job_id)
     assert status["status"] == "done"
     state = status["state"]
+    assert state["hitl_pending"] is False
     assert state["toc_draft"]
     assert state["logframe_draft"]
     engine = str((state.get("critic_notes") or {}).get("engine", "") or "")
     assert engine in {"rules", ""} or engine.startswith("rules+llm:")
+
+
+def test_resume_requires_checkpoint_decision_before_running_again():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Education", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": True,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "pending_hitl"
+    assert status["checkpoint_stage"] == "toc"
+
+    resume = client.post(f"/resume/{job_id}", json={})
+    assert resume.status_code == 409
+    assert "pending approval" in resume.json()["detail"]
 
 
 def test_generate_rejects_old_contract_shape():

@@ -70,10 +70,6 @@ from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.findings import normalize_findings
 from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
-from grantflow.swarm.nodes.architect import draft_toc
-from grantflow.swarm.nodes.critic import red_team_critic
-from grantflow.swarm.nodes.discovery import validate_input_richness
-from grantflow.swarm.nodes.mel_specialist import mel_assign_indicators
 from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id
 
 app = FastAPI(
@@ -95,6 +91,11 @@ STATUS_WEBHOOK_EVENTS = {
     "done": "job.completed",
     "error": "job.failed",
     "canceled": "job.canceled",
+}
+RUNTIME_PIPELINE_STATE_KEYS = {
+    "_start_at",
+    "hitl_checkpoint_stage",
+    "hitl_resume_from",
 }
 
 
@@ -618,6 +619,9 @@ install_openapi_api_key_security(app)
 def _pause_for_hitl(job_id: str, state: dict, stage: Literal["toc", "logframe"], resume_from: HITLStartAt) -> None:
     if _job_is_canceled(job_id):
         return
+    for key in RUNTIME_PIPELINE_STATE_KEYS:
+        state.pop(key, None)
+    state["hitl_pending"] = True
     normalize_state_contract(state)
     donor_id = state_donor_id(state, default="unknown")
     checkpoint_id = hitl_manager.create_checkpoint(stage, state, donor_id)
@@ -642,10 +646,15 @@ def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
         if _job_is_canceled(job_id):
             return
         normalize_state_contract(initial_state)
+        initial_state["hitl_enabled"] = False
+        initial_state["_start_at"] = "start"
         _set_job(job_id, {"status": "running", "state": initial_state, "hitl_enabled": False})
         if _job_is_canceled(job_id):
             return
         final_state = grantflow_graph.invoke(initial_state)
+        for key in RUNTIME_PIPELINE_STATE_KEYS:
+            final_state.pop(key, None)
+        final_state["hitl_pending"] = False
         normalize_state_contract(final_state)
         if _job_is_canceled(job_id):
             return
@@ -659,6 +668,8 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
         if _job_is_canceled(job_id):
             return
         normalize_state_contract(state)
+        state["hitl_enabled"] = True
+        state["_start_at"] = start_at
         _set_job(
             job_id,
             {
@@ -670,46 +681,31 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
         )
         if _job_is_canceled(job_id):
             return
-
-        if start_at == "start":
-            state = validate_input_richness(state)
-            if _job_is_canceled(job_id):
-                return
-            state = draft_toc(state)
-            if _job_is_canceled(job_id):
-                return
-            _pause_for_hitl(job_id, state, stage="toc", resume_from="mel")
+        final_state = grantflow_graph.invoke(state)
+        if _job_is_canceled(job_id):
             return
-
-        if start_at == "architect":
-            state = draft_toc(state)
-            if _job_is_canceled(job_id):
-                return
-            _pause_for_hitl(job_id, state, stage="toc", resume_from="mel")
+        checkpoint_stage = str(final_state.get("hitl_checkpoint_stage") or "").strip().lower()
+        checkpoint_resume = str(final_state.get("hitl_resume_from") or "").strip().lower()
+        if bool(final_state.get("hitl_pending")) and checkpoint_stage in {"toc", "logframe"}:
+            stage_literal: Literal["toc", "logframe"] = "toc" if checkpoint_stage == "toc" else "logframe"
+            resume_literal: HITLStartAt
+            if checkpoint_resume == "start":
+                resume_literal = "start"
+            elif checkpoint_resume == "architect":
+                resume_literal = "architect"
+            elif checkpoint_resume == "mel":
+                resume_literal = "mel"
+            elif checkpoint_resume == "critic":
+                resume_literal = "critic"
+            else:
+                resume_literal = "mel" if stage_literal == "toc" else "critic"
+            _pause_for_hitl(job_id, final_state, stage=stage_literal, resume_from=resume_literal)
             return
-
-        if start_at == "mel":
-            state = mel_assign_indicators(state)
-            if _job_is_canceled(job_id):
-                return
-            _pause_for_hitl(job_id, state, stage="logframe", resume_from="critic")
-            return
-
-        if start_at == "critic":
-            state = red_team_critic(state)
-            if _job_is_canceled(job_id):
-                return
-            if state.get("needs_revision"):
-                # Re-enter review cycle with a fresh ToC checkpoint.
-                state = draft_toc(state)
-                if _job_is_canceled(job_id):
-                    return
-                _pause_for_hitl(job_id, state, stage="toc", resume_from="mel")
-                return
-            _set_job(job_id, {"status": "done", "state": state, "hitl_enabled": True})
-            return
-
-        raise ValueError(f"Unsupported start_at: {start_at}")
+        for key in RUNTIME_PIPELINE_STATE_KEYS:
+            final_state.pop(key, None)
+        final_state["hitl_pending"] = False
+        _set_job(job_id, {"status": "done", "state": final_state, "hitl_enabled": True})
+        return
     except Exception as exc:
         _set_job(job_id, {"status": "error", "error": str(exc), "hitl_enabled": True, "state": state})
 
