@@ -1,51 +1,40 @@
 # GrantFlow
 
-Institutional proposal workflow backend for donor-funded programs.
-
-GrantFlow is a compliance-aware, API-first engine that turns raw project intent into structured drafting artifacts with review controls, citation traces, and exportable outputs.
+Institutional proposal operating system: compliance-aware, agentic workflow engine for donor-funded programs with strategy-driven drafting, HITL governance, citation traceability, and export-ready artifacts.
 
 [![CI](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml/badge.svg)](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 
-## What GrantFlow Is
+## What It Is
 
-GrantFlow is not a chat assistant UI. It is a backend workflow system for institutional proposal operations.
+GrantFlow is an API-first backend for institutional proposal workflows.
 
-Current scope:
-- Structured draft generation (ToC + MEL/LogFrame artifacts)
-- Donor strategy routing (specialized + generic donors)
-- Critic loop with structured findings
-- Human-in-the-loop pause/approve/resume checkpoints
-- Citation and version traceability
-- `.docx` / `.xlsx` / ZIP export
+It orchestrates proposal drafting as a process, not as a single text generation call.
 
-## Why It Exists
+Current focus:
+- structured draft pipeline (ToC + MEL/LogFrame)
+- donor strategy routing (specialized + generic)
+- critic loop with structured findings
+- human-in-the-loop pause/approve/resume
+- citation + version traceability
+- export to `.docx` / `.xlsx` / ZIP
 
-Institutional proposals are usually:
-- compliance-sensitive
-- multi-stage review workflows
-- evidence and citation sensitive
-- high-risk submissions for teams
+## Who It Is For
 
-Most AI tools optimize text generation only. GrantFlow orchestrates the end-to-end drafting workflow.
+- NGOs and implementing organizations
+- consulting firms managing donor submissions
+- program/MEL teams handling institutional compliance workflows
 
-## What It Does (Today)
+## Architecture (Current)
 
-- Validates incoming project context
-- Selects donor strategy by canonical `donor_id` or alias
-- Runs graph pipeline: `discovery -> architect -> mel -> critic`
-- Records citations, draft versions, diffs, events, metrics, critic findings
-- Supports HITL checkpoints with controlled resume
-- Exposes review-friendly API payloads and exports
+Pipeline:
 
-## What It Does Not Claim (Yet)
+`discovery -> architect -> mel -> critic`
 
-- No guarantee of donor compliance sign-off without human review
-- No promise of final submission-ready narrative quality in deterministic (`llm_mode=false`) lane
-- No built-in queue worker stack (current execution is API background task based)
+With optional HITL checkpoints and resume control.
 
-## Donor Strategy Coverage
+## Donor Coverage
 
 Specialized strategies:
 - `usaid`
@@ -55,7 +44,7 @@ Specialized strategies:
 - `us_state_department` (alias: `state_department`)
 
 Generic strategy:
-- broad catalog coverage via `GET /donors` (e.g., `un_agencies`, `fcdo`, `global_fund`, `gates_foundation`, etc.)
+- broader donor catalog via `GET /donors`
 
 ## Quick Start
 
@@ -71,7 +60,7 @@ pip install -r grantflow/requirements.txt
 uvicorn grantflow.api.app:app --reload
 ```
 
-API docs:
+OpenAPI:
 - `http://127.0.0.1:8000/docs`
 
 ### 3) Health / readiness
@@ -81,7 +70,7 @@ curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/ready
 ```
 
-### 4) Generate draft job
+### 4) Start a job
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate \
@@ -97,9 +86,9 @@ curl -s -X POST http://127.0.0.1:8000/generate \
   }'
 ```
 
-`/generate` returns `job_id` (async). It does **not** return full artifacts inline.
+`/generate` is async and returns `job_id`.
 
-### 5) Poll status
+### 5) Poll result
 
 ```bash
 curl -s http://127.0.0.1:8000/status/<JOB_ID>
@@ -114,52 +103,11 @@ curl -s -X POST http://127.0.0.1:8000/export \
   -o grantflow_export.zip
 ```
 
-## Execution Modes (Important)
-
-- `llm_mode=false`: deterministic contract-based lane (useful for CI/regression/smoke)
-- `llm_mode=true`: LLM drafting lane (quality depends on model + prompts + corpus)
-
-RAG grounding quality depends on ingest corpus relevance. Without useful donor/context corpus, citations may degrade to low-confidence or fallback namespace signals.
-
-## HITL Flow (Current)
-
-If `hitl_enabled=true`, pipeline pauses at checkpoints:
-- after architect (`toc` checkpoint)
-- after mel (`logframe` checkpoint)
-
-Resume requires decision:
-1. `POST /hitl/approve` (approve/reject)
-2. `POST /resume/{job_id}`
-
-## RAG Ingestion (Current)
-
-Upload PDF into donor namespace:
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/ingest \
-  -F donor_id=usaid \
-  -F file=@./ads201.pdf
-```
-
-Inventory/readiness endpoints:
-- `GET /ingest/recent`
-- `GET /ingest/inventory`
-- `GET /ingest/inventory/export`
-
-## Export Outputs (Current)
-
-- `.docx` ToC package with traceability sections
-- `.xlsx` LogFrame package with citations/findings/comments sheets
-- donor-specific export mapping currently implemented for:
-  - USAID
-  - EU
-  - World Bank
-
-## API Surface (Core)
+## Core API
 
 - `GET /health`, `GET /ready`, `GET /donors`
 - `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
-- `GET /status/{job_id}` and review endpoints:
+- `GET /status/{job_id}` plus:
   - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`
 - `POST /hitl/approve`, `GET /hitl/pending`
 - `POST /ingest`, `GET /ingest/recent`, `GET /ingest/inventory`, `GET /ingest/inventory/export`
@@ -167,41 +115,25 @@ Inventory/readiness endpoints:
 
 ## Deployment
 
-### Docker Compose
-
 ```bash
 git clone https://github.com/vassiliylakhonin/grantflow.git
 cd grantflow
 docker-compose up --build
 ```
 
-API:
-- `http://localhost:8000/docs`
+## Reality Check
 
-## Configuration
+GrantFlow is production-oriented backend infrastructure, but not a “one-click donor submission” system.
 
-Common env vars:
-- `OPENAI_API_KEY` or `OPENROUTER_API_KEY`
-- `GRANTFLOW_LLM_BASE_URL` (for OpenAI-compatible providers)
-- `CHROMA_HOST`, `CHROMA_PORT`, `CHROMA_COLLECTION_PREFIX`
-- `GRANTFLOW_API_KEY` (optional endpoint protection)
-- `GRANTFLOW_REQUIRE_AUTH_FOR_READS=true` (optional read protection)
-- `GRANTFLOW_JOB_STORE`, `GRANTFLOW_HITL_STORE`, `GRANTFLOW_INGEST_STORE` (`inmem` or `sqlite`)
-- `GRANTFLOW_SQLITE_PATH`
+Current constraints:
+- final compliance sign-off remains human responsibility
+- grounded quality depends on uploaded corpus relevance
+- queue-backed worker scaling is not yet the default runtime mode
 
-## Current Product Status
+## Documentation
 
-Production-oriented backend foundation is in place.
-
-Still active product work:
-- deeper donor-specific logic/schemas beyond current set
-- stronger grounding quality and citation confidence policy
-- queue-backed execution for higher concurrency/throughput
-- richer reviewer UI beyond `/demo`
-
-## Development and Release
-
-- Contribution guide: `CONTRIBUTING.md`
+- Full guide: `docs/full-guide.md`
+- Contribution process: `CONTRIBUTING.md`
 - API stability policy: `docs/api-stability-policy.md`
 - Release process: `docs/release-process.md`
 - Changelog: `CHANGELOG.md`
