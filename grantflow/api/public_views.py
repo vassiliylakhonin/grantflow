@@ -735,6 +735,9 @@ def public_job_quality_payload(
         "quality_score": sanitize_for_public_response(state_dict.get("quality_score")),
         "critic_score": sanitize_for_public_response(state_dict.get("critic_score")),
         "needs_revision": sanitize_for_public_response(state_dict.get("needs_revision")),
+        "strict_preflight": sanitize_for_public_response(
+            job.get("strict_preflight") if "strict_preflight" in job else state_dict.get("strict_preflight")
+        ),
         "terminal_status": sanitize_for_public_response(metrics_payload.get("terminal_status")),
         "time_to_first_draft_seconds": sanitize_for_public_response(metrics_payload.get("time_to_first_draft_seconds")),
         "time_to_terminal_seconds": sanitize_for_public_response(metrics_payload.get("time_to_terminal_seconds")),

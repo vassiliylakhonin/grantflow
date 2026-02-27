@@ -377,6 +377,8 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Open findings</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Avg citation conf</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Threshold hit-rate</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Preflight risk</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Strict preflight</div><div class="value mono">-</div></div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -1701,8 +1703,17 @@ def render_demo_ui_html() -> str:
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
         const readiness = summary?.readiness || {};
+        const preflight = summary?.preflight || {};
         const advisoryDiagnostics =
           critic && typeof critic.llm_advisory_diagnostics === "object" ? critic.llm_advisory_diagnostics : null;
+        const strictPreflightValue =
+          typeof summary?.strict_preflight === "boolean" ? String(summary.strict_preflight) : "-";
+        const preflightRiskLevel = typeof preflight?.risk_level === "string" ? String(preflight.risk_level) : "-";
+        const preflightWarningCount = Number(preflight?.warning_count ?? 0);
+        const preflightRiskValue =
+          preflightRiskLevel === "-"
+            ? "-"
+            : `${preflightRiskLevel}${preflightWarningCount > 0 ? ` (${preflightWarningCount})` : ""}`;
         const values = [
           typeof summary?.quality_score === "number" ? Number(summary.quality_score).toFixed(2) : "-",
           typeof summary?.critic_score === "number" ? Number(summary.critic_score).toFixed(2) : "-",
@@ -1712,6 +1723,8 @@ def render_demo_ui_html() -> str:
           typeof citations.architect_threshold_hit_rate === "number"
             ? `${(Number(citations.architect_threshold_hit_rate) * 100).toFixed(1)}%`
             : "-",
+          preflightRiskValue,
+          strictPreflightValue,
         ];
         [...els.qualityCards.querySelectorAll(".kpi .value")].forEach((node, i) => {
           node.textContent = values[i] ?? "-";

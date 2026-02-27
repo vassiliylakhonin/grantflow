@@ -62,6 +62,8 @@ def test_demo_console_page_loads():
     assert "Generate anyway?" in body
     assert "strictPreflight" in body
     assert "Strict Preflight" in body
+    assert "Preflight risk" in body
+    assert "Strict preflight" in body
     assert "inputContextJson" in body
     assert "usaid_gov_ai_kazakhstan" in body
     assert "worldbank_public_sector_uzbekistan" in body
@@ -226,6 +228,8 @@ def test_generate_response_and_status_include_preflight_payload():
     status = _wait_for_terminal_status(data["job_id"])
     assert status["generate_preflight"] == preflight
     assert status["state"]["generate_preflight"] == preflight
+    assert status["strict_preflight"] is False
+    assert status["state"]["strict_preflight"] is False
 
 
 def test_generate_strict_preflight_blocks_when_risk_is_high():
@@ -595,6 +599,7 @@ def test_status_export_payload_endpoint_returns_review_ready_payload():
         job_id,
         {
             "status": "done",
+            "strict_preflight": True,
             "generate_preflight": {
                 "donor_id": "usaid",
                 "risk_level": "medium",
@@ -1093,6 +1098,7 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
         job_id,
         {
             "status": "done",
+            "strict_preflight": True,
             "generate_preflight": {
                 "donor_id": "usaid",
                 "risk_level": "medium",
@@ -1218,6 +1224,7 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["quality_score"] == 9.1
     assert body["critic_score"] == 8.9
     assert body["needs_revision"] is False
+    assert body["strict_preflight"] is True
     assert body["terminal_status"] == "done"
     assert body["critic"]["fatal_flaw_count"] == 3
     assert body["critic"]["open_finding_count"] == 1

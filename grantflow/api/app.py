@@ -337,7 +337,7 @@ def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
     if previous and previous.get("status") == "canceled" and next_payload.get("status") != "canceled":
         return
 
-    for key in ("webhook_url", "webhook_secret", "client_metadata", "generate_preflight"):
+    for key in ("webhook_url", "webhook_secret", "client_metadata", "generate_preflight", "strict_preflight"):
         if key not in next_payload and previous and key in previous:
             next_payload[key] = previous.get(key)
 
@@ -1202,6 +1202,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         "donor_strategy": strategy,
         "input_context": input_payload,
         "generate_preflight": preflight,
+        "strict_preflight": req.strict_preflight,
         "llm_mode": req.llm_mode,
         "iteration_count": 0,
         "max_iterations": config.graph.max_iterations,
@@ -1224,6 +1225,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
             "webhook_secret": webhook_secret,
             "client_metadata": client_metadata,
             "generate_preflight": preflight,
+            "strict_preflight": req.strict_preflight,
         },
     )
     _record_job_event(
