@@ -29,6 +29,7 @@ PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS = {
 PORTFOLIO_WARNING_LEVELS = {"high", "medium", "low", "none"}
 PORTFOLIO_WARNING_LEVEL_ORDER = ("high", "medium", "low", "none")
 GROUNDING_RISK_LEVEL_ORDER = ("high", "medium", "low", "unknown")
+GROUNDING_RISK_LEVELS = set(GROUNDING_RISK_LEVEL_ORDER)
 GROUNDING_FALLBACK_HIGH_THRESHOLD = 0.8
 GROUNDING_FALLBACK_MEDIUM_THRESHOLD = 0.5
 
@@ -55,6 +56,17 @@ def _normalize_warning_level_filter(warning_level: Optional[str]) -> Optional[st
     return token
 
 
+def _normalize_grounding_risk_filter(grounding_risk_level: Optional[str]) -> Optional[str]:
+    if grounding_risk_level is None:
+        return None
+    token = str(grounding_risk_level or "").strip().lower()
+    if not token:
+        return None
+    if token not in GROUNDING_RISK_LEVELS:
+        return token
+    return token
+
+
 def _warning_level_breakdown(
     warning_level_counts: Dict[str, int], total_jobs: int
 ) -> tuple[Dict[str, int], Dict[str, Optional[float]]]:
@@ -62,6 +74,18 @@ def _warning_level_breakdown(
     normalized_rates: Dict[str, Optional[float]] = {}
     for level in PORTFOLIO_WARNING_LEVEL_ORDER:
         count = int(warning_level_counts.get(level) or 0)
+        normalized_counts[level] = count
+        normalized_rates[level] = round(count / total_jobs, 4) if total_jobs else None
+    return normalized_counts, normalized_rates
+
+
+def _grounding_risk_breakdown(
+    grounding_risk_counts: Dict[str, int], total_jobs: int
+) -> tuple[Dict[str, int], Dict[str, Optional[float]]]:
+    normalized_counts: Dict[str, int] = {}
+    normalized_rates: Dict[str, Optional[float]] = {}
+    for level in GROUNDING_RISK_LEVEL_ORDER:
+        count = int(grounding_risk_counts.get(level) or 0)
         normalized_counts[level] = count
         normalized_rates[level] = round(count / total_jobs, 4) if total_jobs else None
     return normalized_counts, normalized_rates
@@ -76,6 +100,22 @@ def _grounding_risk_level(*, fallback_count: int, citation_count: int) -> str:
     if rate >= GROUNDING_FALLBACK_MEDIUM_THRESHOLD:
         return "medium"
     return "low"
+
+
+def _job_grounding_risk_level(job: Dict[str, Any]) -> str:
+    state = job.get("state")
+    state_dict = state if isinstance(state, dict) else {}
+    citations = state_dict.get("citations")
+    citations_list = citations if isinstance(citations, list) else []
+    citation_count = 0
+    fallback_count = 0
+    for item in citations_list:
+        if not isinstance(item, dict):
+            continue
+        citation_count += 1
+        if str(item.get("citation_type") or "").strip() == "fallback_namespace":
+            fallback_count += 1
+    return _grounding_risk_level(fallback_count=fallback_count, citation_count=citation_count)
 
 
 def sanitize_for_public_response(value: Any) -> Any:
@@ -948,8 +988,10 @@ def public_portfolio_quality_payload(
     status: Optional[str] = None,
     hitl_enabled: Optional[bool] = None,
     warning_level: Optional[str] = None,
+    grounding_risk_level: Optional[str] = None,
 ) -> Dict[str, Any]:
     warning_level_filter = _normalize_warning_level_filter(warning_level)
+    grounding_risk_filter = _normalize_grounding_risk_filter(grounding_risk_level)
     filtered: list[tuple[str, Dict[str, Any]]] = []
     for job_id, job in jobs_by_id.items():
         if not isinstance(job, dict):
@@ -967,11 +1009,14 @@ def public_portfolio_quality_payload(
             continue
         if warning_level_filter is not None and _job_warning_level(job) != warning_level_filter:
             continue
+        if grounding_risk_filter is not None and _job_grounding_risk_level(job) != grounding_risk_filter:
+            continue
         filtered.append((str(job_id), job))
 
     status_counts: Dict[str, int] = {}
     donor_counts: Dict[str, int] = {}
     warning_level_counts: Dict[str, int] = {}
+    grounding_risk_counts: Dict[str, int] = {}
     donor_needs_revision_counts: Dict[str, int] = {}
     donor_open_findings_counts: Dict[str, int] = {}
     donor_weighted_risk_breakdown: Dict[str, Dict[str, Any]] = {}
@@ -985,6 +1030,8 @@ def public_portfolio_quality_payload(
         donor_counts[job_donor] = donor_counts.get(job_donor, 0) + 1
         job_warning_level = _job_warning_level(job)
         warning_level_counts[job_warning_level] = warning_level_counts.get(job_warning_level, 0) + 1
+        job_grounding_risk_level = _job_grounding_risk_level(job)
+        grounding_risk_counts[job_grounding_risk_level] = grounding_risk_counts.get(job_grounding_risk_level, 0) + 1
 
         q = public_job_quality_payload(job_id, job)
         q["_donor_id"] = job_donor
@@ -1263,6 +1310,7 @@ def public_portfolio_quality_payload(
 
     job_count = len(filtered)
     warning_level_job_counts, warning_level_job_rates = _warning_level_breakdown(warning_level_counts, job_count)
+    grounding_risk_job_counts, grounding_risk_job_rates = _grounding_risk_breakdown(grounding_risk_counts, job_count)
     quality_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("quality_score"), (int, float)))
     critic_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("critic_score"), (int, float)))
 
@@ -1284,12 +1332,20 @@ def public_portfolio_quality_payload(
             "status": status,
             "hitl_enabled": hitl_enabled,
             "warning_level": warning_level_filter,
+            "grounding_risk_level": grounding_risk_filter,
         },
         "status_counts": status_counts,
         "donor_counts": donor_counts,
         "warning_level_counts": warning_level_counts,
         "warning_level_job_counts": warning_level_job_counts,
         "warning_level_job_rates": warning_level_job_rates,
+        "grounding_risk_counts": grounding_risk_counts,
+        "grounding_risk_job_counts": grounding_risk_job_counts,
+        "grounding_risk_job_rates": grounding_risk_job_rates,
+        "grounding_risk_high_job_count": int(grounding_risk_job_counts.get("high") or 0),
+        "grounding_risk_medium_job_count": int(grounding_risk_job_counts.get("medium") or 0),
+        "grounding_risk_low_job_count": int(grounding_risk_job_counts.get("low") or 0),
+        "grounding_risk_unknown_job_count": int(grounding_risk_job_counts.get("unknown") or 0),
         "warning_level_high_job_count": int(warning_level_job_counts.get("high") or 0),
         "warning_level_medium_job_count": int(warning_level_job_counts.get("medium") or 0),
         "warning_level_low_job_count": int(warning_level_job_counts.get("low") or 0),

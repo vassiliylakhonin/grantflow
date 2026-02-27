@@ -1231,6 +1231,7 @@ def get_portfolio_quality(
     status: Optional[str] = None,
     hitl_enabled: Optional[bool] = Query(default=None),
     warning_level: Optional[str] = None,
+    grounding_risk_level: Optional[str] = None,
 ):
     require_api_key_if_configured(request, for_read=True)
     jobs = _list_jobs()
@@ -1240,6 +1241,7 @@ def get_portfolio_quality(
         status=(status or None),
         hitl_enabled=hitl_enabled,
         warning_level=(warning_level or None),
+        grounding_risk_level=(grounding_risk_level or None),
     )
 
 
@@ -1250,6 +1252,7 @@ def export_portfolio_quality(
     status: Optional[str] = None,
     hitl_enabled: Optional[bool] = Query(default=None),
     warning_level: Optional[str] = None,
+    grounding_risk_level: Optional[str] = None,
     format: Literal["csv", "json"] = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
@@ -1261,6 +1264,7 @@ def export_portfolio_quality(
         status=(status or None),
         hitl_enabled=hitl_enabled,
         warning_level=(warning_level or None),
+        grounding_risk_level=(grounding_risk_level or None),
     )
 
     return _portfolio_export_response(

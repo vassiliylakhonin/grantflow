@@ -123,12 +123,14 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_diff_section" in body
     assert "grantflow_demo_strict_preflight" in body
     assert "grantflow_demo_portfolio_warning_level" in body
+    assert "grantflow_demo_portfolio_grounding_risk_level" in body
     assert "generatePreflightAlert" in body
     assert "generatePreflightAlertTitle" in body
     assert "generatePreflightAlertBody" in body
     assert "portfolioBtn" in body
     assert "portfolioClearBtn" in body
     assert "portfolioWarningLevelFilter" in body
+    assert "portfolioGroundingRiskLevelFilter" in body
     assert "/portfolio/quality" in body
     assert "portfolioMetricsCards" in body
     assert "portfolioQualityCards" in body
@@ -1813,6 +1815,40 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
             ],
         },
     )
+    api_app_module.JOB_STORE.set(
+        "portfolio-quality-job-4",
+        {
+            "status": "done",
+            "hitl_enabled": True,
+            "generate_preflight": {"warning_level": "medium", "risk_level": "medium"},
+            "state": {
+                "donor_id": "usaid",
+                "quality_score": 6.0,
+                "critic_score": 5.5,
+                "needs_revision": True,
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "f4",
+                            "severity": "medium",
+                            "status": "open",
+                            "section": "toc",
+                            "code": "GROUNDING_WEAK",
+                            "message": "Grounding evidence is mostly fallback.",
+                        }
+                    ],
+                    "rule_checks": [{"code": "toc.grounding", "status": "warn"}],
+                },
+                "citations": [
+                    {"stage": "architect", "citation_type": "fallback_namespace", "citation_confidence": 0.2},
+                    {"stage": "mel", "citation_type": "fallback_namespace", "citation_confidence": 0.2},
+                ],
+            },
+            "job_events": [
+                {"event_id": "qd1", "ts": "2026-02-24T13:00:00+00:00", "type": "status_changed", "to_status": "done"}
+            ],
+        },
+    )
 
     response = client.get("/portfolio/quality", params={"donor_id": "usaid", "status": "done", "hitl_enabled": "true"})
     assert response.status_code == 200
@@ -1837,6 +1873,12 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert sum(int(v or 0) for v in body["warning_level_job_counts"].values()) == body["job_count"]
     assert body["warning_level_job_rates"]["medium"] is not None
     assert body["warning_level_job_rates"]["low"] is not None
+    assert body["grounding_risk_counts"]["high"] >= 1
+    assert body["grounding_risk_counts"]["low"] >= 1
+    assert body["grounding_risk_job_counts"]["high"] >= 1
+    assert body["grounding_risk_job_counts"]["low"] >= 1
+    assert sum(int(v or 0) for v in body["grounding_risk_job_counts"].values()) == body["job_count"]
+    assert body["grounding_risk_job_rates"]["high"] is not None
     assert body["donor_grounding_risk_counts"]["high"] >= 0
     assert body["donor_grounding_risk_counts"]["medium"] >= 0
     assert body["donor_grounding_risk_counts"]["low"] >= 0
@@ -1934,9 +1976,21 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert warning_filtered_body["warning_level_job_counts"]["high"] == warning_filtered_body["job_count"]
     assert warning_filtered_body["warning_level_job_counts"]["none"] == 0
 
+    grounding_filtered = client.get("/portfolio/quality", params={"grounding_risk_level": "high"})
+    assert grounding_filtered.status_code == 200
+    grounding_filtered_body = grounding_filtered.json()
+    assert grounding_filtered_body["filters"]["grounding_risk_level"] == "high"
+    assert grounding_filtered_body["job_count"] >= 1
+    assert grounding_filtered_body["grounding_risk_job_counts"]["high"] == grounding_filtered_body["job_count"]
+    assert grounding_filtered_body["grounding_risk_job_counts"]["medium"] == 0
+    assert grounding_filtered_body["grounding_risk_job_counts"]["low"] == 0
+
 
 def test_portfolio_quality_export_endpoint_returns_csv():
-    response = client.get("/portfolio/quality/export", params={"donor_id": "usaid", "status": "done", "format": "csv"})
+    response = client.get(
+        "/portfolio/quality/export",
+        params={"donor_id": "usaid", "status": "done", "grounding_risk_level": "high", "format": "csv"},
+    )
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
     disposition = response.headers.get("content-disposition", "")
@@ -1947,6 +2001,7 @@ def test_portfolio_quality_export_endpoint_returns_csv():
     assert body.startswith("field,value\n")
     assert "filters.donor_id,usaid" in body
     assert "filters.status,done" in body
+    assert "filters.grounding_risk_level,high" in body
     assert "severity_weighted_risk_score," in body
     assert "priority_signal_breakdown.high_severity_findings_total.weight," in body
 

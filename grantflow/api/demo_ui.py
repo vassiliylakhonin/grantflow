@@ -466,6 +466,19 @@ def render_demo_ui_html() -> str:
               </div>
             </div>
             <div class="row" style="margin-top:10px;">
+              <div>
+                <label for="portfolioGroundingRiskLevelFilter">Grounding Risk</label>
+                <select id="portfolioGroundingRiskLevelFilter">
+                  <option value="">all</option>
+                  <option value="high">high</option>
+                  <option value="medium">medium</option>
+                  <option value="low">low</option>
+                  <option value="unknown">unknown</option>
+                </select>
+              </div>
+              <div></div>
+            </div>
+            <div class="row" style="margin-top:10px;">
               <button id="portfolioBtn" class="ghost">Load Portfolio Metrics</button>
               <button id="portfolioClearBtn" class="ghost">Clear Portfolio Filters</button>
               <div class="sub" style="align-self:center;">Aggregates across jobs in current store.</div>
@@ -845,6 +858,7 @@ def render_demo_ui_html() -> str:
         ["portfolioStatusFilter", "grantflow_demo_portfolio_status"],
         ["portfolioHitlFilter", "grantflow_demo_portfolio_hitl"],
         ["portfolioWarningLevelFilter", "grantflow_demo_portfolio_warning_level"],
+        ["portfolioGroundingRiskLevelFilter", "grantflow_demo_portfolio_grounding_risk_level"],
         ["commentsFilterSection", "grantflow_demo_comments_filter_section"],
         ["commentsFilterStatus", "grantflow_demo_comments_filter_status"],
         ["commentsFilterVersionId", "grantflow_demo_comments_filter_version_id"],
@@ -1117,6 +1131,7 @@ def render_demo_ui_html() -> str:
         portfolioStatusFilter: $("portfolioStatusFilter"),
         portfolioHitlFilter: $("portfolioHitlFilter"),
         portfolioWarningLevelFilter: $("portfolioWarningLevelFilter"),
+        portfolioGroundingRiskLevelFilter: $("portfolioGroundingRiskLevelFilter"),
         commentsFilterSection: $("commentsFilterSection"),
         commentsFilterStatus: $("commentsFilterStatus"),
         commentsFilterVersionId: $("commentsFilterVersionId"),
@@ -1204,6 +1219,7 @@ def render_demo_ui_html() -> str:
         els.portfolioStatusFilter.value = "";
         els.portfolioHitlFilter.value = "";
         els.portfolioWarningLevelFilter.value = "";
+        els.portfolioGroundingRiskLevelFilter.value = "";
         persistUiState();
       }
 
@@ -2262,13 +2278,19 @@ def render_demo_ui_html() -> str:
         }
       }
 
-      function renderWarningLevelBreakdownList(container, countsMapping, ratesMapping, emptyLabel, onSelect = null) {
+      function renderWarningLevelBreakdownList(
+        container,
+        countsMapping,
+        ratesMapping,
+        emptyLabel,
+        onSelect = null,
+        levels = ["high", "medium", "low", "none"]
+      ) {
         container.innerHTML = "";
         if (!countsMapping || typeof countsMapping !== "object" || Array.isArray(countsMapping)) {
           container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
           return;
         }
-        const levels = ["high", "medium", "low", "none"];
         const rows = levels.map((level) => {
           const count = Number(countsMapping[level] || 0);
           const rawRate =
@@ -3103,12 +3125,21 @@ def render_demo_ui_html() -> str:
         refreshPortfolioBundle().catch(showError);
       }
 
+      function applyPortfolioGroundingRiskLevelFilter(groundingRiskLevelValue) {
+        els.portfolioGroundingRiskLevelFilter.value = groundingRiskLevelValue || "";
+        persistUiState();
+        refreshPortfolioBundle().catch(showError);
+      }
+
       function buildPortfolioFilterQueryString() {
         const params = new URLSearchParams();
         if (els.portfolioDonorFilter.value.trim()) params.set("donor_id", els.portfolioDonorFilter.value.trim());
         if (els.portfolioStatusFilter.value) params.set("status", els.portfolioStatusFilter.value);
         if (els.portfolioHitlFilter.value) params.set("hitl_enabled", els.portfolioHitlFilter.value);
         if (els.portfolioWarningLevelFilter.value) params.set("warning_level", els.portfolioWarningLevelFilter.value);
+        if (els.portfolioGroundingRiskLevelFilter.value) {
+          params.set("grounding_risk_level", els.portfolioGroundingRiskLevelFilter.value);
+        }
         const q = params.toString();
         return q ? `?${q}` : "";
       }
@@ -3192,11 +3223,13 @@ def render_demo_ui_html() -> str:
           "No warning-level data yet.",
           (warningLevel) => applyPortfolioWarningLevelFilter(warningLevel)
         );
-        renderKeyValueList(
+        renderWarningLevelBreakdownList(
           els.portfolioQualityGroundingRiskLevelsList,
-          body.donor_grounding_risk_counts,
+          body.grounding_risk_job_counts || body.grounding_risk_counts || {},
+          body.grounding_risk_job_rates || {},
           "No grounding-risk level data yet.",
-          4
+          (groundingRiskLevel) => applyPortfolioGroundingRiskLevelFilter(groundingRiskLevel),
+          ["high", "medium", "low", "unknown"]
         );
         renderDonorGroundingRiskList(
           els.portfolioQualityGroundingRiskList,
@@ -3622,6 +3655,9 @@ def render_demo_ui_html() -> str:
         });
         els.portfolioWarningLevelFilter.addEventListener("change", () => {
           applyPortfolioWarningLevelFilter(els.portfolioWarningLevelFilter.value);
+        });
+        els.portfolioGroundingRiskLevelFilter.addEventListener("change", () => {
+          applyPortfolioGroundingRiskLevelFilter(els.portfolioGroundingRiskLevelFilter.value);
         });
         els.portfolioDonorFilter.addEventListener("change", () => {
           persistUiState();
