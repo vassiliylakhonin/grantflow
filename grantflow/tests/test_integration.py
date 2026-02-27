@@ -2473,6 +2473,18 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["citations"]["citation_count"] == 4
     assert body["citations"]["architect_citation_count"] == 3
     assert body["citations"]["mel_citation_count"] == 1
+    assert body["citations"]["citation_type_counts"]["rag_claim_support"] == 1
+    assert body["citations"]["citation_type_counts"]["rag_low_confidence"] == 1
+    assert body["citations"]["citation_type_counts"]["fallback_namespace"] == 1
+    assert body["citations"]["citation_type_counts"]["rag_result"] == 1
+    assert body["citations"]["architect_citation_type_counts"]["rag_claim_support"] == 1
+    assert body["citations"]["architect_citation_type_counts"]["rag_low_confidence"] == 1
+    assert body["citations"]["architect_citation_type_counts"]["fallback_namespace"] == 1
+    assert body["citations"]["mel_citation_type_counts"]["rag_result"] == 1
+    assert body["citations"]["architect_claim_support_citation_count"] == 1
+    assert body["citations"]["architect_claim_support_rate"] == 0.3333
+    assert body["citations"]["architect_fallback_namespace_citation_count"] == 1
+    assert body["citations"]["architect_fallback_namespace_citation_rate"] == 0.3333
     assert body["citations"]["high_confidence_citation_count"] == 2
     assert body["citations"]["low_confidence_citation_count"] == 2
     assert body["citations"]["architect_rag_low_confidence_citation_count"] == 1
@@ -3010,7 +3022,14 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["critic"]["llm_advisory_candidate_finding_count"] >= 2
     assert body["critic"]["llm_advisory_rejected_reason_counts"]["grounding_threshold_not_met"] >= 1
     assert body["citations"]["citation_count_total"] >= 4
+    assert body["citations"]["architect_citation_count_total"] >= 3
+    assert body["citations"]["architect_claim_support_citation_count"] >= 1
+    assert body["citations"]["architect_claim_support_rate"] is not None
     assert body["citations"]["citation_confidence_avg"] is not None
+    assert body["citations"]["citation_type_counts_total"]["rag_claim_support"] >= 1
+    assert body["citations"]["citation_type_counts_total"]["fallback_namespace"] >= 1
+    assert body["citations"]["architect_citation_type_counts_total"]["rag_claim_support"] >= 1
+    assert body["citations"]["mel_citation_type_counts_total"]["fallback_namespace"] >= 1
     assert body["citations"]["low_confidence_citation_count"] >= 1
     assert body["citations"]["architect_rag_low_confidence_citation_count"] >= 1
     assert "mel_rag_low_confidence_citation_count" in body["citations"]
@@ -3023,6 +3042,7 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert "traceability_gap_citation_count" in body["citations"]
     assert "traceability_gap_citation_rate" in body["citations"]
     assert body["citations"]["architect_threshold_hit_rate_avg"] is not None
+    assert body["citations"]["architect_claim_support_rate_avg"] is not None
     assert body["priority_signal_breakdown"]["high_severity_findings_total"]["weight"] >= 1
     assert body["priority_signal_breakdown"]["open_findings_total"]["weighted_score"] >= 1
     assert body["donor_weighted_risk_breakdown"]["usaid"]["weighted_score"] >= 1
@@ -3032,6 +3052,12 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert "traceability_gap_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "llm_finding_label_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "citation_count_total" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "architect_citation_count_total" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "architect_claim_support_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["architect_claim_support_rate"] is not None
+    assert "citation_type_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "architect_citation_type_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "mel_citation_type_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "fallback_namespace_citation_rate" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert body["donor_weighted_risk_breakdown"]["usaid"]["grounding_risk_level"] in {
         "high",
@@ -3062,6 +3088,9 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     )
     assert "usaid" in body["donor_grounding_risk_breakdown"]
     assert body["donor_grounding_risk_breakdown"]["usaid"]["citation_count_total"] >= 1
+    assert body["donor_grounding_risk_breakdown"]["usaid"]["architect_citation_count_total"] >= 1
+    assert body["donor_grounding_risk_breakdown"]["usaid"]["architect_claim_support_citation_count"] >= 1
+    assert body["donor_grounding_risk_breakdown"]["usaid"]["architect_claim_support_rate"] is not None
     assert body["donor_grounding_risk_breakdown"]["usaid"]["fallback_namespace_citation_count"] >= 0
     if body["donor_grounding_risk_breakdown"]["usaid"]["citation_count_total"] > 0:
         assert body["donor_grounding_risk_breakdown"]["usaid"]["fallback_namespace_citation_rate"] is not None
@@ -3141,6 +3170,7 @@ def test_portfolio_quality_export_endpoint_returns_csv():
     assert "filters.finding_severity,high" in body
     assert "severity_weighted_risk_score," in body
     assert "priority_signal_breakdown.high_severity_findings_total.weight," in body
+    assert "citations.architect_claim_support_rate," in body
 
 
 def test_portfolio_quality_export_csv_flattens_donor_advisory_label_mix():

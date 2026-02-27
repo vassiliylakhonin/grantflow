@@ -381,8 +381,15 @@ class JobQualityCitationSummaryPublicResponse(BaseModel):
     citation_count: int
     architect_citation_count: int
     mel_citation_count: int
+    citation_type_counts: Optional[Dict[str, int]] = None
+    architect_citation_type_counts: Optional[Dict[str, int]] = None
+    mel_citation_type_counts: Optional[Dict[str, int]] = None
     high_confidence_citation_count: int
     low_confidence_citation_count: int
+    architect_claim_support_citation_count: int = 0
+    architect_claim_support_rate: Optional[float] = None
+    architect_fallback_namespace_citation_count: Optional[int] = None
+    architect_fallback_namespace_citation_rate: Optional[float] = None
     architect_rag_low_confidence_citation_count: int = 0
     mel_rag_low_confidence_citation_count: int = 0
     rag_low_confidence_citation_count: int
@@ -529,7 +536,13 @@ class PortfolioQualityCriticSummaryPublicResponse(BaseModel):
 
 class PortfolioQualityCitationSummaryPublicResponse(BaseModel):
     citation_count_total: int
+    architect_citation_count_total: int = 0
+    architect_claim_support_citation_count: int = 0
+    architect_claim_support_rate: Optional[float] = None
     citation_confidence_avg: Optional[float] = None
+    citation_type_counts_total: Optional[Dict[str, int]] = None
+    architect_citation_type_counts_total: Optional[Dict[str, int]] = None
+    mel_citation_type_counts_total: Optional[Dict[str, int]] = None
     low_confidence_citation_count: int
     low_confidence_citation_rate: Optional[float] = None
     architect_rag_low_confidence_citation_count: int = 0
@@ -549,6 +562,7 @@ class PortfolioQualityCitationSummaryPublicResponse(BaseModel):
     traceability_gap_citation_count: Optional[int] = None
     traceability_gap_citation_rate: Optional[float] = None
     architect_threshold_hit_rate_avg: Optional[float] = None
+    architect_claim_support_rate_avg: Optional[float] = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -567,10 +581,16 @@ class PortfolioQualityDonorWeightedRiskPublicResponse(BaseModel):
     open_findings_total: int
     high_severity_findings_total: int
     needs_revision_job_count: int
+    architect_citation_count_total: int = 0
+    architect_claim_support_citation_count: int = 0
+    architect_claim_support_rate: Optional[float] = None
     low_confidence_citation_count: int
     rag_low_confidence_citation_count: int
     architect_rag_low_confidence_citation_count: int = 0
     mel_rag_low_confidence_citation_count: int = 0
+    citation_type_counts: Optional[Dict[str, int]] = None
+    architect_citation_type_counts: Optional[Dict[str, int]] = None
+    mel_citation_type_counts: Optional[Dict[str, int]] = None
     fallback_namespace_citation_count: Optional[int] = None
     traceability_complete_citation_count: Optional[int] = None
     traceability_partial_citation_count: Optional[int] = None

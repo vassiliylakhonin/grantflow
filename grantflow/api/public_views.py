@@ -144,6 +144,16 @@ def _grounding_risk_level(*, fallback_count: int, citation_count: int) -> str:
     return "low"
 
 
+def _citation_type_counts(citations: list[Dict[str, Any]]) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for item in citations:
+        if not isinstance(item, dict):
+            continue
+        token = str(item.get("citation_type") or "").strip().lower() or "unknown"
+        counts[token] = int(counts.get(token, 0)) + 1
+    return dict(sorted(counts.items()))
+
+
 def _job_grounding_risk_level(job: Dict[str, Any]) -> str:
     state = job.get("state")
     state_dict = state if isinstance(state, dict) else {}
@@ -1306,6 +1316,11 @@ def public_job_quality_payload(
 
     architect_citations = [c for c in citations if isinstance(c, dict) and str(c.get("stage") or "") == "architect"]
     mel_citations = [c for c in citations if isinstance(c, dict) and str(c.get("stage") or "") == "mel"]
+    citation_type_counts = _citation_type_counts(citations)
+    architect_citation_type_counts = _citation_type_counts(architect_citations)
+    mel_citation_type_counts = _citation_type_counts(mel_citations)
+    architect_claim_support_citation_count = int(architect_citation_type_counts.get("rag_claim_support") or 0)
+    architect_fallback_namespace_citation_count = int(architect_citation_type_counts.get("fallback_namespace") or 0)
 
     confidence_values: list[float] = []
     high_conf = 0
@@ -1425,8 +1440,23 @@ def public_job_quality_payload(
             "citation_count": len(citations),
             "architect_citation_count": len(architect_citations),
             "mel_citation_count": len(mel_citations),
+            "citation_type_counts": citation_type_counts,
+            "architect_citation_type_counts": architect_citation_type_counts,
+            "mel_citation_type_counts": mel_citation_type_counts,
             "high_confidence_citation_count": high_conf,
             "low_confidence_citation_count": low_conf,
+            "architect_claim_support_citation_count": architect_claim_support_citation_count,
+            "architect_claim_support_rate": (
+                round(architect_claim_support_citation_count / len(architect_citations), 4)
+                if architect_citations
+                else None
+            ),
+            "architect_fallback_namespace_citation_count": architect_fallback_namespace_citation_count,
+            "architect_fallback_namespace_citation_rate": (
+                round(architect_fallback_namespace_citation_count / len(architect_citations), 4)
+                if architect_citations
+                else None
+            ),
             "architect_rag_low_confidence_citation_count": sum(
                 1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_low_confidence"
             ),
@@ -1692,6 +1722,11 @@ def public_portfolio_quality_payload(
     llm_advisory_applied_job_count = 0
     llm_advisory_candidate_finding_count = 0
     llm_advisory_rejected_reason_counts: Dict[str, int] = {}
+    architect_citation_count_total = 0
+    architect_claim_support_citation_count = 0
+    citation_type_counts_total: Dict[str, int] = {}
+    architect_citation_type_counts_total: Dict[str, int] = {}
+    mel_citation_type_counts_total: Dict[str, int] = {}
 
     for row in quality_rows:
         row_critic: Dict[str, Any] = (
@@ -1732,6 +1767,8 @@ def public_portfolio_quality_payload(
                         int(llm_advisory_rejected_reason_counts.get(rejected_reason, 0)) + 1
                     )
         citation_count_total += int(row_citations.get("citation_count") or 0)
+        architect_citation_count_total += int(row_citations.get("architect_citation_count") or 0)
+        architect_claim_support_citation_count += int(row_citations.get("architect_claim_support_citation_count") or 0)
         low_confidence_citation_count += int(row_citations.get("low_confidence_citation_count") or 0)
         rag_low_confidence_citation_count += int(row_citations.get("rag_low_confidence_citation_count") or 0)
         architect_rag_low_confidence_citation_count += int(
@@ -1743,6 +1780,32 @@ def public_portfolio_quality_payload(
         traceability_partial_citation_count += int(row_citations.get("traceability_partial_citation_count") or 0)
         traceability_missing_citation_count += int(row_citations.get("traceability_missing_citation_count") or 0)
         traceability_gap_citation_count += int(row_citations.get("traceability_gap_citation_count") or 0)
+        row_citation_type_counts = (
+            cast(Dict[str, Any], row_citations.get("citation_type_counts"))
+            if isinstance(row_citations.get("citation_type_counts"), dict)
+            else {}
+        )
+        for ctype, count in row_citation_type_counts.items():
+            key = str(ctype).strip().lower() or "unknown"
+            citation_type_counts_total[key] = int(citation_type_counts_total.get(key, 0)) + int(count or 0)
+        row_architect_citation_type_counts = (
+            cast(Dict[str, Any], row_citations.get("architect_citation_type_counts"))
+            if isinstance(row_citations.get("architect_citation_type_counts"), dict)
+            else {}
+        )
+        for ctype, count in row_architect_citation_type_counts.items():
+            key = str(ctype).strip().lower() or "unknown"
+            architect_citation_type_counts_total[key] = int(architect_citation_type_counts_total.get(key, 0)) + int(
+                count or 0
+            )
+        row_mel_citation_type_counts = (
+            cast(Dict[str, Any], row_citations.get("mel_citation_type_counts"))
+            if isinstance(row_citations.get("mel_citation_type_counts"), dict)
+            else {}
+        )
+        for ctype, count in row_mel_citation_type_counts.items():
+            key = str(ctype).strip().lower() or "unknown"
+            mel_citation_type_counts_total[key] = int(mel_citation_type_counts_total.get(key, 0)) + int(count or 0)
 
         donor_for_row = str(row.get("_donor_id") or "unknown")
         donor_row = donor_weighted_risk_breakdown.setdefault(
@@ -1754,6 +1817,8 @@ def public_portfolio_quality_payload(
                 "high_severity_findings_total": 0,
                 "needs_revision_job_count": 0,
                 "citation_count_total": 0,
+                "architect_citation_count_total": 0,
+                "architect_claim_support_citation_count": 0,
                 "low_confidence_citation_count": 0,
                 "rag_low_confidence_citation_count": 0,
                 "architect_rag_low_confidence_citation_count": 0,
@@ -1770,11 +1835,18 @@ def public_portfolio_quality_payload(
                 "llm_advisory_applied_job_count": 0,
                 "llm_advisory_candidate_finding_count": 0,
                 "llm_advisory_rejected_reason_counts": {},
+                "citation_type_counts": {},
+                "architect_citation_type_counts": {},
+                "mel_citation_type_counts": {},
             },
         )
         donor_row["open_findings_total"] += int(row_critic.get("open_finding_count") or 0)
         donor_row["high_severity_findings_total"] += int(row_critic.get("high_severity_fatal_flaw_count") or 0)
         donor_row["citation_count_total"] += int(row_citations.get("citation_count") or 0)
+        donor_row["architect_citation_count_total"] += int(row_citations.get("architect_citation_count") or 0)
+        donor_row["architect_claim_support_citation_count"] += int(
+            row_citations.get("architect_claim_support_citation_count") or 0
+        )
         donor_row["low_confidence_citation_count"] += int(row_citations.get("low_confidence_citation_count") or 0)
         donor_row["rag_low_confidence_citation_count"] += int(
             row_citations.get("rag_low_confidence_citation_count") or 0
@@ -1798,6 +1870,29 @@ def public_portfolio_quality_payload(
             row_citations.get("traceability_missing_citation_count") or 0
         )
         donor_row["traceability_gap_citation_count"] += int(row_citations.get("traceability_gap_citation_count") or 0)
+        donor_citation_type_counts = donor_row.get("citation_type_counts")
+        if not isinstance(donor_citation_type_counts, dict):
+            donor_citation_type_counts = {}
+            donor_row["citation_type_counts"] = donor_citation_type_counts
+        for ctype, count in row_citation_type_counts.items():
+            key = str(ctype).strip().lower() or "unknown"
+            donor_citation_type_counts[key] = int(donor_citation_type_counts.get(key, 0)) + int(count or 0)
+        donor_architect_citation_type_counts = donor_row.get("architect_citation_type_counts")
+        if not isinstance(donor_architect_citation_type_counts, dict):
+            donor_architect_citation_type_counts = {}
+            donor_row["architect_citation_type_counts"] = donor_architect_citation_type_counts
+        for ctype, count in row_architect_citation_type_counts.items():
+            key = str(ctype).strip().lower() or "unknown"
+            donor_architect_citation_type_counts[key] = int(donor_architect_citation_type_counts.get(key, 0)) + int(
+                count or 0
+            )
+        donor_mel_citation_type_counts = donor_row.get("mel_citation_type_counts")
+        if not isinstance(donor_mel_citation_type_counts, dict):
+            donor_mel_citation_type_counts = {}
+            donor_row["mel_citation_type_counts"] = donor_mel_citation_type_counts
+        for ctype, count in row_mel_citation_type_counts.items():
+            key = str(ctype).strip().lower() or "unknown"
+            donor_mel_citation_type_counts[key] = int(donor_mel_citation_type_counts.get(key, 0)) + int(count or 0)
         donor_label_counts = donor_row.get("llm_finding_label_counts")
         if not isinstance(donor_label_counts, dict):
             donor_label_counts = {}
@@ -1907,19 +2002,30 @@ def public_portfolio_quality_payload(
             round(donor_applied_jobs / donor_diag_jobs, 4) if donor_diag_jobs else None
         )
         donor_citations_total = int(donor_row.get("citation_count_total") or 0)
+        donor_architect_citations_total = int(donor_row.get("architect_citation_count_total") or 0)
         donor_fallback_total = int(donor_row.get("fallback_namespace_citation_count") or 0)
+        donor_architect_claim_support_total = int(donor_row.get("architect_claim_support_citation_count") or 0)
         donor_fallback_rate = round(donor_fallback_total / donor_citations_total, 4) if donor_citations_total else None
+        donor_architect_claim_support_rate = (
+            round(donor_architect_claim_support_total / donor_architect_citations_total, 4)
+            if donor_architect_citations_total
+            else None
+        )
         donor_grounding_level = _grounding_risk_level(
             fallback_count=donor_fallback_total,
             citation_count=donor_citations_total,
         )
         donor_row["fallback_namespace_citation_rate"] = donor_fallback_rate
+        donor_row["architect_claim_support_rate"] = donor_architect_claim_support_rate
         donor_row["grounding_risk_level"] = donor_grounding_level
         donor_grounding_risk_counts[donor_grounding_level] = (
             int(donor_grounding_risk_counts.get(donor_grounding_level, 0)) + 1
         )
         donor_grounding_risk_breakdown[donor_id] = {
             "citation_count_total": donor_citations_total,
+            "architect_citation_count_total": donor_architect_citations_total,
+            "architect_claim_support_citation_count": donor_architect_claim_support_total,
+            "architect_claim_support_rate": donor_architect_claim_support_rate,
             "fallback_namespace_citation_count": donor_fallback_total,
             "fallback_namespace_citation_rate": donor_fallback_rate,
             "grounding_risk_level": donor_grounding_level,
@@ -1936,6 +2042,11 @@ def public_portfolio_quality_payload(
     ]
     fallback_namespace_citation_rate = (
         round(fallback_namespace_citation_count / citation_count_total, 4) if citation_count_total else None
+    )
+    architect_claim_support_rate = (
+        round(architect_claim_support_citation_count / architect_citation_count_total, 4)
+        if architect_citation_count_total
+        else None
     )
     grounding_risk_level = _grounding_risk_level(
         fallback_count=fallback_namespace_citation_count,
@@ -2007,7 +2118,13 @@ def public_portfolio_quality_payload(
         },
         "citations": {
             "citation_count_total": citation_count_total,
+            "architect_citation_count_total": architect_citation_count_total,
+            "architect_claim_support_citation_count": architect_claim_support_citation_count,
+            "architect_claim_support_rate": architect_claim_support_rate,
             "citation_confidence_avg": _avg(citation_summary_rows, "citation_confidence_avg"),
+            "citation_type_counts_total": dict(sorted(citation_type_counts_total.items())),
+            "architect_citation_type_counts_total": dict(sorted(architect_citation_type_counts_total.items())),
+            "mel_citation_type_counts_total": dict(sorted(mel_citation_type_counts_total.items())),
             "low_confidence_citation_count": low_confidence_citation_count,
             "low_confidence_citation_rate": (
                 round(low_confidence_citation_count / citation_count_total, 4) if citation_count_total else None
@@ -2046,6 +2163,7 @@ def public_portfolio_quality_payload(
                 round(traceability_gap_citation_count / citation_count_total, 4) if citation_count_total else None
             ),
             "architect_threshold_hit_rate_avg": _avg(citation_summary_rows, "architect_threshold_hit_rate"),
+            "architect_claim_support_rate_avg": _avg(citation_summary_rows, "architect_claim_support_rate"),
         },
         "priority_signal_breakdown": priority_signal_breakdown,
         "donor_weighted_risk_breakdown": donor_weighted_risk_breakdown,
