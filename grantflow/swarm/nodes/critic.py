@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +11,7 @@ from grantflow.swarm.critic_llm_policy import is_advisory_llm_finding as _is_adv
 from grantflow.swarm.critic_llm_policy import is_advisory_llm_message as _is_advisory_llm_message  # noqa: F401
 from grantflow.swarm.critic_llm_policy import llm_finding_policy_class as _llm_finding_policy_class
 from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
+from grantflow.swarm.findings import normalize_findings
 from grantflow.swarm.llm_provider import (
     chat_openai_init_kwargs,
     openai_compatible_llm_available,
@@ -36,7 +36,7 @@ class RedTeamEvaluation(BaseModel):
         ge=0.0,
         le=10.0,
     )
-    fatal_flaws: List[str] = Field(
+    fatal_flaws: List[Union[Dict[str, Any], str]] = Field(
         description="List of critical logical gaps, missing indicators, or unrealistic assumptions."
     )
     revision_instructions: str = Field(description="Clear, actionable instructions for follow-up revision.")
@@ -49,34 +49,49 @@ def _dump_model(model: BaseModel) -> Dict[str, Any]:
     return model.dict()  # type: ignore[attr-defined]
 
 
-def _llm_flaws_to_structured(flaws: List[str]) -> List[Dict[str, Any]]:
+def _llm_flaws_to_structured(flaws: List[Union[Dict[str, Any], str]]) -> List[Dict[str, Any]]:
     structured: List[Dict[str, Any]] = []
-    for idx, text in enumerate(flaws or []):
-        msg = str(text or "").strip()
+    for idx, item in enumerate(flaws or []):
+        payload = item if isinstance(item, dict) else {}
+        msg = str(payload.get("message") if isinstance(payload, dict) else item or "").strip()
         if not msg:
             continue
-        section = "general"
+        section = str(payload.get("section") or "general").strip().lower()
+        if section not in {"toc", "logframe", "general"}:
+            section = "general"
         lowered = msg.lower()
-        if any(k in lowered for k in ("indicator", "mel", "logframe")):
+        if section == "general" and any(k in lowered for k in ("indicator", "mel", "logframe")):
             section = "logframe"
-        elif any(k in lowered for k in ("toc", "objective", "assumption", "causal")):
+        elif section == "general" and any(k in lowered for k in ("toc", "objective", "assumption", "causal")):
             section = "toc"
         label = _classify_llm_finding_label(msg, section=section)
         structured.append(
             _dump_model(
                 CriticFatalFlaw(
-                    code=f"LLM_REVIEW_FLAG_{idx+1}",
+                    code=str(payload.get("code") or f"LLM_REVIEW_FLAG_{idx+1}"),
                     label=label,
-                    severity="medium",
+                    severity=str(payload.get("severity") or "medium"),
                     section=section,
                     version_id=None,
                     message=msg,
-                    fix_hint="Incorporate this reviewer feedback in the next draft iteration.",
+                    rationale=str(
+                        payload.get("rationale") or "LLM reviewer-identified risk in draft quality/compliance."
+                    ),
+                    fix_suggestion=str(
+                        payload.get("fix_suggestion")
+                        or payload.get("fix_hint")
+                        or "Incorporate this reviewer feedback in the next draft iteration."
+                    ),
+                    fix_hint=str(
+                        payload.get("fix_suggestion")
+                        or payload.get("fix_hint")
+                        or "Incorporate this reviewer feedback in the next draft iteration."
+                    ),
                     source="llm",
                 )
             )
         )
-    return structured
+    return normalize_findings(structured, default_source="llm")
 
 
 def _advisory_llm_findings_context(
@@ -203,50 +218,11 @@ def _apply_advisory_llm_score_cap(
     }
 
 
-def _finding_identity_key(item: Dict[str, Any]) -> tuple[str, str, str, str, str]:
-    return (
-        str(item.get("code") or ""),
-        str(item.get("section") or ""),
-        str(item.get("version_id") or ""),
-        str(item.get("message") or ""),
-        str(item.get("source") or ""),
-    )
-
-
 def _normalize_fatal_flaw_items(
     items: List[Dict[str, Any]],
     previous_items: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
-    previous_by_key: Dict[tuple[str, str, str, str, str], Dict[str, Any]] = {}
-    for old in previous_items or []:
-        if not isinstance(old, dict):
-            continue
-        previous_by_key[_finding_identity_key(old)] = old
-
-    normalized: List[Dict[str, Any]] = []
-    for item in items:
-        if not isinstance(item, dict):
-            continue
-        current = dict(item)
-        prior = previous_by_key.get(_finding_identity_key(current))
-        if prior:
-            for key in ("finding_id", "status", "acknowledged_at", "resolved_at"):
-                if prior.get(key) is not None and current.get(key) in (None, ""):
-                    current[key] = prior.get(key)
-
-        if not str(current.get("finding_id") or "").strip():
-            current["finding_id"] = str(uuid.uuid4())
-
-        status = str(current.get("status") or "open").strip().lower()
-        if status not in {"open", "acknowledged", "resolved"}:
-            status = "open"
-        current["status"] = status
-        if status != "acknowledged":
-            current.pop("acknowledged_at", None)
-        if status != "resolved":
-            current.pop("resolved_at", None)
-        normalized.append(current)
-    return normalized
+    return normalize_findings(items, previous_items=previous_items, default_source="rules")
 
 
 def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:

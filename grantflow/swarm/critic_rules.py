@@ -18,6 +18,8 @@ class CriticFatalFlaw(BaseModel):
     status: Optional[str] = Field(default=None, description="open|acknowledged|resolved")
     version_id: Optional[str] = Field(default=None, description="Related draft version id, if available")
     message: str = Field(description="Human-readable issue summary")
+    rationale: Optional[str] = Field(default=None, description="Why this finding matters")
+    fix_suggestion: Optional[str] = Field(default=None, description="Suggested remediation")
     fix_hint: Optional[str] = Field(default=None, description="Suggested fix")
     acknowledged_at: Optional[str] = Field(default=None, description="Timestamp when acknowledged")
     resolved_at: Optional[str] = Field(default=None, description="Timestamp when resolved")
@@ -65,6 +67,8 @@ def _add_flaw(
             section=section,
             version_id=_latest_version_id(state, section) if section in {"toc", "logframe"} else None,
             message=message,
+            rationale=message,
+            fix_suggestion=fix_hint,
             fix_hint=fix_hint,
             source="rules",
         )

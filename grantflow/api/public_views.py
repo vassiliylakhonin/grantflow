@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any, Dict, Optional, cast
 
 from grantflow.api.csv_utils import csv_text_from_mapping
+from grantflow.swarm.findings import normalize_findings
 
 PORTFOLIO_QUALITY_SIGNAL_WEIGHTS: dict[str, int] = {
     "high_severity_findings_total": 5,
@@ -100,7 +101,7 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
 
     raw_flaws = critic_notes.get("fatal_flaws")
     fatal_flaws = (
-        [sanitize_for_public_response(item) for item in raw_flaws if isinstance(item, dict)]
+        [sanitize_for_public_response(item) for item in normalize_findings(raw_flaws, default_source="rules")]
         if isinstance(raw_flaws, list)
         else []
     )

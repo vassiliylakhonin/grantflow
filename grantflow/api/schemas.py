@@ -170,6 +170,8 @@ class CriticFatalFlawPublicResponse(BaseModel):
     status: Optional[str] = None
     version_id: Optional[str] = None
     message: str
+    rationale: Optional[str] = None
+    fix_suggestion: Optional[str] = None
     fix_hint: Optional[str] = None
     source: Optional[str] = None
     acknowledged_at: Optional[str] = None

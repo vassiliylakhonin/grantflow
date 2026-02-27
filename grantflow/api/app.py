@@ -67,6 +67,7 @@ from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace
 from grantflow.memory_bank.vector_store import vector_store
+from grantflow.swarm.findings import normalize_findings
 from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
 from grantflow.swarm.nodes.architect import draft_toc
@@ -324,7 +325,7 @@ def _resolve_export_inputs(
     if not isinstance(review_comments, list):
         review_comments = []
     citations = [c for c in citations if isinstance(c, dict)]
-    critic_findings = [c for c in critic_findings if isinstance(c, dict)]
+    critic_findings = normalize_findings(critic_findings, default_source="rules")
     review_comments = [c for c in review_comments if isinstance(c, dict)]
     return toc, logframe, str(donor_id), citations, critic_findings, review_comments
 
@@ -378,29 +379,8 @@ def _normalize_critic_fatal_flaws_for_job(job_id: str) -> Optional[Dict[str, Any
     if not isinstance(raw_flaws, list):
         return job
 
-    changed = False
-    normalized: list[Dict[str, Any]] = []
-    for item in raw_flaws:
-        if not isinstance(item, dict):
-            continue
-        current = dict(item)
-        if not str(current.get("finding_id") or "").strip():
-            current["finding_id"] = str(uuid.uuid4())
-            changed = True
-        status = str(current.get("status") or "open").strip().lower()
-        if status not in CRITIC_FINDING_STATUSES:
-            status = "open"
-            changed = True
-        if current.get("status") != status:
-            current["status"] = status
-            changed = True
-        if status != "acknowledged" and "acknowledged_at" in current:
-            current.pop("acknowledged_at", None)
-            changed = True
-        if status != "resolved" and "resolved_at" in current:
-            current.pop("resolved_at", None)
-            changed = True
-        normalized.append(current)
+    normalized = normalize_findings(raw_flaws, previous_items=raw_flaws, default_source="rules")
+    changed = normalized != raw_flaws
 
     if not changed:
         return job
@@ -446,7 +426,7 @@ def _set_critic_fatal_flaw_status(job_id: str, *, finding_id: str, next_status: 
         raise HTTPException(status_code=404, detail="Critic findings not found")
 
     raw_flaws = critic_notes.get("fatal_flaws")
-    flaws = [f for f in raw_flaws if isinstance(f, dict)] if isinstance(raw_flaws, list) else []
+    flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
     if not flaws:
         raise HTTPException(status_code=404, detail="Critic findings not found")
 

@@ -362,6 +362,47 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     assert resolve_body.get("resolved_at")
 
 
+def test_status_critic_normalizes_legacy_string_findings_into_entities():
+    job_id = "critic-findings-legacy-string-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "quality_score": 5.0,
+                "critic_score": 5.0,
+                "needs_revision": True,
+                "critic_notes": {
+                    "engine": "rules",
+                    "fatal_flaws": [
+                        "Missing indicator baseline and target for key outcome.",
+                    ],
+                    "fatal_flaw_messages": ["Missing indicator baseline and target for key outcome."],
+                    "rule_checks": [],
+                },
+            },
+        },
+    )
+
+    critic_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_resp.status_code == 200
+    critic_body = critic_resp.json()
+    assert critic_body["fatal_flaw_count"] == 1
+    flaw = critic_body["fatal_flaws"][0]
+    assert flaw["finding_id"]
+    assert flaw["code"] == "LEGACY_UNSTRUCTURED_FINDING"
+    assert flaw["status"] == "open"
+    assert flaw["source"] == "rules"
+    assert flaw["message"].startswith("Missing indicator baseline")
+    assert flaw.get("fix_suggestion")
+
+    ack_resp = client.post(f"/status/{job_id}/critic/findings/{flaw['finding_id']}/ack")
+    assert ack_resp.status_code == 200
+    ack_body = ack_resp.json()
+    assert ack_body["status"] == "acknowledged"
+    assert ack_body.get("acknowledged_at")
+
+
 def test_status_export_payload_endpoint_returns_review_ready_payload():
     job_id = "export-payload-1"
     api_app_module.INGEST_AUDIT_STORE.clear()
