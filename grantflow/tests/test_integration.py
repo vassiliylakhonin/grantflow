@@ -1517,7 +1517,14 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
             "status": "done",
             "hitl_enabled": True,
             "generate_preflight": {"warning_level": "medium", "risk_level": "medium"},
-            "state": {"donor_id": "usaid"},
+            "state": {
+                "donor_id": "usaid",
+                "citations": [
+                    {"citation_type": "fallback_namespace"},
+                    {"citation_type": "fallback_namespace"},
+                    {"citation_type": "fallback_namespace"},
+                ],
+            },
             "job_events": [
                 {
                     "event_id": "a1",
@@ -1571,7 +1578,15 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
             "status": "error",
             "hitl_enabled": False,
             "generate_preflight": {"warning_level": "high", "risk_level": "high"},
-            "state": {"donor_id": "eu"},
+            "state": {
+                "donor_id": "eu",
+                "citations": [
+                    {"citation_type": "rag_source"},
+                    {"citation_type": "rag_source"},
+                    {"citation_type": "rag_source"},
+                    {"citation_type": "rag_source"},
+                ],
+            },
             "job_events": [
                 {
                     "event_id": "b1",
@@ -1617,6 +1632,16 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert body["warning_level_job_rates"]["medium"] is not None
     assert body["warning_level_job_rates"]["low"] is not None
     assert body["warning_level_job_rates"]["none"] is not None
+    assert body["grounding_risk_counts"]["high"] >= 1
+    assert body["grounding_risk_counts"]["low"] >= 1
+    assert body["grounding_risk_job_counts"]["high"] >= 1
+    assert body["grounding_risk_job_counts"]["low"] >= 1
+    assert body["grounding_risk_job_counts"]["unknown"] >= 0
+    assert sum(int(v or 0) for v in body["grounding_risk_job_counts"].values()) == body["job_count"]
+    assert body["grounding_risk_job_rates"]["high"] is not None
+    assert body["grounding_risk_job_rates"]["medium"] is not None
+    assert body["grounding_risk_job_rates"]["low"] is not None
+    assert body["grounding_risk_job_rates"]["unknown"] is not None
     assert body["terminal_job_count"] >= 2
     assert body["hitl_job_count"] >= 1
     assert body["total_pause_count"] >= 1
@@ -1642,6 +1667,15 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert warning_filtered_body["warning_level_counts"] == {"high": warning_filtered_body["job_count"]}
     assert warning_filtered_body["warning_level_job_counts"]["high"] == warning_filtered_body["job_count"]
     assert warning_filtered_body["warning_level_job_counts"]["medium"] == 0
+
+    grounding_filtered = client.get("/portfolio/metrics", params={"grounding_risk_level": "high"})
+    assert grounding_filtered.status_code == 200
+    grounding_filtered_body = grounding_filtered.json()
+    assert grounding_filtered_body["filters"]["grounding_risk_level"] == "high"
+    assert grounding_filtered_body["job_count"] >= 1
+    assert grounding_filtered_body["grounding_risk_counts"] == {"high": grounding_filtered_body["job_count"]}
+    assert grounding_filtered_body["grounding_risk_job_counts"]["high"] == grounding_filtered_body["job_count"]
+    assert grounding_filtered_body["grounding_risk_job_counts"]["low"] == 0
 
 
 def test_portfolio_quality_endpoint_aggregates_quality_signals():
@@ -2103,7 +2137,10 @@ def test_portfolio_quality_export_endpoint_supports_json_and_gzip():
 
 
 def test_portfolio_metrics_export_endpoint_supports_csv_json_and_gzip():
-    csv_resp = client.get("/portfolio/metrics/export", params={"donor_id": "usaid", "status": "done", "format": "csv"})
+    csv_resp = client.get(
+        "/portfolio/metrics/export",
+        params={"donor_id": "usaid", "status": "done", "grounding_risk_level": "high", "format": "csv"},
+    )
     assert csv_resp.status_code == 200
     assert csv_resp.headers["content-type"].startswith("text/csv")
     csv_disposition = csv_resp.headers.get("content-disposition", "")
@@ -2112,9 +2149,13 @@ def test_portfolio_metrics_export_endpoint_supports_csv_json_and_gzip():
     assert csv_text.startswith("field,value\n")
     assert "filters.donor_id,usaid" in csv_text
     assert "filters.status,done" in csv_text
+    assert "filters.grounding_risk_level,high" in csv_text
     assert "avg_time_to_terminal_seconds," in csv_text
 
-    json_resp = client.get("/portfolio/metrics/export", params={"donor_id": "usaid", "format": "json"})
+    json_resp = client.get(
+        "/portfolio/metrics/export",
+        params={"donor_id": "usaid", "grounding_risk_level": "high", "format": "json"},
+    )
     assert json_resp.status_code == 200
     assert json_resp.headers["content-type"].startswith("application/json")
     json_disposition = json_resp.headers.get("content-disposition", "")
@@ -2122,6 +2163,7 @@ def test_portfolio_metrics_export_endpoint_supports_csv_json_and_gzip():
     payload = json_resp.json()
     assert "job_count" in payload
     assert payload["filters"]["donor_id"] == "usaid"
+    assert payload["filters"]["grounding_risk_level"] == "high"
 
     csv_gzip_resp = client.get(
         "/portfolio/metrics/export", params={"donor_id": "usaid", "format": "csv", "gzip": "true"}

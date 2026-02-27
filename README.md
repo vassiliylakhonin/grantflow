@@ -177,6 +177,8 @@ curl -s -X POST http://127.0.0.1:8000/export \
 - `POST /generate/preflight`, `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
 - `GET /status/{job_id}` plus:
   - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`
+- `GET /portfolio/metrics` and `/portfolio/metrics/export` support filters:
+  - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`
 - `GET /portfolio/quality` and `/portfolio/quality/export` support filters:
   - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`
 - `POST /hitl/approve`, `GET /hitl/pending`

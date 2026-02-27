@@ -904,8 +904,10 @@ def public_portfolio_metrics_payload(
     status: Optional[str] = None,
     hitl_enabled: Optional[bool] = None,
     warning_level: Optional[str] = None,
+    grounding_risk_level: Optional[str] = None,
 ) -> Dict[str, Any]:
     warning_level_filter = _normalize_warning_level_filter(warning_level)
+    grounding_risk_filter = _normalize_grounding_risk_filter(grounding_risk_level)
     filtered: list[tuple[str, Dict[str, Any]]] = []
     for job_id, job in jobs_by_id.items():
         if not isinstance(job, dict):
@@ -923,11 +925,14 @@ def public_portfolio_metrics_payload(
             continue
         if warning_level_filter is not None and _job_warning_level(job) != warning_level_filter:
             continue
+        if grounding_risk_filter is not None and _job_grounding_risk_level(job) != grounding_risk_filter:
+            continue
         filtered.append((str(job_id), job))
 
     status_counts: Dict[str, int] = {}
     donor_counts: Dict[str, int] = {}
     warning_level_counts: Dict[str, int] = {}
+    grounding_risk_counts: Dict[str, int] = {}
     total_pause_count = 0
     total_resume_count = 0
     metrics_rows: list[Dict[str, Any]] = []
@@ -940,6 +945,8 @@ def public_portfolio_metrics_payload(
         donor_counts[job_donor] = donor_counts.get(job_donor, 0) + 1
         job_warning_level = _job_warning_level(job)
         warning_level_counts[job_warning_level] = warning_level_counts.get(job_warning_level, 0) + 1
+        job_grounding_risk_level = _job_grounding_risk_level(job)
+        grounding_risk_counts[job_grounding_risk_level] = grounding_risk_counts.get(job_grounding_risk_level, 0) + 1
 
         m = public_job_metrics_payload(job_id, job)
         metrics_rows.append(m)
@@ -957,6 +964,7 @@ def public_portfolio_metrics_payload(
 
     job_count = len(filtered)
     warning_level_job_counts, warning_level_job_rates = _warning_level_breakdown(warning_level_counts, job_count)
+    grounding_risk_job_counts, grounding_risk_job_rates = _grounding_risk_breakdown(grounding_risk_counts, job_count)
 
     return {
         "job_count": job_count,
@@ -965,12 +973,20 @@ def public_portfolio_metrics_payload(
             "status": status,
             "hitl_enabled": hitl_enabled,
             "warning_level": warning_level_filter,
+            "grounding_risk_level": grounding_risk_filter,
         },
         "status_counts": status_counts,
         "donor_counts": donor_counts,
         "warning_level_counts": warning_level_counts,
         "warning_level_job_counts": warning_level_job_counts,
         "warning_level_job_rates": warning_level_job_rates,
+        "grounding_risk_counts": grounding_risk_counts,
+        "grounding_risk_job_counts": grounding_risk_job_counts,
+        "grounding_risk_job_rates": grounding_risk_job_rates,
+        "grounding_risk_high_job_count": int(grounding_risk_job_counts.get("high") or 0),
+        "grounding_risk_medium_job_count": int(grounding_risk_job_counts.get("medium") or 0),
+        "grounding_risk_low_job_count": int(grounding_risk_job_counts.get("low") or 0),
+        "grounding_risk_unknown_job_count": int(grounding_risk_job_counts.get("unknown") or 0),
         "terminal_job_count": len(terminal_rows),
         "hitl_job_count": sum(1 for _, job in filtered if bool(job.get("hitl_enabled"))),
         "total_pause_count": total_pause_count,

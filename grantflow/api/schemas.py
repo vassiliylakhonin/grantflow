@@ -302,6 +302,8 @@ class PortfolioMetricsFiltersPublicResponse(BaseModel):
     donor_id: Optional[str] = None
     status: Optional[str] = None
     hitl_enabled: Optional[bool] = None
+    warning_level: Optional[str] = None
+    grounding_risk_level: Optional[str] = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -311,6 +313,16 @@ class PortfolioMetricsPublicResponse(BaseModel):
     filters: PortfolioMetricsFiltersPublicResponse
     status_counts: Dict[str, int]
     donor_counts: Dict[str, int]
+    warning_level_counts: Dict[str, int]
+    warning_level_job_counts: Dict[str, int]
+    warning_level_job_rates: Dict[str, Optional[float]]
+    grounding_risk_counts: Dict[str, int]
+    grounding_risk_job_counts: Dict[str, int]
+    grounding_risk_job_rates: Dict[str, Optional[float]]
+    grounding_risk_high_job_count: int
+    grounding_risk_medium_job_count: int
+    grounding_risk_low_job_count: int
+    grounding_risk_unknown_job_count: int
     terminal_job_count: int
     hitl_job_count: int
     total_pause_count: int
