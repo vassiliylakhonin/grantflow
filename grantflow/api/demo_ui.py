@@ -502,6 +502,8 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">% Medium-warning Jobs</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">% Low-warning Jobs</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">% No-warning Jobs</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Fallback Dominance</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">High-Risk Donors</div><div class="value mono">-</div></div>
             </div>
             <div id="portfolioWarningMetaLine" class="footer-note mono">high=- · medium=- · low=- · none=- · total=-</div>
             <div class="row" style="margin-top:10px;">
@@ -523,6 +525,16 @@ def render_demo_ui_html() -> str:
               <div>
                 <label>Preflight Warning Levels</label>
                 <div class="list" id="portfolioQualityWarningLevelsList"></div>
+              </div>
+              <div>
+                <label>Grounding Risk Levels</label>
+                <div class="list" id="portfolioQualityGroundingRiskLevelsList"></div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Top Donors (Grounding Risk)</label>
+                <div class="list" id="portfolioQualityGroundingRiskList"></div>
               </div>
               <div></div>
             </div>
@@ -1072,6 +1084,8 @@ def render_demo_ui_html() -> str:
         portfolioQualityRiskList: $("portfolioQualityRiskList"),
         portfolioQualityOpenFindingsList: $("portfolioQualityOpenFindingsList"),
         portfolioQualityWarningLevelsList: $("portfolioQualityWarningLevelsList"),
+        portfolioQualityGroundingRiskLevelsList: $("portfolioQualityGroundingRiskLevelsList"),
+        portfolioQualityGroundingRiskList: $("portfolioQualityGroundingRiskList"),
         portfolioQualityPrioritySignalsList: $("portfolioQualityPrioritySignalsList"),
         portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
         portfolioQualityLlmLabelCountsList: $("portfolioQualityLlmLabelCountsList"),
@@ -2119,6 +2133,15 @@ def render_demo_ui_html() -> str:
           formatWarningRate(summary?.warning_level_low_rate, warningRates.low);
         const noneWarningRate =
           formatWarningRate(summary?.warning_level_none_rate, warningRates.none);
+        const fallbackDominanceRate =
+          typeof citations.fallback_namespace_citation_rate === "number"
+            ? `${(Number(citations.fallback_namespace_citation_rate) * 100).toFixed(1)}%`
+            : "-";
+        const highGroundingRiskDonorCount = Number(
+          summary?.high_grounding_risk_donor_count ??
+          summary?.donor_grounding_risk_counts?.high ??
+          0
+        );
         const values = [
           typeof summary?.avg_quality_score === "number" ? Number(summary.avg_quality_score).toFixed(2) : "-",
           needsRevisionRate,
@@ -2132,6 +2155,8 @@ def render_demo_ui_html() -> str:
           mediumWarningRate,
           lowWarningRate,
           noneWarningRate,
+          fallbackDominanceRate,
+          String(highGroundingRiskDonorCount),
         ];
         const portfolioQualityValueNodes = [...els.portfolioQualityCards.querySelectorAll(".kpi .value")];
         portfolioQualityValueNodes.forEach((node, i) => {
@@ -2154,6 +2179,32 @@ def render_demo_ui_html() -> str:
               : "No portfolio jobs in current filter";
           node.style.cursor = portfolioJobCount > 0 ? "pointer" : "default";
           node.onclick = portfolioJobCount > 0 ? () => applyPortfolioWarningLevelFilter(cfg.level) : null;
+        }
+        const fallbackNode = portfolioQualityValueNodes[12];
+        if (fallbackNode) {
+          const fallbackRate = Number(citations?.fallback_namespace_citation_rate ?? NaN);
+          fallbackNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(fallbackRate)) {
+            if (fallbackRate >= 0.8) fallbackNode.classList.add("risk-high");
+            else if (fallbackRate >= 0.5) fallbackNode.classList.add("risk-medium");
+            else fallbackNode.classList.add("risk-low");
+          } else {
+            fallbackNode.classList.add("risk-none");
+          }
+          const fallbackCount = Number(citations?.fallback_namespace_citation_count ?? 0);
+          const citationCount = Number(citations?.citation_count_total ?? 0);
+          fallbackNode.title =
+            citationCount > 0 ? `${fallbackCount}/${citationCount} fallback citations` : "No citations in current filter";
+        }
+        const highGroundingNode = portfolioQualityValueNodes[13];
+        if (highGroundingNode) {
+          highGroundingNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          highGroundingNode.classList.add(highGroundingRiskDonorCount > 0 ? "risk-high" : "risk-none");
+          const donorCount = Number(Object.keys(summary?.donor_counts || {}).length || 0);
+          highGroundingNode.title =
+            donorCount > 0
+              ? `${highGroundingRiskDonorCount} of ${donorCount} donors are high grounding-risk`
+              : "No donors in current filter";
         }
         if (els.portfolioWarningMetaLine) {
           els.portfolioWarningMetaLine.textContent =
@@ -2227,6 +2278,51 @@ def render_demo_ui_html() -> str:
             div.style.cursor = "pointer";
             div.title = "Click to filter";
             div.addEventListener("click", () => onSelect(row.level));
+          }
+          container.appendChild(div);
+        }
+      }
+
+      function renderDonorGroundingRiskList(container, mapping, emptyLabel, topN = 8, onSelect = null) {
+        container.innerHTML = "";
+        if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        const entries = Object.entries(mapping)
+          .map(([donorId, row]) => {
+            const rec = row && typeof row === "object" && !Array.isArray(row) ? row : {};
+            const fallbackRate =
+              typeof rec.fallback_namespace_citation_rate === "number"
+                ? Number(rec.fallback_namespace_citation_rate)
+                : -1;
+            return [String(donorId), rec, fallbackRate];
+          })
+          .sort((a, b) => b[2] - a[2] || a[0].localeCompare(b[0]))
+          .slice(0, topN);
+        if (!entries.length) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        for (const [donorId, row] of entries) {
+          const level = String(row.grounding_risk_level || "unknown").toLowerCase();
+          const fallbackCount = Number(row.fallback_namespace_citation_count || 0);
+          const citationCount = Number(row.citation_count_total || 0);
+          const rateLabel =
+            typeof row.fallback_namespace_citation_rate === "number"
+              ? `${(Number(row.fallback_namespace_citation_rate) * 100).toFixed(1)}%`
+              : "-";
+          const cls = level === "high" ? "severity-high" : level === "medium" ? "severity-medium" : "severity-low";
+          const div = document.createElement("div");
+          div.className = `item ${cls}`;
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(donorId)} · level=${escapeHtml(level)}</div>
+            <div class="sub">fallback: ${escapeHtml(String(fallbackCount))}/${escapeHtml(String(citationCount))} · rate: ${escapeHtml(rateLabel)}</div>
+          `;
+          if (typeof onSelect === "function") {
+            div.style.cursor = "pointer";
+            div.title = "Click to filter donor";
+            div.addEventListener("click", () => onSelect(donorId));
           }
           container.appendChild(div);
         }
@@ -2996,6 +3092,19 @@ def render_demo_ui_html() -> str:
           body.warning_level_job_rates || {},
           "No warning-level data yet.",
           (warningLevel) => applyPortfolioWarningLevelFilter(warningLevel)
+        );
+        renderKeyValueList(
+          els.portfolioQualityGroundingRiskLevelsList,
+          body.donor_grounding_risk_counts,
+          "No grounding-risk level data yet.",
+          4
+        );
+        renderDonorGroundingRiskList(
+          els.portfolioQualityGroundingRiskList,
+          body.donor_grounding_risk_breakdown,
+          "No donor grounding-risk data yet.",
+          8,
+          (donorId) => applyPortfolioDonorFilter(donorId)
         );
         setJson(els.portfolioQualityJson, body);
         return body;

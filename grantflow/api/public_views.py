@@ -28,6 +28,9 @@ PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS = {
 }
 PORTFOLIO_WARNING_LEVELS = {"high", "medium", "low", "none"}
 PORTFOLIO_WARNING_LEVEL_ORDER = ("high", "medium", "low", "none")
+GROUNDING_RISK_LEVEL_ORDER = ("high", "medium", "low", "unknown")
+GROUNDING_FALLBACK_HIGH_THRESHOLD = 0.8
+GROUNDING_FALLBACK_MEDIUM_THRESHOLD = 0.5
 
 
 def _job_warning_level(job: Dict[str, Any]) -> str:
@@ -62,6 +65,17 @@ def _warning_level_breakdown(
         normalized_counts[level] = count
         normalized_rates[level] = round(count / total_jobs, 4) if total_jobs else None
     return normalized_counts, normalized_rates
+
+
+def _grounding_risk_level(*, fallback_count: int, citation_count: int) -> str:
+    if citation_count <= 0:
+        return "unknown"
+    rate = fallback_count / citation_count
+    if rate >= GROUNDING_FALLBACK_HIGH_THRESHOLD:
+        return "high"
+    if rate >= GROUNDING_FALLBACK_MEDIUM_THRESHOLD:
+        return "medium"
+    return "low"
 
 
 def sanitize_for_public_response(value: Any) -> Any:
@@ -808,6 +822,11 @@ def public_job_quality_payload(
             ),
             "rag_low_confidence_citation_count": rag_low_conf,
             "fallback_namespace_citation_count": fallback_ns,
+            "fallback_namespace_citation_rate": round(fallback_ns / len(citations), 4) if citations else None,
+            "grounding_risk_level": _grounding_risk_level(
+                fallback_count=fallback_ns,
+                citation_count=len(citations),
+            ),
             "traceability_complete_citation_count": traceability_complete,
             "traceability_partial_citation_count": traceability_partial,
             "traceability_missing_citation_count": traceability_missing,
@@ -1070,6 +1089,7 @@ def public_portfolio_quality_payload(
                 "open_findings_total": 0,
                 "high_severity_findings_total": 0,
                 "needs_revision_job_count": 0,
+                "citation_count_total": 0,
                 "low_confidence_citation_count": 0,
                 "rag_low_confidence_citation_count": 0,
                 "architect_rag_low_confidence_citation_count": 0,
@@ -1090,6 +1110,7 @@ def public_portfolio_quality_payload(
         )
         donor_row["open_findings_total"] += int(row_critic.get("open_finding_count") or 0)
         donor_row["high_severity_findings_total"] += int(row_critic.get("high_severity_fatal_flaw_count") or 0)
+        donor_row["citation_count_total"] += int(row_citations.get("citation_count") or 0)
         donor_row["low_confidence_citation_count"] += int(row_citations.get("low_confidence_citation_count") or 0)
         donor_row["rag_low_confidence_citation_count"] += int(
             row_citations.get("rag_low_confidence_citation_count") or 0
@@ -1194,7 +1215,10 @@ def public_portfolio_quality_payload(
         if signal in PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS:
             high_priority_signal_count += int(count)
 
-    for donor_row in donor_weighted_risk_breakdown.values():
+    donor_grounding_risk_counts: Dict[str, int] = {level: 0 for level in GROUNDING_RISK_LEVEL_ORDER}
+    donor_grounding_risk_breakdown: Dict[str, Dict[str, Any]] = {}
+
+    for donor_id, donor_row in donor_weighted_risk_breakdown.items():
         donor_row["weighted_score"] = (
             donor_row["high_severity_findings_total"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["high_severity_findings_total"]
             + donor_row["open_findings_total"] * PORTFOLIO_QUALITY_SIGNAL_WEIGHTS["open_findings_total"]
@@ -1218,6 +1242,24 @@ def public_portfolio_quality_payload(
         donor_row["llm_advisory_applied_rate"] = (
             round(donor_applied_jobs / donor_diag_jobs, 4) if donor_diag_jobs else None
         )
+        donor_citations_total = int(donor_row.get("citation_count_total") or 0)
+        donor_fallback_total = int(donor_row.get("fallback_namespace_citation_count") or 0)
+        donor_fallback_rate = round(donor_fallback_total / donor_citations_total, 4) if donor_citations_total else None
+        donor_grounding_level = _grounding_risk_level(
+            fallback_count=donor_fallback_total,
+            citation_count=donor_citations_total,
+        )
+        donor_row["fallback_namespace_citation_rate"] = donor_fallback_rate
+        donor_row["grounding_risk_level"] = donor_grounding_level
+        donor_grounding_risk_counts[donor_grounding_level] = (
+            int(donor_grounding_risk_counts.get(donor_grounding_level, 0)) + 1
+        )
+        donor_grounding_risk_breakdown[donor_id] = {
+            "citation_count_total": donor_citations_total,
+            "fallback_namespace_citation_count": donor_fallback_total,
+            "fallback_namespace_citation_rate": donor_fallback_rate,
+            "grounding_risk_level": donor_grounding_level,
+        }
 
     job_count = len(filtered)
     warning_level_job_counts, warning_level_job_rates = _warning_level_breakdown(warning_level_counts, job_count)
@@ -1227,6 +1269,13 @@ def public_portfolio_quality_payload(
     citation_summary_rows: list[Dict[str, Any]] = [
         cast(Dict[str, Any], row.get("citations")) for row in quality_rows if isinstance(row.get("citations"), dict)
     ]
+    fallback_namespace_citation_rate = (
+        round(fallback_namespace_citation_count / citation_count_total, 4) if citation_count_total else None
+    )
+    grounding_risk_level = _grounding_risk_level(
+        fallback_count=fallback_namespace_citation_count,
+        citation_count=citation_count_total,
+    )
 
     return {
         "job_count": job_count,
@@ -1249,6 +1298,11 @@ def public_portfolio_quality_payload(
         "warning_level_medium_rate": (warning_level_job_rates.get("medium")),
         "warning_level_low_rate": (warning_level_job_rates.get("low")),
         "warning_level_none_rate": (warning_level_job_rates.get("none")),
+        "donor_grounding_risk_counts": donor_grounding_risk_counts,
+        "high_grounding_risk_donor_count": int(donor_grounding_risk_counts.get("high") or 0),
+        "medium_grounding_risk_donor_count": int(donor_grounding_risk_counts.get("medium") or 0),
+        "low_grounding_risk_donor_count": int(donor_grounding_risk_counts.get("low") or 0),
+        "unknown_grounding_risk_donor_count": int(donor_grounding_risk_counts.get("unknown") or 0),
         "terminal_job_count": len(terminal_rows),
         "quality_score_job_count": quality_score_job_count,
         "critic_score_job_count": critic_score_job_count,
@@ -1296,9 +1350,8 @@ def public_portfolio_quality_payload(
                 round(mel_rag_low_confidence_citation_count / citation_count_total, 4) if citation_count_total else None
             ),
             "fallback_namespace_citation_count": fallback_namespace_citation_count,
-            "fallback_namespace_citation_rate": (
-                round(fallback_namespace_citation_count / citation_count_total, 4) if citation_count_total else None
-            ),
+            "fallback_namespace_citation_rate": fallback_namespace_citation_rate,
+            "grounding_risk_level": grounding_risk_level,
             "traceability_complete_citation_count": traceability_complete_citation_count,
             "traceability_complete_citation_rate": (
                 round(traceability_complete_citation_count / citation_count_total, 4) if citation_count_total else None
@@ -1319,6 +1372,7 @@ def public_portfolio_quality_payload(
         },
         "priority_signal_breakdown": priority_signal_breakdown,
         "donor_weighted_risk_breakdown": donor_weighted_risk_breakdown,
+        "donor_grounding_risk_breakdown": donor_grounding_risk_breakdown,
         "donor_needs_revision_counts": donor_needs_revision_counts,
         "donor_open_findings_counts": donor_open_findings_counts,
     }

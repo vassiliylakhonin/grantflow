@@ -126,12 +126,16 @@ def test_demo_console_page_loads():
     assert "portfolioQualityRiskList" in body
     assert "portfolioQualityOpenFindingsList" in body
     assert "portfolioQualityWarningLevelsList" in body
+    assert "portfolioQualityGroundingRiskLevelsList" in body
+    assert "portfolioQualityGroundingRiskList" in body
     assert "portfolioQualityPrioritySignalsList" in body
     assert "portfolioQualityWeightedDonorsList" in body
     assert "% High-warning Jobs" in body
     assert "% Medium-warning Jobs" in body
     assert "% Low-warning Jobs" in body
     assert "% No-warning Jobs" in body
+    assert "Fallback Dominance" in body
+    assert "High-Risk Donors" in body
     assert "portfolioWarningMetaLine" in body
     assert "qualityLlmFindingLabelsList" in body
     assert "qualityAdvisoryBadgeList" in body
@@ -1253,6 +1257,8 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["citations"]["mel_rag_low_confidence_citation_count"] == 0
     assert body["citations"]["rag_low_confidence_citation_count"] == 1
     assert body["citations"]["fallback_namespace_citation_count"] == 1
+    assert body["citations"]["fallback_namespace_citation_rate"] == 0.25
+    assert body["citations"]["grounding_risk_level"] == "low"
     assert body["citations"]["traceability_complete_citation_count"] == 0
     assert body["citations"]["traceability_partial_citation_count"] == 0
     assert body["citations"]["traceability_missing_citation_count"] == 4
@@ -1459,6 +1465,8 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert sum(int(v or 0) for v in body["warning_level_job_counts"].values()) == body["job_count"]
     assert body["warning_level_job_rates"]["high"] is not None
     assert body["warning_level_job_rates"]["medium"] is not None
+    assert body["warning_level_job_rates"]["low"] is not None
+    assert body["warning_level_job_rates"]["none"] is not None
     assert body["terminal_job_count"] >= 2
     assert body["hitl_job_count"] >= 1
     assert body["total_pause_count"] >= 1
@@ -1681,6 +1689,12 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert sum(int(v or 0) for v in body["warning_level_job_counts"].values()) == body["job_count"]
     assert body["warning_level_job_rates"]["medium"] is not None
     assert body["warning_level_job_rates"]["low"] is not None
+    assert body["donor_grounding_risk_counts"]["high"] >= 0
+    assert body["donor_grounding_risk_counts"]["medium"] >= 0
+    assert body["donor_grounding_risk_counts"]["low"] >= 0
+    assert body["donor_grounding_risk_counts"]["unknown"] >= 0
+    assert body["high_grounding_risk_donor_count"] >= 0
+    assert body["medium_grounding_risk_donor_count"] >= 0
     assert body["job_count"] >= 2
     assert body["avg_quality_score"] is not None
     assert body["avg_critic_score"] is not None
@@ -1706,6 +1720,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert "architect_rag_low_confidence_citation_rate" in body["citations"]
     assert "mel_rag_low_confidence_citation_rate" in body["citations"]
     assert "fallback_namespace_citation_count" in body["citations"]
+    assert "fallback_namespace_citation_rate" in body["citations"]
+    assert body["citations"]["grounding_risk_level"] in {"high", "medium", "low", "unknown"}
     assert "traceability_gap_citation_count" in body["citations"]
     assert "traceability_gap_citation_rate" in body["citations"]
     assert body["citations"]["architect_threshold_hit_rate_avg"] is not None
@@ -1717,6 +1733,14 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert "mel_rag_low_confidence_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "traceability_gap_citation_count" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "llm_finding_label_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "citation_count_total" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert "fallback_namespace_citation_rate" in body["donor_weighted_risk_breakdown"]["usaid"]
+    assert body["donor_weighted_risk_breakdown"]["usaid"]["grounding_risk_level"] in {
+        "high",
+        "medium",
+        "low",
+        "unknown",
+    }
     assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
     assert "llm_advisory_rejected_reason_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
     assert "llm_advisory_applied_label_counts" in body["donor_weighted_risk_breakdown"]["usaid"]
@@ -1738,6 +1762,17 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
         ]
         >= 1
     )
+    assert "usaid" in body["donor_grounding_risk_breakdown"]
+    assert body["donor_grounding_risk_breakdown"]["usaid"]["citation_count_total"] >= 1
+    assert body["donor_grounding_risk_breakdown"]["usaid"]["fallback_namespace_citation_count"] >= 0
+    if body["donor_grounding_risk_breakdown"]["usaid"]["citation_count_total"] > 0:
+        assert body["donor_grounding_risk_breakdown"]["usaid"]["fallback_namespace_citation_rate"] is not None
+    assert body["donor_grounding_risk_breakdown"]["usaid"]["grounding_risk_level"] in {
+        "high",
+        "medium",
+        "low",
+        "unknown",
+    }
     assert body["donor_needs_revision_counts"]["usaid"] >= 1
     assert body["donor_open_findings_counts"]["usaid"] >= 1
     assert "eu" not in body["donor_counts"]
