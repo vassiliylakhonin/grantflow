@@ -1044,6 +1044,11 @@ A sanitized multi-donor pilot snapshot is included under:
 - [`docs/pilot_runs/2026-02-27/summary.md`](docs/pilot_runs/2026-02-27/summary.md)
 - [`docs/pilot_runs/2026-02-27/benchmark-results.json`](docs/pilot_runs/2026-02-27/benchmark-results.json)
 
+Source-label fix refresh (P1) is available under:
+
+- [`docs/pilot_runs/2026-02-27-p1-source-fix/summary.md`](docs/pilot_runs/2026-02-27-p1-source-fix/summary.md)
+- [`docs/pilot_runs/2026-02-27-p1-source-fix/benchmark-results.json`](docs/pilot_runs/2026-02-27-p1-source-fix/benchmark-results.json)
+
 Per-donor subfolders contain:
 
 - typed API snapshots (`status`, `quality`, `critic`, `citations`, `metrics`, `events`, `versions`)

@@ -1,0 +1,236 @@
+{
+  "job_id": "8e5c269e-5ad4-4c26-b02b-89abb040a53e",
+  "status": "done",
+  "version_count": 2,
+  "versions": [
+    {
+      "version_id": "toc_v1",
+      "sequence": 1,
+      "section": "toc",
+      "node": "architect",
+      "iteration": 1,
+      "content": {
+        "toc": {
+          "project_goal": "Improve Responsible AI Skills for Civil Service Modernization in Kazakhstan outcomes in Kazakhstan.",
+          "development_objectives": [
+            {
+              "do_id": "Do 1",
+              "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+              "intermediate_results": [
+                {
+                  "ir_id": "Ir 1",
+                  "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                  "outputs": [
+                    {
+                      "output_id": "Output 1",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output 2",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "ir_id": "Ir 2",
+                  "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                  "outputs": [
+                    {
+                      "output_id": "Output 1",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output 2",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "do_id": "Do 2",
+              "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+              "intermediate_results": [
+                {
+                  "ir_id": "Ir 1",
+                  "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                  "outputs": [
+                    {
+                      "output_id": "Output 1",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output 2",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "ir_id": "Ir 2",
+                  "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                  "outputs": [
+                    {
+                      "output_id": "Output 1",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output 2",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles.",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "critical_assumptions": [
+            "Assumption 1: enabling conditions remain stable for implementation.",
+            "Assumption 2: enabling conditions remain stable for implementation."
+          ]
+        },
+        "citation": "Based on usaid_ads201",
+        "generation_meta": {
+          "engine": "fallback:contract_synthesizer",
+          "llm_used": false,
+          "retrieval_used": false,
+          "schema_name": "USAID_TOC",
+          "citation_policy": {
+            "default_high_confidence_threshold": 0.35,
+            "threshold_mode": "donor_section",
+            "donor_overrides": {
+              "eu": 0.34,
+              "giz": 0.32,
+              "state_department": 0.4,
+              "us_state_department": 0.4,
+              "usaid": 0.38,
+              "worldbank": 0.34
+            },
+            "low_confidence_type": "rag_low_confidence"
+          }
+        },
+        "validation": {
+          "valid": true,
+          "schema_name": "USAID_TOC",
+          "error_count": 0,
+          "errors": []
+        },
+        "architect_retrieval": {
+          "enabled": true,
+          "namespace": "usaid_ads201",
+          "query": "Responsible AI Skills for Civil Service Modernization in Kazakhstan | Kazakhstan | usaid",
+          "top_k": 3,
+          "hits_count": 0,
+          "used_results": 0
+        }
+      }
+    },
+    {
+      "version_id": "logframe_v1",
+      "sequence": 2,
+      "section": "logframe",
+      "node": "mel_specialist",
+      "iteration": 0,
+      "content": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Project Output Indicator",
+            "justification": "Fallback indicator used because donor-specific RAG collection returned no results.",
+            "citation": "usaid_ads201",
+            "baseline": "TBD",
+            "target": "TBD"
+          }
+        ],
+        "rag_trace": {
+          "namespace": "usaid_ads201",
+          "query": "Responsible AI Skills for Civil Service Modernization in Kazakhstan | Kazakhstan",
+          "top_k": 3,
+          "used_results": 0,
+          "citation_count": 1
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "fallback_namespace",
+            "namespace": "usaid_ads201",
+            "label": "usaid_ads201",
+            "used_for": "IND_001",
+            "citation_confidence": 0.1,
+            "evidence_score": 0.1
+          }
+        ]
+      }
+    }
+  ]
+}

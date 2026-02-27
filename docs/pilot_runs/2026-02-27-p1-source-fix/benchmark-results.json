@@ -1,0 +1,364 @@
+[
+  {
+    "citation_type_counts": {
+      "fallback_namespace": 16
+    },
+    "donor_id": "usaid",
+    "job_id": "8e5c269e-5ad4-4c26-b02b-89abb040a53e",
+    "quality": {
+      "architect": {
+        "citation_policy": {
+          "default_high_confidence_threshold": 0.35,
+          "donor_overrides": {
+            "eu": 0.34,
+            "giz": 0.32,
+            "state_department": 0.4,
+            "us_state_department": 0.4,
+            "usaid": 0.38,
+            "worldbank": 0.34
+          },
+          "low_confidence_type": "rag_low_confidence",
+          "threshold_mode": "donor_section"
+        },
+        "engine": "fallback:contract_synthesizer",
+        "llm_used": false,
+        "retrieval_enabled": true,
+        "retrieval_hits_count": 0,
+        "retrieval_namespace": "usaid_ads201",
+        "retrieval_used": false,
+        "toc_schema_name": "USAID_TOC",
+        "toc_schema_valid": true
+      },
+      "citations": {
+        "architect_citation_count": 15,
+        "architect_rag_low_confidence_citation_count": 0,
+        "architect_threshold_hit_rate": 0.0,
+        "citation_confidence_avg": 0.1,
+        "citation_count": 16,
+        "fallback_namespace_citation_count": 16,
+        "high_confidence_citation_count": 0,
+        "low_confidence_citation_count": 16,
+        "mel_citation_count": 1,
+        "mel_rag_low_confidence_citation_count": 0,
+        "rag_low_confidence_citation_count": 0
+      },
+      "critic": {
+        "acknowledged_finding_count": 0,
+        "engine": "rules",
+        "failed_rule_check_count": 0,
+        "fatal_flaw_count": 0,
+        "high_severity_fatal_flaw_count": 0,
+        "llm_finding_label_counts": {},
+        "low_severity_fatal_flaw_count": 0,
+        "medium_severity_fatal_flaw_count": 0,
+        "open_finding_count": 0,
+        "resolved_finding_count": 0,
+        "rule_check_count": 10,
+        "rule_score": 9.25,
+        "warned_rule_check_count": 0
+      },
+      "critic_score": 9.25,
+      "job_id": "8e5c269e-5ad4-4c26-b02b-89abb040a53e",
+      "needs_revision": false,
+      "quality_score": 9.25,
+      "status": "done",
+      "terminal_status": "done",
+      "time_to_first_draft_seconds": 0.02,
+      "time_to_terminal_seconds": 0.02
+    },
+    "readiness": {
+      "coverage_rate": 0.0,
+      "expected_doc_families": [
+        "donor_policy",
+        "responsible_ai_guidance",
+        "country_context",
+        "competency_framework"
+      ],
+      "inventory": {
+        "doc_families": [],
+        "doc_family_counts": {},
+        "donor_id": "usaid",
+        "family_count": 0,
+        "total_uploads": 0
+      },
+      "missing_doc_families": [
+        "donor_policy",
+        "responsible_ai_guidance",
+        "country_context",
+        "competency_framework"
+      ],
+      "present_doc_families": []
+    },
+    "status": "done"
+  },
+  {
+    "citation_type_counts": {
+      "rag_claim_support": 2,
+      "rag_result": 3
+    },
+    "donor_id": "eu",
+    "job_id": "82921e84-fba3-4dfa-a271-ac921a0f7839",
+    "quality": {
+      "architect": {
+        "citation_policy": {
+          "default_high_confidence_threshold": 0.35,
+          "donor_overrides": {
+            "eu": 0.34,
+            "giz": 0.32,
+            "state_department": 0.4,
+            "us_state_department": 0.4,
+            "usaid": 0.38,
+            "worldbank": 0.34
+          },
+          "low_confidence_type": "rag_low_confidence",
+          "threshold_mode": "donor_section"
+        },
+        "engine": "fallback:contract_synthesizer",
+        "llm_used": false,
+        "retrieval_enabled": true,
+        "retrieval_hits_count": 3,
+        "retrieval_namespace": "eu_intpa",
+        "retrieval_used": true,
+        "toc_schema_name": "EU_TOC",
+        "toc_schema_valid": true
+      },
+      "citations": {
+        "architect_citation_count": 2,
+        "architect_rag_low_confidence_citation_count": 0,
+        "architect_threshold_hit_rate": 1.0,
+        "citation_confidence_avg": 0.7467,
+        "citation_count": 5,
+        "fallback_namespace_citation_count": 0,
+        "high_confidence_citation_count": 4,
+        "low_confidence_citation_count": 0,
+        "mel_citation_count": 3,
+        "mel_rag_low_confidence_citation_count": 0,
+        "rag_low_confidence_citation_count": 0
+      },
+      "critic": {
+        "acknowledged_finding_count": 0,
+        "engine": "rules",
+        "failed_rule_check_count": 0,
+        "fatal_flaw_count": 0,
+        "high_severity_fatal_flaw_count": 0,
+        "llm_finding_label_counts": {},
+        "low_severity_fatal_flaw_count": 0,
+        "medium_severity_fatal_flaw_count": 0,
+        "open_finding_count": 0,
+        "resolved_finding_count": 0,
+        "rule_check_count": 7,
+        "rule_score": 9.25,
+        "warned_rule_check_count": 0
+      },
+      "critic_score": 9.25,
+      "job_id": "82921e84-fba3-4dfa-a271-ac921a0f7839",
+      "needs_revision": false,
+      "quality_score": 9.25,
+      "status": "done",
+      "terminal_status": "done",
+      "time_to_first_draft_seconds": 0.005,
+      "time_to_terminal_seconds": 0.005
+    },
+    "readiness": {
+      "coverage_rate": 1.0,
+      "expected_doc_families": [
+        "donor_results_guidance",
+        "digital_governance_guidance",
+        "country_context",
+        "municipal_process_guidance"
+      ],
+      "inventory": {
+        "doc_families": [
+          {
+            "count": 1,
+            "doc_family": "country_context",
+            "donor_id": "eu",
+            "latest_event_id": "5647e033-005b-4a02-b418-a476a2da3a47",
+            "latest_filename": "03_moldova_digital_service_context_seed.pdf",
+            "latest_source_type": "country_context",
+            "latest_ts": "2026-02-27T03:40:39.244907+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "digital_governance_guidance",
+            "donor_id": "eu",
+            "latest_event_id": "8c4f3ee1-6120-4fa7-8005-718154ac917a",
+            "latest_filename": "02_eu_digital_governance_service_delivery_seed.pdf",
+            "latest_source_type": "reference_guidance",
+            "latest_ts": "2026-02-27T03:40:39.167556+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "donor_results_guidance",
+            "donor_id": "eu",
+            "latest_event_id": "d6b67bca-a508-4a06-a545-aff39e97d1ef",
+            "latest_filename": "01_eu_intervention_logic_results_guidance_seed.pdf",
+            "latest_source_type": "donor_guidance",
+            "latest_ts": "2026-02-27T03:40:39.088010+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "municipal_process_guidance",
+            "donor_id": "eu",
+            "latest_event_id": "b660a15f-e6a2-490b-b833-f455a7a3a5ea",
+            "latest_filename": "04_municipal_service_process_quality_guidance_seed.pdf",
+            "latest_source_type": "implementation_reference",
+            "latest_ts": "2026-02-27T03:40:39.322096+00:00"
+          }
+        ],
+        "doc_family_counts": {
+          "country_context": 1,
+          "digital_governance_guidance": 1,
+          "donor_results_guidance": 1,
+          "municipal_process_guidance": 1
+        },
+        "donor_id": "eu",
+        "family_count": 4,
+        "total_uploads": 4
+      },
+      "missing_doc_families": [],
+      "present_doc_families": [
+        "country_context",
+        "digital_governance_guidance",
+        "donor_results_guidance",
+        "municipal_process_guidance"
+      ]
+    },
+    "status": "done"
+  },
+  {
+    "citation_type_counts": {
+      "rag_claim_support": 4,
+      "rag_result": 3
+    },
+    "donor_id": "worldbank",
+    "job_id": "2ca278ba-f620-48bd-85cc-0a8747d50d86",
+    "quality": {
+      "architect": {
+        "citation_policy": {
+          "default_high_confidence_threshold": 0.35,
+          "donor_overrides": {
+            "eu": 0.34,
+            "giz": 0.32,
+            "state_department": 0.4,
+            "us_state_department": 0.4,
+            "usaid": 0.38,
+            "worldbank": 0.34
+          },
+          "low_confidence_type": "rag_low_confidence",
+          "threshold_mode": "donor_section"
+        },
+        "engine": "fallback:contract_synthesizer",
+        "llm_used": false,
+        "retrieval_enabled": true,
+        "retrieval_hits_count": 3,
+        "retrieval_namespace": "worldbank_ads301",
+        "retrieval_used": true,
+        "toc_schema_name": "WorldBank_TOC",
+        "toc_schema_valid": true
+      },
+      "citations": {
+        "architect_citation_count": 4,
+        "architect_rag_low_confidence_citation_count": 0,
+        "architect_threshold_hit_rate": 1.0,
+        "citation_confidence_avg": 0.5067,
+        "citation_count": 7,
+        "fallback_namespace_citation_count": 0,
+        "high_confidence_citation_count": 3,
+        "low_confidence_citation_count": 4,
+        "mel_citation_count": 3,
+        "mel_rag_low_confidence_citation_count": 0,
+        "rag_low_confidence_citation_count": 0
+      },
+      "critic": {
+        "acknowledged_finding_count": 0,
+        "engine": "rules",
+        "failed_rule_check_count": 0,
+        "fatal_flaw_count": 0,
+        "high_severity_fatal_flaw_count": 0,
+        "llm_finding_label_counts": {},
+        "low_severity_fatal_flaw_count": 0,
+        "medium_severity_fatal_flaw_count": 0,
+        "open_finding_count": 0,
+        "resolved_finding_count": 0,
+        "rule_check_count": 8,
+        "rule_score": 9.25,
+        "warned_rule_check_count": 0
+      },
+      "critic_score": 9.25,
+      "job_id": "2ca278ba-f620-48bd-85cc-0a8747d50d86",
+      "needs_revision": false,
+      "quality_score": 9.25,
+      "status": "done",
+      "terminal_status": "done",
+      "time_to_first_draft_seconds": 0.01,
+      "time_to_terminal_seconds": 0.01
+    },
+    "readiness": {
+      "coverage_rate": 1.0,
+      "expected_doc_families": [
+        "donor_results_guidance",
+        "project_reference_docs",
+        "country_context",
+        "agency_process_docs"
+      ],
+      "inventory": {
+        "doc_families": [
+          {
+            "count": 1,
+            "doc_family": "agency_process_docs",
+            "donor_id": "worldbank",
+            "latest_event_id": "5496a3e8-e9b6-4489-b2b5-e748e5d52c60",
+            "latest_filename": "04_agency_service_standards_process_map_seed.pdf",
+            "latest_source_type": "implementation_reference",
+            "latest_ts": "2026-02-27T03:40:39.634213+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "country_context",
+            "donor_id": "worldbank",
+            "latest_event_id": "08f4da00-a7c6-48bb-b9c2-f2dfefd760d5",
+            "latest_filename": "03_uzbekistan_public_sector_reform_context_seed.pdf",
+            "latest_source_type": "country_context",
+            "latest_ts": "2026-02-27T03:40:39.556238+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "donor_results_guidance",
+            "donor_id": "worldbank",
+            "latest_event_id": "64adde0e-c94f-4113-9e02-12e54d921ac8",
+            "latest_filename": "01_worldbank_results_framework_me_seed.pdf",
+            "latest_source_type": "donor_guidance",
+            "latest_ts": "2026-02-27T03:40:39.401756+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "project_reference_docs",
+            "donor_id": "worldbank",
+            "latest_event_id": "1c56d093-950d-48f6-8a22-c85107fd6392",
+            "latest_filename": "02_worldbank_public_sector_project_reference_seed.pdf",
+            "latest_source_type": "reference_guidance",
+            "latest_ts": "2026-02-27T03:40:39.478205+00:00"
+          }
+        ],
+        "doc_family_counts": {
+          "agency_process_docs": 1,
+          "country_context": 1,
+          "donor_results_guidance": 1,
+          "project_reference_docs": 1
+        },
+        "donor_id": "worldbank",
+        "family_count": 4,
+        "total_uploads": 4
+      },
+      "missing_doc_families": [],
+      "present_doc_families": [
+        "agency_process_docs",
+        "country_context",
+        "donor_results_guidance",
+        "project_reference_docs"
+      ]
+    },
+    "status": "done"
+  }
+]

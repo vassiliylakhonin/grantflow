@@ -1,0 +1,640 @@
+{
+  "job_id": "82921e84-fba3-4dfa-a271-ac921a0f7839",
+  "status": "done",
+  "payload": {
+    "state": {
+      "donor": "eu",
+      "donor_id": "eu",
+      "input": {
+        "project": "Digital Governance and Service Delivery Improvement",
+        "country": "Moldova",
+        "region": "Selected municipalities and central support agencies",
+        "timeframe": "2026-2028 (36 months)",
+        "problem": "Public institutions and municipalities face uneven capacity to manage digital service reform, process quality, and performance monitoring.",
+        "target_population": "Municipal service teams, process owners, supervisors, and digital governance support units.",
+        "expected_change": "Participating institutions improve service process quality and digitization implementation through stronger intervention logic, process management, and performance routines.",
+        "key_activities": [
+          "intervention logic workshops",
+          "service/process diagnostics",
+          "capacity development for process owners",
+          "municipal process pilots",
+          "service quality monitoring routines"
+        ]
+      },
+      "input_context": {
+        "project": "Digital Governance and Service Delivery Improvement",
+        "country": "Moldova",
+        "region": "Selected municipalities and central support agencies",
+        "timeframe": "2026-2028 (36 months)",
+        "problem": "Public institutions and municipalities face uneven capacity to manage digital service reform, process quality, and performance monitoring.",
+        "target_population": "Municipal service teams, process owners, supervisors, and digital governance support units.",
+        "expected_change": "Participating institutions improve service process quality and digitization implementation through stronger intervention logic, process management, and performance routines.",
+        "key_activities": [
+          "intervention logic workshops",
+          "service/process diagnostics",
+          "capacity development for process owners",
+          "municipal process pilots",
+          "service quality monitoring routines"
+        ]
+      },
+      "llm_mode": false,
+      "iteration": 1,
+      "iteration_count": 1,
+      "max_iterations": 3,
+      "quality_score": 9.25,
+      "critic_score": 9.25,
+      "needs_revision": false,
+      "critic_notes": {
+        "score": 9.25,
+        "fatal_flaws": [],
+        "fatal_flaw_messages": [
+          "Minor improvements suggested"
+        ],
+        "revision_instructions": "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.",
+        "rule_checks": [
+          {
+            "code": "INPUT_BRIEF_MINIMUM_CONTEXT",
+            "status": "pass",
+            "section": "general",
+            "detail": "8 non-empty input field(s)"
+          },
+          {
+            "code": "TOC_PRESENT",
+            "status": "pass",
+            "section": "toc",
+            "detail": null
+          },
+          {
+            "code": "TOC_SCHEMA_VALID",
+            "status": "pass",
+            "section": "toc",
+            "detail": null
+          },
+          {
+            "code": "EU_OVERALL_OBJECTIVE_COMPLETE",
+            "status": "pass",
+            "section": "toc",
+            "detail": null
+          },
+          {
+            "code": "TOC_CLAIM_CITATIONS",
+            "status": "pass",
+            "section": "toc",
+            "detail": "2 claim-level architect citations"
+          },
+          {
+            "code": "LOGFRAME_INDICATORS_PRESENT",
+            "status": "pass",
+            "section": "logframe",
+            "detail": "3 indicators"
+          },
+          {
+            "code": "LOGFRAME_CITATIONS_PRESENT",
+            "status": "pass",
+            "section": "logframe",
+            "detail": "3 MEL citations"
+          }
+        ],
+        "rule_score": 9.25,
+        "llm_score": null,
+        "engine": "rules",
+        "llm_reason": "llm_mode=false"
+      },
+      "critic_feedback_history": [
+        "Iteration 1: score=9.25; flaws=['Minor improvements suggested']; instructions=Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible."
+      ],
+      "hitl_pending": false,
+      "errors": [],
+      "toc": {
+        "overall_objective": {
+          "objective_id": "Objective 1",
+          "title": "Digital Governance and Service Delivery Improvement result 1",
+          "rationale": "Digital Governance and Service Delivery Improvement intervention delivers measurable change in Moldova through structured implementation and review cycles. Evidence hint: Digital governance and service delivery reform reference (seed)                 \n                                       "
+        }
+      },
+      "toc_validation": {
+        "valid": true,
+        "schema_name": "EU_TOC",
+        "error_count": 0,
+        "errors": []
+      },
+      "architect_retrieval": {
+        "enabled": true,
+        "namespace": "eu_intpa",
+        "query": "Digital Governance and Service Delivery Improvement | Moldova | eu",
+        "top_k": 3,
+        "hits_count": 3,
+        "used_results": 3,
+        "hit_labels": [
+          "02_eu_digital_governance_service_delivery_seed.pdf",
+          "04_municipal_service_process_quality_guidance_seed.pdf",
+          "02_eu_digital_governance_service_delivery_seed.pdf"
+        ]
+      },
+      "toc_generation_meta": {
+        "engine": "fallback:contract_synthesizer",
+        "llm_used": false,
+        "retrieval_used": true,
+        "schema_name": "EU_TOC",
+        "citation_policy": {
+          "default_high_confidence_threshold": 0.35,
+          "threshold_mode": "donor_section",
+          "donor_overrides": {
+            "eu": 0.34,
+            "giz": 0.32,
+            "state_department": 0.4,
+            "us_state_department": 0.4,
+            "usaid": 0.38,
+            "worldbank": 0.34
+          },
+          "low_confidence_type": "rag_low_confidence"
+        }
+      },
+      "toc_draft": {
+        "toc": {
+          "overall_objective": {
+            "objective_id": "Objective 1",
+            "title": "Digital Governance and Service Delivery Improvement result 1",
+            "rationale": "Digital Governance and Service Delivery Improvement intervention delivers measurable change in Moldova through structured implementation and review cycles. Evidence hint: Digital governance and service delivery reform reference (seed)                 \n                                       "
+          }
+        },
+        "citation": "Based on eu_intpa",
+        "generation_meta": {
+          "engine": "fallback:contract_synthesizer",
+          "llm_used": false,
+          "retrieval_used": true,
+          "schema_name": "EU_TOC",
+          "citation_policy": {
+            "default_high_confidence_threshold": 0.35,
+            "threshold_mode": "donor_section",
+            "donor_overrides": {
+              "eu": 0.34,
+              "giz": 0.32,
+              "state_department": 0.4,
+              "us_state_department": 0.4,
+              "usaid": 0.38,
+              "worldbank": 0.34
+            },
+            "low_confidence_type": "rag_low_confidence"
+          }
+        },
+        "validation": {
+          "valid": true,
+          "schema_name": "EU_TOC",
+          "error_count": 0,
+          "errors": []
+        },
+        "architect_retrieval": {
+          "enabled": true,
+          "namespace": "eu_intpa",
+          "query": "Digital Governance and Service Delivery Improvement | Moldova | eu",
+          "top_k": 3,
+          "hits_count": 3,
+          "used_results": 3,
+          "hit_labels": [
+            "02_eu_digital_governance_service_delivery_seed.pdf",
+            "04_municipal_service_process_quality_guidance_seed.pdf",
+            "02_eu_digital_governance_service_delivery_seed.pdf"
+          ]
+        }
+      },
+      "draft_versions": [
+        {
+          "version_id": "toc_v1",
+          "sequence": 1,
+          "section": "toc",
+          "node": "architect",
+          "iteration": 1,
+          "content": {
+            "toc": {
+              "overall_objective": {
+                "objective_id": "Objective 1",
+                "title": "Digital Governance and Service Delivery Improvement result 1",
+                "rationale": "Digital Governance and Service Delivery Improvement intervention delivers measurable change in Moldova through structured implementation and review cycles. Evidence hint: Digital governance and service delivery reform reference (seed)                 \n                                       "
+              }
+            },
+            "citation": "Based on eu_intpa",
+            "generation_meta": {
+              "engine": "fallback:contract_synthesizer",
+              "llm_used": false,
+              "retrieval_used": true,
+              "schema_name": "EU_TOC",
+              "citation_policy": {
+                "default_high_confidence_threshold": 0.35,
+                "threshold_mode": "donor_section",
+                "donor_overrides": {
+                  "eu": 0.34,
+                  "giz": 0.32,
+                  "state_department": 0.4,
+                  "us_state_department": 0.4,
+                  "usaid": 0.38,
+                  "worldbank": 0.34
+                },
+                "low_confidence_type": "rag_low_confidence"
+              }
+            },
+            "validation": {
+              "valid": true,
+              "schema_name": "EU_TOC",
+              "error_count": 0,
+              "errors": []
+            },
+            "architect_retrieval": {
+              "enabled": true,
+              "namespace": "eu_intpa",
+              "query": "Digital Governance and Service Delivery Improvement | Moldova | eu",
+              "top_k": 3,
+              "hits_count": 3,
+              "used_results": 3,
+              "hit_labels": [
+                "02_eu_digital_governance_service_delivery_seed.pdf",
+                "04_municipal_service_process_quality_guidance_seed.pdf",
+                "02_eu_digital_governance_service_delivery_seed.pdf"
+              ]
+            }
+          },
+          "content_hash": "{\"architect_retrieval\":{\"enabled\":true,\"hit_labels\":[\"02_eu_digital_governance_service_delivery_seed.pdf\",\"04_municipal_service_process_quality_guidance_seed.pdf\",\"02_eu_digital_governance_service_delivery_seed.pdf\"],\"hits_count\":3,\"namespace\":\"eu_intpa\",\"query\":\"Digital Governance and Service Delivery Improvement | Moldova | eu\",\"top_k\":3,\"used_results\":3},\"citation\":\"Based on eu_intpa\",\"generation_meta\":{\"citation_policy\":{\"default_high_confidence_threshold\":0.35,\"donor_overrides\":{\"eu\":0.34,\"giz\":0.32,\"state_department\":0.4,\"us_state_department\":0.4,\"usaid\":0.38,\"worldbank\":0.34},\"low_confidence_type\":\"rag_low_confidence\",\"threshold_mode\":\"donor_section\"},\"engine\":\"fallback:contract_synthesizer\",\"llm_used\":false,\"retrieval_used\":true,\"schema_name\":\"EU_TOC\"},\"toc\":{\"overall_objective\":{\"objective_id\":\"Objective 1\",\"rationale\":\"Digital Governance and Service Delivery Improvement intervention delivers measurable change in Moldova through structured implementation and review cycles. Evidence hint: Digital governance and service delivery reform reference (seed)                 \\n                                       \",\"title\":\"Digital Governance and Service Delivery Improvement result 1\"}},\"validation\":{\"error_count\":0,\"errors\":[],\"schema_name\":\"EU_TOC\",\"valid\":true}}"
+        },
+        {
+          "version_id": "logframe_v1",
+          "sequence": 2,
+          "section": "logframe",
+          "node": "mel_specialist",
+          "iteration": 0,
+          "content": {
+            "indicators": [
+              {
+                "indicator_id": "IND_001",
+                "name": "Indicator from eu_intpa #1",
+                "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+                "citation": "04_municipal_service_process_quality_guidance_seed.pdf",
+                "baseline": "TBD",
+                "target": "TBD",
+                "evidence_excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    "
+              },
+              {
+                "indicator_id": "IND_002",
+                "name": "Indicator from eu_intpa #2",
+                "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+                "citation": "02_eu_digital_governance_service_delivery_seed.pdf",
+                "baseline": "TBD",
+                "target": "TBD",
+                "evidence_excerpt": "                             \n- Fragmented ownership across institutions                                      \n                                                                                \n                                                "
+              },
+              {
+                "indicator_id": "IND_003",
+                "name": "Indicator from eu_intpa #3",
+                "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+                "citation": "03_moldova_digital_service_context_seed.pdf",
+                "baseline": "TBD",
+                "target": "TBD",
+                "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+              }
+            ],
+            "rag_trace": {
+              "namespace": "eu_intpa",
+              "query": "Digital Governance and Service Delivery Improvement | Moldova",
+              "top_k": 3,
+              "used_results": 3,
+              "citation_count": 3
+            },
+            "citations": [
+              {
+                "stage": "mel",
+                "citation_type": "rag_result",
+                "namespace": "eu_intpa",
+                "source": "04_municipal_service_process_quality_guidance_seed.pdf",
+                "page": 1,
+                "page_start": 1,
+                "page_end": 1,
+                "chunk": 2,
+                "chunk_id": "eu_intpa_grantflow_ingest_kfzrft3s_p1_c2",
+                "label": "04_municipal_service_process_quality_guidance_seed.pdf",
+                "used_for": "IND_001",
+                "excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    ",
+                "citation_confidence": 0.8,
+                "evidence_score": 0.8,
+                "evidence_rank": 1
+              },
+              {
+                "stage": "mel",
+                "citation_type": "rag_result",
+                "namespace": "eu_intpa",
+                "source": "02_eu_digital_governance_service_delivery_seed.pdf",
+                "page": 1,
+                "page_start": 1,
+                "page_end": 1,
+                "chunk": 3,
+                "chunk_id": "eu_intpa_grantflow_ingest_8o_m8090_p1_c3",
+                "label": "02_eu_digital_governance_service_delivery_seed.pdf",
+                "used_for": "IND_002",
+                "excerpt": "                             \n- Fragmented ownership across institutions                                      \n                                                                                \n                                                ",
+                "citation_confidence": 0.8,
+                "evidence_score": 0.8,
+                "evidence_rank": 2
+              },
+              {
+                "stage": "mel",
+                "citation_type": "rag_result",
+                "namespace": "eu_intpa",
+                "source": "03_moldova_digital_service_context_seed.pdf",
+                "page": 1,
+                "page_start": 1,
+                "page_end": 1,
+                "chunk": 4,
+                "chunk_id": "eu_intpa_grantflow_ingest_rmv_syw8_p1_c4",
+                "label": "03_moldova_digital_service_context_seed.pdf",
+                "used_for": "IND_003",
+                "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+                "citation_confidence": 0.8,
+                "evidence_score": 0.8,
+                "evidence_rank": 3
+              }
+            ]
+          },
+          "content_hash": "{\"citations\":[{\"chunk\":2,\"chunk_id\":\"eu_intpa_grantflow_ingest_kfzrft3s_p1_c2\",\"citation_confidence\":0.8,\"citation_type\":\"rag_result\",\"evidence_rank\":1,\"evidence_score\":0.8,\"excerpt\":\"                   \\n6. Adjust SOPs and institutionalize changes                                     \\n                                                                                \\nOperational indicators                                    \",\"label\":\"04_municipal_service_process_quality_guidance_seed.pdf\",\"namespace\":\"eu_intpa\",\"page\":1,\"page_end\":1,\"page_start\":1,\"source\":\"04_municipal_service_process_quality_guidance_seed.pdf\",\"stage\":\"mel\",\"used_for\":\"IND_001\"},{\"chunk\":3,\"chunk_id\":\"eu_intpa_grantflow_ingest_8o_m8090_p1_c3\",\"citation_confidence\":0.8,\"citation_type\":\"rag_result\",\"evidence_rank\":2,\"evidence_score\":0.8,\"excerpt\":\"                             \\n- Fragmented ownership across institutions                                      \\n                                                                                \\n                                                \",\"label\":\"02_eu_digital_governance_service_delivery_seed.pdf\",\"namespace\":\"eu_intpa\",\"page\":1,\"page_end\":1,\"page_start\":1,\"source\":\"02_eu_digital_governance_service_delivery_seed.pdf\",\"stage\":\"mel\",\"used_for\":\"IND_002\"},{\"chunk\":4,\"chunk_id\":\"eu_intpa_grantflow_ingest_rmv_syw8_p1_c4\",\"citation_confidence\":0.8,\"citation_type\":\"rag_result\",\"evidence_rank\":3,\"evidence_score\":0.8,\"excerpt\":\"                                       \\n                                                                                \\n                                                                                \\n                                      \",\"label\":\"03_moldova_digital_service_context_seed.pdf\",\"namespace\":\"eu_intpa\",\"page\":1,\"page_end\":1,\"page_start\":1,\"source\":\"03_moldova_digital_service_context_seed.pdf\",\"stage\":\"mel\",\"used_for\":\"IND_003\"}],\"indicators\":[{\"baseline\":\"TBD\",\"citation\":\"04_municipal_service_process_quality_guidance_seed.pdf\",\"evidence_excerpt\":\"                   \\n6. Adjust SOPs and institutionalize changes                                     \\n                                                                                \\nOperational indicators                                    \",\"indicator_id\":\"IND_001\",\"justification\":\"Selected from donor-specific RAG collection 'eu_intpa' based on project query.\",\"name\":\"Indicator from eu_intpa #1\",\"target\":\"TBD\"},{\"baseline\":\"TBD\",\"citation\":\"02_eu_digital_governance_service_delivery_seed.pdf\",\"evidence_excerpt\":\"                             \\n- Fragmented ownership across institutions                                      \\n                                                                                \\n                                                \",\"indicator_id\":\"IND_002\",\"justification\":\"Selected from donor-specific RAG collection 'eu_intpa' based on project query.\",\"name\":\"Indicator from eu_intpa #2\",\"target\":\"TBD\"},{\"baseline\":\"TBD\",\"citation\":\"03_moldova_digital_service_context_seed.pdf\",\"evidence_excerpt\":\"                                       \\n                                                                                \\n                                                                                \\n                                      \",\"indicator_id\":\"IND_003\",\"justification\":\"Selected from donor-specific RAG collection 'eu_intpa' based on project query.\",\"name\":\"Indicator from eu_intpa #3\",\"target\":\"TBD\"}],\"rag_trace\":{\"citation_count\":3,\"namespace\":\"eu_intpa\",\"query\":\"Digital Governance and Service Delivery Improvement | Moldova\",\"top_k\":3,\"used_results\":3}}"
+        }
+      ],
+      "citations": [
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "eu_intpa",
+          "source": "02_eu_digital_governance_service_delivery_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 0,
+          "chunk_id": "eu_intpa_grantflow_ingest_8o_m8090_p1_c0",
+          "label": "02_eu_digital_governance_service_delivery_seed.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.overall_objective.title",
+          "statement": "Digital Governance and Service Delivery Improvement result 1",
+          "excerpt": "Digital governance and service delivery reform reference (seed)                 \n                                                                                \nPurpose                                                                       ",
+          "citation_confidence": 0.8,
+          "evidence_score": 0.8,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.39
+        },
+        {
+          "stage": "architect",
+          "citation_type": "rag_claim_support",
+          "namespace": "eu_intpa",
+          "source": "02_eu_digital_governance_service_delivery_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 0,
+          "chunk_id": "eu_intpa_grantflow_ingest_8o_m8090_p1_c0",
+          "label": "02_eu_digital_governance_service_delivery_seed.pdf",
+          "used_for": "toc_claim",
+          "statement_path": "toc.overall_objective.rationale",
+          "statement": "Digital Governance and Service Delivery Improvement intervention delivers measurable change in Moldova through structured implementation and review cycles. Evidence hint: Digital governance and service delivery reform reference (seed)",
+          "excerpt": "Digital governance and service delivery reform reference (seed)                 \n                                                                                \nPurpose                                                                       ",
+          "citation_confidence": 0.5333,
+          "evidence_score": 0.5333,
+          "evidence_rank": 1,
+          "confidence_threshold": 0.39
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "eu_intpa",
+          "source": "04_municipal_service_process_quality_guidance_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 2,
+          "chunk_id": "eu_intpa_grantflow_ingest_kfzrft3s_p1_c2",
+          "label": "04_municipal_service_process_quality_guidance_seed.pdf",
+          "used_for": "IND_001",
+          "excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    ",
+          "citation_confidence": 0.8,
+          "evidence_score": 0.8,
+          "evidence_rank": 1
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "eu_intpa",
+          "source": "02_eu_digital_governance_service_delivery_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 3,
+          "chunk_id": "eu_intpa_grantflow_ingest_8o_m8090_p1_c3",
+          "label": "02_eu_digital_governance_service_delivery_seed.pdf",
+          "used_for": "IND_002",
+          "excerpt": "                             \n- Fragmented ownership across institutions                                      \n                                                                                \n                                                ",
+          "citation_confidence": 0.8,
+          "evidence_score": 0.8,
+          "evidence_rank": 2
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "eu_intpa",
+          "source": "03_moldova_digital_service_context_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 4,
+          "chunk_id": "eu_intpa_grantflow_ingest_rmv_syw8_p1_c4",
+          "label": "03_moldova_digital_service_context_seed.pdf",
+          "used_for": "IND_003",
+          "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+          "citation_confidence": 0.8,
+          "evidence_score": 0.8,
+          "evidence_rank": 3
+        }
+      ],
+      "mel": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Indicator from eu_intpa #1",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "04_municipal_service_process_quality_guidance_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    "
+          },
+          {
+            "indicator_id": "IND_002",
+            "name": "Indicator from eu_intpa #2",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "02_eu_digital_governance_service_delivery_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                             \n- Fragmented ownership across institutions                                      \n                                                                                \n                                                "
+          },
+          {
+            "indicator_id": "IND_003",
+            "name": "Indicator from eu_intpa #3",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "03_moldova_digital_service_context_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          }
+        ],
+        "rag_trace": {
+          "namespace": "eu_intpa",
+          "query": "Digital Governance and Service Delivery Improvement | Moldova",
+          "top_k": 3,
+          "used_results": 3,
+          "citation_count": 3
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "04_municipal_service_process_quality_guidance_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 2,
+            "chunk_id": "eu_intpa_grantflow_ingest_kfzrft3s_p1_c2",
+            "label": "04_municipal_service_process_quality_guidance_seed.pdf",
+            "used_for": "IND_001",
+            "excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 1
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "02_eu_digital_governance_service_delivery_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 3,
+            "chunk_id": "eu_intpa_grantflow_ingest_8o_m8090_p1_c3",
+            "label": "02_eu_digital_governance_service_delivery_seed.pdf",
+            "used_for": "IND_002",
+            "excerpt": "                             \n- Fragmented ownership across institutions                                      \n                                                                                \n                                                ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 2
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "03_moldova_digital_service_context_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "eu_intpa_grantflow_ingest_rmv_syw8_p1_c4",
+            "label": "03_moldova_digital_service_context_seed.pdf",
+            "used_for": "IND_003",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 3
+          }
+        ]
+      },
+      "logframe_draft": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Indicator from eu_intpa #1",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "04_municipal_service_process_quality_guidance_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    "
+          },
+          {
+            "indicator_id": "IND_002",
+            "name": "Indicator from eu_intpa #2",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "02_eu_digital_governance_service_delivery_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                             \n- Fragmented ownership across institutions                                      \n                                                                                \n                                                "
+          },
+          {
+            "indicator_id": "IND_003",
+            "name": "Indicator from eu_intpa #3",
+            "justification": "Selected from donor-specific RAG collection 'eu_intpa' based on project query.",
+            "citation": "03_moldova_digital_service_context_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          }
+        ],
+        "rag_trace": {
+          "namespace": "eu_intpa",
+          "query": "Digital Governance and Service Delivery Improvement | Moldova",
+          "top_k": 3,
+          "used_results": 3,
+          "citation_count": 3
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "04_municipal_service_process_quality_guidance_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 2,
+            "chunk_id": "eu_intpa_grantflow_ingest_kfzrft3s_p1_c2",
+            "label": "04_municipal_service_process_quality_guidance_seed.pdf",
+            "used_for": "IND_001",
+            "excerpt": "                   \n6. Adjust SOPs and institutionalize changes                                     \n                                                                                \nOperational indicators                                    ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 1
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "02_eu_digital_governance_service_delivery_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 3,
+            "chunk_id": "eu_intpa_grantflow_ingest_8o_m8090_p1_c3",
+            "label": "02_eu_digital_governance_service_delivery_seed.pdf",
+            "used_for": "IND_002",
+            "excerpt": "                             \n- Fragmented ownership across institutions                                      \n                                                                                \n                                                ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 2
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "eu_intpa",
+            "source": "03_moldova_digital_service_context_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "eu_intpa_grantflow_ingest_rmv_syw8_p1_c4",
+            "label": "03_moldova_digital_service_context_seed.pdf",
+            "used_for": "IND_003",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 3
+          }
+        ]
+      },
+      "critic_fatal_flaws": [],
+      "next_step": "end"
+    },
+    "critic_findings": [],
+    "review_comments": [],
+    "readiness": null
+  }
+}

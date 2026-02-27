@@ -1,0 +1,76 @@
+{
+  "job_id": "8e5c269e-5ad4-4c26-b02b-89abb040a53e",
+  "status": "done",
+  "quality_score": 9.25,
+  "critic_score": 9.25,
+  "engine": "rules",
+  "rule_score": 9.25,
+  "needs_revision": false,
+  "revision_instructions": "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.",
+  "fatal_flaw_count": 0,
+  "fatal_flaws": [],
+  "fatal_flaw_messages": [
+    "Minor improvements suggested"
+  ],
+  "rule_check_count": 10,
+  "rule_checks": [
+    {
+      "code": "INPUT_BRIEF_MINIMUM_CONTEXT",
+      "status": "pass",
+      "section": "general",
+      "detail": "8 non-empty input field(s)"
+    },
+    {
+      "code": "TOC_PRESENT",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "TOC_SCHEMA_VALID",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "USAID_DO_PRESENT",
+      "status": "pass",
+      "section": "toc",
+      "detail": "2 DO(s)"
+    },
+    {
+      "code": "USAID_IR_HIERARCHY",
+      "status": "pass",
+      "section": "toc",
+      "detail": "4 IR(s)"
+    },
+    {
+      "code": "USAID_OUTPUT_HIERARCHY",
+      "status": "pass",
+      "section": "toc",
+      "detail": "8 output(s)"
+    },
+    {
+      "code": "USAID_CRITICAL_ASSUMPTIONS_PRESENT",
+      "status": "pass",
+      "section": "toc",
+      "detail": "2 assumptions"
+    },
+    {
+      "code": "TOC_CLAIM_CITATIONS",
+      "status": "pass",
+      "section": "toc",
+      "detail": "15 claim-level architect citations"
+    },
+    {
+      "code": "LOGFRAME_INDICATORS_PRESENT",
+      "status": "pass",
+      "section": "logframe",
+      "detail": "1 indicators"
+    },
+    {
+      "code": "LOGFRAME_CITATIONS_PRESENT",
+      "status": "pass",
+      "section": "logframe",
+      "detail": "1 MEL citations"
+    }
+  ]
+}

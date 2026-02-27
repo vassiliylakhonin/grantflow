@@ -1,0 +1,167 @@
+{
+  "job_id": "2ca278ba-f620-48bd-85cc-0a8747d50d86",
+  "status": "done",
+  "version_count": 2,
+  "versions": [
+    {
+      "version_id": "toc_v1",
+      "sequence": 1,
+      "section": "toc",
+      "node": "architect",
+      "iteration": 1,
+      "content": {
+        "toc": {
+          "objectives": [
+            {
+              "objective_id": "Objective 1",
+              "title": "Public Sector Performance and Service Delivery Capacity Strengthening result 1",
+              "description": "Public Sector Performance and Service Delivery Capacity Strengthening intervention delivers measurable change in Uzbekistan through structured implementation and review cycles."
+            },
+            {
+              "objective_id": "Objective 2",
+              "title": "Public Sector Performance and Service Delivery Capacity Strengthening result 2",
+              "description": "Public Sector Performance and Service Delivery Capacity Strengthening intervention delivers measurable change in Uzbekistan through structured implementation and review cycles."
+            }
+          ]
+        },
+        "citation": "Based on worldbank_ads301",
+        "generation_meta": {
+          "engine": "fallback:contract_synthesizer",
+          "llm_used": false,
+          "retrieval_used": true,
+          "schema_name": "WorldBank_TOC",
+          "citation_policy": {
+            "default_high_confidence_threshold": 0.35,
+            "threshold_mode": "donor_section",
+            "donor_overrides": {
+              "eu": 0.34,
+              "giz": 0.32,
+              "state_department": 0.4,
+              "us_state_department": 0.4,
+              "usaid": 0.38,
+              "worldbank": 0.34
+            },
+            "low_confidence_type": "rag_low_confidence"
+          }
+        },
+        "validation": {
+          "valid": true,
+          "schema_name": "WorldBank_TOC",
+          "error_count": 0,
+          "errors": []
+        },
+        "architect_retrieval": {
+          "enabled": true,
+          "namespace": "worldbank_ads301",
+          "query": "Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan | worldbank",
+          "top_k": 3,
+          "hits_count": 3,
+          "used_results": 3,
+          "hit_labels": [
+            "02_worldbank_public_sector_project_reference_seed.pdf",
+            "03_uzbekistan_public_sector_reform_context_seed.pdf",
+            "04_agency_service_standards_process_map_seed.pdf"
+          ]
+        }
+      }
+    },
+    {
+      "version_id": "logframe_v1",
+      "sequence": 2,
+      "section": "logframe",
+      "node": "mel_specialist",
+      "iteration": 0,
+      "content": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Indicator from worldbank_ads301 #1",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "01_worldbank_results_framework_me_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          },
+          {
+            "indicator_id": "IND_002",
+            "name": "Indicator from worldbank_ads301 #2",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "02_worldbank_public_sector_project_reference_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          },
+          {
+            "indicator_id": "IND_003",
+            "name": "Indicator from worldbank_ads301 #3",
+            "justification": "Selected from donor-specific RAG collection 'worldbank_ads301' based on project query.",
+            "citation": "04_agency_service_standards_process_map_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n                                                                                \n                                                                                \n                                      "
+          }
+        ],
+        "rag_trace": {
+          "namespace": "worldbank_ads301",
+          "query": "Public Sector Performance and Service Delivery Capacity Strengthening | Uzbekistan",
+          "top_k": 3,
+          "used_results": 3,
+          "citation_count": 3
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "01_worldbank_results_framework_me_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_wboxf22d_p1_c4",
+            "label": "01_worldbank_results_framework_me_seed.pdf",
+            "used_for": "IND_001",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 1
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "02_worldbank_public_sector_project_reference_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_1fz_e6lu_p1_c4",
+            "label": "02_worldbank_public_sector_project_reference_seed.pdf",
+            "used_for": "IND_002",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 2
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "worldbank_ads301",
+            "source": "04_agency_service_standards_process_map_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "worldbank_ads301_grantflow_ingest_luxels_p_p1_c4",
+            "label": "04_agency_service_standards_process_map_seed.pdf",
+            "used_for": "IND_003",
+            "excerpt": "                                       \n                                                                                \n                                                                                \n                                      ",
+            "citation_confidence": 0.8,
+            "evidence_score": 0.8,
+            "evidence_rank": 3
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "job_id": "8e5c269e-5ad4-4c26-b02b-89abb040a53e",
+  "status": "done",
+  "quality_score": 9.25,
+  "critic_score": 9.25,
+  "needs_revision": false,
+  "terminal_status": "done",
+  "time_to_first_draft_seconds": 0.02,
+  "time_to_terminal_seconds": 0.02,
+  "critic": {
+    "engine": "rules",
+    "rule_score": 9.25,
+    "fatal_flaw_count": 0,
+    "open_finding_count": 0,
+    "acknowledged_finding_count": 0,
+    "resolved_finding_count": 0,
+    "high_severity_fatal_flaw_count": 0,
+    "medium_severity_fatal_flaw_count": 0,
+    "low_severity_fatal_flaw_count": 0,
+    "rule_check_count": 10,
+    "failed_rule_check_count": 0,
+    "warned_rule_check_count": 0,
+    "llm_finding_label_counts": {}
+  },
+  "citations": {
+    "citation_count": 16,
+    "architect_citation_count": 15,
+    "mel_citation_count": 1,
+    "high_confidence_citation_count": 0,
+    "low_confidence_citation_count": 16,
+    "architect_rag_low_confidence_citation_count": 0,
+    "mel_rag_low_confidence_citation_count": 0,
+    "rag_low_confidence_citation_count": 0,
+    "fallback_namespace_citation_count": 16,
+    "citation_confidence_avg": 0.1,
+    "architect_threshold_hit_rate": 0.0
+  },
+  "architect": {
+    "engine": "fallback:contract_synthesizer",
+    "llm_used": false,
+    "retrieval_used": false,
+    "retrieval_enabled": true,
+    "retrieval_hits_count": 0,
+    "retrieval_namespace": "usaid_ads201",
+    "toc_schema_name": "USAID_TOC",
+    "toc_schema_valid": true,
+    "citation_policy": {
+      "default_high_confidence_threshold": 0.35,
+      "threshold_mode": "donor_section",
+      "donor_overrides": {
+        "eu": 0.34,
+        "giz": 0.32,
+        "state_department": 0.4,
+        "us_state_department": 0.4,
+        "usaid": 0.38,
+        "worldbank": 0.34
+      },
+      "low_confidence_type": "rag_low_confidence"
+    }
+  }
+}
