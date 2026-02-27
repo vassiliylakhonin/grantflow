@@ -32,6 +32,7 @@ from grantflow.api.public_views import (
     public_job_quality_payload,
     public_job_review_workflow_csv_text,
     public_job_review_workflow_payload,
+    public_job_review_workflow_sla_payload,
     public_job_versions_payload,
     public_portfolio_metrics_csv_text,
     public_portfolio_metrics_payload,
@@ -53,6 +54,7 @@ from grantflow.api.schemas import (
     JobMetricsPublicResponse,
     JobQualitySummaryPublicResponse,
     JobReviewWorkflowPublicResponse,
+    JobReviewWorkflowSLAPublicResponse,
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
     PortfolioMetricsPublicResponse,
@@ -2104,6 +2106,33 @@ def get_status_review_workflow(
         finding_id=(finding_id or None),
         comment_status=(comment_status or None),
         workflow_state=workflow_state_filter,
+        overdue_after_hours=overdue_after_hours,
+    )
+
+
+@app.get(
+    "/status/{job_id}/review/workflow/sla",
+    response_model=JobReviewWorkflowSLAPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_review_workflow_sla(
+    job_id: str,
+    request: Request,
+    overdue_after_hours: int = Query(
+        default=REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+        ge=1,
+        le=24 * 30,
+        alias="overdue_after_hours",
+    ),
+):
+    require_api_key_if_configured(request, for_read=True)
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    job = _normalize_review_comments_for_job(job_id) or job
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_review_workflow_sla_payload(
+        job_id,
+        job,
         overdue_after_hours=overdue_after_hours,
     )
 

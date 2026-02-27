@@ -604,6 +604,156 @@ def public_job_review_workflow_payload(
     }
 
 
+def public_job_review_workflow_sla_payload(
+    job_id: str,
+    job: Dict[str, Any],
+    *,
+    overdue_after_hours: int = REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+    top_limit: int = 5,
+) -> Dict[str, Any]:
+    workflow_payload = public_job_review_workflow_payload(
+        job_id,
+        job,
+        overdue_after_hours=overdue_after_hours,
+    )
+    findings = workflow_payload.get("findings")
+    comments = workflow_payload.get("comments")
+    findings_list = [item for item in findings if isinstance(item, dict)] if isinstance(findings, list) else []
+    comments_list = [item for item in comments if isinstance(item, dict)] if isinstance(comments, list) else []
+
+    summary = workflow_payload.get("summary")
+    summary_dict = summary if isinstance(summary, dict) else {}
+    reference_ts = _parse_event_ts(summary_dict.get("last_activity_at"))
+
+    finding_severity_by_id: Dict[str, str] = {}
+    for row in findings_list:
+        finding_id = finding_primary_id(row)
+        severity = str(row.get("severity") or "").strip().lower()
+        if finding_id:
+            finding_severity_by_id[finding_id] = severity or "unknown"
+
+    overdue_by_severity: Dict[str, int] = {}
+    overdue_by_section: Dict[str, int] = {}
+    overdue_rows: list[Dict[str, Any]] = []
+
+    def _append_overdue_row(
+        *,
+        kind: str,
+        row_id: str,
+        section: Optional[str],
+        severity: Optional[str],
+        status: Optional[str],
+        due_at: Optional[str],
+        message: Optional[str],
+        linked_finding_id: Optional[str] = None,
+    ) -> None:
+        due_dt = _parse_event_ts(due_at)
+        overdue_hours: Optional[float] = None
+        if reference_ts is not None and due_dt is not None:
+            overdue_hours = max(0.0, (reference_ts - due_dt).total_seconds() / 3600.0)
+        overdue_rows.append(
+            {
+                "kind": kind,
+                "id": row_id,
+                "section": section,
+                "severity": severity,
+                "status": status,
+                "due_at": due_at,
+                "overdue_hours": round(overdue_hours, 3) if overdue_hours is not None else None,
+                "message": message,
+                "linked_finding_id": linked_finding_id,
+            }
+        )
+        section_key = str(section or "unknown").strip().lower() or "unknown"
+        severity_key = str(severity or "unknown").strip().lower() or "unknown"
+        overdue_by_section[section_key] = int(overdue_by_section.get(section_key) or 0) + 1
+        overdue_by_severity[severity_key] = int(overdue_by_severity.get(severity_key) or 0) + 1
+
+    unresolved_finding_count = 0
+    overdue_finding_count = 0
+    for row in findings_list:
+        status = str(row.get("status") or "open").strip().lower() or "open"
+        unresolved = status in {"open", "acknowledged"}
+        if not unresolved:
+            continue
+        unresolved_finding_count += 1
+        if not bool(row.get("is_overdue")):
+            continue
+        overdue_finding_count += 1
+        _append_overdue_row(
+            kind="finding",
+            row_id=str(finding_primary_id(row) or ""),
+            section=str(row.get("section") or "").strip() or None,
+            severity=str(row.get("severity") or "").strip().lower() or None,
+            status=status,
+            due_at=str(row.get("due_at") or "").strip() or None,
+            message=str(row.get("message") or "").strip() or None,
+        )
+
+    unresolved_comment_count = 0
+    overdue_comment_count = 0
+    for row in comments_list:
+        status = str(row.get("status") or "open").strip().lower() or "open"
+        unresolved = status != "resolved"
+        if not unresolved:
+            continue
+        unresolved_comment_count += 1
+        if not bool(row.get("is_overdue")):
+            continue
+        overdue_comment_count += 1
+        linked_finding_id = str(row.get("linked_finding_id") or "").strip() or None
+        severity = finding_severity_by_id.get(linked_finding_id or "", "unknown")
+        _append_overdue_row(
+            kind="comment",
+            row_id=str(row.get("comment_id") or "").strip(),
+            section=str(row.get("section") or "").strip() or None,
+            severity=severity,
+            status=status,
+            due_at=str(row.get("due_at") or "").strip() or None,
+            message=str(row.get("message") or "").strip() or None,
+            linked_finding_id=linked_finding_id,
+        )
+
+    def _sort_key(item: Dict[str, Any]) -> tuple[float, str]:
+        overdue_hours = item.get("overdue_hours")
+        try:
+            overdue_hours_value = float(overdue_hours)
+        except (TypeError, ValueError):
+            overdue_hours_value = -1.0
+        due_at = str(item.get("due_at") or "")
+        return overdue_hours_value, due_at
+
+    overdue_rows.sort(key=_sort_key, reverse=True)
+    top_n = max(1, int(top_limit))
+    top_overdue = overdue_rows[:top_n]
+    oldest_overdue = top_overdue[0] if top_overdue else None
+
+    unresolved_total = unresolved_finding_count + unresolved_comment_count
+    overdue_total = overdue_finding_count + overdue_comment_count
+    breach_rate = (overdue_total / unresolved_total) if unresolved_total else None
+
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "overdue_after_hours": int(overdue_after_hours),
+        "finding_total": len(findings_list),
+        "comment_total": len(comments_list),
+        "unresolved_finding_count": unresolved_finding_count,
+        "unresolved_comment_count": unresolved_comment_count,
+        "unresolved_total": unresolved_total,
+        "overdue_finding_count": overdue_finding_count,
+        "overdue_comment_count": overdue_comment_count,
+        "overdue_total": overdue_total,
+        "breach_rate": round(breach_rate, 4) if breach_rate is not None else None,
+        "overdue_by_severity": overdue_by_severity,
+        "overdue_by_section": overdue_by_section,
+        "oldest_overdue": oldest_overdue,
+        "top_overdue": top_overdue,
+        "workflow_summary": summary_dict,
+    }
+
+
 def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
     state = job.get("state")
     critic_notes = (state or {}).get("critic_notes") if isinstance(state, dict) else {}

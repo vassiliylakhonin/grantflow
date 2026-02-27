@@ -1006,6 +1006,20 @@ def render_demo_ui_html() -> str:
             <div style="margin-top:10px;">
               <pre id="reviewWorkflowJson">{}</pre>
             </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="reviewWorkflowSlaBtn" class="ghost">Load Workflow SLA</button>
+              <div id="reviewWorkflowSlaSummaryLine" class="footer-note mono" style="align-self:center;">
+                sla: overdue=- · breach_rate=- · oldest=-
+              </div>
+              <div class="sub" style="align-self:center;">SLA hotspots for reviewer triage.</div>
+            </div>
+            <div style="margin-top:10px;">
+              <label>Top Overdue Items</label>
+              <div class="list" id="reviewWorkflowSlaHotspotsList"></div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="reviewWorkflowSlaJson">{}</pre>
+            </div>
           </div>
         </div>
       </div>
@@ -1288,6 +1302,10 @@ def render_demo_ui_html() -> str:
         reviewWorkflowClearFiltersBtn: $("reviewWorkflowClearFiltersBtn"),
         reviewWorkflowExportJsonBtn: $("reviewWorkflowExportJsonBtn"),
         reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
+        reviewWorkflowSlaBtn: $("reviewWorkflowSlaBtn"),
+        reviewWorkflowSlaSummaryLine: $("reviewWorkflowSlaSummaryLine"),
+        reviewWorkflowSlaHotspotsList: $("reviewWorkflowSlaHotspotsList"),
+        reviewWorkflowSlaJson: $("reviewWorkflowSlaJson"),
         metricsCards: $("metricsCards"),
         qualityCards: $("qualityCards"),
         portfolioMetricsCards: $("portfolioMetricsCards"),
@@ -2832,6 +2850,54 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function renderReviewWorkflowSla(body) {
+        const hotspots = Array.isArray(body?.top_overdue) ? body.top_overdue : [];
+        const oldest = body?.oldest_overdue && typeof body.oldest_overdue === "object" ? body.oldest_overdue : null;
+        const overdueTotal = Number(body?.overdue_total || 0);
+        const breachRateRaw = body?.breach_rate;
+        const breachRate =
+          breachRateRaw != null && Number.isFinite(Number(breachRateRaw))
+            ? `${(Number(breachRateRaw) * 100).toFixed(1)}%`
+            : "-";
+        const oldestToken = oldest
+          ? `${String(oldest.kind || "item")}#${String(oldest.id || "").slice(0, 8)}`
+          : "-";
+        if (els.reviewWorkflowSlaSummaryLine) {
+          els.reviewWorkflowSlaSummaryLine.textContent =
+            `sla: overdue=${overdueTotal} · breach_rate=${breachRate} · oldest=${oldestToken}`;
+        }
+
+        els.reviewWorkflowSlaHotspotsList.innerHTML = "";
+        if (!hotspots.length) {
+          els.reviewWorkflowSlaHotspotsList.innerHTML = `<div class="item"><div class="sub">No overdue SLA items.</div></div>`;
+          return;
+        }
+        for (const item of hotspots) {
+          const overdueHours =
+            item?.overdue_hours != null && Number.isFinite(Number(item.overdue_hours))
+              ? `${Number(item.overdue_hours).toFixed(2)}h overdue`
+              : "overdue";
+          const bits = [
+            item.kind || "item",
+            item.status || "-",
+            item.section || "-",
+            item.severity || "-",
+            item.id ? `#${String(item.id).slice(0, 8)}` : null,
+          ].filter(Boolean);
+          const meta = [item.due_at ? `due ${item.due_at}` : null, overdueHours, item.linked_finding_id ? `finding ${String(item.linked_finding_id).slice(0, 8)}` : null]
+            .filter(Boolean)
+            .join(" · ");
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(bits.join(" · "))}</div>
+            <div class="sub">${escapeHtml(item.message || "")}</div>
+            <div class="sub" style="margin-top:6px;">${escapeHtml(meta)}</div>
+          `;
+          els.reviewWorkflowSlaHotspotsList.appendChild(div);
+        }
+      }
+
       function renderCriticLists(body) {
         const section = (els.criticSectionFilter.value || "").trim();
         const severity = (els.criticSeverityFilter.value || "").trim();
@@ -3415,6 +3481,24 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshReviewWorkflowSla() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        persistUiState();
+        const params = new URLSearchParams();
+        const overdueHours = Number.parseInt(String(els.reviewWorkflowOverdueHoursFilter.value || "").trim(), 10);
+        if (Number.isFinite(overdueHours) && overdueHours > 0) {
+          params.set("overdue_after_hours", String(overdueHours));
+        }
+        const q = params.toString();
+        const body = await apiFetch(
+          `/status/${encodeURIComponent(jobId)}/review/workflow/sla${q ? `?${q}` : ""}`
+        );
+        renderReviewWorkflowSla(body);
+        setJson(els.reviewWorkflowSlaJson, body);
+        return body;
+      }
+
       async function refreshMetrics() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -3668,6 +3752,7 @@ def render_demo_ui_html() -> str:
           refreshEvents(),
           refreshComments(),
           refreshReviewWorkflow(),
+          refreshReviewWorkflowSla(),
         ]);
       }
 
@@ -4192,10 +4277,13 @@ def render_demo_ui_html() -> str:
           downloadPortfolioQualityCsv().catch((err) => showError(err))
         );
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
-        els.reviewWorkflowBtn.addEventListener("click", () => refreshReviewWorkflow().catch(showError));
+        els.reviewWorkflowBtn.addEventListener("click", () => {
+          Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
+        });
+        els.reviewWorkflowSlaBtn.addEventListener("click", () => refreshReviewWorkflowSla().catch(showError));
         els.reviewWorkflowClearFiltersBtn.addEventListener("click", () => {
           clearReviewWorkflowFilters();
-          refreshReviewWorkflow().catch(showError);
+          Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
         });
         els.reviewWorkflowExportJsonBtn.addEventListener("click", () =>
           downloadReviewWorkflowJson().catch((err) => showError(err))
@@ -4250,7 +4338,7 @@ def render_demo_ui_html() -> str:
         });
         els.reviewWorkflowOverdueHoursFilter.addEventListener("change", () => {
           persistUiState();
-          refreshReviewWorkflow().catch(showError);
+          Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
         });
         els.commentsFilterVersionId.addEventListener("change", () => {
           persistUiState();

@@ -223,6 +223,43 @@ class JobReviewWorkflowPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobReviewWorkflowSLAItemPublicResponse(BaseModel):
+    kind: str
+    id: str
+    section: Optional[str] = None
+    severity: Optional[str] = None
+    status: Optional[str] = None
+    due_at: Optional[str] = None
+    overdue_hours: Optional[float] = None
+    message: Optional[str] = None
+    linked_finding_id: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobReviewWorkflowSLAPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    generated_at: str
+    overdue_after_hours: int
+    finding_total: int
+    comment_total: int
+    unresolved_finding_count: int
+    unresolved_comment_count: int
+    unresolved_total: int
+    overdue_finding_count: int
+    overdue_comment_count: int
+    overdue_total: int
+    breach_rate: Optional[float] = None
+    overdue_by_severity: Dict[str, int]
+    overdue_by_section: Dict[str, int]
+    oldest_overdue: Optional[JobReviewWorkflowSLAItemPublicResponse] = None
+    top_overdue: list[JobReviewWorkflowSLAItemPublicResponse]
+    workflow_summary: Dict[str, Any]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class CriticFindingsBulkStatusFiltersPublicResponse(BaseModel):
     apply_to_all: bool = False
     finding_status: Optional[str] = None
