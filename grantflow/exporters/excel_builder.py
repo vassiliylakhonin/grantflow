@@ -229,35 +229,266 @@ def _add_usaid_results_sheet(wb: Workbook, toc_payload: Dict[str, Any]) -> None:
 def _add_eu_results_sheet(wb: Workbook, toc_payload: Dict[str, Any]) -> None:
     toc = _toc_root(toc_payload)
     ws = wb.create_sheet("EU_Intervention")
-    headers = ["Objective ID", "Title", "Rationale"]
+    headers = ["Level", "ID", "Title", "Description"]
     thin_border = _apply_table_header(ws, headers)
+    row_idx = 2
     overall = toc.get("overall_objective") if isinstance(toc, dict) else None
     if isinstance(overall, dict):
-        ws.append([overall.get("objective_id", ""), overall.get("title", ""), overall.get("rationale", "")])
+        ws.append(
+            [
+                "Overall Objective",
+                overall.get("objective_id", ""),
+                overall.get("title", ""),
+                overall.get("rationale", ""),
+            ]
+        )
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=row_idx, column=col).border = thin_border
+        row_idx += 1
+
+    specific_objectives = toc.get("specific_objectives") if isinstance(toc, dict) else None
+    if isinstance(specific_objectives, list):
+        for row in specific_objectives:
+            if not isinstance(row, dict):
+                continue
+            ws.append(
+                [
+                    "Specific Objective",
+                    row.get("objective_id", ""),
+                    row.get("title", ""),
+                    row.get("rationale", ""),
+                ]
+            )
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    expected_outcomes = toc.get("expected_outcomes") if isinstance(toc, dict) else None
+    if isinstance(expected_outcomes, list):
+        for row in expected_outcomes:
+            if not isinstance(row, dict):
+                continue
+            ws.append(["Outcome", row.get("outcome_id", ""), row.get("title", ""), row.get("expected_change", "")])
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    if row_idx == 2:
+        ws.append(["", "", "", ""])
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=row_idx, column=col).border = thin_border
+        row_idx += 1
+
+    aux = wb.create_sheet("EU_Assumptions_Risks")
+    aux_headers = ["Type", "Item"]
+    aux_border = _apply_table_header(aux, aux_headers)
+    aux_row = 2
+    assumptions = toc.get("assumptions") if isinstance(toc, dict) else None
+    if isinstance(assumptions, list):
+        for item in assumptions:
+            aux.append(["Assumption", str(item)])
+            for col in range(1, len(aux_headers) + 1):
+                aux.cell(row=aux_row, column=col).border = aux_border
+            aux_row += 1
+    risks = toc.get("risks") if isinstance(toc, dict) else None
+    if isinstance(risks, list):
+        for item in risks:
+            aux.append(["Risk", str(item)])
+            for col in range(1, len(aux_headers) + 1):
+                aux.cell(row=aux_row, column=col).border = aux_border
+            aux_row += 1
+    if aux_row == 2:
+        aux.append(["", ""])
+        for col in range(1, len(aux_headers) + 1):
+            aux.cell(row=aux_row, column=col).border = aux_border
     else:
-        ws.append(["", "", ""])
-    for col in range(1, len(headers) + 1):
-        ws.cell(row=2, column=col).border = thin_border
+        aux_row += 1
     _autosize_columns(ws)
+    _autosize_columns(aux)
 
 
 def _add_worldbank_results_sheet(wb: Workbook, toc_payload: Dict[str, Any]) -> None:
     toc = _toc_root(toc_payload)
     ws = wb.create_sheet("WB_Results")
-    headers = ["Objective ID", "Title", "Description"]
+    headers = ["Level", "ID", "Title", "Description", "Indicator Focus"]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
+    pdo = str(toc.get("project_development_objective") or "").strip() if isinstance(toc, dict) else ""
+    if pdo:
+        ws.append(["PDO", "", "Project Development Objective", pdo, ""])
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=row_idx, column=col).border = thin_border
+        row_idx += 1
+
     objectives = toc.get("objectives") if isinstance(toc, dict) else None
     if isinstance(objectives, list) and objectives:
         for obj in objectives:
             if not isinstance(obj, dict):
                 continue
-            ws.append([obj.get("objective_id", ""), obj.get("title", ""), obj.get("description", "")])
+            ws.append(["Objective", obj.get("objective_id", ""), obj.get("title", ""), obj.get("description", ""), ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
-    else:
-        ws.append(["", "", ""])
+
+    results_chain = toc.get("results_chain") if isinstance(toc, dict) else None
+    if isinstance(results_chain, list):
+        for row in results_chain:
+            if not isinstance(row, dict):
+                continue
+            ws.append(
+                [
+                    "Result",
+                    row.get("result_id", ""),
+                    row.get("title", ""),
+                    row.get("description", ""),
+                    row.get("indicator_focus", ""),
+                ]
+            )
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    assumptions = toc.get("assumptions") if isinstance(toc, dict) else None
+    if isinstance(assumptions, list):
+        for item in assumptions:
+            ws.append(["Assumption", "", "", str(item), ""])
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    risks = toc.get("risks") if isinstance(toc, dict) else None
+    if isinstance(risks, list):
+        for item in risks:
+            ws.append(["Risk", "", "", str(item), ""])
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    if row_idx == 2:
+        ws.append(["", "", "", "", ""])
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=2, column=col).border = thin_border
+    _autosize_columns(ws)
+
+
+def _add_giz_results_sheet(wb: Workbook, toc_payload: Dict[str, Any]) -> None:
+    toc = _toc_root(toc_payload)
+    ws = wb.create_sheet("GIZ_Results")
+    headers = ["Level", "Title", "Description", "Partner Role"]
+    thin_border = _apply_table_header(ws, headers)
+    row_idx = 2
+
+    programme_objective = str(toc.get("programme_objective") or "").strip() if isinstance(toc, dict) else ""
+    if programme_objective:
+        ws.append(["Programme Objective", "Programme Objective", programme_objective, ""])
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=row_idx, column=col).border = thin_border
+        row_idx += 1
+
+    outputs = toc.get("outputs") if isinstance(toc, dict) else None
+    if isinstance(outputs, list):
+        for output in outputs:
+            ws.append(["Output", str(output), "", ""])
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    outcomes = toc.get("outcomes") if isinstance(toc, dict) else None
+    if isinstance(outcomes, list):
+        for outcome in outcomes:
+            if not isinstance(outcome, dict):
+                continue
+            ws.append(
+                [
+                    "Outcome",
+                    outcome.get("title", ""),
+                    outcome.get("description", ""),
+                    outcome.get("partner_role", ""),
+                ]
+            )
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    sustainability_factors = toc.get("sustainability_factors") if isinstance(toc, dict) else None
+    if isinstance(sustainability_factors, list):
+        for item in sustainability_factors:
+            ws.append(["Sustainability", str(item), "", ""])
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    assumptions_risks = toc.get("assumptions_risks") if isinstance(toc, dict) else None
+    if isinstance(assumptions_risks, list):
+        for item in assumptions_risks:
+            ws.append(["Assumption/Risk", str(item), "", ""])
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    if row_idx == 2:
+        ws.append(["", "", "", ""])
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=2, column=col).border = thin_border
+    _autosize_columns(ws)
+
+
+def _add_state_department_results_sheet(wb: Workbook, toc_payload: Dict[str, Any]) -> None:
+    toc = _toc_root(toc_payload)
+    ws = wb.create_sheet("StateDept_Results")
+    headers = ["Level", "Objective / Title", "Line of Effort", "Description"]
+    thin_border = _apply_table_header(ws, headers)
+    row_idx = 2
+
+    strategic_context = str(toc.get("strategic_context") or "").strip() if isinstance(toc, dict) else ""
+    if strategic_context:
+        ws.append(["Strategic Context", "Context", "", strategic_context])
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=row_idx, column=col).border = thin_border
+        row_idx += 1
+
+    program_goal = str(toc.get("program_goal") or "").strip() if isinstance(toc, dict) else ""
+    if program_goal:
+        ws.append(["Program Goal", "Goal", "", program_goal])
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=row_idx, column=col).border = thin_border
+        row_idx += 1
+
+    objectives = toc.get("objectives") if isinstance(toc, dict) else None
+    if isinstance(objectives, list):
+        for obj in objectives:
+            if not isinstance(obj, dict):
+                continue
+            ws.append(
+                [
+                    "Objective",
+                    obj.get("objective", ""),
+                    obj.get("line_of_effort", ""),
+                    obj.get("expected_change", ""),
+                ]
+            )
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    stakeholder_map = toc.get("stakeholder_map") if isinstance(toc, dict) else None
+    if isinstance(stakeholder_map, list):
+        for item in stakeholder_map:
+            ws.append(["Stakeholder", str(item), "", ""])
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    risk_mitigation = toc.get("risk_mitigation") if isinstance(toc, dict) else None
+    if isinstance(risk_mitigation, list):
+        for item in risk_mitigation:
+            ws.append(["Risk Mitigation", str(item), "", ""])
+            for col in range(1, len(headers) + 1):
+                ws.cell(row=row_idx, column=col).border = thin_border
+            row_idx += 1
+
+    if row_idx == 2:
+        ws.append(["", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=2, column=col).border = thin_border
     _autosize_columns(ws)
@@ -298,6 +529,10 @@ def build_xlsx_from_logframe(
         _add_eu_results_sheet(wb, toc_payload)
     elif donor_key == "worldbank":
         _add_worldbank_results_sheet(wb, toc_payload)
+    elif donor_key == "giz":
+        _add_giz_results_sheet(wb, toc_payload)
+    elif donor_key in {"state_department", "us_state_department", "u.s. department of state", "us department of state"}:
+        _add_state_department_results_sheet(wb, toc_payload)
 
     _autosize_columns(ws)
     _add_citations_sheet(wb, citations or logframe_draft.get("citations") or [])

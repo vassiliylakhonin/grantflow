@@ -117,13 +117,34 @@ def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
         }
     }
     eu_toc = {
-        "toc": {"overall_objective": {"objective_id": "OO1", "title": "Digital governance", "rationale": "EU fit"}}
+        "toc": {
+            "overall_objective": {"objective_id": "OO1", "title": "Digital governance", "rationale": "EU fit"},
+            "specific_objectives": [
+                {"objective_id": "SO1", "title": "Service quality", "rationale": "Improve delivery standards"}
+            ],
+            "expected_outcomes": [
+                {"outcome_id": "OUT1", "title": "Citizen trust", "expected_change": "Higher service satisfaction"}
+            ],
+            "assumptions": ["Policy continuity"],
+            "risks": ["Election-year disruption"],
+        }
     }
     wb_toc = {
         "toc": {
+            "project_development_objective": "Improve municipal service delivery",
             "objectives": [
                 {"objective_id": "PDO1", "title": "Service delivery quality", "description": "Better outcomes"}
-            ]
+            ],
+            "results_chain": [
+                {
+                    "result_id": "R1",
+                    "title": "Digital workflows adopted",
+                    "description": "Local agencies use digital case-management",
+                    "indicator_focus": "Processing time",
+                }
+            ],
+            "assumptions": ["Budget continuity"],
+            "risks": ["Procurement delays"],
         }
     }
 
@@ -138,8 +159,60 @@ def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
     assert "Critical Assumptions" in usaid_text
     assert "EU Intervention Logic" in eu_text
     assert "Overall Objective" in eu_text
+    assert "Specific Objectives" in eu_text
+    assert "Expected Outcomes" in eu_text
+    assert "Assumptions" in eu_text
+    assert "Risks" in eu_text
     assert "World Bank Results Framework" in wb_text
+    assert "Project Development Objective (PDO)" in wb_text
     assert "PDO1" in wb_text
+    assert "Results Chain" in wb_text
+
+
+def test_word_export_uses_donor_specific_sections_for_giz_and_state_department():
+    giz_toc = {
+        "toc": {
+            "programme_objective": "Strengthen SME resilience",
+            "outputs": ["Coaching delivered", "Partner toolkits produced"],
+            "outcomes": [
+                {
+                    "title": "SMEs improve recovery planning",
+                    "description": "Participating SMEs institutionalize basic continuity plans",
+                    "partner_role": "Chamber of Commerce delivers coaching",
+                }
+            ],
+            "sustainability_factors": ["Partner co-financing"],
+            "assumptions_risks": ["Macroeconomic volatility"],
+        }
+    }
+    state_toc = {
+        "toc": {
+            "strategic_context": "Independent media under pressure",
+            "program_goal": "Improve resilience of local media ecosystem",
+            "objectives": [
+                {
+                    "objective": "Increase legal preparedness",
+                    "line_of_effort": "rights",
+                    "expected_change": "Media organizations handle legal pressure better",
+                }
+            ],
+            "stakeholder_map": ["Local media outlets", "Legal aid groups"],
+            "risk_mitigation": ["Anonymous reporting channels"],
+        }
+    }
+
+    giz_doc = Document(BytesIO(build_docx_from_toc(giz_toc, "giz")))
+    state_doc = Document(BytesIO(build_docx_from_toc(state_toc, "state_department")))
+    giz_text = "\n".join(p.text for p in giz_doc.paragraphs)
+    state_text = "\n".join(p.text for p in state_doc.paragraphs)
+
+    assert "GIZ Results & Sustainability Logic" in giz_text
+    assert "Programme Objective" in giz_text
+    assert "Sustainability Factors" in giz_text
+    assert "Assumptions & Risks" in giz_text
+    assert "U.S. Department of State Program Logic" in state_text
+    assert "Strategic Context" in state_text
+    assert "Risk Mitigation" in state_text
 
 
 def test_excel_export_includes_citations_sheet():
@@ -241,24 +314,101 @@ def test_excel_export_includes_donor_specific_sheets():
         }
     }
     eu_toc = {
-        "toc": {"overall_objective": {"objective_id": "OO1", "title": "Digital governance", "rationale": "EU fit"}}
+        "toc": {
+            "overall_objective": {"objective_id": "OO1", "title": "Digital governance", "rationale": "EU fit"},
+            "specific_objectives": [
+                {"objective_id": "SO1", "title": "Service quality", "rationale": "Improve delivery standards"}
+            ],
+            "expected_outcomes": [
+                {"outcome_id": "OUT1", "title": "Citizen trust", "expected_change": "Higher service satisfaction"}
+            ],
+            "assumptions": ["Policy continuity"],
+            "risks": ["Election-year disruption"],
+        }
     }
     wb_toc = {
         "toc": {
+            "project_development_objective": "Improve municipal service delivery",
             "objectives": [
                 {"objective_id": "PDO1", "title": "Service delivery quality", "description": "Better outcomes"}
-            ]
+            ],
+            "results_chain": [
+                {
+                    "result_id": "R1",
+                    "title": "Digital workflows adopted",
+                    "description": "Local agencies use digital case-management",
+                    "indicator_focus": "Processing time",
+                }
+            ],
+        }
+    }
+    giz_toc = {
+        "toc": {
+            "programme_objective": "Strengthen SME resilience",
+            "outputs": ["Coaching delivered"],
+            "outcomes": [
+                {
+                    "title": "SMEs improve recovery planning",
+                    "description": "Participating SMEs institutionalize continuity plans",
+                    "partner_role": "Chamber of Commerce",
+                }
+            ],
+            "sustainability_factors": ["Partner co-financing"],
+            "assumptions_risks": ["Macroeconomic volatility"],
+        }
+    }
+    state_toc = {
+        "toc": {
+            "strategic_context": "Independent media under pressure",
+            "program_goal": "Improve media ecosystem resilience",
+            "objectives": [
+                {
+                    "objective": "Increase legal preparedness",
+                    "line_of_effort": "rights",
+                    "expected_change": "Media organizations handle pressure better",
+                }
+            ],
+            "stakeholder_map": ["Local media outlets"],
+            "risk_mitigation": ["Anonymous reporting channels"],
         }
     }
 
     usaid_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "usaid", toc_draft=usaid_toc)))
     eu_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "eu", toc_draft=eu_toc)))
     wb_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "worldbank", toc_draft=wb_toc)))
+    giz_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "giz", toc_draft=giz_toc)))
+    state_wb = load_workbook(
+        BytesIO(build_xlsx_from_logframe({"indicators": []}, "state_department", toc_draft=state_toc))
+    )
 
     assert "USAID_RF" in usaid_wb.sheetnames
     assert "EU_Intervention" in eu_wb.sheetnames
+    assert "EU_Assumptions_Risks" in eu_wb.sheetnames
     assert "WB_Results" in wb_wb.sheetnames
+    assert "GIZ_Results" in giz_wb.sheetnames
+    assert "StateDept_Results" in state_wb.sheetnames
 
     usaid_rows = list(usaid_wb["USAID_RF"].iter_rows(values_only=True))
     assert usaid_rows[0][0] == "DO ID"
     assert any(row[0] == "DO1" and row[6] == "EG.1-1" for row in usaid_rows[1:])
+
+    eu_rows = list(eu_wb["EU_Intervention"].iter_rows(values_only=True))
+    assert eu_rows[0][:2] == ("Level", "ID")
+    assert any(row[0] == "Specific Objective" and row[1] == "SO1" for row in eu_rows[1:])
+    assert any(row[0] == "Outcome" and row[1] == "OUT1" for row in eu_rows[1:])
+    eu_aux_rows = list(eu_wb["EU_Assumptions_Risks"].iter_rows(values_only=True))
+    assert any(row[0] == "Assumption" for row in eu_aux_rows[1:])
+    assert any(row[0] == "Risk" for row in eu_aux_rows[1:])
+
+    wb_rows = list(wb_wb["WB_Results"].iter_rows(values_only=True))
+    assert wb_rows[0][0] == "Level"
+    assert any(row[0] == "PDO" for row in wb_rows[1:])
+    assert any(row[0] == "Result" and row[1] == "R1" for row in wb_rows[1:])
+
+    giz_rows = list(giz_wb["GIZ_Results"].iter_rows(values_only=True))
+    assert any(row[0] == "Programme Objective" for row in giz_rows[1:])
+    assert any(row[0] == "Outcome" for row in giz_rows[1:])
+
+    state_rows = list(state_wb["StateDept_Results"].iter_rows(values_only=True))
+    assert any(row[0] == "Strategic Context" for row in state_rows[1:])
+    assert any(row[0] == "Objective" for row in state_rows[1:])

@@ -183,6 +183,7 @@ def _render_usaid_toc(doc: Document, toc: Dict[str, Any]) -> None:
 def _render_eu_toc(doc: Document, toc: Dict[str, Any]) -> None:
     doc.add_heading("EU Intervention Logic", level=1)
     overall = toc.get("overall_objective")
+    rendered = False
     if isinstance(overall, dict):
         objective_id = str(overall.get("objective_id") or "").strip()
         title = str(overall.get("title") or "").strip()
@@ -192,25 +193,214 @@ def _render_eu_toc(doc: Document, toc: Dict[str, Any]) -> None:
             doc.add_paragraph(f"{objective_id or 'Objective'} — {title or '-'}")
         if rationale:
             doc.add_paragraph(rationale)
-        return
-    doc.add_paragraph("Overall objective is not provided in EU schema draft.")
+        rendered = True
+
+    specific_objectives = toc.get("specific_objectives")
+    if isinstance(specific_objectives, list) and specific_objectives:
+        doc.add_heading("Specific Objectives", level=2)
+        for row in specific_objectives:
+            if not isinstance(row, dict):
+                continue
+            objective_id = str(row.get("objective_id") or "").strip()
+            title = str(row.get("title") or "").strip()
+            rationale = str(row.get("rationale") or "").strip()
+            doc.add_paragraph(f"{objective_id or 'SO'} — {title or '-'}", style="List Bullet")
+            if rationale:
+                doc.add_paragraph(rationale)
+        rendered = True
+
+    expected_outcomes = toc.get("expected_outcomes")
+    if isinstance(expected_outcomes, list) and expected_outcomes:
+        doc.add_heading("Expected Outcomes", level=2)
+        for row in expected_outcomes:
+            if not isinstance(row, dict):
+                continue
+            outcome_id = str(row.get("outcome_id") or "").strip()
+            title = str(row.get("title") or "").strip()
+            expected_change = str(row.get("expected_change") or "").strip()
+            doc.add_paragraph(f"{outcome_id or 'Outcome'} — {title or '-'}", style="List Bullet")
+            if expected_change:
+                doc.add_paragraph(expected_change)
+        rendered = True
+
+    assumptions = toc.get("assumptions")
+    if isinstance(assumptions, list) and assumptions:
+        doc.add_heading("Assumptions", level=2)
+        for assumption in assumptions:
+            doc.add_paragraph(str(assumption), style="List Bullet")
+        rendered = True
+
+    risks = toc.get("risks")
+    if isinstance(risks, list) and risks:
+        doc.add_heading("Risks", level=2)
+        for risk in risks:
+            doc.add_paragraph(str(risk), style="List Bullet")
+        rendered = True
+
+    if not rendered:
+        doc.add_paragraph("Overall objective is not provided in EU schema draft.")
 
 
 def _render_worldbank_toc(doc: Document, toc: Dict[str, Any]) -> None:
     doc.add_heading("World Bank Results Framework", level=1)
+    rendered = False
+    pdo = str(toc.get("project_development_objective") or "").strip()
+    if pdo:
+        doc.add_heading("Project Development Objective (PDO)", level=2)
+        doc.add_paragraph(pdo)
+        rendered = True
+
     objectives = toc.get("objectives")
     if isinstance(objectives, list) and objectives:
+        doc.add_heading("Objectives", level=2)
         for obj in objectives:
             if not isinstance(obj, dict):
                 continue
             objective_id = str(obj.get("objective_id") or "").strip()
             title = str(obj.get("title") or "").strip()
             description = str(obj.get("description") or "").strip()
-            doc.add_heading(f"{objective_id or 'Objective'} — {title or '-'}", level=2)
+            doc.add_heading(f"{objective_id or 'Objective'} — {title or '-'}", level=3)
             if description:
                 doc.add_paragraph(description)
-        return
-    doc.add_paragraph("No World Bank objectives found in draft.")
+        rendered = True
+
+    results_chain = toc.get("results_chain")
+    if isinstance(results_chain, list) and results_chain:
+        doc.add_heading("Results Chain", level=2)
+        for row in results_chain:
+            if not isinstance(row, dict):
+                continue
+            result_id = str(row.get("result_id") or "").strip()
+            title = str(row.get("title") or "").strip()
+            description = str(row.get("description") or "").strip()
+            indicator_focus = str(row.get("indicator_focus") or "").strip()
+            doc.add_paragraph(f"{result_id or 'Result'} — {title or '-'}", style="List Bullet")
+            if description:
+                doc.add_paragraph(description)
+            if indicator_focus:
+                p = doc.add_paragraph()
+                p.add_run(f"Indicator focus: {indicator_focus}").italic = True
+        rendered = True
+
+    assumptions = toc.get("assumptions")
+    if isinstance(assumptions, list) and assumptions:
+        doc.add_heading("Assumptions", level=2)
+        for assumption in assumptions:
+            doc.add_paragraph(str(assumption), style="List Bullet")
+        rendered = True
+
+    risks = toc.get("risks")
+    if isinstance(risks, list) and risks:
+        doc.add_heading("Risks", level=2)
+        for risk in risks:
+            doc.add_paragraph(str(risk), style="List Bullet")
+        rendered = True
+
+    if not rendered:
+        doc.add_paragraph("No World Bank objectives found in draft.")
+
+
+def _render_giz_toc(doc: Document, toc: Dict[str, Any]) -> None:
+    doc.add_heading("GIZ Results & Sustainability Logic", level=1)
+    rendered = False
+
+    programme_objective = str(toc.get("programme_objective") or "").strip()
+    if programme_objective:
+        doc.add_heading("Programme Objective", level=2)
+        doc.add_paragraph(programme_objective)
+        rendered = True
+
+    outputs = toc.get("outputs")
+    if isinstance(outputs, list) and outputs:
+        doc.add_heading("Outputs", level=2)
+        for output in outputs:
+            doc.add_paragraph(str(output), style="List Bullet")
+        rendered = True
+
+    outcomes = toc.get("outcomes")
+    if isinstance(outcomes, list) and outcomes:
+        doc.add_heading("Outcomes", level=2)
+        for outcome in outcomes:
+            if not isinstance(outcome, dict):
+                continue
+            title = str(outcome.get("title") or "").strip()
+            description = str(outcome.get("description") or "").strip()
+            partner_role = str(outcome.get("partner_role") or "").strip()
+            doc.add_paragraph(title or "Outcome", style="List Bullet")
+            if description:
+                doc.add_paragraph(description)
+            if partner_role:
+                p = doc.add_paragraph()
+                p.add_run(f"Partner role: {partner_role}").italic = True
+        rendered = True
+
+    sustainability_factors = toc.get("sustainability_factors")
+    if isinstance(sustainability_factors, list) and sustainability_factors:
+        doc.add_heading("Sustainability Factors", level=2)
+        for factor in sustainability_factors:
+            doc.add_paragraph(str(factor), style="List Bullet")
+        rendered = True
+
+    assumptions_risks = toc.get("assumptions_risks")
+    if isinstance(assumptions_risks, list) and assumptions_risks:
+        doc.add_heading("Assumptions & Risks", level=2)
+        for item in assumptions_risks:
+            doc.add_paragraph(str(item), style="List Bullet")
+        rendered = True
+
+    if not rendered:
+        doc.add_paragraph("No GIZ-specific ToC structure found in draft.")
+
+
+def _render_state_department_toc(doc: Document, toc: Dict[str, Any]) -> None:
+    doc.add_heading("U.S. Department of State Program Logic", level=1)
+    rendered = False
+
+    strategic_context = str(toc.get("strategic_context") or "").strip()
+    if strategic_context:
+        doc.add_heading("Strategic Context", level=2)
+        doc.add_paragraph(strategic_context)
+        rendered = True
+
+    program_goal = str(toc.get("program_goal") or "").strip()
+    if program_goal:
+        doc.add_heading("Program Goal", level=2)
+        doc.add_paragraph(program_goal)
+        rendered = True
+
+    objectives = toc.get("objectives")
+    if isinstance(objectives, list) and objectives:
+        doc.add_heading("Objectives", level=2)
+        for row in objectives:
+            if not isinstance(row, dict):
+                continue
+            objective = str(row.get("objective") or "").strip()
+            line_of_effort = str(row.get("line_of_effort") or "").strip()
+            expected_change = str(row.get("expected_change") or "").strip()
+            title = objective or "Objective"
+            if line_of_effort:
+                title += f" ({line_of_effort})"
+            doc.add_paragraph(title, style="List Bullet")
+            if expected_change:
+                doc.add_paragraph(expected_change)
+        rendered = True
+
+    stakeholder_map = toc.get("stakeholder_map")
+    if isinstance(stakeholder_map, list) and stakeholder_map:
+        doc.add_heading("Stakeholder Map", level=2)
+        for stakeholder in stakeholder_map:
+            doc.add_paragraph(str(stakeholder), style="List Bullet")
+        rendered = True
+
+    risk_mitigation = toc.get("risk_mitigation")
+    if isinstance(risk_mitigation, list) and risk_mitigation:
+        doc.add_heading("Risk Mitigation", level=2)
+        for risk in risk_mitigation:
+            doc.add_paragraph(str(risk), style="List Bullet")
+        rendered = True
+
+    if not rendered:
+        doc.add_paragraph("No State Department-specific ToC structure found in draft.")
 
 
 def _render_generic_toc(doc: Document, toc: Dict[str, Any]) -> None:
@@ -264,6 +454,10 @@ def build_docx_from_toc(
         _render_eu_toc(doc, toc_content)
     elif donor_key == "worldbank":
         _render_worldbank_toc(doc, toc_content)
+    elif donor_key == "giz":
+        _render_giz_toc(doc, toc_content)
+    elif donor_key in {"state_department", "us_state_department", "u.s. department of state", "us department of state"}:
+        _render_state_department_toc(doc, toc_content)
     else:
         _render_generic_toc(doc, toc_content)
 
