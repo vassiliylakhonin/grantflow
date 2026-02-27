@@ -501,6 +501,21 @@ def render_demo_ui_html() -> str:
                 <div class="list" id="portfolioDonorCountsList"></div>
               </div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Preflight Warning Levels (Jobs)</label>
+                <div class="list" id="portfolioMetricsWarningLevelsList"></div>
+              </div>
+              <div>
+                <label>Grounding Risk Drilldown (Jobs)</label>
+                <div class="list" id="portfolioMetricsGroundingRiskLevelsList"></div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <button id="copyPortfolioMetricsJsonBtn" class="ghost">Copy Metrics JSON</button>
+              <button id="downloadPortfolioMetricsJsonBtn" class="ghost">Export Metrics JSON</button>
+              <button id="downloadPortfolioMetricsCsvBtn" class="secondary">Export Metrics CSV</button>
+            </div>
             <div style="margin-top:10px;">
               <pre id="portfolioMetricsJson">{}</pre>
             </div>
@@ -527,8 +542,8 @@ def render_demo_ui_html() -> str:
             <div id="portfolioWarningMetaLine" class="footer-note mono">high=- · medium=- · low=- · none=- · total=-</div>
             <div class="row" style="margin-top:10px;">
               <button id="copyPortfolioQualityJsonBtn" class="ghost">Copy Quality JSON</button>
-              <button id="downloadPortfolioQualityJsonBtn" class="ghost">Download Quality JSON</button>
-              <button id="downloadPortfolioQualityCsvBtn" class="secondary">Download Quality CSV</button>
+              <button id="downloadPortfolioQualityJsonBtn" class="ghost">Export Quality JSON</button>
+              <button id="downloadPortfolioQualityCsvBtn" class="secondary">Export Quality CSV</button>
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -1104,6 +1119,8 @@ def render_demo_ui_html() -> str:
         portfolioWarningMetaLine: $("portfolioWarningMetaLine"),
         portfolioStatusCountsList: $("portfolioStatusCountsList"),
         portfolioDonorCountsList: $("portfolioDonorCountsList"),
+        portfolioMetricsWarningLevelsList: $("portfolioMetricsWarningLevelsList"),
+        portfolioMetricsGroundingRiskLevelsList: $("portfolioMetricsGroundingRiskLevelsList"),
         portfolioQualityRiskList: $("portfolioQualityRiskList"),
         portfolioQualityOpenFindingsList: $("portfolioQualityOpenFindingsList"),
         portfolioQualityWarningLevelsList: $("portfolioQualityWarningLevelsList"),
@@ -1160,6 +1177,9 @@ def render_demo_ui_html() -> str:
         qualityBtn: $("qualityBtn"),
         portfolioBtn: $("portfolioBtn"),
         portfolioClearBtn: $("portfolioClearBtn"),
+        copyPortfolioMetricsJsonBtn: $("copyPortfolioMetricsJsonBtn"),
+        downloadPortfolioMetricsJsonBtn: $("downloadPortfolioMetricsJsonBtn"),
+        downloadPortfolioMetricsCsvBtn: $("downloadPortfolioMetricsCsvBtn"),
         copyPortfolioQualityJsonBtn: $("copyPortfolioQualityJsonBtn"),
         downloadPortfolioQualityJsonBtn: $("downloadPortfolioQualityJsonBtn"),
         downloadPortfolioQualityCsvBtn: $("downloadPortfolioQualityCsvBtn"),
@@ -3186,6 +3206,21 @@ def render_demo_ui_html() -> str:
           8,
           (donorKey) => applyPortfolioDonorFilter(donorKey)
         );
+        renderWarningLevelBreakdownList(
+          els.portfolioMetricsWarningLevelsList,
+          body.warning_level_job_counts || body.warning_level_counts || {},
+          body.warning_level_job_rates || {},
+          "No warning-level data yet.",
+          (warningLevel) => applyPortfolioWarningLevelFilter(warningLevel)
+        );
+        renderWarningLevelBreakdownList(
+          els.portfolioMetricsGroundingRiskLevelsList,
+          body.grounding_risk_job_counts || body.grounding_risk_counts || {},
+          body.grounding_risk_job_rates || {},
+          "No grounding-risk data yet.",
+          (groundingRiskLevel) => applyPortfolioGroundingRiskLevelFilter(groundingRiskLevel),
+          ["high", "medium", "low", "unknown"]
+        );
         setJson(els.portfolioMetricsJson, body);
         return body;
       }
@@ -3294,6 +3329,16 @@ def render_demo_ui_html() -> str:
         return text;
       }
 
+      async function ensurePortfolioMetricsLoaded() {
+        let text = (els.portfolioMetricsJson?.textContent || "").trim();
+        if (!text || text === "{}") {
+          await refreshPortfolioMetrics();
+          text = (els.portfolioMetricsJson?.textContent || "").trim();
+        }
+        if (!text || text === "{}") throw new Error("Load portfolio metrics first");
+        return text;
+      }
+
       function downloadBlob(blob, filename) {
         const objectUrl = URL.createObjectURL(blob);
         try {
@@ -3308,34 +3353,53 @@ def render_demo_ui_html() -> str:
         }
       }
 
-      function flattenObjectToRows(value, prefix = "") {
-        const rows = [];
-        if (Array.isArray(value)) {
-          value.forEach((item, idx) => {
-            rows.push(...flattenObjectToRows(item, `${prefix}[${idx}]`));
-          });
-          return rows;
+      function parseDownloadFilenameFromDisposition(contentDisposition, fallbackFilename) {
+        const raw = String(contentDisposition || "");
+        const filenameStarMatch = raw.match(/filename\\*=UTF-8''([^;]+)/i);
+        if (filenameStarMatch && filenameStarMatch[1]) {
+          try {
+            return decodeURIComponent(String(filenameStarMatch[1]).trim());
+          } catch (_err) {
+            return String(filenameStarMatch[1]).trim();
+          }
         }
-        if (value && typeof value === "object") {
-          Object.entries(value).forEach(([k, v]) => {
-            const next = prefix ? `${prefix}.${k}` : String(k);
-            rows.push(...flattenObjectToRows(v, next));
-          });
-          return rows;
-        }
-        rows.push({ field: prefix || "value", value: value == null ? "" : String(value) });
-        return rows;
+        const filenameMatch = raw.match(/filename=\"?([^\";]+)\"?/i);
+        if (filenameMatch && filenameMatch[1]) return String(filenameMatch[1]).trim();
+        return fallbackFilename;
       }
 
-      function rowsToCsv(rows) {
-        const escapeCsv = (v) => {
-          const s = v == null ? "" : String(v);
-          if (/[\",\\n]/.test(s)) return `"${s.replace(/\"/g, '""')}"`;
-          return s;
-        };
-        const lines = ["field,value"];
-        rows.forEach((row) => lines.push(`${escapeCsv(row.field)},${escapeCsv(row.value)}`));
-        return `${lines.join("\\n")}\\n`;
+      async function exportPortfolioAggregate(endpointPath, format, fallbackFilename) {
+        persistUiState();
+        persistBasics();
+        const q = buildPortfolioFilterQueryString();
+        const params = new URLSearchParams(q.startsWith("?") ? q.slice(1) : "");
+        params.set("format", format);
+        const query = params.toString();
+        const res = await fetch(`${apiBase()}${endpointPath}?${query}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          const ct = res.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const body = await res.json();
+            throw new Error(JSON.stringify(body, null, 2));
+          }
+          throw new Error(await res.text());
+        }
+        const filename = parseDownloadFilenameFromDisposition(
+          res.headers.get("content-disposition"),
+          fallbackFilename
+        );
+        const blob = await res.blob();
+        downloadBlob(blob, filename);
+      }
+
+      async function copyPortfolioMetricsJson() {
+        const text = await ensurePortfolioMetricsLoaded();
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          throw new Error("Clipboard API is not available in this browser");
+        }
+        await navigator.clipboard.writeText(text);
       }
 
       async function copyPortfolioQualityJson() {
@@ -3397,23 +3461,23 @@ def render_demo_ui_html() -> str:
       }
 
       async function downloadPortfolioQualityJson() {
-        const text = await ensurePortfolioQualityLoaded();
-        const blob = new Blob([text.endsWith("\\n") ? text : `${text}\\n`], { type: "application/json" });
-        downloadBlob(blob, "grantflow_portfolio_quality.json");
+        await ensurePortfolioQualityLoaded();
+        await exportPortfolioAggregate("/portfolio/quality/export", "json", "grantflow_portfolio_quality.json");
       }
 
       async function downloadPortfolioQualityCsv() {
-        const text = await ensurePortfolioQualityLoaded();
-        let parsed;
-        try {
-          parsed = JSON.parse(text);
-        } catch (err) {
-          throw new Error("Portfolio quality JSON is invalid");
-        }
-        const rows = flattenObjectToRows(parsed);
-        const csv = rowsToCsv(rows);
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-        downloadBlob(blob, "grantflow_portfolio_quality.csv");
+        await ensurePortfolioQualityLoaded();
+        await exportPortfolioAggregate("/portfolio/quality/export", "csv", "grantflow_portfolio_quality.csv");
+      }
+
+      async function downloadPortfolioMetricsJson() {
+        await ensurePortfolioMetricsLoaded();
+        await exportPortfolioAggregate("/portfolio/metrics/export", "json", "grantflow_portfolio_metrics.json");
+      }
+
+      async function downloadPortfolioMetricsCsv() {
+        await ensurePortfolioMetricsLoaded();
+        await exportPortfolioAggregate("/portfolio/metrics/export", "csv", "grantflow_portfolio_metrics.csv");
       }
 
       async function exportZipFromPayload() {
@@ -3630,6 +3694,15 @@ def render_demo_ui_html() -> str:
           clearPortfolioFilters();
           refreshPortfolioBundle().catch(showError);
         });
+        els.copyPortfolioMetricsJsonBtn.addEventListener("click", () =>
+          copyPortfolioMetricsJson().catch((err) => showError(err))
+        );
+        els.downloadPortfolioMetricsJsonBtn.addEventListener("click", () =>
+          downloadPortfolioMetricsJson().catch((err) => showError(err))
+        );
+        els.downloadPortfolioMetricsCsvBtn.addEventListener("click", () =>
+          downloadPortfolioMetricsCsv().catch((err) => showError(err))
+        );
         els.copyPortfolioQualityJsonBtn.addEventListener("click", () =>
           copyPortfolioQualityJson().catch((err) => showError(err))
         );

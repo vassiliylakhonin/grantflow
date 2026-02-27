@@ -132,8 +132,12 @@ def test_demo_console_page_loads():
     assert "portfolioWarningLevelFilter" in body
     assert "portfolioGroundingRiskLevelFilter" in body
     assert "/portfolio/quality" in body
+    assert "/portfolio/metrics/export" in body
+    assert "/portfolio/quality/export" in body
     assert "portfolioMetricsCards" in body
     assert "portfolioQualityCards" in body
+    assert "portfolioMetricsWarningLevelsList" in body
+    assert "portfolioMetricsGroundingRiskLevelsList" in body
     assert "portfolioQualityRiskList" in body
     assert "portfolioQualityOpenFindingsList" in body
     assert "portfolioQualityWarningLevelsList" in body
@@ -165,6 +169,10 @@ def test_demo_console_page_loads():
     assert "portfolioQualityAdvisoryAppliedList" in body
     assert "portfolioQualityAdvisoryRejectedReasonsList" in body
     assert "portfolioQualityJson" in body
+    assert "copyPortfolioMetricsJsonBtn" in body
+    assert "downloadPortfolioMetricsJsonBtn" in body
+    assert "downloadPortfolioMetricsCsvBtn" in body
+    assert "grantflow_portfolio_metrics.csv" in body
     assert "copyPortfolioQualityJsonBtn" in body
     assert "downloadPortfolioQualityJsonBtn" in body
     assert "downloadPortfolioQualityCsvBtn" in body
