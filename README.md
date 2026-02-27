@@ -25,6 +25,8 @@ GrantFlow helps NGOs, consultants, and program teams convert structured project 
 - [Project Structure](#project-structure)
 - [Development](#development)
 - [Testing](#testing)
+- [Release Process](#release-process)
+- [API Stability Policy](#api-stability-policy)
 - [Security Notes](#security-notes)
 - [Roadmap](#roadmap)
 - [License](#license)
@@ -977,6 +979,12 @@ black grantflow
 mypy grantflow/api grantflow/core/stores.py grantflow/swarm/versioning.py
 ```
 
+Contribution and PR process:
+
+- see `CONTRIBUTING.md` for commit style (`feat/fix/docs/...`) and local checks
+- use `.github/pull_request_template.md` checklist for validation/changelog/API compatibility
+- keep user-visible changes listed in `CHANGELOG.md`
+
 Optional environment variables:
 
 - `OPENAI_API_KEY`
@@ -1102,6 +1110,20 @@ shellcheck deploy.sh backup.sh
 CI runs Python tests, shell script lint/syntax checks, and a targeted `mypy` baseline (`grantflow/api`, `grantflow/core/stores.py`, `grantflow/swarm/versioning.py`).
 
 If you enable local pre-commit hooks, they will run `ruff` (including minified-Python guard), `isort`, `black`, and targeted baseline `mypy` before commit.
+
+## Release Process
+
+GrantFlow release notes and version bumps follow SemVer (`MAJOR.MINOR.PATCH`) with an explicit changelog.
+
+- Changelog source of truth: `CHANGELOG.md`
+- Step-by-step release procedure: `docs/release-process.md`
+- Recommended tag format: `vX.Y.Z` (annotated git tags)
+
+## API Stability Policy
+
+Public API compatibility rules (stable vs experimental behavior, deprecation window, and breaking-change requirements) are documented in:
+
+- `docs/api-stability-policy.md`
 
 ## Security Notes
 
