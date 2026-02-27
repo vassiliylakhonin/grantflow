@@ -51,7 +51,13 @@ def test_architect_generates_contract_validated_toc_with_optional_retrieval_disa
     generation_meta = out.get("toc_generation_meta") or {}
     assert generation_meta.get("llm_used") is False
     assert generation_meta.get("retrieval_used") is False
-    assert str(generation_meta.get("engine") or "").startswith("fallback:")
+    assert str(generation_meta.get("engine") or "").startswith("deterministic:")
+    assert generation_meta.get("llm_requested") is False
+    assert generation_meta.get("llm_available") in {True, False}
+    assert generation_meta.get("llm_attempted") is False
+    assert generation_meta.get("fallback_used") is False
+    assert generation_meta.get("fallback_class") == "deterministic_mode"
+    assert generation_meta.get("architect_mode") == "deterministic"
 
     citations = out.get("citations") or []
     architect_citations = [c for c in citations if isinstance(c, dict) and c.get("stage") == "architect"]
@@ -309,6 +315,7 @@ def test_architect_claim_threshold_is_tuned_by_donor_and_section():
 
 def test_architect_llm_validation_failure_retries_once_and_recovers(monkeypatch):
     strategy = DonorFactory.get_strategy("usaid")
+    monkeypatch.setattr(architect_generation_module, "openai_compatible_llm_available", lambda: True)
     schema_cls = strategy.get_toc_schema()
     valid_payload, _ = _fallback_structured_toc(
         schema_cls,
@@ -351,3 +358,35 @@ def test_architect_llm_validation_failure_retries_once_and_recovers(monkeypatch)
     assert calls[0] is None
     assert isinstance(calls[1], str) and calls[1]
     assert isinstance(claim_citations, list)
+
+
+def test_architect_llm_mode_without_api_key_uses_emergency_fallback(monkeypatch):
+    strategy = DonorFactory.get_strategy("usaid")
+    monkeypatch.setattr(architect_generation_module, "openai_compatible_llm_available", lambda: False)
+    monkeypatch.setattr(architect_generation_module, "_llm_structured_toc", lambda *args, **kwargs: (None, None, None))
+
+    state = {
+        "donor": "usaid",
+        "donor_id": "usaid",
+        "strategy": strategy,
+        "donor_strategy": strategy,
+        "input": {"project": "Water Sanitation", "country": "Kenya"},
+        "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+        "llm_mode": True,
+        "critic_notes": {},
+    }
+
+    toc, validation, generation_meta, _claim_citations = generate_toc_under_contract(
+        state=state, strategy=strategy, evidence_hits=[]
+    )
+    assert toc
+    assert validation["valid"] is True
+    assert generation_meta.get("llm_used") is False
+    assert generation_meta.get("llm_requested") is True
+    assert generation_meta.get("llm_available") is False
+    assert generation_meta.get("llm_attempted") is False
+    assert generation_meta.get("fallback_used") is True
+    assert generation_meta.get("fallback_class") == "emergency"
+    assert generation_meta.get("architect_mode") == "llm"
+    assert str(generation_meta.get("engine") or "").startswith("fallback:")
+    assert "missing" in str(generation_meta.get("llm_fallback_reason") or "").lower()

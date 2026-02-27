@@ -6,7 +6,11 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Type, Union, get_args, 
 from pydantic import BaseModel
 
 from grantflow.core.config import config
-from grantflow.swarm.llm_provider import chat_openai_init_kwargs, openai_compatible_missing_reason
+from grantflow.swarm.llm_provider import (
+    chat_openai_init_kwargs,
+    openai_compatible_llm_available,
+    openai_compatible_missing_reason,
+)
 from grantflow.swarm.nodes.architect_policy import (
     ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES,
     ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD,
@@ -231,7 +235,7 @@ def _fallback_structured_toc(
         depth=0,
         evidence_hint=evidence_hint,
     )
-    return payload, "fallback:contract_synthesizer"
+    return payload, "contract_synthesizer"
 
 
 def _llm_structured_toc(
@@ -465,13 +469,18 @@ def generate_toc_under_contract(
         revision_hint = critic_notes
 
     llm_mode = bool(state.get("llm_mode", False))
+    llm_available = openai_compatible_llm_available()
     llm_error: Optional[str] = None
     raw_payload: Optional[Dict[str, Any]] = None
-    engine = "fallback:contract_synthesizer"
+    engine = "deterministic:contract_synthesizer"
     model: Optional[BaseModel] = None
     llm_repair_attempted = False
+    llm_attempted = False
+    fallback_used = False
+    fallback_class = "deterministic_mode"
 
-    if llm_mode:
+    if llm_mode and llm_available:
+        llm_attempted = True
         prompts = getattr(strategy, "get_system_prompts", lambda: {})() or {}
         raw_payload, llm_engine, llm_error = _llm_structured_toc(
             schema_cls,
@@ -512,9 +521,11 @@ def generate_toc_under_contract(
                             llm_error = llm_error_retry
                 else:
                     llm_error = llm_error_retry or f"LLM structured output failed validation: {llm_validation_error}"
+    elif llm_mode and not llm_available:
+        llm_error = openai_compatible_missing_reason()
 
     if raw_payload is None:
-        raw_payload, engine = _fallback_structured_toc(
+        raw_payload, synth_engine = _fallback_structured_toc(
             schema_cls,
             donor_id=donor_id,
             project=project,
@@ -522,6 +533,13 @@ def generate_toc_under_contract(
             revision_hint=revision_hint,
             evidence_hits=evidence_hits,
         )
+        if llm_mode:
+            engine = f"fallback:{synth_engine}"
+            fallback_used = True
+            fallback_class = "emergency"
+        else:
+            engine = f"deterministic:{synth_engine}"
+            fallback_class = "deterministic_mode"
         model = None
 
     if model is None:
@@ -544,7 +562,13 @@ def generate_toc_under_contract(
     generation_meta: Dict[str, Any] = {
         "engine": engine,
         "llm_used": engine.startswith("llm:"),
+        "llm_requested": llm_mode,
+        "llm_available": llm_available,
+        "llm_attempted": llm_attempted,
         "retrieval_used": bool(evidence_hits),
+        "fallback_used": fallback_used,
+        "fallback_class": fallback_class,
+        "architect_mode": "llm" if llm_mode else "deterministic",
         "schema_name": validation["schema_name"],
         "citation_policy": {
             "default_high_confidence_threshold": ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD,

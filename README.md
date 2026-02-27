@@ -34,6 +34,11 @@ Pipeline:
 
 With optional HITL checkpoints and resume control.
 
+Architect generation modes:
+- `llm_mode=false`: `deterministic:contract_synthesizer` (schema-valid non-LLM draft)
+- `llm_mode=true`: LLM structured output via strategy `Architect` prompt + `get_toc_schema()`
+- emergency fallback to `fallback:contract_synthesizer` only when LLM mode is requested but unavailable/invalid
+
 ## Donor Coverage
 
 Specialized strategies:

@@ -486,7 +486,11 @@ def test_generate_llm_mode_false_uses_non_llm_toc_engine():
     state = status["state"]
     generation_meta = state.get("toc_generation_meta") or {}
     assert generation_meta.get("llm_used") is False
-    assert str(generation_meta.get("engine") or "").startswith("fallback:")
+    assert str(generation_meta.get("engine") or "").startswith("deterministic:")
+    assert generation_meta.get("llm_requested") is False
+    assert generation_meta.get("llm_attempted") is False
+    assert generation_meta.get("fallback_used") is False
+    assert generation_meta.get("fallback_class") == "deterministic_mode"
 
 
 def test_strict_grounding_gate_blocks_job_finalization(monkeypatch):
