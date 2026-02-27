@@ -77,7 +77,7 @@ from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace
 from grantflow.memory_bank.vector_store import vector_store
-from grantflow.swarm.findings import finding_primary_id, normalize_findings
+from grantflow.swarm.findings import bind_findings_to_latest_versions, finding_primary_id, normalize_findings
 from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
 from grantflow.swarm.retrieval_query import donor_query_preset_terms
@@ -812,6 +812,7 @@ def _resolve_export_inputs(
         review_comments = []
     citations = [c for c in citations if isinstance(c, dict)]
     critic_findings = normalize_findings(critic_findings, default_source="rules")
+    critic_findings = bind_findings_to_latest_versions(critic_findings, state=payload)
     review_comments = [c for c in review_comments if isinstance(c, dict)]
     return toc, logframe, str(donor_id), citations, critic_findings, review_comments
 
@@ -1039,6 +1040,7 @@ def _normalize_critic_fatal_flaws_for_job(job_id: str) -> Optional[Dict[str, Any
         return job
 
     normalized = normalize_findings(raw_flaws, previous_items=raw_flaws, default_source="rules")
+    normalized = bind_findings_to_latest_versions(normalized, state=state)
     now_iso = _utcnow_iso()
     normalized_with_due = [_ensure_finding_due_at(item, now_iso=now_iso) for item in normalized]
     changed = normalized_with_due != raw_flaws
@@ -1097,6 +1099,7 @@ def _recompute_review_workflow_sla(
     critic_notes_dict = critic_notes if isinstance(critic_notes, dict) else {}
     raw_flaws = critic_notes_dict.get("fatal_flaws")
     flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
+    flaws = bind_findings_to_latest_versions(flaws, state=state)
 
     finding_checked_count = len(flaws)
     finding_updated_count = 0
@@ -1247,6 +1250,7 @@ def _set_critic_fatal_flaw_status(
 
     raw_flaws = critic_notes.get("fatal_flaws")
     flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
+    flaws = bind_findings_to_latest_versions(flaws, state=state)
     if not flaws:
         raise HTTPException(status_code=404, detail="Critic findings not found")
 
@@ -1388,6 +1392,7 @@ def _set_critic_fatal_flaws_status_bulk(
 
     raw_flaws = critic_notes.get("fatal_flaws")
     flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
+    flaws = bind_findings_to_latest_versions(flaws, state=state)
     if not flaws:
         raise HTTPException(status_code=404, detail="Critic findings not found")
 

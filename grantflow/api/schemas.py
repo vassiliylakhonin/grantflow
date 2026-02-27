@@ -420,6 +420,9 @@ class JobQualityCriticSummaryPublicResponse(BaseModel):
     high_severity_fatal_flaw_count: int
     medium_severity_fatal_flaw_count: int
     low_severity_fatal_flaw_count: int
+    version_bindable_finding_count: Optional[int] = None
+    version_bound_finding_count: Optional[int] = None
+    version_binding_rate: Optional[float] = None
     rule_check_count: int
     failed_rule_check_count: int
     warned_rule_check_count: int

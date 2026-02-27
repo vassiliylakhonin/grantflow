@@ -12,7 +12,7 @@ from grantflow.swarm.critic_llm_policy import is_advisory_llm_message as _is_adv
 from grantflow.swarm.critic_llm_policy import llm_finding_policy_class as _llm_finding_policy_class
 from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
 from grantflow.swarm.citations import citation_traceability_status
-from grantflow.swarm.findings import normalize_findings
+from grantflow.swarm.findings import bind_findings_to_latest_versions, normalize_findings
 from grantflow.swarm.grounding_gate import evaluate_grounding_gate
 from grantflow.swarm.llm_provider import (
     chat_openai_init_kwargs,
@@ -52,7 +52,7 @@ def _dump_model(model: BaseModel) -> Dict[str, Any]:
     return model.dict()  # type: ignore[attr-defined]
 
 
-def _llm_flaws_to_structured(flaws: List[Union[Dict[str, Any], str]]) -> List[Dict[str, Any]]:
+def _llm_flaws_to_structured(flaws: List[Union[Dict[str, Any], str]], *, state: Dict[str, Any]) -> List[Dict[str, Any]]:
     structured: List[Dict[str, Any]] = []
     for idx, item in enumerate(flaws or []):
         payload = item if isinstance(item, dict) else {}
@@ -94,7 +94,8 @@ def _llm_flaws_to_structured(flaws: List[Union[Dict[str, Any], str]]) -> List[Di
                 )
             )
         )
-    return normalize_findings(structured, default_source="llm")
+    normalized = normalize_findings(structured, default_source="llm")
+    return bind_findings_to_latest_versions(normalized, state=state)
 
 
 def _advisory_llm_findings_context(
@@ -223,9 +224,12 @@ def _apply_advisory_llm_score_cap(
 
 def _normalize_fatal_flaw_items(
     items: List[Dict[str, Any]],
+    *,
+    state: Dict[str, Any],
     previous_items: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
-    return normalize_findings(items, previous_items=previous_items, default_source="rules")
+    normalized = normalize_findings(items, previous_items=previous_items, default_source="rules")
+    return bind_findings_to_latest_versions(normalized, state=state)
 
 
 def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -412,7 +416,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     llm_score = float(evaluation.score) if evaluation is not None else None
     llm_fatal_flaw_items: List[Dict[str, Any]] = []
     if evaluation is not None:
-        llm_fatal_flaw_items = _llm_flaws_to_structured(list(evaluation.fatal_flaws or []))
+        llm_fatal_flaw_items = _llm_flaws_to_structured(list(evaluation.fatal_flaws or []), state=state)
     advisory_ctx = _advisory_llm_findings_context(
         state=state,
         rule_report=rule_report,
@@ -494,7 +498,11 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
                 )
             )
         )
-    fatal_flaw_items = _normalize_fatal_flaw_items(fatal_flaw_items, previous_fatal_flaws)
+    fatal_flaw_items = _normalize_fatal_flaw_items(
+        fatal_flaw_items,
+        state=state,
+        previous_items=previous_fatal_flaws,
+    )
 
     fatal_flaw_messages = [
         str(item.get("message") or "") for item in fatal_flaw_items if str(item.get("message") or "").strip()

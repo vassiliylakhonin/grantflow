@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, cast
 
 from grantflow.api.csv_utils import csv_text_from_mapping
 from grantflow.swarm.citations import citation_traceability_status
-from grantflow.swarm.findings import finding_primary_id, normalize_findings
+from grantflow.swarm.findings import bind_findings_to_latest_versions, finding_primary_id, normalize_findings
 
 PORTFOLIO_QUALITY_SIGNAL_WEIGHTS: dict[str, int] = {
     "high_severity_findings_total": 5,
@@ -183,7 +183,8 @@ def _job_critic_findings(job: Dict[str, Any]) -> list[Dict[str, Any]]:
     raw_flaws = critic_notes_dict.get("fatal_flaws")
     if not isinstance(raw_flaws, list):
         return []
-    return normalize_findings(raw_flaws, default_source="rules")
+    findings = normalize_findings(raw_flaws, default_source="rules")
+    return bind_findings_to_latest_versions(findings, state=state_dict)
 
 
 def _job_matches_finding_filters(
@@ -776,11 +777,12 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
         critic_notes = {}
 
     raw_flaws = critic_notes.get("fatal_flaws")
-    fatal_flaws = (
-        [sanitize_for_public_response(item) for item in normalize_findings(raw_flaws, default_source="rules")]
-        if isinstance(raw_flaws, list)
-        else []
-    )
+    if isinstance(raw_flaws, list):
+        normalized_flaws = normalize_findings(raw_flaws, default_source="rules")
+        normalized_flaws = bind_findings_to_latest_versions(normalized_flaws, state=state)
+        fatal_flaws = [sanitize_for_public_response(item) for item in normalized_flaws]
+    else:
+        fatal_flaws = []
 
     raw_comments = job.get("review_comments")
     linked_comment_ids_by_finding: dict[str, list[str]] = {}
@@ -1379,11 +1381,18 @@ def public_job_quality_payload(
 
     flaw_status_counts = {"open": 0, "acknowledged": 0, "resolved": 0}
     flaw_severity_counts = {"high": 0, "medium": 0, "low": 0}
+    version_bindable_finding_count = 0
+    version_bound_finding_count = 0
     for flaw in critic_flaws:
         if not isinstance(flaw, dict):
             continue
         status = str(flaw.get("status") or "open").lower()
         severity = str(flaw.get("severity") or "").lower()
+        section = str(flaw.get("section") or "").strip().lower()
+        if section in {"toc", "logframe"}:
+            version_bindable_finding_count += 1
+            if str(flaw.get("version_id") or "").strip():
+                version_bound_finding_count += 1
         if status in flaw_status_counts:
             flaw_status_counts[status] += 1
         if severity in flaw_severity_counts:
@@ -1453,6 +1462,13 @@ def public_job_quality_payload(
             "high_severity_fatal_flaw_count": flaw_severity_counts["high"],
             "medium_severity_fatal_flaw_count": flaw_severity_counts["medium"],
             "low_severity_fatal_flaw_count": flaw_severity_counts["low"],
+            "version_bindable_finding_count": version_bindable_finding_count,
+            "version_bound_finding_count": version_bound_finding_count,
+            "version_binding_rate": (
+                round(version_bound_finding_count / version_bindable_finding_count, 4)
+                if version_bindable_finding_count
+                else None
+            ),
             "rule_check_count": int(critic_payload.get("rule_check_count") or 0),
             "failed_rule_check_count": failed_checks,
             "warned_rule_check_count": warned_checks,

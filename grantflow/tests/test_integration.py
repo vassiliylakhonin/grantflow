@@ -2731,6 +2731,9 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["critic"]["acknowledged_finding_count"] == 1
     assert body["critic"]["resolved_finding_count"] == 1
     assert body["critic"]["high_severity_fatal_flaw_count"] == 1
+    assert body["critic"]["version_bindable_finding_count"] == 3
+    assert body["critic"]["version_bound_finding_count"] == 0
+    assert body["critic"]["version_binding_rate"] == 0.0
     assert body["critic"]["failed_rule_check_count"] == 1
     assert body["critic"]["warned_rule_check_count"] == 1
     assert body["critic"]["llm_finding_label_counts"]["BASELINE_TARGET_MISSING"] == 1

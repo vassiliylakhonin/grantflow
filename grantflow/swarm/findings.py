@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, Mapping, Optional
+
+from grantflow.swarm.versioning import filter_versions
 
 _VALID_SEVERITIES = {"low", "medium", "high"}
 _VALID_SECTIONS = {"toc", "logframe", "general"}
@@ -100,6 +102,7 @@ def normalize_finding_item(
     normalized["rationale"] = rationale
     normalized["fix_suggestion"] = fix_suggestion
     normalized["fix_hint"] = fix_suggestion
+    normalized["version_id"] = str(current.get("version_id") or "").strip() or None
 
     if status == "open":
         normalized.pop("acknowledged_at", None)
@@ -147,3 +150,39 @@ def normalize_findings(
 
         normalized_items.append(normalized)
     return normalized_items
+
+
+def latest_version_id_by_section(state: Optional[Mapping[str, Any]]) -> Dict[str, str]:
+    if not isinstance(state, Mapping):
+        return {}
+    raw_versions = state.get("draft_versions")
+    if not isinstance(raw_versions, list):
+        return {}
+    safe_versions = [row for row in raw_versions if isinstance(row, dict)]
+    section_map: Dict[str, str] = {}
+    for section in ("toc", "logframe"):
+        versions = filter_versions(safe_versions, section=section)
+        if not versions:
+            continue
+        version_id = str(versions[-1].get("version_id") or "").strip()
+        if version_id:
+            section_map[section] = version_id
+    return section_map
+
+
+def bind_findings_to_latest_versions(
+    findings: Iterable[Any],
+    *,
+    state: Optional[Mapping[str, Any]] = None,
+) -> list[Dict[str, Any]]:
+    section_versions = latest_version_id_by_section(state)
+    out: list[Dict[str, Any]] = []
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        current = dict(finding)
+        section = str(current.get("section") or "").strip().lower()
+        if section in section_versions and not str(current.get("version_id") or "").strip():
+            current["version_id"] = section_versions[section]
+        out.append(current)
+    return out

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from grantflow.swarm.findings import normalize_findings
+from grantflow.swarm.findings import bind_findings_to_latest_versions, normalize_findings
 
 
 def test_normalize_findings_converts_legacy_string_items():
@@ -108,3 +108,51 @@ def test_normalize_findings_keeps_ack_timestamp_for_resolved_items():
     assert rows[0]["status"] == "resolved"
     assert rows[0]["acknowledged_at"] == "2026-02-27T00:00:00Z"
     assert rows[0]["resolved_at"] == "2026-02-27T01:00:00Z"
+
+
+def test_bind_findings_to_latest_versions_fills_missing_version_id():
+    findings = [
+        {
+            "id": "f-toc",
+            "finding_id": "f-toc",
+            "code": "TOC_WEAK",
+            "section": "toc",
+            "severity": "medium",
+            "status": "open",
+            "message": "Objective is broad.",
+            "source": "rules",
+        },
+        {
+            "id": "f-logframe",
+            "finding_id": "f-logframe",
+            "code": "LOGFRAME_MISSING_BASELINE",
+            "section": "logframe",
+            "severity": "high",
+            "status": "open",
+            "message": "Baseline missing.",
+            "source": "rules",
+        },
+        {
+            "id": "f-general",
+            "finding_id": "f-general",
+            "code": "GENERAL_NOTE",
+            "section": "general",
+            "severity": "low",
+            "status": "open",
+            "message": "General review note.",
+            "source": "rules",
+        },
+    ]
+    state = {
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc"},
+            {"version_id": "toc_v2", "sequence": 2, "section": "toc"},
+            {"version_id": "logframe_v1", "sequence": 3, "section": "logframe"},
+        ]
+    }
+
+    out = bind_findings_to_latest_versions(findings, state=state)
+    by_id = {row["finding_id"]: row for row in out}
+    assert by_id["f-toc"]["version_id"] == "toc_v2"
+    assert by_id["f-logframe"]["version_id"] == "logframe_v1"
+    assert by_id["f-general"].get("version_id") is None

@@ -10,6 +10,7 @@ from grantflow.swarm.nodes.critic import (
     _combine_critic_scores,
     _downgrade_advisory_llm_findings,
     _is_advisory_llm_message,
+    _llm_flaws_to_structured,
     red_team_critic,
 )
 
@@ -455,3 +456,24 @@ def test_advisory_llm_findings_allow_good_enough_architect_grounding_without_fal
     assert advisory_ctx["applies"] is True
     assert advisory_ctx["architect_threshold_hit_rate"] == 0.6
     assert advisory_ctx["architect_rag_low_ratio"] == 0.4
+
+
+def test_llm_flaw_normalization_binds_to_latest_section_versions():
+    state = {
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "toc_v2", "sequence": 2, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 3, "section": "logframe", "content": {}},
+        ]
+    }
+    llm_flaws = [
+        {"code": "L1", "section": "toc", "message": "Objective wording is too broad."},
+        {"code": "L2", "section": "logframe", "message": "Indicator target is missing."},
+        {"code": "L3", "section": "general", "message": "Clarify delivery sequencing and scope boundaries."},
+    ]
+
+    rows = _llm_flaws_to_structured(llm_flaws, state=state)
+    by_code = {row["code"]: row for row in rows}
+    assert by_code["L1"]["version_id"] == "toc_v2"
+    assert by_code["L2"]["version_id"] == "logframe_v1"
+    assert by_code["L3"]["version_id"] is None
