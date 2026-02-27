@@ -184,6 +184,47 @@ def test_list_donors():
     assert "worldbank" in donor_ids
 
 
+def test_generate_preflight_reports_high_risk_when_namespace_empty():
+    api_app_module.INGEST_AUDIT_STORE.clear()
+
+    response = client.post("/generate/preflight", json={"donor_id": "usaid"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["donor_id"] == "usaid"
+    assert body["namespace_empty"] is True
+    assert body["risk_level"] == "high"
+    assert body["go_ahead"] is False
+    assert body["loaded_count"] == 0
+    assert body["expected_count"] >= 1
+    warning_codes = {row.get("code") for row in body["warnings"] if isinstance(row, dict)}
+    assert "NAMESPACE_EMPTY" in warning_codes
+
+
+def test_generate_response_and_status_include_preflight_payload():
+    api_app_module.INGEST_AUDIT_STORE.clear()
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "accepted"
+    preflight = data.get("preflight")
+    assert isinstance(preflight, dict)
+    assert preflight["donor_id"] == "usaid"
+    assert preflight["risk_level"] == "high"
+
+    status = _wait_for_terminal_status(data["job_id"])
+    assert status["generate_preflight"] == preflight
+    assert status["state"]["generate_preflight"] == preflight
+
+
 def test_generate_basic_async_job_flow():
     payload = {
         "donor_id": "usaid",
@@ -1792,6 +1833,17 @@ def test_ingest_inventory_export_endpoint_supports_csv_json_and_gzip(monkeypatch
 def test_generate_requires_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
 
+    preflight_response = client.post("/generate/preflight", json={"donor_id": "usaid"})
+    assert preflight_response.status_code == 401
+
+    preflight_response = client.post(
+        "/generate/preflight",
+        json={"donor_id": "usaid"},
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert preflight_response.status_code == 200
+    assert preflight_response.json()["donor_id"] == "usaid"
+
     payload = {
         "donor_id": "usaid",
         "input_context": {"project": "Public Health", "country": "Kenya"},
@@ -1999,6 +2051,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert schemes["ApiKeyAuth"]["name"] == "X-API-Key"
 
     generate_security = (((spec.get("paths") or {}).get("/generate") or {}).get("post") or {}).get("security")
+    generate_preflight_security = (((spec.get("paths") or {}).get("/generate/preflight") or {}).get("post") or {}).get(
+        "security"
+    )
     ingest_security = (((spec.get("paths") or {}).get("/ingest") or {}).get("post") or {}).get("security")
     ingest_recent_security = (((spec.get("paths") or {}).get("/ingest/recent") or {}).get("get") or {}).get("security")
     ingest_inventory_security = (((spec.get("paths") or {}).get("/ingest/inventory") or {}).get("get") or {}).get(
@@ -2242,6 +2297,7 @@ def test_openapi_declares_api_key_security_scheme():
         .get("schema")
     )
     assert generate_security == [{"ApiKeyAuth": []}]
+    assert generate_preflight_security == [{"ApiKeyAuth": []}]
     assert ingest_security == [{"ApiKeyAuth": []}]
     assert ingest_recent_security == [{"ApiKeyAuth": []}]
     assert ingest_inventory_security == [{"ApiKeyAuth": []}]

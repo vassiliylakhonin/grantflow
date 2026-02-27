@@ -70,6 +70,7 @@ from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.findings import normalize_findings
 from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
+from grantflow.swarm.retrieval_query import donor_query_preset_terms
 from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id
 
 app = FastAPI(
@@ -96,6 +97,14 @@ RUNTIME_PIPELINE_STATE_KEYS = {
     "_start_at",
     "hitl_checkpoint_stage",
     "hitl_resume_from",
+}
+GENERATE_PREFLIGHT_DEFAULT_DOC_FAMILIES: dict[str, list[str]] = {
+    "usaid": ["donor_policy", "responsible_ai_guidance", "country_context"],
+    "eu": ["donor_results_guidance", "digital_governance_guidance", "country_context"],
+    "worldbank": ["donor_results_guidance", "project_reference_docs", "country_context"],
+    "giz": ["donor_policy", "country_context", "implementation_reference"],
+    "state_department": ["donor_policy", "country_context", "risk_context"],
+    "us_state_department": ["donor_policy", "country_context", "risk_context"],
 }
 
 
@@ -212,6 +221,115 @@ def _ingest_inventory(*, donor_id: Optional[str] = None) -> list[Dict[str, Any]]
     return list(grouped.values())
 
 
+def _dedupe_doc_families(values: list[Any]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in values:
+        token = str(item or "").strip()
+        if not token or token in seen:
+            continue
+        out.append(token)
+        seen.add(token)
+    return out
+
+
+def _preflight_expected_doc_families(
+    *,
+    donor_id: str,
+    client_metadata: Optional[Dict[str, Any]],
+) -> list[str]:
+    metadata = client_metadata if isinstance(client_metadata, dict) else {}
+    rag_readiness = metadata.get("rag_readiness") if isinstance(metadata.get("rag_readiness"), dict) else {}
+    expected = rag_readiness.get("expected_doc_families")
+    if isinstance(expected, list):
+        deduped = _dedupe_doc_families(expected)
+        if deduped:
+            return deduped
+    donor_key = str(donor_id or "").strip().lower()
+    defaults = GENERATE_PREFLIGHT_DEFAULT_DOC_FAMILIES.get(donor_key)
+    if defaults:
+        return list(defaults)
+    return ["donor_policy", "country_context"]
+
+
+def _preflight_severity_max(severities: list[str]) -> str:
+    rank = {"none": 0, "low": 1, "medium": 2, "high": 3}
+    best = "none"
+    for raw in severities:
+        level = str(raw or "").strip().lower()
+        if rank.get(level, 0) > rank.get(best, 0):
+            best = level
+    return best
+
+
+def _build_generate_preflight(
+    *,
+    donor_id: str,
+    strategy: Any,
+    client_metadata: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    namespace = str(getattr(strategy, "get_rag_collection", lambda: "")() or "").strip() or None
+    inventory_rows = _ingest_inventory(donor_id=donor_id or None)
+    inventory_payload = public_ingest_inventory_payload(inventory_rows, donor_id=donor_id or None)
+    doc_family_counts_raw = inventory_payload.get("doc_family_counts")
+    doc_family_counts = doc_family_counts_raw if isinstance(doc_family_counts_raw, dict) else {}
+    inventory_total_uploads = int(inventory_payload.get("total_uploads") or 0)
+
+    expected_doc_families = _preflight_expected_doc_families(donor_id=donor_id, client_metadata=client_metadata)
+    present_doc_families = [doc for doc in expected_doc_families if int(doc_family_counts.get(doc) or 0) > 0]
+    missing_doc_families = [doc for doc in expected_doc_families if int(doc_family_counts.get(doc) or 0) <= 0]
+    expected_count = len(expected_doc_families)
+    loaded_count = len(present_doc_families)
+    coverage_rate = round(loaded_count / expected_count, 4) if expected_count else None
+
+    warnings: list[Dict[str, Any]] = []
+    namespace_empty = inventory_total_uploads <= 0
+    if namespace_empty:
+        warnings.append(
+            {
+                "code": "NAMESPACE_EMPTY",
+                "severity": "high",
+                "message": "No donor documents are uploaded to the retrieval namespace.",
+            }
+        )
+    if coverage_rate is not None and coverage_rate < 0.5:
+        warnings.append(
+            {
+                "code": "LOW_DOC_COVERAGE",
+                "severity": "high" if loaded_count == 0 else "medium",
+                "message": f"Recommended document-family coverage is low ({loaded_count}/{expected_count}).",
+            }
+        )
+    if inventory_total_uploads > 0 and inventory_total_uploads < 3:
+        warnings.append(
+            {
+                "code": "LOW_ABSOLUTE_UPLOAD_COUNT",
+                "severity": "low",
+                "message": "Only a few documents are uploaded; grounding quality may be unstable.",
+            }
+        )
+    risk_level = _preflight_severity_max([str(row.get("severity") or "low") for row in warnings])
+    return {
+        "donor_id": donor_id,
+        "retrieval_namespace": namespace,
+        "retrieval_query_terms": donor_query_preset_terms(donor_id),
+        "expected_doc_families": expected_doc_families,
+        "present_doc_families": present_doc_families,
+        "missing_doc_families": missing_doc_families,
+        "expected_count": expected_count,
+        "loaded_count": loaded_count,
+        "coverage_rate": coverage_rate,
+        "inventory_total_uploads": inventory_total_uploads,
+        "inventory_family_count": int(inventory_payload.get("family_count") or 0),
+        "namespace_empty": namespace_empty,
+        "warning_count": len(warnings),
+        "warning_level": risk_level,
+        "risk_level": risk_level,
+        "go_ahead": risk_level != "high",
+        "warnings": warnings,
+    }
+
+
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
     previous = JOB_STORE.get(job_id)
     next_payload = dict(payload)
@@ -219,8 +337,8 @@ def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
     if previous and previous.get("status") == "canceled" and next_payload.get("status") != "canceled":
         return
 
-    for key in ("webhook_url", "webhook_secret"):
-        if key not in next_payload and previous and previous.get(key):
+    for key in ("webhook_url", "webhook_secret", "client_metadata", "generate_preflight"):
+        if key not in next_payload and previous and key in previous:
             next_payload[key] = previous.get(key)
 
     next_payload = _append_job_event_records(previous, next_payload)
@@ -264,6 +382,14 @@ class GenerateRequest(BaseModel):
     webhook_url: Optional[str] = None
     webhook_secret: Optional[str] = None
     client_metadata: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class GeneratePreflightRequest(BaseModel):
+    donor_id: str
+    client_metadata: Optional[Dict[str, Any]] = None
+    input_context: Optional[Dict[str, Any]] = None
 
     model_config = ConfigDict(extra="forbid")
 
@@ -1016,6 +1142,24 @@ def export_portfolio_quality(
     )
 
 
+@app.post("/generate/preflight")
+def generate_preflight(req: GeneratePreflightRequest, request: Request):
+    require_api_key_if_configured(request)
+    donor = req.donor_id.strip()
+    if not donor:
+        raise HTTPException(status_code=400, detail="Missing donor_id")
+    try:
+        strategy = DonorFactory.get_strategy(donor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    client_metadata = req.client_metadata if isinstance(req.client_metadata, dict) else None
+    return _build_generate_preflight(
+        donor_id=donor,
+        strategy=strategy,
+        client_metadata=client_metadata,
+    )
+
+
 @app.post("/generate")
 async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, request: Request):
     require_api_key_if_configured(request)
@@ -1037,11 +1181,17 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
 
     input_payload = req.input_context or {}
     client_metadata = req.client_metadata if isinstance(req.client_metadata, dict) else None
+    preflight = _build_generate_preflight(
+        donor_id=donor,
+        strategy=strategy,
+        client_metadata=client_metadata,
+    )
     job_id = str(uuid.uuid4())
     initial_state = {
         "donor_id": donor,
         "donor_strategy": strategy,
         "input_context": input_payload,
+        "generate_preflight": preflight,
         "llm_mode": req.llm_mode,
         "iteration_count": 0,
         "max_iterations": config.graph.max_iterations,
@@ -1063,13 +1213,22 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
             "webhook_url": webhook_url,
             "webhook_secret": webhook_secret,
             "client_metadata": client_metadata,
+            "generate_preflight": preflight,
         },
+    )
+    _record_job_event(
+        job_id,
+        "generate_preflight_evaluated",
+        risk_level=str(preflight.get("risk_level") or "none"),
+        warning_count=int(preflight.get("warning_count") or 0),
+        retrieval_namespace=preflight.get("retrieval_namespace"),
+        namespace_empty=bool(preflight.get("namespace_empty")),
     )
     if req.hitl_enabled:
         background_tasks.add_task(_run_hitl_pipeline, job_id, initial_state, "start")
     else:
         background_tasks.add_task(_run_pipeline_to_completion, job_id, initial_state)
-    return {"status": "accepted", "job_id": job_id}
+    return {"status": "accepted", "job_id": job_id, "preflight": preflight}
 
 
 @app.post("/cancel/{job_id}")

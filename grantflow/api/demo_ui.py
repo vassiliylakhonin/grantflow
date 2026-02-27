@@ -2556,6 +2556,32 @@ def render_demo_ui_html() -> str:
         if (els.webhookUrl.value.trim()) payload.webhook_url = els.webhookUrl.value.trim();
         if (els.webhookSecret.value.trim()) payload.webhook_secret = els.webhookSecret.value.trim();
 
+        const preflight = await apiFetch("/generate/preflight", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            donor_id: payload.donor_id,
+            input_context: payload.input_context,
+            client_metadata: payload.client_metadata || null,
+          }),
+        });
+        if (preflight && String(preflight.risk_level || "").toLowerCase() === "high") {
+          const warnings = Array.isArray(preflight.warnings) ? preflight.warnings : [];
+          const warningPreview = warnings
+            .slice(0, 3)
+            .map((w) => String(w?.code || "WARNING"))
+            .filter(Boolean)
+            .join(", ");
+          const coverageLabel =
+            typeof preflight.coverage_rate === "number"
+              ? `${Math.round(Number(preflight.coverage_rate) * 100)}%`
+              : "-";
+          const ok = window.confirm(
+            `Server preflight risk is HIGH (coverage=${coverageLabel}, warnings=${warningPreview || "n/a"}). Generate anyway?`
+          );
+          if (!ok) return;
+        }
+
         const body = await apiFetch("/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
