@@ -1,0 +1,40 @@
+{
+  "cases": [
+    {
+      "query": "USAID",
+      "id": "usaid",
+      "strategy": "usaid",
+      "rag_namespace": "usaid_ads201"
+    },
+    {
+      "query": "usaid.gov",
+      "id": "usaid",
+      "strategy": "usaid",
+      "rag_namespace": "usaid_ads201"
+    },
+    {
+      "query": "european-union",
+      "id": "eu",
+      "strategy": "eu",
+      "rag_namespace": "eu_intpa"
+    },
+    {
+      "query": "world_bank",
+      "id": "worldbank",
+      "strategy": "worldbank",
+      "rag_namespace": "worldbank_ads301"
+    },
+    {
+      "query": "state_department",
+      "id": "us_state_department",
+      "strategy": "state_department",
+      "rag_namespace": "us_state_department_guidance"
+    },
+    {
+      "query": "undp",
+      "id": "un_agencies",
+      "strategy": "generic",
+      "rag_namespace": "un_agencies_guidance"
+    }
+  ]
+}

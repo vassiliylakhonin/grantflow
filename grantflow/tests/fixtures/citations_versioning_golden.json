@@ -1,0 +1,82 @@
+{
+  "incoming_citations": [
+    {
+      "stage": "architect",
+      "citation_type": "rag_claim_support",
+      "namespace": "usaid_ads201",
+      "source": "ads.pdf",
+      "page": 12,
+      "chunk": 1,
+      "chunk_id": "usaid_ads201_p12_c1",
+      "used_for": "toc.project_goal",
+      "statement_path": "toc.project_goal",
+      "label": "USAID ADS 201 p.12"
+    },
+    {
+      "stage": "architect",
+      "citation_type": "rag_claim_support",
+      "namespace": "usaid_ads201",
+      "source": "ads.pdf",
+      "page": 12,
+      "chunk": 1,
+      "chunk_id": "usaid_ads201_p12_c1",
+      "used_for": "toc.project_goal",
+      "statement_path": "toc.project_goal",
+      "label": "USAID ADS 201 p.12"
+    },
+    {
+      "stage": "mel",
+      "citation_type": "rag_result",
+      "namespace": "usaid_ads201",
+      "source": "indicator.pdf",
+      "page": 14,
+      "chunk": 2,
+      "chunk_id": "usaid_ads201_p14_c2",
+      "used_for": "IND_001",
+      "label": "Indicator reference"
+    }
+  ],
+  "expected": {
+    "citations": [
+      {
+        "stage": "architect",
+        "citation_type": "rag_claim_support",
+        "namespace": "usaid_ads201",
+        "source": "ads.pdf",
+        "page": 12,
+        "chunk": 1,
+        "chunk_id": "usaid_ads201_p12_c1",
+        "used_for": "toc.project_goal",
+        "statement_path": "toc.project_goal",
+        "label": "USAID ADS 201 p.12"
+      },
+      {
+        "stage": "mel",
+        "citation_type": "rag_result",
+        "namespace": "usaid_ads201",
+        "source": "indicator.pdf",
+        "page": 14,
+        "chunk": 2,
+        "chunk_id": "usaid_ads201_p14_c2",
+        "used_for": "IND_001",
+        "label": "Indicator reference"
+      }
+    ],
+    "draft_versions": [
+      {
+        "version_id": "toc_v1",
+        "sequence": 1,
+        "section": "toc",
+        "node": "architect",
+        "iteration": 1
+      },
+      {
+        "version_id": "toc_v2",
+        "sequence": 2,
+        "section": "toc",
+        "node": "architect",
+        "iteration": 2
+      }
+    ]
+  }
+}

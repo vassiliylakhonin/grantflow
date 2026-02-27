@@ -1,0 +1,59 @@
+{
+  "job_id": "job-1",
+  "status": "done",
+  "payload": {
+    "state": {
+      "donor_id": "usaid",
+      "toc_draft": {
+        "toc": {
+          "brief": "Sample"
+        }
+      },
+      "critic_notes": {
+        "fatal_flaws": [
+          {
+            "finding_id": "finding-1",
+            "status": "open",
+            "severity": "high",
+            "section": "toc",
+            "code": "TOC_GAP",
+            "message": "Missing output chain",
+            "source": "rules"
+          }
+        ]
+      }
+    },
+    "critic_findings": [
+      {
+        "code": "TOC_GAP",
+        "finding_id": "finding-1",
+        "fix_hint": null,
+        "fix_suggestion": null,
+        "id": "finding-1",
+        "linked_comment_ids": [
+          "comment-1"
+        ],
+        "message": "Missing output chain",
+        "rationale": null,
+        "section": "toc",
+        "severity": "high",
+        "source": "rules",
+        "status": "open",
+        "version_id": null
+      }
+    ],
+    "review_comments": [
+      {
+        "author": "rev",
+        "comment_id": "comment-1",
+        "linked_finding_id": "finding-1",
+        "message": "Need details",
+        "section": "toc",
+        "status": "open",
+        "ts": "2026-02-27T00:00:00Z",
+        "version_id": "toc_v1"
+      }
+    ],
+    "readiness": null
+  }
+}
