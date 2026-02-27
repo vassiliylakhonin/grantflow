@@ -305,9 +305,9 @@ Core endpoints:
 
 GrantFlow includes a built-in operator/demo UI at `GET /demo` for testing the end-to-end workflow in a browser.
 
-![GrantFlow demo console overview](docs/assets/demo-console-overview.svg)
+![GrantFlow demo console screenshot](docs/assets/demo-console-screenshot.png)
 
-_Overview placeholder for the built-in `/demo` console (including newer portfolio quality drill-downs such as the `Focused Donor (Weighted Risk)` card); can be replaced with a real screenshot or GIF later without changing the section structure._
+_Built-in `/demo` console screenshot (Generate + Metrics + Quality Summary + portfolio-quality drill-down workflow)._
 
 ### What it supports
 
