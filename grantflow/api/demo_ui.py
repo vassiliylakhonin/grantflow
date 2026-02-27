@@ -397,10 +397,18 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Threshold hit-rate</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Claim-support</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Architect fallback</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">MEL claim-support</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">MEL fallback</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Preflight risk</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Strict preflight</div><div class="value mono">-</div></div>
             </div>
             <div id="qualityPreflightMetaLine" class="footer-note mono">warning_count=- · coverage_rate=-</div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>MEL Generation</label>
+                <div class="list" id="qualityMelSummaryList"></div>
+              </div>
+            </div>
             <div class="row" style="margin-top:10px;">
               <div>
                 <label>Citation Types (Job)</label>
@@ -1339,6 +1347,7 @@ def render_demo_ui_html() -> str:
         qualityJson: $("qualityJson"),
         qualityAdvisoryBadgeList: $("qualityAdvisoryBadgeList"),
         qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
+        qualityMelSummaryList: $("qualityMelSummaryList"),
         qualityCitationTypeCountsList: $("qualityCitationTypeCountsList"),
         qualityArchitectCitationTypeCountsList: $("qualityArchitectCitationTypeCountsList"),
         qualityReadinessWarningsList: $("qualityReadinessWarningsList"),
@@ -2127,6 +2136,7 @@ def render_demo_ui_html() -> str:
       function renderQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
+        const mel = summary?.mel || {};
         const readiness = summary?.readiness || {};
         const preflight = summary?.preflight || {};
         renderGeneratePreflightAlert(preflight);
@@ -2154,6 +2164,12 @@ def render_demo_ui_html() -> str:
             : "-",
           typeof citations.architect_fallback_namespace_citation_rate === "number"
             ? `${(Number(citations.architect_fallback_namespace_citation_rate) * 100).toFixed(1)}%`
+            : "-",
+          typeof citations.mel_claim_support_rate === "number"
+            ? `${(Number(citations.mel_claim_support_rate) * 100).toFixed(1)}%`
+            : "-",
+          typeof citations.mel_fallback_namespace_citation_rate === "number"
+            ? `${(Number(citations.mel_fallback_namespace_citation_rate) * 100).toFixed(1)}%`
             : "-",
           preflightRiskValue,
           strictPreflightValue,
@@ -2198,7 +2214,39 @@ def render_demo_ui_html() -> str:
               ? `${fallbackCount}/${architectCount} architect fallback citations`
               : "No architect citations";
         }
-        const preflightRiskNode = qualityValueNodes[8];
+        const melClaimSupportNode = qualityValueNodes[8];
+        if (melClaimSupportNode) {
+          const melClaimSupportRate = Number(citations?.mel_claim_support_rate ?? NaN);
+          melClaimSupportNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(melClaimSupportRate)) {
+            if (melClaimSupportRate < 0.5) melClaimSupportNode.classList.add("risk-high");
+            else if (melClaimSupportRate < 0.7) melClaimSupportNode.classList.add("risk-medium");
+            else melClaimSupportNode.classList.add("risk-low");
+          } else {
+            melClaimSupportNode.classList.add("risk-none");
+          }
+          const supportCount = Number(citations?.mel_claim_support_citation_count ?? 0);
+          const melCount = Number(citations?.mel_citation_count ?? 0);
+          melClaimSupportNode.title =
+            melCount > 0 ? `${supportCount}/${melCount} MEL claim-support citations` : "No MEL citations";
+        }
+        const melFallbackNode = qualityValueNodes[9];
+        if (melFallbackNode) {
+          const melFallbackRate = Number(citations?.mel_fallback_namespace_citation_rate ?? NaN);
+          melFallbackNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(melFallbackRate)) {
+            if (melFallbackRate >= 0.8) melFallbackNode.classList.add("risk-high");
+            else if (melFallbackRate >= 0.5) melFallbackNode.classList.add("risk-medium");
+            else melFallbackNode.classList.add("risk-low");
+          } else {
+            melFallbackNode.classList.add("risk-none");
+          }
+          const fallbackCount = Number(citations?.mel_fallback_namespace_citation_count ?? 0);
+          const melCount = Number(citations?.mel_citation_count ?? 0);
+          melFallbackNode.title =
+            melCount > 0 ? `${fallbackCount}/${melCount} MEL fallback citations` : "No MEL citations";
+        }
+        const preflightRiskNode = qualityValueNodes[10];
         if (preflightRiskNode) {
           const level = String(preflightRiskLevel || "").toLowerCase();
           preflightRiskNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
@@ -2227,6 +2275,21 @@ def render_demo_ui_html() -> str:
                 : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel} · grounding=${groundingRiskLabel}`;
           }
         }
+        renderKeyValueList(
+          els.qualityMelSummaryList,
+          {
+            engine: mel.engine || "-",
+            llm_used: mel.llm_used ?? "-",
+            retrieval_used: mel.retrieval_used ?? "-",
+            retrieval_hits_count: mel.retrieval_hits_count ?? "-",
+            avg_retrieval_confidence:
+              typeof mel.avg_retrieval_confidence === "number"
+                ? Number(mel.avg_retrieval_confidence).toFixed(3)
+                : "-",
+          },
+          "No MEL generation summary for this job.",
+          8
+        );
         renderKeyValueList(
           els.qualityCitationTypeCountsList,
           citations.citation_type_counts,

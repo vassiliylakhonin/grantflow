@@ -333,6 +333,94 @@ def _configured_preflight_grounding_policy_mode() -> str:
     return _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn"))
 
 
+def _configured_mel_grounding_policy_mode() -> str:
+    mel_mode = getattr(config.graph, "mel_grounding_policy_mode", None)
+    if str(mel_mode or "").strip():
+        return _normalize_grounding_policy_mode(mel_mode)
+    return _configured_preflight_grounding_policy_mode()
+
+
+def _mel_grounding_policy_thresholds() -> Dict[str, Any]:
+    min_mel_citations_raw = getattr(config.graph, "mel_grounding_min_mel_citations", 2)
+    min_claim_support_rate_raw = getattr(config.graph, "mel_grounding_min_claim_support_rate", 0.5)
+
+    try:
+        min_mel_citations = int(min_mel_citations_raw)
+    except (TypeError, ValueError):
+        min_mel_citations = 2
+    try:
+        min_claim_support_rate = float(min_claim_support_rate_raw)
+    except (TypeError, ValueError):
+        min_claim_support_rate = 0.5
+
+    min_mel_citations = max(1, min(min_mel_citations, 1000))
+    min_claim_support_rate = max(0.0, min(min_claim_support_rate, 1.0))
+    return {
+        "min_mel_citations": min_mel_citations,
+        "min_claim_support_rate": round(min_claim_support_rate, 4),
+    }
+
+
+def _evaluate_mel_grounding_policy_from_state(state: Any) -> Dict[str, Any]:
+    mode = _configured_mel_grounding_policy_mode()
+    thresholds = _mel_grounding_policy_thresholds()
+    min_mel_citations = int(thresholds["min_mel_citations"])
+    min_claim_support_rate = float(thresholds["min_claim_support_rate"])
+
+    state_dict = state if isinstance(state, dict) else {}
+    raw_citations = state_dict.get("citations")
+    citations = [c for c in raw_citations if isinstance(c, dict)] if isinstance(raw_citations, list) else []
+    mel_citations = [c for c in citations if str(c.get("stage") or "") == "mel"]
+
+    claim_support_types = {"rag_result", "rag_support", "rag_claim_support"}
+    mel_claim_support_count = sum(1 for c in mel_citations if str(c.get("citation_type") or "") in claim_support_types)
+    mel_fallback_count = sum(1 for c in mel_citations if str(c.get("citation_type") or "") == "fallback_namespace")
+    mel_citation_count = len(mel_citations)
+    mel_claim_support_rate = round(mel_claim_support_count / mel_citation_count, 4) if mel_citation_count else None
+
+    reasons: list[str] = []
+    risk_level = "low"
+    if mel_citation_count == 0:
+        reasons.append("no_mel_citations")
+        risk_level = "high"
+    elif mel_citation_count < min_mel_citations:
+        reasons.append("mel_citations_below_min")
+        risk_level = "medium"
+
+    if mel_claim_support_rate is None:
+        reasons.append("mel_claim_support_rate_unavailable")
+        risk_level = "high"
+    elif mel_claim_support_rate < min_claim_support_rate:
+        reasons.append("mel_claim_support_rate_below_min")
+        risk_level = "high"
+
+    if mode == "off":
+        reasons = []
+        risk_level = "low"
+        passed = True
+        blocking = False
+        summary = "policy_off"
+    else:
+        passed = not reasons
+        blocking = mode == "strict" and not passed
+        summary = "mel_grounding_signals_ok" if passed else ",".join(reasons)
+
+    return {
+        "mode": mode,
+        "thresholds": thresholds,
+        "mel_citation_count": mel_citation_count,
+        "mel_claim_support_citation_count": mel_claim_support_count,
+        "mel_fallback_namespace_citation_count": mel_fallback_count,
+        "mel_claim_support_rate": mel_claim_support_rate,
+        "risk_level": risk_level,
+        "passed": passed,
+        "blocking": blocking,
+        "go_ahead": not blocking,
+        "summary": summary,
+        "reasons": reasons,
+    }
+
+
 def _configured_export_grounding_policy_mode() -> str:
     export_mode = getattr(config.graph, "export_grounding_policy_mode", None)
     if str(export_mode or "").strip():
@@ -774,6 +862,16 @@ def _grounding_gate_block_reason(state: Any) -> Optional[str]:
         return None
     summary = str(gate.get("summary") or "").strip() or "weak grounding signals"
     return f"Grounding gate (strict) blocked finalization: {summary}"
+
+
+def _mel_grounding_policy_block_reason(state: Any) -> Optional[str]:
+    policy = _evaluate_mel_grounding_policy_from_state(state)
+    state_dict = state if isinstance(state, dict) else {}
+    state_dict["mel_grounding_policy"] = policy
+    if not bool(policy.get("blocking")):
+        return None
+    summary = str(policy.get("summary") or "").strip() or "weak mel grounding signals"
+    return f"MEL grounding policy (strict) blocked finalization: {summary}"
 
 
 def _job_draft_version_exists_for_section(job: Dict[str, Any], *, section: str, version_id: str) -> bool:
@@ -1634,6 +1732,18 @@ def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
                 },
             )
             return
+        mel_grounding_block_reason = _mel_grounding_policy_block_reason(final_state)
+        if mel_grounding_block_reason:
+            _set_job(
+                job_id,
+                {
+                    "status": "error",
+                    "error": mel_grounding_block_reason,
+                    "state": final_state,
+                    "hitl_enabled": False,
+                },
+            )
+            return
         _set_job(job_id, {"status": "done", "state": final_state, "hitl_enabled": False})
     except Exception as exc:
         _set_job(job_id, {"status": "error", "error": str(exc), "hitl_enabled": False})
@@ -1692,6 +1802,18 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
                 },
             )
             return
+        mel_grounding_block_reason = _mel_grounding_policy_block_reason(final_state)
+        if mel_grounding_block_reason:
+            _set_job(
+                job_id,
+                {
+                    "status": "error",
+                    "error": mel_grounding_block_reason,
+                    "state": final_state,
+                    "hitl_enabled": True,
+                },
+            )
+            return
         _set_job(job_id, {"status": "done", "state": final_state, "hitl_enabled": True})
         return
     except Exception as exc:
@@ -1732,6 +1854,7 @@ def _health_diagnostics() -> dict[str, Any]:
 
     vector_backend = "chroma" if getattr(vector_store, "client", None) is not None else "memory"
     preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
+    mel_grounding_thresholds = _mel_grounding_policy_thresholds()
     export_grounding_thresholds = _export_grounding_policy_thresholds()
     diagnostics: dict[str, Any] = {
         "job_store": {"mode": job_store_mode},
@@ -1748,6 +1871,10 @@ def _health_diagnostics() -> dict[str, Any]:
         "preflight_grounding_policy": {
             "mode": _configured_preflight_grounding_policy_mode(),
             "thresholds": preflight_grounding_thresholds,
+        },
+        "mel_grounding_policy": {
+            "mode": _configured_mel_grounding_policy_mode(),
+            "thresholds": mel_grounding_thresholds,
         },
         "export_grounding_policy": {
             "mode": _configured_export_grounding_policy_mode(),
@@ -1838,6 +1965,7 @@ def readiness_check():
     vector_ready = _vector_store_readiness()
     ready = bool(vector_ready.get("ready"))
     preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
+    mel_grounding_thresholds = _mel_grounding_policy_thresholds()
     export_grounding_thresholds = _export_grounding_policy_thresholds()
     payload = {
         "status": "ready" if ready else "degraded",
@@ -1846,6 +1974,10 @@ def readiness_check():
             "preflight_grounding_policy": {
                 "mode": _configured_preflight_grounding_policy_mode(),
                 "thresholds": preflight_grounding_thresholds,
+            },
+            "mel_grounding_policy": {
+                "mode": _configured_mel_grounding_policy_mode(),
+                "thresholds": mel_grounding_thresholds,
             },
             "export_grounding_policy": {
                 "mode": _configured_export_grounding_policy_mode(),

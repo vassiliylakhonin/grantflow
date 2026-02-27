@@ -154,6 +154,11 @@ def _citation_type_counts(citations: list[Dict[str, Any]]) -> Dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+def _is_claim_support_citation_type(citation_type: Any) -> bool:
+    token = str(citation_type or "").strip().lower()
+    return token in {"rag_result", "rag_support", "rag_claim_support"}
+
+
 def _job_grounding_risk_level(job: Dict[str, Any]) -> str:
     state = job.get("state")
     state_dict = state if isinstance(state, dict) else {}
@@ -1321,6 +1326,10 @@ def public_job_quality_payload(
     mel_citation_type_counts = _citation_type_counts(mel_citations)
     architect_claim_support_citation_count = int(architect_citation_type_counts.get("rag_claim_support") or 0)
     architect_fallback_namespace_citation_count = int(architect_citation_type_counts.get("fallback_namespace") or 0)
+    mel_claim_support_citation_count = sum(
+        1 for c in mel_citations if _is_claim_support_citation_type(c.get("citation_type"))
+    )
+    mel_fallback_namespace_citation_count = int(mel_citation_type_counts.get("fallback_namespace") or 0)
 
     confidence_values: list[float] = []
     high_conf = 0
@@ -1399,9 +1408,23 @@ def public_job_quality_payload(
     toc_generation_meta: Dict[str, Any] = (
         cast(Dict[str, Any], raw_toc_generation_meta) if isinstance(raw_toc_generation_meta, dict) else {}
     )
+    raw_mel_generation_meta = state_dict.get("mel_generation_meta")
+    mel_generation_meta: Dict[str, Any] = (
+        cast(Dict[str, Any], raw_mel_generation_meta) if isinstance(raw_mel_generation_meta, dict) else {}
+    )
     raw_architect_retrieval = state_dict.get("architect_retrieval")
     architect_retrieval: Dict[str, Any] = (
         cast(Dict[str, Any], raw_architect_retrieval) if isinstance(raw_architect_retrieval, dict) else {}
+    )
+    raw_logframe = state_dict.get("logframe_draft")
+    logframe_draft: Dict[str, Any] = cast(Dict[str, Any], raw_logframe) if isinstance(raw_logframe, dict) else {}
+    raw_mel_rag_trace = logframe_draft.get("rag_trace")
+    mel_rag_trace: Dict[str, Any] = (
+        cast(Dict[str, Any], raw_mel_rag_trace) if isinstance(raw_mel_rag_trace, dict) else {}
+    )
+    raw_mel_grounding_policy = state_dict.get("mel_grounding_policy")
+    mel_grounding_policy: Dict[str, Any] = (
+        cast(Dict[str, Any], raw_mel_grounding_policy) if isinstance(raw_mel_grounding_policy, dict) else {}
     )
     readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
     preflight_payload = _public_job_preflight_payload(job)
@@ -1457,6 +1480,14 @@ def public_job_quality_payload(
                 if architect_citations
                 else None
             ),
+            "mel_claim_support_citation_count": mel_claim_support_citation_count,
+            "mel_claim_support_rate": (
+                round(mel_claim_support_citation_count / len(mel_citations), 4) if mel_citations else None
+            ),
+            "mel_fallback_namespace_citation_count": mel_fallback_namespace_citation_count,
+            "mel_fallback_namespace_citation_rate": (
+                round(mel_fallback_namespace_citation_count / len(mel_citations), 4) if mel_citations else None
+            ),
             "architect_rag_low_confidence_citation_count": sum(
                 1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_low_confidence"
             ),
@@ -1495,6 +1526,21 @@ def public_job_quality_payload(
             "toc_schema_valid": sanitize_for_public_response(toc_validation.get("valid")),
             "citation_policy": sanitize_for_public_response(toc_generation_meta.get("citation_policy")),
         },
+        "mel": {
+            "engine": sanitize_for_public_response(mel_generation_meta.get("engine")),
+            "llm_used": sanitize_for_public_response(mel_generation_meta.get("llm_used")),
+            "retrieval_used": sanitize_for_public_response(mel_generation_meta.get("retrieval_used")),
+            "retrieval_namespace": sanitize_for_public_response(mel_rag_trace.get("namespace")),
+            "retrieval_hits_count": sanitize_for_public_response(mel_rag_trace.get("used_results")),
+            "avg_retrieval_confidence": sanitize_for_public_response(mel_rag_trace.get("avg_retrieval_confidence")),
+            "citation_policy": sanitize_for_public_response(
+                {
+                    "claim_support_types": ["rag_result", "rag_support", "rag_claim_support"],
+                    "high_confidence_threshold": 0.35,
+                }
+            ),
+        },
+        "mel_grounding_policy": sanitize_for_public_response(mel_grounding_policy),
         "preflight": preflight_payload,
         "readiness": readiness_payload,
     }

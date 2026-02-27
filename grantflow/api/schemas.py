@@ -390,6 +390,10 @@ class JobQualityCitationSummaryPublicResponse(BaseModel):
     architect_claim_support_rate: Optional[float] = None
     architect_fallback_namespace_citation_count: Optional[int] = None
     architect_fallback_namespace_citation_rate: Optional[float] = None
+    mel_claim_support_citation_count: int = 0
+    mel_claim_support_rate: Optional[float] = None
+    mel_fallback_namespace_citation_count: Optional[int] = None
+    mel_fallback_namespace_citation_rate: Optional[float] = None
     architect_rag_low_confidence_citation_count: int = 0
     mel_rag_low_confidence_citation_count: int = 0
     rag_low_confidence_citation_count: int
@@ -438,6 +442,18 @@ class JobQualityArchitectSummaryPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobQualityMelSummaryPublicResponse(BaseModel):
+    engine: Optional[str] = None
+    llm_used: Optional[bool] = None
+    retrieval_used: Optional[bool] = None
+    retrieval_namespace: Optional[str] = None
+    retrieval_hits_count: Optional[int] = None
+    avg_retrieval_confidence: Optional[float] = None
+    citation_policy: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 class JobQualityReadinessSummaryPublicResponse(BaseModel):
     preset_key: Optional[str] = None
     donor_id: Optional[str] = None
@@ -474,6 +490,8 @@ class JobQualitySummaryPublicResponse(BaseModel):
     critic: JobQualityCriticSummaryPublicResponse
     citations: JobQualityCitationSummaryPublicResponse
     architect: JobQualityArchitectSummaryPublicResponse
+    mel: Optional[JobQualityMelSummaryPublicResponse] = None
+    mel_grounding_policy: Optional[Dict[str, Any]] = None
     readiness: Optional[JobQualityReadinessSummaryPublicResponse] = None
 
     model_config = ConfigDict(extra="allow")

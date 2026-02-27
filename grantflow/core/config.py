@@ -32,6 +32,9 @@ class GraphConfig(BaseModel):
     grounding_min_citations_for_calibration: int = 5
     grounding_max_weak_rag_or_fallback_ratio: float = 0.6
     grounding_max_low_confidence_ratio: float = 0.75
+    mel_grounding_policy_mode: str = "warn"
+    mel_grounding_min_mel_citations: int = 2
+    mel_grounding_min_claim_support_rate: float = 0.5
     export_grounding_policy_mode: str = "warn"
     export_grounding_min_architect_citations: int = 3
     export_grounding_min_claim_support_rate: float = 0.5
@@ -84,6 +87,11 @@ class GrantFlowConfig(BaseModel):
                     _env("GRANTFLOW_GROUNDING_MAX_WEAK_RAG_OR_FALLBACK_RATIO", "0.6")
                 ),
                 grounding_max_low_confidence_ratio=float(_env("GRANTFLOW_GROUNDING_MAX_LOW_CONFIDENCE_RATIO", "0.75")),
+                mel_grounding_policy_mode=_env("GRANTFLOW_MEL_GROUNDING_POLICY_MODE", "warn"),
+                mel_grounding_min_mel_citations=int(_env("GRANTFLOW_MEL_GROUNDING_MIN_MEL_CITATIONS", "2")),
+                mel_grounding_min_claim_support_rate=float(
+                    _env("GRANTFLOW_MEL_GROUNDING_MIN_CLAIM_SUPPORT_RATE", "0.5")
+                ),
                 export_grounding_policy_mode=_env("GRANTFLOW_EXPORT_GROUNDING_POLICY_MODE", "warn"),
                 export_grounding_min_architect_citations=int(
                     _env("GRANTFLOW_EXPORT_GROUNDING_MIN_ARCHITECT_CITATIONS", "3")

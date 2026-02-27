@@ -44,6 +44,11 @@ def test_health_endpoint():
     assert 0.0 <= float(thresholds["high_risk_coverage_threshold"]) <= 1.0
     assert 0.0 <= float(thresholds["medium_risk_coverage_threshold"]) <= 1.0
     assert int(thresholds["min_uploads"]) >= 1
+    mel_policy = diagnostics["mel_grounding_policy"]
+    assert mel_policy["mode"] in {"warn", "strict", "off"}
+    mel_thresholds = mel_policy["thresholds"]
+    assert int(mel_thresholds["min_mel_citations"]) >= 1
+    assert 0.0 <= float(mel_thresholds["min_claim_support_rate"]) <= 1.0
     export_policy = diagnostics["export_grounding_policy"]
     assert export_policy["mode"] in {"warn", "strict", "off"}
     export_thresholds = export_policy["thresholds"]
@@ -126,10 +131,13 @@ def test_demo_console_page_loads():
     assert "qualityBtn" in body
     assert "qualityCards" in body
     assert "qualityPreflightMetaLine" in body
+    assert "qualityMelSummaryList" in body
     assert "qualityCitationTypeCountsList" in body
     assert "qualityArchitectCitationTypeCountsList" in body
     assert "Claim-support" in body
     assert "Architect fallback" in body
+    assert "MEL claim-support" in body
+    assert "MEL fallback" in body
     assert "qualityJson" in body
     assert "exportPayloadBtn" in body
     assert "copyExportPayloadBtn" in body
@@ -281,6 +289,11 @@ def test_ready_endpoint():
     assert 0.0 <= float(thresholds["high_risk_coverage_threshold"]) <= 1.0
     assert 0.0 <= float(thresholds["medium_risk_coverage_threshold"]) <= 1.0
     assert int(thresholds["min_uploads"]) >= 1
+    mel_policy = checks["mel_grounding_policy"]
+    assert mel_policy["mode"] in {"warn", "strict", "off"}
+    mel_thresholds = mel_policy["thresholds"]
+    assert int(mel_thresholds["min_mel_citations"]) >= 1
+    assert 0.0 <= float(mel_thresholds["min_claim_support_rate"]) <= 1.0
     export_policy = checks["export_grounding_policy"]
     assert export_policy["mode"] in {"warn", "strict", "off"}
     export_thresholds = export_policy["thresholds"]
@@ -304,6 +317,8 @@ def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
     assert "chroma unavailable" in body["detail"]["checks"]["vector_store"]["error"]
     preflight_policy = body["detail"]["checks"]["preflight_grounding_policy"]
     assert preflight_policy["mode"] in {"warn", "strict", "off"}
+    mel_policy = body["detail"]["checks"]["mel_grounding_policy"]
+    assert mel_policy["mode"] in {"warn", "strict", "off"}
     export_policy = body["detail"]["checks"]["export_grounding_policy"]
     assert export_policy["mode"] in {"warn", "strict", "off"}
 
@@ -334,6 +349,21 @@ def test_ready_endpoint_preflight_policy_mode_can_differ_from_pipeline_mode(monk
     assert response.status_code == 200
     body = response.json()
     assert body["checks"]["preflight_grounding_policy"]["mode"] == "warn"
+
+
+def test_ready_endpoint_reflects_mel_grounding_policy_overrides(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_mel_citations", 5)
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_claim_support_rate", 0.61)
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    mel_policy = body["checks"]["mel_grounding_policy"]
+    assert mel_policy["mode"] == "strict"
+    thresholds = mel_policy["thresholds"]
+    assert thresholds["min_mel_citations"] == 5
+    assert thresholds["min_claim_support_rate"] == 0.61
 
 
 def test_ready_endpoint_reflects_export_grounding_policy_overrides(monkeypatch):
@@ -640,6 +670,143 @@ def test_strict_grounding_gate_blocks_job_finalization(monkeypatch):
     assert gate.get("mode") == "strict"
     assert gate.get("blocking") is True
     assert gate.get("passed") is False
+
+
+def test_strict_mel_grounding_policy_blocks_job_finalization(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_mel_citations", 2)
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_claim_support_rate", 0.75)
+    monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "warn")
+    monkeypatch.setattr(
+        api_app_module,
+        "_build_generate_preflight",
+        lambda donor_id, strategy, client_metadata: {
+            "donor_id": donor_id,
+            "risk_level": "low",
+            "grounding_risk_level": "low",
+            "go_ahead": True,
+            "warning_count": 0,
+            "warnings": [],
+            "retrieval_namespace": "usaid_ads201",
+            "namespace_empty": False,
+            "grounding_policy": {
+                "mode": "warn",
+                "risk_level": "low",
+                "blocking": False,
+                "go_ahead": True,
+                "summary": "readiness_signals_ok",
+                "reasons": ["sufficient_readiness_signals"],
+            },
+        },
+    )
+    monkeypatch.setattr(
+        api_app_module.vector_store,
+        "query",
+        lambda namespace, query_texts, n_results=5, where=None, top_k=None: {
+            "documents": [[]],
+            "metadatas": [[]],
+            "ids": [[]],
+            "distances": [[]],
+        },
+    )
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Gov services modernization", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    terminal = _wait_for_terminal_status(job_id)
+    assert terminal["status"] == "error"
+    assert "MEL grounding policy (strict) blocked finalization" in str(terminal.get("error") or "")
+    state = terminal.get("state") or {}
+    mel_policy = state.get("mel_grounding_policy") or {}
+    assert mel_policy.get("mode") == "strict"
+    assert mel_policy.get("blocking") is True
+    assert mel_policy.get("passed") is False
+    assert "mel_claim_support_rate_below_min" in (mel_policy.get("reasons") or [])
+
+
+def test_strict_mel_grounding_policy_blocks_after_hitl_resume(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_mel_citations", 2)
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_claim_support_rate", 0.75)
+    monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "warn")
+    monkeypatch.setattr(
+        api_app_module,
+        "_build_generate_preflight",
+        lambda donor_id, strategy, client_metadata: {
+            "donor_id": donor_id,
+            "risk_level": "low",
+            "grounding_risk_level": "low",
+            "go_ahead": True,
+            "warning_count": 0,
+            "warnings": [],
+            "retrieval_namespace": "usaid_ads201",
+            "namespace_empty": False,
+            "grounding_policy": {
+                "mode": "warn",
+                "risk_level": "low",
+                "blocking": False,
+                "go_ahead": True,
+                "summary": "readiness_signals_ok",
+                "reasons": ["sufficient_readiness_signals"],
+            },
+        },
+    )
+    monkeypatch.setattr(
+        api_app_module.vector_store,
+        "query",
+        lambda namespace, query_texts, n_results=5, where=None, top_k=None: {
+            "documents": [[]],
+            "metadatas": [[]],
+            "ids": [[]],
+            "distances": [[]],
+        },
+    )
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Gov services modernization", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": True,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "pending_hitl"
+    cp_id = status["checkpoint_id"]
+    approve = client.post("/hitl/approve", json={"checkpoint_id": cp_id, "approved": True, "feedback": "ok"})
+    assert approve.status_code == 200
+    resume = client.post(f"/resume/{job_id}", json={})
+    assert resume.status_code == 200
+    assert resume.json()["resuming_from"] == "mel"
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "pending_hitl"
+    cp_id = status["checkpoint_id"]
+    approve = client.post("/hitl/approve", json={"checkpoint_id": cp_id, "approved": True, "feedback": "ok"})
+    assert approve.status_code == 200
+    resume = client.post(f"/resume/{job_id}", json={})
+    assert resume.status_code == 200
+    assert resume.json()["resuming_from"] == "critic"
+
+    terminal = _wait_for_terminal_status(job_id)
+    assert terminal["status"] == "error"
+    assert "MEL grounding policy (strict) blocked finalization" in str(terminal.get("error") or "")
+    state = terminal.get("state") or {}
+    mel_policy = state.get("mel_grounding_policy") or {}
+    assert mel_policy.get("blocking") is True
 
 
 def test_export_endpoint_blocks_when_strict_grounding_gate_failed_unless_overridden():
@@ -2582,6 +2749,10 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["citations"]["architect_claim_support_rate"] == 0.3333
     assert body["citations"]["architect_fallback_namespace_citation_count"] == 1
     assert body["citations"]["architect_fallback_namespace_citation_rate"] == 0.3333
+    assert body["citations"]["mel_claim_support_citation_count"] == 1
+    assert body["citations"]["mel_claim_support_rate"] == 1.0
+    assert body["citations"]["mel_fallback_namespace_citation_count"] == 0
+    assert body["citations"]["mel_fallback_namespace_citation_rate"] == 0.0
     assert body["citations"]["high_confidence_citation_count"] == 2
     assert body["citations"]["low_confidence_citation_count"] == 2
     assert body["citations"]["architect_rag_low_confidence_citation_count"] == 1
@@ -2600,6 +2771,11 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["architect"]["retrieval_hits_count"] == 3
     assert body["architect"]["toc_schema_valid"] is True
     assert body["architect"]["citation_policy"]["threshold_mode"] == "donor_section"
+    mel_summary = body.get("mel") or {}
+    assert mel_summary.get("engine") in {"deterministic:retrieval_template", "llm:stub-mel-model", None}
+    assert mel_summary.get("retrieval_namespace") in {None, "usaid_ads201"}
+    assert mel_summary.get("retrieval_hits_count") in {None, 3}
+    assert "mel_grounding_policy" in body
     assert body["preflight"]["risk_level"] == "medium"
     assert body["preflight"]["warning_count"] == 1
     assert body["preflight"]["warnings"][0]["code"] == "LOW_DOC_COVERAGE"
