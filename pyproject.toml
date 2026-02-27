@@ -27,6 +27,7 @@ extend-exclude = ["chroma_db"]
 
 [tool.ruff.lint]
 select = ["E", "F"]
+extend-select = ["E701", "E702", "E703", "E731"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]

@@ -73,7 +73,9 @@ def apply_donor_specific_toc_checks(
                     fix_hint="Populate `intermediate_results[].outputs[]` under each USAID IR.",
                 )
             else:
-                check_fn(code="USAID_OUTPUT_HIERARCHY", status="pass", section="toc", detail=f"{output_count} output(s)")
+                check_fn(
+                    code="USAID_OUTPUT_HIERARCHY", status="pass", section="toc", detail=f"{output_count} output(s)"
+                )
         else:
             check_fn(code="USAID_DO_PRESENT", status="fail", section="toc", detail="No development_objectives")
             add_flaw_fn(
@@ -129,7 +131,9 @@ def apply_donor_specific_toc_checks(
                     fix_hint="Populate `overall_objective.objective_id`, `title`, and `rationale`.",
                 )
         else:
-            check_fn(code="EU_OVERALL_OBJECTIVE_COMPLETE", status="fail", section="toc", detail="Missing overall_objective")
+            check_fn(
+                code="EU_OVERALL_OBJECTIVE_COMPLETE", status="fail", section="toc", detail="Missing overall_objective"
+            )
             add_flaw_fn(
                 code="EU_OVERALL_OBJECTIVE_MISSING",
                 severity="high",
@@ -249,7 +253,9 @@ def apply_donor_specific_toc_checks(
                     incomplete = True
                     break
             if incomplete:
-                check_fn(code="WB_OBJECTIVES_COMPLETE", status="fail", section="toc", detail="Incomplete objective fields")
+                check_fn(
+                    code="WB_OBJECTIVES_COMPLETE", status="fail", section="toc", detail="Incomplete objective fields"
+                )
                 add_flaw_fn(
                     code="WB_OBJECTIVE_FIELDS_INCOMPLETE",
                     severity="high",
@@ -268,4 +274,3 @@ def apply_donor_specific_toc_checks(
                 message="World Bank ToC is missing objectives.",
                 fix_hint="Add at least one objective with ID, title, and description.",
             )
-

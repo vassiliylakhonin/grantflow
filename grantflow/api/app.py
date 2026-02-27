@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import io
 import gzip
+import io
 import json
 import tempfile
 import uuid
@@ -16,23 +16,23 @@ from pydantic import BaseModel, ConfigDict
 from grantflow.api.demo_ui import render_demo_ui_html
 from grantflow.api.public_views import (
     public_checkpoint_payload,
+    public_ingest_inventory_csv_text,
+    public_ingest_inventory_payload,
+    public_ingest_recent_payload,
     public_job_citations_payload,
     public_job_comments_payload,
     public_job_critic_payload,
     public_job_diff_payload,
-    public_job_export_payload,
     public_job_events_payload,
+    public_job_export_payload,
     public_job_metrics_payload,
-    public_job_quality_payload,
     public_job_payload,
+    public_job_quality_payload,
     public_job_versions_payload,
-    public_ingest_inventory_payload,
-    public_ingest_inventory_csv_text,
-    public_ingest_recent_payload,
+    public_portfolio_metrics_csv_text,
+    public_portfolio_metrics_payload,
     public_portfolio_quality_csv_text,
     public_portfolio_quality_payload,
-    public_portfolio_metrics_payload,
-    public_portfolio_metrics_csv_text,
 )
 from grantflow.api.schemas import (
     CriticFatalFlawPublicResponse,
@@ -43,8 +43,8 @@ from grantflow.api.schemas import (
     JobCommentsPublicResponse,
     JobCriticPublicResponse,
     JobDiffPublicResponse,
-    JobExportPayloadPublicResponse,
     JobEventsPublicResponse,
+    JobExportPayloadPublicResponse,
     JobMetricsPublicResponse,
     JobQualitySummaryPublicResponse,
     JobStatusPublicResponse,
@@ -94,6 +94,8 @@ STATUS_WEBHOOK_EVENTS = {
     "error": "job.failed",
     "canceled": "job.canceled",
 }
+
+
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -305,7 +307,9 @@ def _resolve_export_inputs(
     citations = payload.get("citations") or []
     critic_notes_raw = payload.get("critic_notes")
     critic_notes: dict[str, Any] = critic_notes_raw if isinstance(critic_notes_raw, dict) else {}
-    critic_findings = req.critic_findings or critic_notes.get("fatal_flaws") or payload_root.get("critic_findings") or []
+    critic_findings = (
+        req.critic_findings or critic_notes.get("fatal_flaws") or payload_root.get("critic_findings") or []
+    )
     review_comments = req.review_comments or payload_root.get("review_comments") or payload.get("review_comments") or []
 
     if not isinstance(toc, dict):

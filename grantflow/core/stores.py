@@ -240,7 +240,11 @@ class InMemoryIngestAuditStore:
 
         return sorted(
             grouped.values(),
-            key=lambda item: (str(item.get("donor_id") or ""), -int(item.get("count") or 0), str(item.get("doc_family") or "")),
+            key=lambda item: (
+                str(item.get("donor_id") or ""),
+                -int(item.get("count") or 0),
+                str(item.get("doc_family") or ""),
+            ),
         )
 
 
@@ -422,10 +426,7 @@ class SQLiteIngestAuditStore:
 
     def inventory(self, donor_id: Optional[str] = None) -> list[Dict[str, Any]]:
         donor_filter = str(donor_id or "").strip()
-        query = (
-            "SELECT event_id, ts, donor_id, filename, metadata_json "
-            "FROM ingest_audit_events "
-        )
+        query = "SELECT event_id, ts, donor_id, filename, metadata_json " "FROM ingest_audit_events "
         params: list[Any] = []
         if donor_filter:
             query += "WHERE lower(donor_id) = lower(?) "
@@ -460,7 +461,11 @@ class SQLiteIngestAuditStore:
 
         return sorted(
             grouped.values(),
-            key=lambda item: (str(item.get("donor_id") or ""), -int(item.get("count") or 0), str(item.get("doc_family") or "")),
+            key=lambda item: (
+                str(item.get("donor_id") or ""),
+                -int(item.get("count") or 0),
+                str(item.get("doc_family") or ""),
+            ),
         )
 
 

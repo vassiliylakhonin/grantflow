@@ -1328,11 +1328,11 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_applied_job_count"] >= 1
     assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_applied_rate"] is not None
     assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_candidate_finding_count"] >= 2
-    assert body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_applied_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
     assert (
-        body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_rejected_label_counts"][
-            "BASELINE_TARGET_MISSING"
-        ]
+        body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_applied_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
+    )
+    assert (
+        body["donor_weighted_risk_breakdown"]["usaid"]["llm_advisory_rejected_label_counts"]["BASELINE_TARGET_MISSING"]
         >= 1
     )
     assert (
@@ -1400,8 +1400,18 @@ def test_portfolio_quality_export_csv_flattens_donor_advisory_label_mix():
                 ],
             },
             "job_events": [
-                {"event_id": "pqx1", "ts": "2026-02-24T12:00:00+00:00", "type": "status_changed", "to_status": "accepted"},
-                {"event_id": "pqx2", "ts": "2026-02-24T12:00:01+00:00", "type": "status_changed", "to_status": "running"},
+                {
+                    "event_id": "pqx1",
+                    "ts": "2026-02-24T12:00:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "accepted",
+                },
+                {
+                    "event_id": "pqx2",
+                    "ts": "2026-02-24T12:00:01+00:00",
+                    "type": "status_changed",
+                    "to_status": "running",
+                },
                 {"event_id": "pqx3", "ts": "2026-02-24T12:00:10+00:00", "type": "status_changed", "to_status": "done"},
             ],
         },

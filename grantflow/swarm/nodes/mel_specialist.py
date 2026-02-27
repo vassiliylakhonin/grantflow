@@ -6,8 +6,8 @@ from typing import Any, Dict
 
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
-from grantflow.swarm.citations import append_citations
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
+from grantflow.swarm.citations import append_citations
 from grantflow.swarm.versioning import append_draft_version
 
 

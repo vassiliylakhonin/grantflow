@@ -6,19 +6,17 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from grantflow.core.config import config
-from grantflow.swarm.critic_llm_policy import (
-    build_llm_advisory_diagnostics as _build_llm_advisory_diagnostics,
-    classify_llm_finding_label as _classify_llm_finding_label,
-    is_advisory_llm_finding as _is_advisory_llm_finding,
-    is_advisory_llm_message as _is_advisory_llm_message,  # noqa: F401
-    llm_finding_policy_class as _llm_finding_policy_class,
-)
+from grantflow.swarm.critic_llm_policy import build_llm_advisory_diagnostics as _build_llm_advisory_diagnostics
+from grantflow.swarm.critic_llm_policy import classify_llm_finding_label as _classify_llm_finding_label
+from grantflow.swarm.critic_llm_policy import is_advisory_llm_finding as _is_advisory_llm_finding
+from grantflow.swarm.critic_llm_policy import is_advisory_llm_message as _is_advisory_llm_message  # noqa: F401
+from grantflow.swarm.critic_llm_policy import llm_finding_policy_class as _llm_finding_policy_class
+from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
 from grantflow.swarm.llm_provider import (
     chat_openai_init_kwargs,
     openai_compatible_llm_available,
     openai_compatible_missing_reason,
 )
-from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
 
 WEAK_GROUNDING_LLM_SCORE_MAX_PENALTY = 1.5
 WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION = 5
@@ -106,9 +104,7 @@ def _advisory_llm_findings_context(
     ]
     architect_count = len(architect_citations)
     architect_support = sum(1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_claim_support")
-    architect_rag_low = sum(
-        1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_low_confidence"
-    )
+    architect_rag_low = sum(1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_low_confidence")
     architect_fallback = sum(
         1 for c in architect_citations if str(c.get("citation_type") or "") == "fallback_namespace"
     )

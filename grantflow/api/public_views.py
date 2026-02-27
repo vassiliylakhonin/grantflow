@@ -866,7 +866,11 @@ def public_portfolio_quality_payload(
         critic_high_severity_total += int(row_critic.get("high_severity_fatal_flaw_count") or 0)
         critic_medium_severity_total += int(row_critic.get("medium_severity_fatal_flaw_count") or 0)
         critic_fatal_flaws_total += int(row_critic.get("fatal_flaw_count") or 0)
-        for label, count in ((row_critic.get("llm_finding_label_counts") or {}).items() if isinstance(row_critic.get("llm_finding_label_counts"), dict) else []):
+        for label, count in (
+            (row_critic.get("llm_finding_label_counts") or {}).items()
+            if isinstance(row_critic.get("llm_finding_label_counts"), dict)
+            else []
+        ):
             label_key = str(label).strip() or "GENERIC_LLM_REVIEW_FLAG"
             llm_finding_label_counts_total[label_key] = int(llm_finding_label_counts_total.get(label_key, 0)) + int(
                 count or 0
@@ -956,7 +960,9 @@ def public_portfolio_quality_payload(
         )
         if row_llm_advisory:
             donor_row["llm_advisory_diagnostics_job_count"] += 1
-            donor_row["llm_advisory_candidate_finding_count"] += int(row_llm_advisory.get("advisory_candidate_count") or 0)
+            donor_row["llm_advisory_candidate_finding_count"] += int(
+                row_llm_advisory.get("advisory_candidate_count") or 0
+            )
             donor_applied_label_counts = donor_row.get("llm_advisory_applied_label_counts")
             if not isinstance(donor_applied_label_counts, dict):
                 donor_applied_label_counts = {}

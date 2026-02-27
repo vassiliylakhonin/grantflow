@@ -90,4 +90,3 @@ def test_usaid_complete_hierarchy_passes_core_checks_without_high_flaws():
     assert any(c["code"] == "USAID_OUTPUT_HIERARCHY" and c["status"] == "pass" for c in checks)
     assert any(c["code"] == "USAID_CRITICAL_ASSUMPTIONS_PRESENT" and c["status"] == "pass" for c in checks)
     assert not any(f["severity"] == "high" for f in flaws)
-

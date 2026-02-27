@@ -5,8 +5,8 @@ from grantflow.swarm.critic_rules import evaluate_rule_based_critic
 from grantflow.swarm.nodes.critic import (
     _advisory_llm_findings_context,
     _apply_advisory_llm_score_cap,
-    _classify_llm_finding_label,
     _citation_grounding_context,
+    _classify_llm_finding_label,
     _combine_critic_scores,
     _downgrade_advisory_llm_findings,
     _is_advisory_llm_message,
@@ -236,7 +236,9 @@ def test_advisory_llm_findings_are_downgraded_and_score_penalty_is_capped():
         },
     ]
 
-    advisory_ctx = _advisory_llm_findings_context(state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items)
+    advisory_ctx = _advisory_llm_findings_context(
+        state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items
+    )
     assert advisory_ctx["applies"] is True
     downgraded, meta = _downgrade_advisory_llm_findings(llm_items, advisory_ctx=advisory_ctx)
     assert meta is not None and meta["applied"] is True
@@ -304,7 +306,9 @@ def test_usaid_early_draft_llm_findings_are_treated_as_advisory_when_grounded():
         },
     ]
 
-    advisory_ctx = _advisory_llm_findings_context(state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items)
+    advisory_ctx = _advisory_llm_findings_context(
+        state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items
+    )
     assert advisory_ctx["applies"] is True
     downgraded, meta = _downgrade_advisory_llm_findings(llm_items, advisory_ctx=advisory_ctx)
     assert meta is not None and meta["downgraded_count"] == 3
@@ -439,7 +443,9 @@ def test_advisory_llm_findings_allow_good_enough_architect_grounding_without_fal
         }
     ]
 
-    advisory_ctx = _advisory_llm_findings_context(state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items)
+    advisory_ctx = _advisory_llm_findings_context(
+        state=state, rule_report=_RuleReport(), llm_fatal_flaw_items=llm_items
+    )
     assert advisory_ctx["applies"] is True
     assert advisory_ctx["architect_threshold_hit_rate"] == 0.6
     assert advisory_ctx["architect_rag_low_ratio"] == 0.4

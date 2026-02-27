@@ -74,8 +74,12 @@ def _build_summary(root: Path, benchmark_rows: list[dict[str, Any]]) -> str:
         citations = quality.get("citations") if isinstance(quality.get("citations"), dict) else {}
         architect = quality.get("architect") if isinstance(quality.get("architect"), dict) else {}
         readiness = row.get("readiness") if isinstance(row.get("readiness"), dict) else {}
-        expected = readiness.get("expected_doc_families") if isinstance(readiness.get("expected_doc_families"), list) else []
-        missing = readiness.get("missing_doc_families") if isinstance(readiness.get("missing_doc_families"), list) else []
+        expected = (
+            readiness.get("expected_doc_families") if isinstance(readiness.get("expected_doc_families"), list) else []
+        )
+        missing = (
+            readiness.get("missing_doc_families") if isinstance(readiness.get("missing_doc_families"), list) else []
+        )
         readiness_str = f"{len(expected) - len(missing)}/{len(expected)}" if expected else "-"
         lines.append(
             "| "
@@ -101,7 +105,9 @@ def _build_summary(root: Path, benchmark_rows: list[dict[str, Any]]) -> str:
     lines.append("## Files")
     for row in benchmark_rows:
         donor_id = str(row.get("donor_id") or "")
-        lines.append(f"- `{donor_id}/status.json`, `{donor_id}/quality.json`, `{donor_id}/critic.json`, `{donor_id}/citations.json`")
+        lines.append(
+            f"- `{donor_id}/status.json`, `{donor_id}/quality.json`, `{donor_id}/critic.json`, `{donor_id}/citations.json`"
+        )
         lines.append(
             f"- `{donor_id}/export-payload.json`, `{donor_id}/review-package.zip`, "
             f"`{donor_id}/toc-review-package.docx`, `{donor_id}/logframe-review-package.xlsx`"
@@ -117,7 +123,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build pilot pack snapshots/artifacts from benchmark results.")
     parser.add_argument("--api-base", default="http://127.0.0.1:8000")
     parser.add_argument("--benchmark-json", required=True, help="Path to benchmark-results.json.")
-    parser.add_argument("--output-dir", required=True, help="Target pilot pack directory (e.g., docs/pilot_runs/2026-02-27).")
+    parser.add_argument(
+        "--output-dir", required=True, help="Target pilot pack directory (e.g., docs/pilot_runs/2026-02-27)."
+    )
     parser.add_argument("--api-key", default="", help="Optional X-API-Key for protected endpoints.")
     args = parser.parse_args()
 

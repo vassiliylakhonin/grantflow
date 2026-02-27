@@ -20,7 +20,7 @@ def flatten_value_rows(value: Any, *, prefix: str = "") -> list[tuple[str, str]]
 
 
 def csv_escape(value: str) -> str:
-    if any(ch in value for ch in [",", "\"", "\n", "\r"]):
+    if any(ch in value for ch in [",", '"', "\n", "\r"]):
         return '"' + value.replace('"', '""') + '"'
     return value
 

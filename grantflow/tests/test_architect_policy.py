@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 
 from grantflow.swarm.nodes.architect_policy import (
-    ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES,
     ARCHITECT_CITATION_HIGH_CONFIDENCE_THRESHOLD,
     architect_claim_confidence_threshold,
     architect_donor_prompt_constraints,
@@ -70,7 +69,9 @@ def test_architect_threshold_uses_default_for_unknown_donor_and_section_tuning()
 
 def test_architect_threshold_uses_donor_override_and_caps_range():
     usaid_goal = architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.project_goal")
-    usaid_assumption = architect_claim_confidence_threshold(donor_id="usaid", statement_path="toc.critical_assumptions[0]")
+    usaid_assumption = architect_claim_confidence_threshold(
+        donor_id="usaid", statement_path="toc.critical_assumptions[0]"
+    )
 
     assert usaid_goal == 0.32
     assert usaid_assumption > usaid_goal
@@ -78,15 +79,11 @@ def test_architect_threshold_uses_donor_override_and_caps_range():
 
 
 def test_architect_threshold_relaxes_worldbank_objective_title_and_description():
-    title_thr = architect_claim_confidence_threshold(
-        donor_id="worldbank", statement_path="toc.objectives[0].title"
-    )
+    title_thr = architect_claim_confidence_threshold(donor_id="worldbank", statement_path="toc.objectives[0].title")
     desc_thr = architect_claim_confidence_threshold(
         donor_id="worldbank", statement_path="toc.objectives[0].description"
     )
-    risk_thr = architect_claim_confidence_threshold(
-        donor_id="worldbank", statement_path="toc.risks[0].description"
-    )
+    risk_thr = architect_claim_confidence_threshold(donor_id="worldbank", statement_path="toc.risks[0].description")
 
     assert title_thr == 0.25
     assert desc_thr == 0.25

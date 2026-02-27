@@ -8,8 +8,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Optional
 
 PRESET_CASES: dict[str, dict[str, Any]] = {
     "usaid": {
@@ -161,7 +160,9 @@ def _poll_job(base_url: str, job_id: str, *, api_key: Optional[str], timeout_s: 
         time.sleep(sleep_s)
 
 
-def _inventory_readiness(base_url: str, donor_id: str, expected_doc_families: list[str], *, api_key: Optional[str]) -> dict[str, Any]:
+def _inventory_readiness(
+    base_url: str, donor_id: str, expected_doc_families: list[str], *, api_key: Optional[str]
+) -> dict[str, Any]:
     qs = urllib.parse.urlencode({"donor_id": donor_id})
     payload = _json_request("GET", f"{base_url}/ingest/inventory?{qs}", api_key=api_key)
     present_counts = payload.get("doc_family_counts") if isinstance(payload.get("doc_family_counts"), dict) else {}
@@ -278,11 +279,15 @@ def print_summary(results: list[dict[str, Any]]) -> None:
         )
     print("")
     for row in results:
-        print(f"- {row['donor_id']} job_id={row['job_id']} citation_types={json.dumps(row['citation_type_counts'], sort_keys=True)}")
+        print(
+            f"- {row['donor_id']} job_id={row['job_id']} citation_types={json.dumps(row['citation_type_counts'], sort_keys=True)}"
+        )
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run local grounded benchmark against GrantFlow API for governance presets.")
+    parser = argparse.ArgumentParser(
+        description="Run local grounded benchmark against GrantFlow API for governance presets."
+    )
     parser.add_argument("--api-base", default="http://127.0.0.1:8000", help="GrantFlow API base URL.")
     parser.add_argument("--api-key", default="", help="Optional X-API-Key.")
     parser.add_argument(

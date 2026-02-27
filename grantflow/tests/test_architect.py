@@ -1,22 +1,16 @@
 from __future__ import annotations
 
 from grantflow.core.strategies.factory import DonorFactory
-from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes import architect_generation as architect_generation_module
+from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes.architect_generation import (
-    _fallback_structured_toc,
     _extract_claim_strings,
+    _fallback_structured_toc,
     build_architect_claim_citations,
     generate_toc_under_contract,
 )
-from grantflow.swarm.nodes.architect_policy import (
-    ARCHITECT_CITATION_DONOR_THRESHOLD_OVERRIDES,
-    architect_claim_confidence_threshold,
-)
-from grantflow.swarm.nodes.architect_retrieval import (
-    pick_best_architect_evidence_hit,
-    score_architect_evidence_hit,
-)
+from grantflow.swarm.nodes.architect_policy import architect_claim_confidence_threshold
+from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit, score_architect_evidence_hit
 
 
 def test_architect_generates_contract_validated_toc_with_optional_retrieval_disabled():
@@ -65,7 +59,12 @@ def test_architect_generates_contract_validated_toc_with_optional_retrieval_disa
 def test_architect_evidence_ranking_prefers_more_relevant_hit():
     statement = "Improve water sanitation outcomes in Kenya through community systems"
     hits = [
-        {"rank": 1, "label": "Generic donor guide", "excerpt": "Procurement and reporting templates", "source": "a.pdf"},
+        {
+            "rank": 1,
+            "label": "Generic donor guide",
+            "excerpt": "Procurement and reporting templates",
+            "source": "a.pdf",
+        },
         {
             "rank": 2,
             "label": "WASH technical guidance",

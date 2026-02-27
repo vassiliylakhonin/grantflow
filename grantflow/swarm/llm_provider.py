@@ -33,10 +33,7 @@ def openai_compatible_default_headers() -> dict[str, str]:
         or ""
     ).strip()
     x_title = str(
-        os.getenv("GRANTFLOW_LLM_APP_NAME")
-        or os.getenv("OPENROUTER_X_TITLE")
-        or os.getenv("OPENROUTER_APP_NAME")
-        or ""
+        os.getenv("GRANTFLOW_LLM_APP_NAME") or os.getenv("OPENROUTER_X_TITLE") or os.getenv("OPENROUTER_APP_NAME") or ""
     ).strip()
     if http_referer:
         headers["HTTP-Referer"] = http_referer

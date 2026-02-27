@@ -1,23 +1,32 @@
-fastapi>=0.110
-uvicorn[standard]>=0.27
-pydantic>=2.5
+# GrantFlow runtime/test dependencies.
+# This file is the single source of truth for pip-based installs in local and CI.
 
-# LangGraph stack (совместимые версии)
+# Core API/runtime
+fastapi==0.128.8
+uvicorn[standard]==0.39.0
+pydantic==2.12.5
+
+# Agent/LLM stack (known-compatible baseline)
 langgraph==0.2.12
 langchain==0.2.17
-langchain-core>=0.2.27,<0.3
-langchain-openai>=0.1.0
+langchain-core==0.2.43
+langchain-openai==0.1.25
 
-chromadb>=0.5.0
+# RAG/vector store
+chromadb==1.5.1
 
-python-docx>=1.1.0
-openpyxl>=3.1.2
+# Exporters / document processing
+python-docx==1.2.0
+openpyxl==3.1.5
+pymupdf==1.26.5
 
-pymupdf>=1.24.0
-python-multipart>=0.0.9
-python-dotenv>=1.0.1
+# API/env plumbing
+python-multipart==0.0.20
+python-dotenv==1.2.1
 
-# Test / dev helpers used in this repo
-pytest>=8.0.0
-httpx>=0.27.0
-tenacity>=8.0.0
+# Runtime helpers used in app/eval paths
+httpx==0.28.1
+tenacity==8.5.0
+
+# Test baseline
+pytest==8.4.2

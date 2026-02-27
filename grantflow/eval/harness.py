@@ -204,7 +204,9 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
         label = str(flaw.get("label") or "").strip() or "GENERIC_LLM_REVIEW_FLAG"
         llm_finding_label_counts[label] = int(llm_finding_label_counts.get(label, 0)) + 1
     llm_advisory_diagnostics = (
-        critic_notes.get("llm_advisory_diagnostics") if isinstance(critic_notes.get("llm_advisory_diagnostics"), dict) else {}
+        critic_notes.get("llm_advisory_diagnostics")
+        if isinstance(critic_notes.get("llm_advisory_diagnostics"), dict)
+        else {}
     )
     if isinstance(llm_advisory_diagnostics, dict):
         candidate_label_counts = (
@@ -489,7 +491,11 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                     count or 0
                 )
         for metric_key, row_key, total_key in (
-            ("llm_advisory_applied_label_counts", "llm_advisory_applied_label_counts", llm_advisory_applied_label_counts_total),
+            (
+                "llm_advisory_applied_label_counts",
+                "llm_advisory_applied_label_counts",
+                llm_advisory_applied_label_counts_total,
+            ),
             (
                 "llm_advisory_rejected_label_counts",
                 "llm_advisory_rejected_label_counts",
@@ -579,7 +585,11 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                 top_str = ", ".join(f"{label}={int(count)}" for label, count in top_entries)
                 lines.append(f"- {donor_id}: {top_str}")
     for title, total_mix, donor_key in (
-        ("LLM advisory label mix (applied)", llm_advisory_applied_label_counts_total, "llm_advisory_applied_label_counts"),
+        (
+            "LLM advisory label mix (applied)",
+            llm_advisory_applied_label_counts_total,
+            "llm_advisory_applied_label_counts",
+        ),
         (
             "LLM advisory label mix (rejected)",
             llm_advisory_rejected_label_counts_total,

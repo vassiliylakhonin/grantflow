@@ -966,6 +966,8 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+Pre-commit hooks run `ruff` (autofix + minified-Python guard), `isort`, `black`, and targeted baseline `mypy`.
+
 Manual formatting/lint commands (if you prefer running tools directly):
 
 ```bash
@@ -1099,7 +1101,7 @@ shellcheck deploy.sh backup.sh
 
 CI runs Python tests, shell script lint/syntax checks, and a targeted `mypy` baseline (`grantflow/api`, `grantflow/core/stores.py`, `grantflow/swarm/versioning.py`).
 
-If you enable local pre-commit hooks, they will also run `ruff`, `isort`, and `black` before commit.
+If you enable local pre-commit hooks, they will run `ruff` (including minified-Python guard), `isort`, `black`, and targeted baseline `mypy` before commit.
 
 ## Security Notes
 

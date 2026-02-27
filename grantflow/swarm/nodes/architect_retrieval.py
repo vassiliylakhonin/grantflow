@@ -7,7 +7,6 @@ from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
 
-
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 _GENERIC_EXCERPT_TOKENS = {
     "annex",
