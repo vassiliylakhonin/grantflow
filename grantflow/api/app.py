@@ -113,6 +113,14 @@ def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _finding_actor_from_request(request: Request) -> str:
+    for header in ("x-reviewer", "x-actor", "x-user", "x-user-id", "x-email"):
+        value = str(request.headers.get(header) or "").strip()
+        if value:
+            return value[:120]
+    return "api_user"
+
+
 def _append_job_event_records(
     previous: Optional[Dict[str, Any]],
     next_payload: Dict[str, Any],
@@ -683,7 +691,13 @@ def _find_critic_fatal_flaw(job: Dict[str, Any], finding_id: str) -> Optional[Di
     return None
 
 
-def _set_critic_fatal_flaw_status(job_id: str, *, finding_id: str, next_status: str) -> Dict[str, Any]:
+def _set_critic_fatal_flaw_status(
+    job_id: str,
+    *,
+    finding_id: str,
+    next_status: str,
+    actor: Optional[str] = None,
+) -> Dict[str, Any]:
     if next_status not in CRITIC_FINDING_STATUSES:
         raise HTTPException(status_code=400, detail="Unsupported critic finding status")
 
@@ -706,6 +720,7 @@ def _set_critic_fatal_flaw_status(job_id: str, *, finding_id: str, next_status: 
     updated_finding: Optional[Dict[str, Any]] = None
     next_flaws: list[Dict[str, Any]] = []
     now = _utcnow_iso()
+    actor_value = str(actor or "").strip() or "api_user"
     for item in flaws:
         current = dict(item)
         current_finding_id = finding_primary_id(current)
@@ -718,16 +733,24 @@ def _set_critic_fatal_flaw_status(job_id: str, *, finding_id: str, next_status: 
         if current_status != next_status:
             current["status"] = next_status
             current["updated_at"] = now
+            current["updated_by"] = actor_value
             if next_status == "acknowledged":
                 current["acknowledged_at"] = current.get("acknowledged_at") or now
+                current["acknowledged_by"] = actor_value
                 current.pop("resolved_at", None)
+                current.pop("resolved_by", None)
             elif next_status == "resolved":
                 current["resolved_at"] = now
+                current["resolved_by"] = actor_value
                 if not current.get("acknowledged_at"):
                     current["acknowledged_at"] = now
+                if not current.get("acknowledged_by"):
+                    current["acknowledged_by"] = actor_value
             elif next_status == "open":
                 current.pop("acknowledged_at", None)
+                current.pop("acknowledged_by", None)
                 current.pop("resolved_at", None)
+                current.pop("resolved_by", None)
             changed = True
         updated_finding = current
         next_flaws.append(current)
@@ -1239,6 +1262,8 @@ def get_portfolio_quality(
     hitl_enabled: Optional[bool] = Query(default=None),
     warning_level: Optional[str] = None,
     grounding_risk_level: Optional[str] = None,
+    finding_status: Optional[str] = None,
+    finding_severity: Optional[str] = None,
 ):
     require_api_key_if_configured(request, for_read=True)
     jobs = _list_jobs()
@@ -1249,6 +1274,8 @@ def get_portfolio_quality(
         hitl_enabled=hitl_enabled,
         warning_level=(warning_level or None),
         grounding_risk_level=(grounding_risk_level or None),
+        finding_status=(finding_status or None),
+        finding_severity=(finding_severity or None),
     )
 
 
@@ -1260,6 +1287,8 @@ def export_portfolio_quality(
     hitl_enabled: Optional[bool] = Query(default=None),
     warning_level: Optional[str] = None,
     grounding_risk_level: Optional[str] = None,
+    finding_status: Optional[str] = None,
+    finding_severity: Optional[str] = None,
     format: Literal["csv", "json"] = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
@@ -1272,6 +1301,8 @@ def export_portfolio_quality(
         hitl_enabled=hitl_enabled,
         warning_level=(warning_level or None),
         grounding_risk_level=(grounding_risk_level or None),
+        finding_status=(finding_status or None),
+        finding_severity=(finding_severity or None),
     )
 
     return _portfolio_export_response(
@@ -1650,7 +1681,12 @@ def get_status_critic(job_id: str, request: Request):
 )
 def acknowledge_status_critic_finding(job_id: str, finding_id: str, request: Request):
     require_api_key_if_configured(request)
-    return _set_critic_fatal_flaw_status(job_id, finding_id=finding_id, next_status="acknowledged")
+    return _set_critic_fatal_flaw_status(
+        job_id,
+        finding_id=finding_id,
+        next_status="acknowledged",
+        actor=_finding_actor_from_request(request),
+    )
 
 
 @app.post(
@@ -1660,7 +1696,12 @@ def acknowledge_status_critic_finding(job_id: str, finding_id: str, request: Req
 )
 def resolve_status_critic_finding(job_id: str, finding_id: str, request: Request):
     require_api_key_if_configured(request)
-    return _set_critic_fatal_flaw_status(job_id, finding_id=finding_id, next_status="resolved")
+    return _set_critic_fatal_flaw_status(
+        job_id,
+        finding_id=finding_id,
+        next_status="resolved",
+        actor=_finding_actor_from_request(request),
+    )
 
 
 @app.get(

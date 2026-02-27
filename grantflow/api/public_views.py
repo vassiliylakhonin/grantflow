@@ -30,6 +30,8 @@ PORTFOLIO_WARNING_LEVELS = {"high", "medium", "low", "none"}
 PORTFOLIO_WARNING_LEVEL_ORDER = ("high", "medium", "low", "none")
 GROUNDING_RISK_LEVEL_ORDER = ("high", "medium", "low", "unknown")
 GROUNDING_RISK_LEVELS = set(GROUNDING_RISK_LEVEL_ORDER)
+FINDING_STATUS_FILTER_VALUES = {"open", "acknowledged", "resolved"}
+FINDING_SEVERITY_FILTER_VALUES = {"high", "medium", "low"}
 GROUNDING_FALLBACK_HIGH_THRESHOLD = 0.8
 GROUNDING_FALLBACK_MEDIUM_THRESHOLD = 0.5
 
@@ -63,6 +65,28 @@ def _normalize_grounding_risk_filter(grounding_risk_level: Optional[str]) -> Opt
     if not token:
         return None
     if token not in GROUNDING_RISK_LEVELS:
+        return token
+    return token
+
+
+def _normalize_finding_status_filter(finding_status: Optional[str]) -> Optional[str]:
+    if finding_status is None:
+        return None
+    token = str(finding_status or "").strip().lower()
+    if not token:
+        return None
+    if token not in FINDING_STATUS_FILTER_VALUES:
+        return token
+    return token
+
+
+def _normalize_finding_severity_filter(finding_severity: Optional[str]) -> Optional[str]:
+    if finding_severity is None:
+        return None
+    token = str(finding_severity or "").strip().lower()
+    if not token:
+        return None
+    if token not in FINDING_SEVERITY_FILTER_VALUES:
         return token
     return token
 
@@ -116,6 +140,41 @@ def _job_grounding_risk_level(job: Dict[str, Any]) -> str:
         if str(item.get("citation_type") or "").strip() == "fallback_namespace":
             fallback_count += 1
     return _grounding_risk_level(fallback_count=fallback_count, citation_count=citation_count)
+
+
+def _job_critic_findings(job: Dict[str, Any]) -> list[Dict[str, Any]]:
+    state = job.get("state")
+    state_dict = state if isinstance(state, dict) else {}
+    critic_notes = state_dict.get("critic_notes")
+    critic_notes_dict = critic_notes if isinstance(critic_notes, dict) else {}
+    raw_flaws = critic_notes_dict.get("fatal_flaws")
+    if not isinstance(raw_flaws, list):
+        return []
+    return normalize_findings(raw_flaws, default_source="rules")
+
+
+def _job_matches_finding_filters(
+    job: Dict[str, Any],
+    *,
+    finding_status_filter: Optional[str],
+    finding_severity_filter: Optional[str],
+) -> bool:
+    if finding_status_filter is None and finding_severity_filter is None:
+        return True
+    findings = _job_critic_findings(job)
+    if not findings:
+        return False
+    for row in findings:
+        if not isinstance(row, dict):
+            continue
+        status = str(row.get("status") or "open").strip().lower()
+        severity = str(row.get("severity") or "medium").strip().lower()
+        if finding_status_filter is not None and status != finding_status_filter:
+            continue
+        if finding_severity_filter is not None and severity != finding_severity_filter:
+            continue
+        return True
+    return False
 
 
 def sanitize_for_public_response(value: Any) -> Any:
@@ -1007,9 +1066,13 @@ def public_portfolio_quality_payload(
     hitl_enabled: Optional[bool] = None,
     warning_level: Optional[str] = None,
     grounding_risk_level: Optional[str] = None,
+    finding_status: Optional[str] = None,
+    finding_severity: Optional[str] = None,
 ) -> Dict[str, Any]:
     warning_level_filter = _normalize_warning_level_filter(warning_level)
     grounding_risk_filter = _normalize_grounding_risk_filter(grounding_risk_level)
+    finding_status_filter = _normalize_finding_status_filter(finding_status)
+    finding_severity_filter = _normalize_finding_severity_filter(finding_severity)
     filtered: list[tuple[str, Dict[str, Any]]] = []
     for job_id, job in jobs_by_id.items():
         if not isinstance(job, dict):
@@ -1029,12 +1092,20 @@ def public_portfolio_quality_payload(
             continue
         if grounding_risk_filter is not None and _job_grounding_risk_level(job) != grounding_risk_filter:
             continue
+        if not _job_matches_finding_filters(
+            job,
+            finding_status_filter=finding_status_filter,
+            finding_severity_filter=finding_severity_filter,
+        ):
+            continue
         filtered.append((str(job_id), job))
 
     status_counts: Dict[str, int] = {}
     donor_counts: Dict[str, int] = {}
     warning_level_counts: Dict[str, int] = {}
     grounding_risk_counts: Dict[str, int] = {}
+    finding_status_counts: Dict[str, int] = {}
+    finding_severity_counts: Dict[str, int] = {}
     donor_needs_revision_counts: Dict[str, int] = {}
     donor_open_findings_counts: Dict[str, int] = {}
     donor_weighted_risk_breakdown: Dict[str, Dict[str, Any]] = {}
@@ -1063,6 +1134,22 @@ def public_portfolio_quality_payload(
         open_findings = int(critic_summary.get("open_finding_count") or 0)
         if open_findings > 0:
             donor_open_findings_counts[job_donor] = donor_open_findings_counts.get(job_donor, 0) + open_findings
+        finding_status_counts["open"] = int(finding_status_counts.get("open", 0)) + open_findings
+        finding_status_counts["acknowledged"] = int(finding_status_counts.get("acknowledged", 0)) + int(
+            critic_summary.get("acknowledged_finding_count") or 0
+        )
+        finding_status_counts["resolved"] = int(finding_status_counts.get("resolved", 0)) + int(
+            critic_summary.get("resolved_finding_count") or 0
+        )
+        finding_severity_counts["high"] = int(finding_severity_counts.get("high", 0)) + int(
+            critic_summary.get("high_severity_fatal_flaw_count") or 0
+        )
+        finding_severity_counts["medium"] = int(finding_severity_counts.get("medium", 0)) + int(
+            critic_summary.get("medium_severity_fatal_flaw_count") or 0
+        )
+        finding_severity_counts["low"] = int(finding_severity_counts.get("low", 0)) + int(
+            critic_summary.get("low_severity_fatal_flaw_count") or 0
+        )
 
     def _avg(rows: list[Dict[str, Any]], key: str) -> Optional[float]:
         values = [float(row[key]) for row in rows if isinstance(row.get(key), (int, float))]
@@ -1351,10 +1438,14 @@ def public_portfolio_quality_payload(
             "hitl_enabled": hitl_enabled,
             "warning_level": warning_level_filter,
             "grounding_risk_level": grounding_risk_filter,
+            "finding_status": finding_status_filter,
+            "finding_severity": finding_severity_filter,
         },
         "status_counts": status_counts,
         "donor_counts": donor_counts,
         "warning_level_counts": warning_level_counts,
+        "finding_status_counts": finding_status_counts,
+        "finding_severity_counts": finding_severity_counts,
         "warning_level_job_counts": warning_level_job_counts,
         "warning_level_job_rates": warning_level_job_rates,
         "grounding_risk_counts": grounding_risk_counts,

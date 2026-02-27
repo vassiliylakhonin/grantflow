@@ -103,9 +103,12 @@ def normalize_finding_item(
 
     if status == "open":
         normalized.pop("acknowledged_at", None)
+        normalized.pop("acknowledged_by", None)
         normalized.pop("resolved_at", None)
+        normalized.pop("resolved_by", None)
     elif status == "acknowledged":
         normalized.pop("resolved_at", None)
+        normalized.pop("resolved_by", None)
     elif status == "resolved":
         pass
     return normalized

@@ -124,6 +124,8 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_strict_preflight" in body
     assert "grantflow_demo_portfolio_warning_level" in body
     assert "grantflow_demo_portfolio_grounding_risk_level" in body
+    assert "grantflow_demo_portfolio_finding_status" in body
+    assert "grantflow_demo_portfolio_finding_severity" in body
     assert "grantflow_demo_export_gzip_enabled" in body
     assert "generatePreflightAlert" in body
     assert "generatePreflightAlertTitle" in body
@@ -132,6 +134,8 @@ def test_demo_console_page_loads():
     assert "portfolioClearBtn" in body
     assert "portfolioWarningLevelFilter" in body
     assert "portfolioGroundingRiskLevelFilter" in body
+    assert "portfolioFindingStatusFilter" in body
+    assert "portfolioFindingSeverityFilter" in body
     assert "/portfolio/quality" in body
     assert "/portfolio/metrics/export" in body
     assert "/portfolio/quality/export" in body
@@ -143,6 +147,8 @@ def test_demo_console_page_loads():
     assert "portfolioQualityOpenFindingsList" in body
     assert "portfolioQualityWarningLevelsList" in body
     assert "portfolioQualityGroundingRiskLevelsList" in body
+    assert "portfolioQualityFindingStatusList" in body
+    assert "portfolioQualityFindingSeverityList" in body
     assert "portfolioQualityGroundingRiskList" in body
     assert "portfolioQualityPrioritySignalsList" in body
     assert "portfolioQualityWeightedDonorsList" in body
@@ -170,6 +176,8 @@ def test_demo_console_page_loads():
     assert "portfolioQualityAdvisoryAppliedList" in body
     assert "portfolioQualityAdvisoryRejectedReasonsList" in body
     assert "portfolioQualityJson" in body
+    assert 'params.set("finding_status",' in body
+    assert 'params.set("finding_severity",' in body
     assert "copyPortfolioMetricsJsonBtn" in body
     assert "downloadPortfolioMetricsJsonBtn" in body
     assert "downloadPortfolioMetricsCsvBtn" in body
@@ -694,13 +702,19 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     finding = critic_body["fatal_flaws"][0]
     finding_id = finding["finding_id"]
 
-    ack_resp = client.post(f"/status/{job_id}/critic/findings/{finding_id}/ack")
+    ack_resp = client.post(
+        f"/status/{job_id}/critic/findings/{finding_id}/ack",
+        headers={"X-Reviewer": "qa_reviewer"},
+    )
     assert ack_resp.status_code == 200
     ack_body = ack_resp.json()
     assert ack_body["id"] == finding_id
     assert ack_body["finding_id"] == finding_id
     assert ack_body["status"] == "acknowledged"
     assert ack_body.get("acknowledged_at")
+    assert ack_body.get("updated_at")
+    assert ack_body.get("updated_by") == "qa_reviewer"
+    assert ack_body.get("acknowledged_by") == "qa_reviewer"
 
     comment_resp = client.post(
         f"/status/{job_id}/comments",
@@ -720,13 +734,20 @@ def test_status_critic_findings_can_be_acknowledged_resolved_and_linked_to_comme
     linked_finding = next(f for f in critic_body_2["fatal_flaws"] if f["finding_id"] == finding_id)
     assert comment_body["comment_id"] in (linked_finding.get("linked_comment_ids") or [])
 
-    resolve_resp = client.post(f"/status/{job_id}/critic/findings/{finding_id}/resolve")
+    resolve_resp = client.post(
+        f"/status/{job_id}/critic/findings/{finding_id}/resolve",
+        headers={"X-User": "qa_resolver"},
+    )
     assert resolve_resp.status_code == 200
     resolve_body = resolve_resp.json()
     assert resolve_body["id"] == finding_id
     assert resolve_body["finding_id"] == finding_id
     assert resolve_body["status"] == "resolved"
     assert resolve_body.get("resolved_at")
+    assert resolve_body.get("updated_at")
+    assert resolve_body.get("updated_by") == "qa_resolver"
+    assert resolve_body.get("acknowledged_by") == "qa_reviewer"
+    assert resolve_body.get("resolved_by") == "qa_resolver"
 
 
 def test_status_critic_normalizes_legacy_string_findings_into_entities():
@@ -1964,6 +1985,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["filters"]["donor_id"] == "usaid"
     assert body["filters"]["status"] == "done"
     assert body["filters"]["hitl_enabled"] is True
+    assert body["filters"].get("finding_status") is None
+    assert body["filters"].get("finding_severity") is None
     assert body["warning_level_counts"]["medium"] >= 1
     assert body["warning_level_counts"]["low"] >= 1
     assert body["warning_level_high_job_count"] >= 0
@@ -2073,6 +2096,12 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     }
     assert body["donor_needs_revision_counts"]["usaid"] >= 1
     assert body["donor_open_findings_counts"]["usaid"] >= 1
+    assert body["finding_status_counts"]["open"] >= 1
+    assert body["finding_status_counts"]["acknowledged"] >= 0
+    assert body["finding_status_counts"]["resolved"] >= 0
+    assert body["finding_severity_counts"]["high"] >= 1
+    assert body["finding_severity_counts"]["medium"] >= 1
+    assert body["finding_severity_counts"]["low"] >= 0
     assert "eu" not in body["donor_counts"]
 
     warning_filtered = client.get("/portfolio/quality", params={"warning_level": "high"})
@@ -2093,11 +2122,32 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert grounding_filtered_body["grounding_risk_job_counts"]["medium"] == 0
     assert grounding_filtered_body["grounding_risk_job_counts"]["low"] == 0
 
+    finding_status_filtered = client.get("/portfolio/quality", params={"finding_status": "acknowledged"})
+    assert finding_status_filtered.status_code == 200
+    finding_status_filtered_body = finding_status_filtered.json()
+    assert finding_status_filtered_body["filters"]["finding_status"] == "acknowledged"
+    assert finding_status_filtered_body["job_count"] >= 1
+    assert finding_status_filtered_body["finding_status_counts"]["acknowledged"] >= 1
+
+    finding_severity_filtered = client.get("/portfolio/quality", params={"finding_severity": "high"})
+    assert finding_severity_filtered.status_code == 200
+    finding_severity_filtered_body = finding_severity_filtered.json()
+    assert finding_severity_filtered_body["filters"]["finding_severity"] == "high"
+    assert finding_severity_filtered_body["job_count"] >= 1
+    assert finding_severity_filtered_body["finding_severity_counts"]["high"] >= 1
+
 
 def test_portfolio_quality_export_endpoint_returns_csv():
     response = client.get(
         "/portfolio/quality/export",
-        params={"donor_id": "usaid", "status": "done", "grounding_risk_level": "high", "format": "csv"},
+        params={
+            "donor_id": "usaid",
+            "status": "done",
+            "grounding_risk_level": "high",
+            "finding_status": "open",
+            "finding_severity": "high",
+            "format": "csv",
+        },
     )
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/csv")
@@ -2110,6 +2160,8 @@ def test_portfolio_quality_export_endpoint_returns_csv():
     assert "filters.donor_id,usaid" in body
     assert "filters.status,done" in body
     assert "filters.grounding_risk_level,high" in body
+    assert "filters.finding_status,open" in body
+    assert "filters.finding_severity,high" in body
     assert "severity_weighted_risk_score," in body
     assert "priority_signal_breakdown.high_severity_findings_total.weight," in body
 

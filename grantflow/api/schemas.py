@@ -178,8 +178,12 @@ class CriticFatalFlawPublicResponse(BaseModel):
     fix_suggestion: Optional[str] = None
     fix_hint: Optional[str] = None
     source: Optional[str] = None
+    updated_at: Optional[str] = None
+    updated_by: Optional[str] = None
     acknowledged_at: Optional[str] = None
+    acknowledged_by: Optional[str] = None
     resolved_at: Optional[str] = None
+    resolved_by: Optional[str] = None
     linked_comment_ids: Optional[list[str]] = None
 
     model_config = ConfigDict(extra="allow")
@@ -305,6 +309,8 @@ class PortfolioMetricsFiltersPublicResponse(BaseModel):
     hitl_enabled: Optional[bool] = None
     warning_level: Optional[str] = None
     grounding_risk_level: Optional[str] = None
+    finding_status: Optional[str] = None
+    finding_severity: Optional[str] = None
 
     model_config = ConfigDict(extra="allow")
 

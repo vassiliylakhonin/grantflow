@@ -465,7 +465,7 @@ def render_demo_ui_html() -> str:
                 </select>
               </div>
             </div>
-            <div class="row" style="margin-top:10px;">
+            <div class="row3" style="margin-top:10px;">
               <div>
                 <label for="portfolioGroundingRiskLevelFilter">Grounding Risk</label>
                 <select id="portfolioGroundingRiskLevelFilter">
@@ -476,7 +476,24 @@ def render_demo_ui_html() -> str:
                   <option value="unknown">unknown</option>
                 </select>
               </div>
-              <div></div>
+              <div>
+                <label for="portfolioFindingStatusFilter">Finding Status</label>
+                <select id="portfolioFindingStatusFilter">
+                  <option value="">all</option>
+                  <option value="open">open</option>
+                  <option value="acknowledged">acknowledged</option>
+                  <option value="resolved">resolved</option>
+                </select>
+              </div>
+              <div>
+                <label for="portfolioFindingSeverityFilter">Finding Severity</label>
+                <select id="portfolioFindingSeverityFilter">
+                  <option value="">all</option>
+                  <option value="high">high</option>
+                  <option value="medium">medium</option>
+                  <option value="low">low</option>
+                </select>
+              </div>
             </div>
             <div class="row" style="margin-top:10px;">
               <button id="portfolioBtn" class="ghost">Load Portfolio Metrics</button>
@@ -597,6 +614,16 @@ def render_demo_ui_html() -> str:
               <div>
                 <label>Grounding Risk Levels</label>
                 <div class="list" id="portfolioQualityGroundingRiskLevelsList"></div>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Finding Status</label>
+                <div class="list" id="portfolioQualityFindingStatusList"></div>
+              </div>
+              <div>
+                <label>Finding Severity</label>
+                <div class="list" id="portfolioQualityFindingSeverityList"></div>
               </div>
             </div>
             <div class="row" style="margin-top:10px;">
@@ -908,6 +935,8 @@ def render_demo_ui_html() -> str:
         ["portfolioHitlFilter", "grantflow_demo_portfolio_hitl"],
         ["portfolioWarningLevelFilter", "grantflow_demo_portfolio_warning_level"],
         ["portfolioGroundingRiskLevelFilter", "grantflow_demo_portfolio_grounding_risk_level"],
+        ["portfolioFindingStatusFilter", "grantflow_demo_portfolio_finding_status"],
+        ["portfolioFindingSeverityFilter", "grantflow_demo_portfolio_finding_severity"],
         ["exportGzipEnabled", "grantflow_demo_export_gzip_enabled"],
         ["commentsFilterSection", "grantflow_demo_comments_filter_section"],
         ["commentsFilterStatus", "grantflow_demo_comments_filter_status"],
@@ -1160,6 +1189,8 @@ def render_demo_ui_html() -> str:
         portfolioQualityOpenFindingsList: $("portfolioQualityOpenFindingsList"),
         portfolioQualityWarningLevelsList: $("portfolioQualityWarningLevelsList"),
         portfolioQualityGroundingRiskLevelsList: $("portfolioQualityGroundingRiskLevelsList"),
+        portfolioQualityFindingStatusList: $("portfolioQualityFindingStatusList"),
+        portfolioQualityFindingSeverityList: $("portfolioQualityFindingSeverityList"),
         portfolioQualityGroundingRiskList: $("portfolioQualityGroundingRiskList"),
         portfolioQualityPrioritySignalsList: $("portfolioQualityPrioritySignalsList"),
         portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
@@ -1184,6 +1215,8 @@ def render_demo_ui_html() -> str:
         portfolioHitlFilter: $("portfolioHitlFilter"),
         portfolioWarningLevelFilter: $("portfolioWarningLevelFilter"),
         portfolioGroundingRiskLevelFilter: $("portfolioGroundingRiskLevelFilter"),
+        portfolioFindingStatusFilter: $("portfolioFindingStatusFilter"),
+        portfolioFindingSeverityFilter: $("portfolioFindingSeverityFilter"),
         exportGzipEnabled: $("exportGzipEnabled"),
         commentsFilterSection: $("commentsFilterSection"),
         commentsFilterStatus: $("commentsFilterStatus"),
@@ -1282,6 +1315,8 @@ def render_demo_ui_html() -> str:
         els.portfolioHitlFilter.value = "";
         els.portfolioWarningLevelFilter.value = "";
         els.portfolioGroundingRiskLevelFilter.value = "";
+        els.portfolioFindingStatusFilter.value = "";
+        els.portfolioFindingSeverityFilter.value = "";
         persistUiState();
       }
 
@@ -3198,6 +3233,18 @@ def render_demo_ui_html() -> str:
         refreshPortfolioBundle().catch(showError);
       }
 
+      function applyPortfolioFindingStatusFilter(findingStatusValue) {
+        els.portfolioFindingStatusFilter.value = findingStatusValue || "";
+        persistUiState();
+        refreshPortfolioBundle().catch(showError);
+      }
+
+      function applyPortfolioFindingSeverityFilter(findingSeverityValue) {
+        els.portfolioFindingSeverityFilter.value = findingSeverityValue || "";
+        persistUiState();
+        refreshPortfolioBundle().catch(showError);
+      }
+
       function buildPortfolioFilterQueryString() {
         const params = new URLSearchParams();
         if (els.portfolioDonorFilter.value.trim()) params.set("donor_id", els.portfolioDonorFilter.value.trim());
@@ -3206,6 +3253,12 @@ def render_demo_ui_html() -> str:
         if (els.portfolioWarningLevelFilter.value) params.set("warning_level", els.portfolioWarningLevelFilter.value);
         if (els.portfolioGroundingRiskLevelFilter.value) {
           params.set("grounding_risk_level", els.portfolioGroundingRiskLevelFilter.value);
+        }
+        if (els.portfolioFindingStatusFilter.value) {
+          params.set("finding_status", els.portfolioFindingStatusFilter.value);
+        }
+        if (els.portfolioFindingSeverityFilter.value) {
+          params.set("finding_severity", els.portfolioFindingSeverityFilter.value);
         }
         const q = params.toString();
         return q ? `?${q}` : "";
@@ -3312,6 +3365,20 @@ def render_demo_ui_html() -> str:
           "No grounding-risk level data yet.",
           (groundingRiskLevel) => applyPortfolioGroundingRiskLevelFilter(groundingRiskLevel),
           ["high", "medium", "low", "unknown"]
+        );
+        renderKeyValueList(
+          els.portfolioQualityFindingStatusList,
+          body.finding_status_counts,
+          "No finding-status data yet.",
+          8,
+          (statusKey) => applyPortfolioFindingStatusFilter(statusKey)
+        );
+        renderKeyValueList(
+          els.portfolioQualityFindingSeverityList,
+          body.finding_severity_counts,
+          "No finding-severity data yet.",
+          8,
+          (severityKey) => applyPortfolioFindingSeverityFilter(severityKey)
         );
         renderDonorGroundingRiskList(
           els.portfolioQualityGroundingRiskList,
@@ -3807,6 +3874,12 @@ def render_demo_ui_html() -> str:
         });
         els.portfolioGroundingRiskLevelFilter.addEventListener("change", () => {
           applyPortfolioGroundingRiskLevelFilter(els.portfolioGroundingRiskLevelFilter.value);
+        });
+        els.portfolioFindingStatusFilter.addEventListener("change", () => {
+          applyPortfolioFindingStatusFilter(els.portfolioFindingStatusFilter.value);
+        });
+        els.portfolioFindingSeverityFilter.addEventListener("change", () => {
+          applyPortfolioFindingSeverityFilter(els.portfolioFindingSeverityFilter.value);
         });
         els.portfolioDonorFilter.addEventListener("change", () => {
           persistUiState();

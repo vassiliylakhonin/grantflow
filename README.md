@@ -185,7 +185,7 @@ curl -s -X POST http://127.0.0.1:8000/export \
 - `GET /portfolio/metrics` and `/portfolio/metrics/export` support filters:
   - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`
 - `GET /portfolio/quality` and `/portfolio/quality/export` support filters:
-  - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`
+  - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `finding_status`, `finding_severity`
 - `POST /hitl/approve`, `GET /hitl/pending`
 - `POST /ingest`, `GET /ingest/recent`, `GET /ingest/inventory`, `GET /ingest/inventory/export`
 - `POST /export`

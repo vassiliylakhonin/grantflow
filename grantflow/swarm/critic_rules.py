@@ -22,8 +22,12 @@ class CriticFatalFlaw(BaseModel):
     rationale: Optional[str] = Field(default=None, description="Why this finding matters")
     fix_suggestion: Optional[str] = Field(default=None, description="Suggested remediation")
     fix_hint: Optional[str] = Field(default=None, description="Suggested fix")
+    updated_at: Optional[str] = Field(default=None, description="Timestamp when finding was last updated")
+    updated_by: Optional[str] = Field(default=None, description="Actor who last updated finding status")
     acknowledged_at: Optional[str] = Field(default=None, description="Timestamp when acknowledged")
+    acknowledged_by: Optional[str] = Field(default=None, description="Actor who acknowledged finding")
     resolved_at: Optional[str] = Field(default=None, description="Timestamp when resolved")
+    resolved_by: Optional[str] = Field(default=None, description="Actor who resolved finding")
     source: str = Field(default="rules", description="rules or llm")
 
 
