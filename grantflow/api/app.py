@@ -106,6 +106,7 @@ GENERATE_PREFLIGHT_DEFAULT_DOC_FAMILIES: dict[str, list[str]] = {
     "state_department": ["donor_policy", "country_context", "risk_context"],
     "us_state_department": ["donor_policy", "country_context", "risk_context"],
 }
+GROUNDING_POLICY_MODES = {"off", "warn", "strict"}
 
 
 def _utcnow_iso() -> str:
@@ -262,6 +263,64 @@ def _preflight_severity_max(severities: list[str]) -> str:
     return best
 
 
+def _normalize_grounding_policy_mode(raw_mode: Any) -> str:
+    mode = str(raw_mode or "warn").strip().lower()
+    if mode not in GROUNDING_POLICY_MODES:
+        return "warn"
+    return mode
+
+
+def _build_preflight_grounding_policy(
+    *,
+    coverage_rate: Optional[float],
+    namespace_empty: bool,
+    inventory_total_uploads: int,
+    missing_doc_families: list[str],
+) -> Dict[str, Any]:
+    mode = _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn"))
+    reasons: list[str] = []
+    risk_level = "low"
+
+    if namespace_empty:
+        reasons.append("namespace_empty")
+        risk_level = "high"
+
+    if coverage_rate is not None:
+        if coverage_rate < 0.5:
+            reasons.append("coverage_below_50pct")
+            risk_level = "high"
+        elif coverage_rate < 0.8 and risk_level != "high":
+            reasons.append("coverage_below_80pct")
+            risk_level = "medium"
+
+    if inventory_total_uploads > 0 and inventory_total_uploads < 3 and risk_level == "low":
+        reasons.append("few_uploaded_documents")
+        risk_level = "medium"
+
+    if missing_doc_families and risk_level == "low":
+        reasons.append("recommended_doc_families_missing")
+        risk_level = "medium"
+
+    if not reasons:
+        reasons.append("sufficient_readiness_signals")
+
+    blocking = mode == "strict" and risk_level == "high"
+    summary = (
+        "namespace_empty_or_low_coverage"
+        if risk_level == "high"
+        else "partial_readiness_signals" if risk_level == "medium" else "readiness_signals_ok"
+    )
+
+    return {
+        "mode": mode,
+        "risk_level": risk_level,
+        "reasons": reasons,
+        "summary": summary,
+        "blocking": blocking,
+        "go_ahead": not blocking,
+    }
+
+
 def _build_generate_preflight(
     *,
     donor_id: str,
@@ -309,6 +368,14 @@ def _build_generate_preflight(
             }
         )
     risk_level = _preflight_severity_max([str(row.get("severity") or "low") for row in warnings])
+    grounding_policy = _build_preflight_grounding_policy(
+        coverage_rate=coverage_rate,
+        namespace_empty=namespace_empty,
+        inventory_total_uploads=inventory_total_uploads,
+        missing_doc_families=missing_doc_families,
+    )
+    grounding_risk_level = str(grounding_policy.get("risk_level") or "low")
+    blocking = bool(grounding_policy.get("blocking"))
     return {
         "donor_id": donor_id,
         "retrieval_namespace": namespace,
@@ -325,7 +392,9 @@ def _build_generate_preflight(
         "warning_count": len(warnings),
         "warning_level": risk_level,
         "risk_level": risk_level,
-        "go_ahead": risk_level != "high",
+        "grounding_risk_level": grounding_risk_level,
+        "grounding_policy": grounding_policy,
+        "go_ahead": risk_level != "high" and not blocking,
         "warnings": warnings,
     }
 
@@ -1195,12 +1264,40 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         strategy=strategy,
         client_metadata=client_metadata,
     )
+    grounding_policy = preflight.get("grounding_policy") if isinstance(preflight.get("grounding_policy"), dict) else {}
+    if bool(grounding_policy.get("blocking")):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "preflight_grounding_policy_block",
+                "message": "Generation blocked by strict grounding policy before pipeline start.",
+                "preflight": preflight,
+            },
+        )
+    preflight_risk_high = str(preflight.get("risk_level") or "").lower() == "high"
+    grounding_risk_high = str(preflight.get("grounding_risk_level") or "").lower() == "high"
     if req.strict_preflight and str(preflight.get("risk_level") or "").lower() == "high":
+        strict_reasons = []
+        if preflight_risk_high:
+            strict_reasons.append("readiness_risk_high")
+        if grounding_risk_high:
+            strict_reasons.append("grounding_risk_high")
         raise HTTPException(
             status_code=409,
             detail={
                 "reason": "preflight_high_risk_block",
                 "message": "Generation blocked by strict_preflight because donor readiness risk is high.",
+                "strict_reasons": strict_reasons,
+                "preflight": preflight,
+            },
+        )
+    if req.strict_preflight and grounding_risk_high:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "preflight_high_risk_block",
+                "message": "Generation blocked by strict_preflight because predicted grounding risk is high.",
+                "strict_reasons": ["grounding_risk_high"],
                 "preflight": preflight,
             },
         )
@@ -1240,9 +1337,12 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         job_id,
         "generate_preflight_evaluated",
         risk_level=str(preflight.get("risk_level") or "none"),
+        grounding_risk_level=str(preflight.get("grounding_risk_level") or "none"),
         warning_count=int(preflight.get("warning_count") or 0),
         retrieval_namespace=preflight.get("retrieval_namespace"),
         namespace_empty=bool(preflight.get("namespace_empty")),
+        grounding_policy_mode=str(grounding_policy.get("mode") or ""),
+        grounding_policy_blocking=bool(grounding_policy.get("blocking")),
     )
     if req.hitl_enabled:
         background_tasks.add_task(_run_hitl_pipeline, job_id, initial_state, "start")

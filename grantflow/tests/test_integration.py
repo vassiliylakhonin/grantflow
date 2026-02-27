@@ -117,6 +117,9 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_diff_section" in body
     assert "grantflow_demo_strict_preflight" in body
     assert "grantflow_demo_portfolio_warning_level" in body
+    assert "generatePreflightAlert" in body
+    assert "generatePreflightAlertTitle" in body
+    assert "generatePreflightAlertBody" in body
     assert "portfolioBtn" in body
     assert "portfolioClearBtn" in body
     assert "portfolioWarningLevelFilter" in body
@@ -212,6 +215,12 @@ def test_generate_preflight_reports_high_risk_when_namespace_empty():
     assert body["donor_id"] == "usaid"
     assert body["namespace_empty"] is True
     assert body["risk_level"] == "high"
+    assert body["grounding_risk_level"] == "high"
+    grounding_policy = body.get("grounding_policy") or {}
+    assert grounding_policy["mode"] in {"warn", "strict", "off"}
+    assert grounding_policy["risk_level"] == "high"
+    assert grounding_policy["go_ahead"] in {True, False}
+    assert isinstance(grounding_policy.get("reasons"), list)
     assert body["go_ahead"] is False
     assert body["loaded_count"] == 0
     assert body["expected_count"] >= 1
@@ -238,6 +247,8 @@ def test_generate_response_and_status_include_preflight_payload():
     assert isinstance(preflight, dict)
     assert preflight["donor_id"] == "usaid"
     assert preflight["risk_level"] == "high"
+    assert preflight["grounding_risk_level"] == "high"
+    assert isinstance(preflight.get("grounding_policy"), dict)
 
     status = _wait_for_terminal_status(data["job_id"])
     assert status["generate_preflight"] == preflight
@@ -263,6 +274,8 @@ def test_generate_strict_preflight_blocks_when_risk_is_high():
     detail = response.json()["detail"]
     assert detail["reason"] == "preflight_high_risk_block"
     assert detail["preflight"]["risk_level"] == "high"
+    assert detail["preflight"]["grounding_risk_level"] == "high"
+    assert "strict_reasons" in detail
     assert detail["preflight"]["go_ahead"] is False
 
 
@@ -292,6 +305,69 @@ def test_generate_strict_preflight_allows_when_risk_is_not_high(monkeypatch):
     )
     assert response.status_code == 200
     assert response.json()["status"] == "accepted"
+
+
+def test_generate_strict_preflight_blocks_when_grounding_risk_is_high(monkeypatch):
+    monkeypatch.setattr(
+        api_app_module,
+        "_build_generate_preflight",
+        lambda donor_id, strategy, client_metadata: {
+            "donor_id": donor_id,
+            "risk_level": "medium",
+            "grounding_risk_level": "high",
+            "go_ahead": True,
+            "warning_count": 1,
+            "retrieval_namespace": "usaid_ads201",
+            "namespace_empty": False,
+            "warnings": [{"code": "LOW_DOC_COVERAGE", "severity": "medium"}],
+            "grounding_policy": {
+                "mode": "warn",
+                "risk_level": "high",
+                "blocking": False,
+                "go_ahead": True,
+                "summary": "namespace_empty_or_low_coverage",
+                "reasons": ["coverage_below_50pct"],
+            },
+        },
+    )
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+            "strict_preflight": True,
+        },
+    )
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["reason"] == "preflight_high_risk_block"
+    assert "grounding_risk_high" in (detail.get("strict_reasons") or [])
+    assert detail["preflight"]["risk_level"] == "medium"
+    assert detail["preflight"]["grounding_risk_level"] == "high"
+
+
+def test_generate_blocks_when_preflight_grounding_policy_is_strict(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "strict")
+    api_app_module.INGEST_AUDIT_STORE.clear()
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+            "strict_preflight": False,
+        },
+    )
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["reason"] == "preflight_grounding_policy_block"
+    assert detail["preflight"]["grounding_policy"]["mode"] == "strict"
+    assert detail["preflight"]["grounding_policy"]["blocking"] is True
+    assert detail["preflight"]["go_ahead"] is False
 
 
 def test_generate_basic_async_job_flow():
@@ -345,6 +421,28 @@ def test_generate_llm_mode_false_uses_non_llm_toc_engine():
 
 def test_strict_grounding_gate_blocks_job_finalization(monkeypatch):
     monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "strict")
+    monkeypatch.setattr(
+        api_app_module,
+        "_build_generate_preflight",
+        lambda donor_id, strategy, client_metadata: {
+            "donor_id": donor_id,
+            "risk_level": "low",
+            "grounding_risk_level": "low",
+            "go_ahead": True,
+            "warning_count": 0,
+            "warnings": [],
+            "retrieval_namespace": "usaid_ads201",
+            "namespace_empty": False,
+            "grounding_policy": {
+                "mode": "strict",
+                "risk_level": "low",
+                "blocking": False,
+                "go_ahead": True,
+                "summary": "readiness_signals_ok",
+                "reasons": ["sufficient_readiness_signals"],
+            },
+        },
+    )
     monkeypatch.setattr(
         api_app_module.vector_store,
         "query",

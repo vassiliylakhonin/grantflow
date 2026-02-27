@@ -143,6 +143,8 @@ def render_demo_ui_html() -> str:
     .item .title { font-weight: 600; margin-bottom: 4px; }
     .item .sub { color: var(--muted); font-size: .82rem; }
     .footer-note { color: var(--muted); font-size: .8rem; margin-top: 8px; }
+    .preflight-alert { margin-top: 10px; }
+    .preflight-alert .sub { color: inherit; }
     .hidden { display: none !important; }
     .blink-in { animation: fadeSlide .25s ease; }
     @keyframes fadeSlide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
@@ -249,6 +251,10 @@ def render_demo_ui_html() -> str:
                 <input id="skipZeroReadinessWarningCheckbox" type="checkbox" />
                 <span id="skipZeroReadinessWarningLabel">Don't ask again for this preset</span>
               </label>
+            </div>
+            <div id="generatePreflightAlert" class="item preflight-alert severity-low hidden">
+              <div id="generatePreflightAlertTitle" class="title">Preflight alert</div>
+              <div id="generatePreflightAlertBody" class="sub">-</div>
             </div>
             <div style="margin-top:10px;">
               <label for="inputContextJson">Extra Input Context JSON (optional)</label>
@@ -1043,6 +1049,9 @@ def render_demo_ui_html() -> str:
         syncGenerateReadinessBtn: $("syncGenerateReadinessBtn"),
         skipZeroReadinessWarningCheckbox: $("skipZeroReadinessWarningCheckbox"),
         skipZeroReadinessWarningLabel: $("skipZeroReadinessWarningLabel"),
+        generatePreflightAlert: $("generatePreflightAlert"),
+        generatePreflightAlertTitle: $("generatePreflightAlertTitle"),
+        generatePreflightAlertBody: $("generatePreflightAlertBody"),
         diffSection: $("diffSection"),
         fromVersionId: $("fromVersionId"),
         toVersionId: $("toVersionId"),
@@ -1161,6 +1170,7 @@ def render_demo_ui_html() -> str:
         renderIngestChecklistProgress();
         renderGeneratePresetReadiness();
         renderZeroReadinessWarningPreference();
+        renderGeneratePreflightAlert(null);
         if (String(els.ingestPresetSelect.value || "").trim()) {
           syncIngestChecklistFromServer().catch(() => {});
         }
@@ -1206,6 +1216,7 @@ def render_demo_ui_html() -> str:
         persistUiState();
         if (state.lastCritic) renderCriticLists(state.lastCritic);
         if (state.lastCitations) renderCriticContextCitations();
+        renderGeneratePreflightAlert(null);
         renderGeneratePresetReadiness();
         await Promise.allSettled([refreshPortfolioBundle(), refreshComments(), refreshDiff()]);
       }
@@ -1763,6 +1774,7 @@ def render_demo_ui_html() -> str:
         const citations = summary?.citations || {};
         const readiness = summary?.readiness || {};
         const preflight = summary?.preflight || {};
+        renderGeneratePreflightAlert(preflight);
         const advisoryDiagnostics =
           critic && typeof critic.llm_advisory_diagnostics === "object" ? critic.llm_advisory_diagnostics : null;
         const strictPreflightValue =
@@ -1802,15 +1814,20 @@ def render_demo_ui_html() -> str:
               : "-";
           const warningCountLabel =
             typeof preflight?.warning_count === "number" ? String(preflight.warning_count) : "-";
+          const groundingRiskLabel = String(
+            preflight?.grounding_risk_level || preflight?.grounding_policy?.risk_level || "-"
+          );
+          const groundingPolicyMode = String(preflight?.grounding_policy?.mode || "-");
+          const groundingPolicyBlocking = Boolean(preflight?.grounding_policy?.blocking);
           preflightRiskNode.title =
             preflightRiskLevel === "-"
               ? "No preflight summary in this job"
-              : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel}`;
+              : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel} · grounding=${groundingRiskLabel} · policy=${groundingPolicyMode} · policy_blocking=${groundingPolicyBlocking}`;
           if (els.qualityPreflightMetaLine) {
             els.qualityPreflightMetaLine.textContent =
               preflightRiskLevel === "-"
                 ? "warning_count=- · coverage_rate=-"
-                : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel}`;
+                : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel} · grounding=${groundingRiskLabel}`;
           }
         }
         renderQualityAdvisoryBadge(advisoryDiagnostics);
@@ -2785,6 +2802,61 @@ def render_demo_ui_html() -> str:
           .replaceAll('"', "&quot;");
       }
 
+      function renderGeneratePreflightAlert(preflight) {
+        if (!els.generatePreflightAlert || !els.generatePreflightAlertTitle || !els.generatePreflightAlertBody) return;
+        const container = els.generatePreflightAlert;
+        const title = els.generatePreflightAlertTitle;
+        const body = els.generatePreflightAlertBody;
+
+        if (!preflight || typeof preflight !== "object") {
+          container.className = "item preflight-alert severity-low hidden";
+          title.textContent = "Preflight alert";
+          body.textContent = "-";
+          return;
+        }
+
+        const riskLevel = String(preflight.risk_level || "none").toLowerCase();
+        const groundingRiskLevel = String(
+          preflight.grounding_risk_level || preflight?.grounding_policy?.risk_level || "low"
+        ).toLowerCase();
+        const warningCount = Number(preflight.warning_count || 0);
+        const policy =
+          preflight.grounding_policy && typeof preflight.grounding_policy === "object"
+            ? preflight.grounding_policy
+            : {};
+        const policyMode = String(policy.mode || "warn").toLowerCase();
+        const policyBlocking = Boolean(policy.blocking);
+        const reasonTokens = Array.isArray(policy.reasons)
+          ? policy.reasons.map((r) => String(r || "").trim()).filter(Boolean).slice(0, 3)
+          : [];
+        const coverageLabel =
+          typeof preflight.coverage_rate === "number"
+            ? `${Math.round(Number(preflight.coverage_rate) * 100)}%`
+            : "-";
+
+        const showAlert = policyBlocking || warningCount > 0 || riskLevel === "high" || groundingRiskLevel === "high";
+        if (!showAlert) {
+          container.className = "item preflight-alert severity-low hidden";
+          title.textContent = "Preflight alert";
+          body.textContent = "-";
+          return;
+        }
+
+        let severity = "low";
+        if (policyBlocking || riskLevel === "high" || groundingRiskLevel === "high") severity = "high";
+        else if (riskLevel === "medium" || groundingRiskLevel === "medium") severity = "medium";
+
+        container.className = `item preflight-alert severity-${severity} blink-in`;
+        title.textContent =
+          policyBlocking
+            ? "Preflight blocked by grounding policy"
+            : `Preflight advisory (${severity})`;
+        body.textContent =
+          `risk=${riskLevel} · grounding=${groundingRiskLevel} · policy=${policyMode}` +
+          ` · coverage=${coverageLabel} · warnings=${warningCount}` +
+          (reasonTokens.length ? ` · reasons=${reasonTokens.join(",")}` : "");
+      }
+
       async function generateJob() {
         const readiness = getGeneratePresetReadinessStats();
         if (
@@ -2852,24 +2924,51 @@ def render_demo_ui_html() -> str:
             client_metadata: payload.client_metadata || null,
           }),
         });
-        if (preflight && String(preflight.risk_level || "").toLowerCase() === "high") {
+        renderGeneratePreflightAlert(preflight);
+        const preflightRiskLevel = String(preflight?.risk_level || "").toLowerCase();
+        const groundingRiskLevel = String(
+          preflight?.grounding_risk_level || preflight?.grounding_policy?.risk_level || ""
+        ).toLowerCase();
+        const groundingPolicy =
+          preflight?.grounding_policy && typeof preflight.grounding_policy === "object"
+            ? preflight.grounding_policy
+            : {};
+        const groundingPolicyBlocking = Boolean(groundingPolicy.blocking);
+
+        if (groundingPolicyBlocking) {
+          const policyReasons = Array.isArray(groundingPolicy.reasons)
+            ? groundingPolicy.reasons.map((r) => String(r || "").trim()).filter(Boolean).slice(0, 3).join(", ")
+            : "n/a";
+          throw new Error(
+            `Server preflight blocked by strict grounding policy (mode=${String(groundingPolicy.mode || "strict")}, reasons=${policyReasons}).`
+          );
+        }
+
+        if (payload.strict_preflight && (preflightRiskLevel === "high" || groundingRiskLevel === "high")) {
+          const strictTriggers = [];
+          if (preflightRiskLevel === "high") strictTriggers.push("readiness_risk_high");
+          if (groundingRiskLevel === "high") strictTriggers.push("grounding_risk_high");
+          throw new Error(
+            `Strict preflight is enabled and server preflight is blocking (${strictTriggers.join(", ")}).`
+          );
+        }
+
+        if (preflight && (preflightRiskLevel === "high" || groundingRiskLevel === "high")) {
           const warnings = Array.isArray(preflight.warnings) ? preflight.warnings : [];
           const warningPreview = warnings
             .slice(0, 3)
             .map((w) => String(w?.code || "WARNING"))
             .filter(Boolean)
             .join(", ");
+          const policyReasons = Array.isArray(groundingPolicy.reasons)
+            ? groundingPolicy.reasons.map((r) => String(r || "").trim()).filter(Boolean).slice(0, 3).join(", ")
+            : "";
           const coverageLabel =
             typeof preflight.coverage_rate === "number"
               ? `${Math.round(Number(preflight.coverage_rate) * 100)}%`
               : "-";
-          if (payload.strict_preflight) {
-            throw new Error(
-              `Strict preflight is enabled and server preflight risk is HIGH (coverage=${coverageLabel}, warnings=${warningPreview || "n/a"}).`
-            );
-          }
           const ok = window.confirm(
-            `Server preflight risk is HIGH (coverage=${coverageLabel}, warnings=${warningPreview || "n/a"}). Generate anyway?`
+            `Server preflight risk is elevated (risk=${preflightRiskLevel || "-"}, grounding=${groundingRiskLevel || "-"}, coverage=${coverageLabel}, warnings=${warningPreview || "n/a"}${policyReasons ? `, policy_reasons=${policyReasons}` : ""}). Generate anyway?`
           );
           if (!ok) return;
         }
