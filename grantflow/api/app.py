@@ -37,6 +37,7 @@ from grantflow.api.public_views import (
     public_portfolio_quality_payload,
 )
 from grantflow.api.schemas import (
+    CriticFindingsBulkStatusPublicResponse,
     CriticFatalFlawPublicResponse,
     HITLPendingListPublicResponse,
     IngestInventoryPublicResponse,
@@ -547,6 +548,17 @@ class JobCommentCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class CriticFindingsBulkStatusRequest(BaseModel):
+    next_status: str
+    apply_to_all: bool = False
+    finding_status: Optional[str] = None
+    severity: Optional[str] = None
+    section: Optional[str] = None
+    finding_ids: Optional[list[str]] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 def _resolve_export_inputs(
     req: ExportRequest,
 ) -> tuple[dict, dict, str, list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
@@ -730,30 +742,13 @@ def _set_critic_fatal_flaw_status(
         if current_finding_id != finding_id:
             next_flaws.append(current)
             continue
-        current["id"] = current_finding_id
-        current["finding_id"] = current_finding_id
-        current_status = str(current.get("status") or "open")
-        if current_status != next_status:
-            current["status"] = next_status
-            current["updated_at"] = now
-            current["updated_by"] = actor_value
-            if next_status == "acknowledged":
-                current["acknowledged_at"] = current.get("acknowledged_at") or now
-                current["acknowledged_by"] = actor_value
-                current.pop("resolved_at", None)
-                current.pop("resolved_by", None)
-            elif next_status == "resolved":
-                current["resolved_at"] = now
-                current["resolved_by"] = actor_value
-                if not current.get("acknowledged_at"):
-                    current["acknowledged_at"] = now
-                if not current.get("acknowledged_by"):
-                    current["acknowledged_by"] = actor_value
-            elif next_status == "open":
-                current.pop("acknowledged_at", None)
-                current.pop("acknowledged_by", None)
-                current.pop("resolved_at", None)
-                current.pop("resolved_by", None)
+        current, finding_changed = _apply_critic_finding_status_transition(
+            current,
+            next_status=next_status,
+            now=now,
+            actor_value=actor_value,
+        )
+        if finding_changed:
             changed = True
         updated_finding = current
         next_flaws.append(current)
@@ -779,6 +774,189 @@ def _set_critic_fatal_flaw_status(
         )
 
     return updated_finding
+
+
+def _apply_critic_finding_status_transition(
+    item: Dict[str, Any],
+    *,
+    next_status: str,
+    now: str,
+    actor_value: str,
+) -> tuple[Dict[str, Any], bool]:
+    current = dict(item)
+    current_finding_id = finding_primary_id(current)
+    if current_finding_id:
+        current["id"] = current_finding_id
+        current["finding_id"] = current_finding_id
+
+    current_status = str(current.get("status") or "open")
+    if current_status == next_status:
+        return current, False
+
+    current["status"] = next_status
+    current["updated_at"] = now
+    current["updated_by"] = actor_value
+    if next_status == "acknowledged":
+        current["acknowledged_at"] = current.get("acknowledged_at") or now
+        current["acknowledged_by"] = actor_value
+        current.pop("resolved_at", None)
+        current.pop("resolved_by", None)
+    elif next_status == "resolved":
+        current["resolved_at"] = now
+        current["resolved_by"] = actor_value
+        if not current.get("acknowledged_at"):
+            current["acknowledged_at"] = now
+        if not current.get("acknowledged_by"):
+            current["acknowledged_by"] = actor_value
+    elif next_status == "open":
+        current.pop("acknowledged_at", None)
+        current.pop("acknowledged_by", None)
+        current.pop("resolved_at", None)
+        current.pop("resolved_by", None)
+    return current, True
+
+
+def _set_critic_fatal_flaws_status_bulk(
+    job_id: str,
+    *,
+    next_status: str,
+    actor: Optional[str] = None,
+    apply_to_all: bool = False,
+    finding_status: Optional[str] = None,
+    severity: Optional[str] = None,
+    section: Optional[str] = None,
+    finding_ids: Optional[list[str]] = None,
+) -> Dict[str, Any]:
+    if next_status not in CRITIC_FINDING_STATUSES:
+        raise HTTPException(status_code=400, detail="Unsupported critic finding status")
+
+    finding_status_filter = str(finding_status or "").strip().lower() or None
+    if finding_status_filter and finding_status_filter not in CRITIC_FINDING_STATUSES:
+        raise HTTPException(status_code=400, detail="Unsupported finding_status filter")
+    severity_filter = str(severity or "").strip().lower() or None
+    if severity_filter and severity_filter not in {"high", "medium", "low"}:
+        raise HTTPException(status_code=400, detail="Unsupported severity filter")
+    section_filter = str(section or "").strip().lower() or None
+    if section_filter and section_filter not in {"toc", "logframe", "general"}:
+        raise HTTPException(status_code=400, detail="Unsupported section filter")
+
+    requested_finding_ids_raw = finding_ids if isinstance(finding_ids, list) else []
+    requested_finding_ids: list[str] = []
+    for item in requested_finding_ids_raw:
+        token = str(item or "").strip()
+        if not token:
+            continue
+        if token not in requested_finding_ids:
+            requested_finding_ids.append(token)
+    requested_finding_ids_set = set(requested_finding_ids)
+
+    has_selector = bool(requested_finding_ids or finding_status_filter or severity_filter or section_filter)
+    if not has_selector and not apply_to_all:
+        raise HTTPException(status_code=400, detail="Provide at least one selector or set apply_to_all=true")
+
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    state = job.get("state")
+    if not isinstance(state, dict):
+        raise HTTPException(status_code=404, detail="Critic findings not found")
+    critic_notes = state.get("critic_notes")
+    if not isinstance(critic_notes, dict):
+        raise HTTPException(status_code=404, detail="Critic findings not found")
+
+    raw_flaws = critic_notes.get("fatal_flaws")
+    flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
+    if not flaws:
+        raise HTTPException(status_code=404, detail="Critic findings not found")
+
+    available_ids = {finding_primary_id(item) for item in flaws if finding_primary_id(item)}
+    not_found_finding_ids = [item for item in requested_finding_ids if item not in available_ids]
+
+    now = _utcnow_iso()
+    actor_value = str(actor or "").strip() or "api_user"
+    batch_id = str(uuid.uuid4())
+
+    changed = False
+    changed_items: list[Dict[str, Any]] = []
+    matched_items: list[Dict[str, Any]] = []
+    next_flaws: list[Dict[str, Any]] = []
+
+    for item in flaws:
+        current = dict(item)
+        current_finding_id = finding_primary_id(current)
+        current_status = str(current.get("status") or "open").strip().lower()
+        current_severity = str(current.get("severity") or "").strip().lower()
+        current_section = str(current.get("section") or "").strip().lower()
+        if current_finding_id:
+            current["id"] = current_finding_id
+            current["finding_id"] = current_finding_id
+
+        match = bool(apply_to_all)
+        if not apply_to_all:
+            match = True
+            if requested_finding_ids_set and current_finding_id not in requested_finding_ids_set:
+                match = False
+            if finding_status_filter and current_status != finding_status_filter:
+                match = False
+            if severity_filter and current_severity != severity_filter:
+                match = False
+            if section_filter and current_section != section_filter:
+                match = False
+        if not match:
+            next_flaws.append(current)
+            continue
+
+        updated, finding_changed = _apply_critic_finding_status_transition(
+            current,
+            next_status=next_status,
+            now=now,
+            actor_value=actor_value,
+        )
+        matched_items.append(updated)
+        next_flaws.append(updated)
+        if finding_changed:
+            changed = True
+            changed_items.append(updated)
+
+    if changed:
+        next_notes = dict(critic_notes)
+        next_notes["fatal_flaws"] = next_flaws
+        next_state = dict(state)
+        next_state["critic_notes"] = next_notes
+        next_state["critic_fatal_flaws"] = next_flaws
+        _update_job(job_id, state=next_state)
+        for updated in changed_items:
+            _record_job_event(
+                job_id,
+                "critic_finding_status_changed",
+                finding_id=str(updated.get("id") or ""),
+                status=next_status,
+                section=updated.get("section"),
+                severity=updated.get("severity"),
+                actor=actor_value,
+                batch_id=batch_id,
+            )
+
+    matched_count = len(matched_items)
+    changed_count = len(changed_items)
+    return {
+        "job_id": str(job_id),
+        "status": str((job or {}).get("status") or ""),
+        "requested_status": next_status,
+        "actor": actor_value,
+        "matched_count": matched_count,
+        "changed_count": changed_count,
+        "unchanged_count": max(0, matched_count - changed_count),
+        "not_found_finding_ids": not_found_finding_ids,
+        "filters": {
+            "apply_to_all": bool(apply_to_all),
+            "finding_status": finding_status_filter,
+            "severity": severity_filter,
+            "section": section_filter,
+            "finding_ids": requested_finding_ids or None,
+        },
+        "updated_findings": matched_items,
+    }
 
 
 def _append_review_comment(
@@ -1720,6 +1898,26 @@ def resolve_status_critic_finding(job_id: str, finding_id: str, request: Request
         finding_id=finding_id,
         next_status="resolved",
         actor=_finding_actor_from_request(request),
+    )
+
+
+@app.post(
+    "/status/{job_id}/critic/findings/bulk-status",
+    response_model=CriticFindingsBulkStatusPublicResponse,
+    response_model_exclude_none=True,
+)
+def bulk_status_critic_findings(job_id: str, req: CriticFindingsBulkStatusRequest, request: Request):
+    require_api_key_if_configured(request)
+    next_status = str(req.next_status or "").strip().lower()
+    return _set_critic_fatal_flaws_status_bulk(
+        job_id,
+        next_status=next_status,
+        actor=_finding_actor_from_request(request),
+        apply_to_all=bool(req.apply_to_all),
+        finding_status=(req.finding_status or None),
+        severity=(req.severity or None),
+        section=(req.section or None),
+        finding_ids=req.finding_ids,
     )
 
 

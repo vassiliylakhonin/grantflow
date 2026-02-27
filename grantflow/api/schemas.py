@@ -211,6 +211,31 @@ class JobReviewWorkflowPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class CriticFindingsBulkStatusFiltersPublicResponse(BaseModel):
+    apply_to_all: bool = False
+    finding_status: Optional[str] = None
+    severity: Optional[str] = None
+    section: Optional[str] = None
+    finding_ids: Optional[list[str]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class CriticFindingsBulkStatusPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    requested_status: str
+    actor: str
+    matched_count: int
+    changed_count: int
+    unchanged_count: int
+    not_found_finding_ids: list[str]
+    filters: CriticFindingsBulkStatusFiltersPublicResponse
+    updated_findings: list[CriticFatalFlawPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class CriticRuleCheckPublicResponse(BaseModel):
     code: str
     status: str

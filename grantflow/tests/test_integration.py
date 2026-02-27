@@ -99,7 +99,15 @@ def test_demo_console_page_loads():
     assert "/status/${encodeURIComponent(jobId)}/export-payload" in body
     assert "/export" in body
     assert "criticSeverityFilter" in body
+    assert "criticFindingStatusFilter" in body
     assert "criticCitationConfidenceFilter" in body
+    assert "criticBulkTargetStatus" in body
+    assert "criticBulkScope" in body
+    assert "criticBulkApplyBtn" in body
+    assert "criticBulkClearFiltersBtn" in body
+    assert "criticBulkResultJson" in body
+    assert "Apply Bulk Status" in body
+    assert "Clear Critic Filters" in body
     assert "criticAdvisorySummaryList" in body
     assert "criticAdvisoryLabelsList" in body
     assert "criticAdvisoryNormalizationList" in body
@@ -203,6 +211,7 @@ def test_demo_console_page_loads():
     assert "Resolve Finding" in body
     assert "Reopen Finding" in body
     assert "linkedFindingId" in body
+    assert "/critic/findings/bulk-status" in body
     assert "reviewWorkflowBtn" in body
     assert "reviewWorkflowSummaryLine" in body
     assert "reviewWorkflowTimelineList" in body
@@ -868,6 +877,115 @@ def test_status_critic_accepts_id_only_finding_entities():
     assert ack_body["id"] == "finding-id-only-1"
     assert ack_body["finding_id"] == "finding-id-only-1"
     assert ack_body["status"] == "acknowledged"
+
+
+def test_status_critic_bulk_status_updates_support_filters_and_apply_all():
+    job_id = "critic-findings-bulk-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "quality_score": 6.0,
+                "critic_score": 6.0,
+                "needs_revision": True,
+                "critic_notes": {
+                    "engine": "rules",
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "bulk-f1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "message": "ToC invalid.",
+                            "source": "rules",
+                        },
+                        {
+                            "finding_id": "bulk-f2",
+                            "code": "LOGFRAME_BASELINE_MISSING",
+                            "severity": "medium",
+                            "section": "logframe",
+                            "status": "open",
+                            "message": "Missing baseline.",
+                            "source": "rules",
+                        },
+                        {
+                            "finding_id": "bulk-f3",
+                            "code": "TOC_ASSUMPTIONS_WEAK",
+                            "severity": "low",
+                            "section": "toc",
+                            "status": "acknowledged",
+                            "message": "Assumptions weak.",
+                            "source": "rules",
+                        },
+                    ],
+                    "rule_checks": [],
+                },
+            },
+        },
+    )
+
+    no_selector_resp = client.post(
+        f"/status/{job_id}/critic/findings/bulk-status",
+        json={"next_status": "resolved"},
+    )
+    assert no_selector_resp.status_code == 400
+    assert "selector" in str(no_selector_resp.json().get("detail") or "")
+
+    filtered_resp = client.post(
+        f"/status/{job_id}/critic/findings/bulk-status",
+        headers={"X-Actor": "bulk_reviewer"},
+        json={
+            "next_status": "acknowledged",
+            "section": "toc",
+            "severity": "high",
+            "finding_status": "open",
+        },
+    )
+    assert filtered_resp.status_code == 200
+    filtered_body = filtered_resp.json()
+    assert filtered_body["requested_status"] == "acknowledged"
+    assert filtered_body["actor"] == "bulk_reviewer"
+    assert filtered_body["matched_count"] == 1
+    assert filtered_body["changed_count"] == 1
+    assert filtered_body["unchanged_count"] == 0
+    assert filtered_body["filters"]["section"] == "toc"
+    assert filtered_body["filters"]["severity"] == "high"
+    assert filtered_body["filters"]["finding_status"] == "open"
+    assert filtered_body["updated_findings"][0]["finding_id"] == "bulk-f1"
+    assert filtered_body["updated_findings"][0]["status"] == "acknowledged"
+
+    id_filtered_resp = client.post(
+        f"/status/{job_id}/critic/findings/bulk-status",
+        json={
+            "next_status": "resolved",
+            "finding_ids": ["bulk-f2", "bulk-f404"],
+        },
+    )
+    assert id_filtered_resp.status_code == 200
+    id_filtered_body = id_filtered_resp.json()
+    assert id_filtered_body["matched_count"] == 1
+    assert id_filtered_body["changed_count"] == 1
+    assert id_filtered_body["not_found_finding_ids"] == ["bulk-f404"]
+    assert id_filtered_body["updated_findings"][0]["finding_id"] == "bulk-f2"
+    assert id_filtered_body["updated_findings"][0]["status"] == "resolved"
+
+    apply_all_resp = client.post(
+        f"/status/{job_id}/critic/findings/bulk-status",
+        json={"next_status": "resolved", "apply_to_all": True},
+    )
+    assert apply_all_resp.status_code == 200
+    apply_all_body = apply_all_resp.json()
+    assert apply_all_body["matched_count"] == 3
+    assert apply_all_body["changed_count"] >= 1
+    assert apply_all_body["filters"]["apply_to_all"] is True
+
+    critic_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_resp.status_code == 200
+    critic_flaws = critic_resp.json()["fatal_flaws"]
+    assert len(critic_flaws) == 3
+    assert all(str(item.get("status") or "") == "resolved" for item in critic_flaws)
 
 
 def test_status_export_payload_endpoint_returns_review_ready_payload():
@@ -2790,6 +2908,19 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
         )
         assert reopen_finding_auth.status_code == 200
 
+        bulk_finding_unauth = client.post(
+            f"/status/{job_id}/critic/findings/bulk-status",
+            json={"next_status": "resolved", "finding_ids": [critic_finding_id]},
+        )
+        assert bulk_finding_unauth.status_code == 401
+
+        bulk_finding_auth = client.post(
+            f"/status/{job_id}/critic/findings/bulk-status",
+            json={"next_status": "resolved", "finding_ids": [critic_finding_id]},
+            headers={"X-API-Key": "test-secret"},
+        )
+        assert bulk_finding_auth.status_code == 200
+
     comments_unauth = client.get(f"/status/{job_id}/comments")
     assert comments_unauth.status_code == 401
 
@@ -2953,6 +3084,9 @@ def test_openapi_declares_api_key_security_scheme():
             or {}
         )
     ).get("security")
+    status_critic_finding_bulk_status_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/critic/findings/bulk-status") or {}).get("post") or {})
+    ).get("security")
     status_comments_get_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}
     ).get("security")
@@ -3092,6 +3226,18 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    status_critic_finding_bulk_status_response_schema = (
+        (
+            (
+                ((spec.get("paths") or {}).get("/status/{job_id}/critic/findings/bulk-status") or {}).get("post") or {}
+            ).get("responses")
+            or {}
+        )
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     status_comments_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -3198,6 +3344,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_critic_finding_ack_security == [{"ApiKeyAuth": []}]
     assert status_critic_finding_open_security == [{"ApiKeyAuth": []}]
     assert status_critic_finding_resolve_security == [{"ApiKeyAuth": []}]
+    assert status_critic_finding_bulk_status_security == [{"ApiKeyAuth": []}]
     assert status_comments_get_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_export_security == [{"ApiKeyAuth": []}]
@@ -3221,6 +3368,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_critic_finding_open_response_schema == {"$ref": "#/components/schemas/CriticFatalFlawPublicResponse"}
     assert status_critic_finding_resolve_response_schema == {
         "$ref": "#/components/schemas/CriticFatalFlawPublicResponse"
+    }
+    assert status_critic_finding_bulk_status_response_schema == {
+        "$ref": "#/components/schemas/CriticFindingsBulkStatusPublicResponse"
     }
     assert status_comments_response_schema == {"$ref": "#/components/schemas/JobCommentsPublicResponse"}
     assert status_review_workflow_response_schema == {"$ref": "#/components/schemas/JobReviewWorkflowPublicResponse"}
@@ -3247,6 +3397,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobQualitySummaryPublicResponse" in schemas
     assert "JobCriticPublicResponse" in schemas
     assert "JobReviewWorkflowPublicResponse" in schemas
+    assert "CriticFindingsBulkStatusPublicResponse" in schemas
+    assert "CriticFindingsBulkStatusFiltersPublicResponse" in schemas
     assert "JobReviewWorkflowFiltersPublicResponse" in schemas
     assert "JobReviewWorkflowSummaryPublicResponse" in schemas
     assert "ReviewWorkflowTimelineEventPublicResponse" in schemas

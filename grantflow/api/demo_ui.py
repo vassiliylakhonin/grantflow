@@ -712,7 +712,7 @@ def render_demo_ui_html() -> str:
         <div class="card">
           <h2>Critic Findings</h2>
           <div class="body">
-            <div class="row3">
+            <div class="row4">
               <button id="criticBtn" class="ghost">Load Critic</button>
               <div>
                 <label for="criticSectionFilter">Filter Section</label>
@@ -733,12 +733,44 @@ def render_demo_ui_html() -> str:
                 </select>
               </div>
               <div>
+                <label for="criticFindingStatusFilter">Filter Finding Status</label>
+                <select id="criticFindingStatusFilter">
+                  <option value="">all</option>
+                  <option value="open">open</option>
+                  <option value="acknowledged">acknowledged</option>
+                  <option value="resolved">resolved</option>
+                </select>
+              </div>
+              <div>
                 <label for="criticCitationConfidenceFilter">Citation Confidence</label>
                 <select id="criticCitationConfidenceFilter">
                   <option value="">all</option>
                   <option value="low">low (&lt; 0.30)</option>
                   <option value="high">high (&ge; 0.70)</option>
                 </select>
+              </div>
+            </div>
+            <div class="row4" style="margin-top:10px;">
+              <div>
+                <label for="criticBulkTargetStatus">Bulk Target Status</label>
+                <select id="criticBulkTargetStatus">
+                  <option value="acknowledged">acknowledged</option>
+                  <option value="resolved">resolved</option>
+                  <option value="open">open</option>
+                </select>
+              </div>
+              <div>
+                <label for="criticBulkScope">Bulk Scope</label>
+                <select id="criticBulkScope">
+                  <option value="filtered">filtered (current critic filters)</option>
+                  <option value="all">all findings in job</option>
+                </select>
+              </div>
+              <div style="align-self:end;">
+                <button id="criticBulkApplyBtn" class="secondary">Apply Bulk Status</button>
+              </div>
+              <div style="align-self:end;">
+                <button id="criticBulkClearFiltersBtn" class="ghost">Clear Critic Filters</button>
               </div>
             </div>
             <div class="row3" style="margin-top:10px;">
@@ -768,6 +800,9 @@ def render_demo_ui_html() -> str:
                 <label>Citation Context</label>
                 <div class="list" id="criticContextList"></div>
               </div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="criticBulkResultJson">{}</pre>
             </div>
             <div style="margin-top:10px;">
               <pre id="criticJson">{}</pre>
@@ -969,7 +1004,10 @@ def render_demo_ui_html() -> str:
         ["toVersionId", "grantflow_demo_to_version_id"],
         ["criticSectionFilter", "grantflow_demo_critic_section"],
         ["criticSeverityFilter", "grantflow_demo_critic_severity"],
+        ["criticFindingStatusFilter", "grantflow_demo_critic_finding_status"],
         ["criticCitationConfidenceFilter", "grantflow_demo_critic_confidence"],
+        ["criticBulkTargetStatus", "grantflow_demo_critic_bulk_target_status"],
+        ["criticBulkScope", "grantflow_demo_critic_bulk_scope"],
         ["portfolioDonorFilter", "grantflow_demo_portfolio_donor"],
         ["portfolioStatusFilter", "grantflow_demo_portfolio_status"],
         ["portfolioHitlFilter", "grantflow_demo_portfolio_hitl"],
@@ -1215,6 +1253,7 @@ def render_demo_ui_html() -> str:
         criticFlawsList: $("criticFlawsList"),
         criticChecksList: $("criticChecksList"),
         criticContextList: $("criticContextList"),
+        criticBulkResultJson: $("criticBulkResultJson"),
         criticAdvisorySummaryList: $("criticAdvisorySummaryList"),
         criticAdvisoryLabelsList: $("criticAdvisoryLabelsList"),
         criticAdvisoryNormalizationList: $("criticAdvisoryNormalizationList"),
@@ -1261,7 +1300,10 @@ def render_demo_ui_html() -> str:
         portfolioQualityAdvisoryRejectedReasonsList: $("portfolioQualityAdvisoryRejectedReasonsList"),
         criticSectionFilter: $("criticSectionFilter"),
         criticSeverityFilter: $("criticSeverityFilter"),
+        criticFindingStatusFilter: $("criticFindingStatusFilter"),
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
+        criticBulkTargetStatus: $("criticBulkTargetStatus"),
+        criticBulkScope: $("criticBulkScope"),
         portfolioDonorFilter: $("portfolioDonorFilter"),
         portfolioStatusFilter: $("portfolioStatusFilter"),
         portfolioHitlFilter: $("portfolioHitlFilter"),
@@ -1295,6 +1337,8 @@ def render_demo_ui_html() -> str:
         exportZipFromPayloadBtn: $("exportZipFromPayloadBtn"),
         eventsBtn: $("eventsBtn"),
         criticBtn: $("criticBtn"),
+        criticBulkApplyBtn: $("criticBulkApplyBtn"),
+        criticBulkClearFiltersBtn: $("criticBulkClearFiltersBtn"),
         qualityBtn: $("qualityBtn"),
         portfolioBtn: $("portfolioBtn"),
         portfolioClearBtn: $("portfolioClearBtn"),
@@ -1370,6 +1414,13 @@ def render_demo_ui_html() -> str:
         els.portfolioGroundingRiskLevelFilter.value = "";
         els.portfolioFindingStatusFilter.value = "";
         els.portfolioFindingSeverityFilter.value = "";
+        persistUiState();
+      }
+
+      function clearCriticFilters() {
+        els.criticSectionFilter.value = "";
+        els.criticSeverityFilter.value = "";
+        els.criticFindingStatusFilter.value = "";
         persistUiState();
       }
 
@@ -2741,12 +2792,14 @@ def render_demo_ui_html() -> str:
       function renderCriticLists(body) {
         const section = (els.criticSectionFilter.value || "").trim();
         const severity = (els.criticSeverityFilter.value || "").trim();
+        const findingStatus = (els.criticFindingStatusFilter.value || "").trim();
         const flaws = Array.isArray(body?.fatal_flaws) ? body.fatal_flaws : [];
         const checks = Array.isArray(body?.rule_checks) ? body.rule_checks : [];
         renderCriticAdvisoryDiagnostics(body);
         const filteredFlaws = flaws.filter((f) => {
           if (section && String(f.section || "") !== section) return false;
           if (severity && String(f.severity || "") !== severity) return false;
+          if (findingStatus && String(f.status || "") !== findingStatus) return false;
           return true;
         });
         const filteredChecks = section ? checks.filter((c) => String(c.section || "") === section) : checks;
@@ -3914,6 +3967,38 @@ def render_demo_ui_html() -> str:
         return updated;
       }
 
+      async function applyCriticBulkStatus() {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        const nextStatus = String(els.criticBulkTargetStatus.value || "").trim();
+        if (!nextStatus) throw new Error("Select bulk target status");
+        const scope = String(els.criticBulkScope.value || "filtered").trim().toLowerCase();
+
+        const payload = { next_status: nextStatus };
+        if (scope === "all") {
+          payload.apply_to_all = true;
+        } else {
+          const section = String(els.criticSectionFilter.value || "").trim();
+          const severity = String(els.criticSeverityFilter.value || "").trim();
+          const findingStatus = String(els.criticFindingStatusFilter.value || "").trim();
+          if (section) payload.section = section;
+          if (severity) payload.severity = severity;
+          if (findingStatus) payload.finding_status = findingStatus;
+          if (!payload.section && !payload.severity && !payload.finding_status) {
+            throw new Error("For filtered bulk apply, set at least one critic filter or use scope=all");
+          }
+        }
+
+        const result = await apiFetch(`/status/${encodeURIComponent(jobId)}/critic/findings/bulk-status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        setJson(els.criticBulkResultJson, result);
+        await Promise.allSettled([refreshCritic(), refreshReviewWorkflow()]);
+        return result;
+      }
+
       async function setCommentStatus(nextStatus) {
         const jobId = currentJobId();
         if (!jobId) throw new Error("No job_id");
@@ -3998,6 +4083,12 @@ def render_demo_ui_html() -> str:
         );
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
+        els.criticBulkApplyBtn.addEventListener("click", () => applyCriticBulkStatus().catch(showError));
+        els.criticBulkClearFiltersBtn.addEventListener("click", () => {
+          clearCriticFilters();
+          if (state.lastCritic) renderCriticLists(state.lastCritic);
+          else refreshCritic().catch(showError);
+        });
         els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
         els.portfolioBtn.addEventListener("click", () => {
           refreshPortfolioBundle().catch(showError);
@@ -4109,6 +4200,11 @@ def render_demo_ui_html() -> str:
           else refreshCritic().catch(showError);
         });
         els.criticSeverityFilter.addEventListener("change", () => {
+          persistUiState();
+          if (state.lastCritic) renderCriticLists(state.lastCritic);
+          else refreshCritic().catch(showError);
+        });
+        els.criticFindingStatusFilter.addEventListener("change", () => {
           persistUiState();
           if (state.lastCritic) renderCriticLists(state.lastCritic);
           else refreshCritic().catch(showError);
