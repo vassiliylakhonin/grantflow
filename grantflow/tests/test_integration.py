@@ -233,6 +233,68 @@ def test_generate_llm_mode_false_uses_non_llm_toc_engine():
     assert str(generation_meta.get("engine") or "").startswith("fallback:")
 
 
+def test_strict_grounding_gate_blocks_job_finalization(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "strict")
+    monkeypatch.setattr(
+        api_app_module.vector_store,
+        "query",
+        lambda namespace, query_texts, n_results=5, where=None, top_k=None: {
+            "documents": [[]],
+            "metadatas": [[]],
+            "ids": [[]],
+        },
+    )
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Gov services modernization", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    terminal = _wait_for_terminal_status(job_id)
+    assert terminal["status"] == "error"
+    assert "Grounding gate (strict) blocked finalization" in str(terminal.get("error") or "")
+    state = terminal.get("state") or {}
+    gate = state.get("grounding_gate") or {}
+    assert gate.get("mode") == "strict"
+    assert gate.get("blocking") is True
+    assert gate.get("passed") is False
+
+
+def test_export_endpoint_blocks_when_strict_grounding_gate_failed_unless_overridden():
+    payload = {
+        "state": {
+            "donor_id": "usaid",
+            "toc_draft": {"toc": {"brief": "Sample ToC"}},
+            "logframe_draft": {"indicators": []},
+            "grounding_gate": {
+                "mode": "strict",
+                "passed": False,
+                "blocking": True,
+                "summary": "fallback_or_low_rag_citations_dominate",
+                "reasons": ["fallback_or_low_rag_citations_dominate"],
+            },
+        }
+    }
+
+    blocked = client.post("/export", json={"payload": payload, "format": "docx"})
+    assert blocked.status_code == 409
+    detail = blocked.json()["detail"]
+    assert detail["reason"] == "grounding_gate_strict_block"
+
+    allowed = client.post("/export", json={"payload": payload, "format": "docx", "allow_unsafe_export": True})
+    assert allowed.status_code == 200
+    assert allowed.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
 def test_status_redacts_internal_strategy_objects():
     response = client.post(
         "/generate",

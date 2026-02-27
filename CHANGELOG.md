@@ -14,6 +14,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Golden contract tests for donor resolution, public redaction, versioning/citation behavior, and non-LLM lane coverage.
 - Readiness endpoint (`/ready`) and ingest inventory/export endpoints for RAG operations.
 - GitHub release workflow (`.github/workflows/release.yml`) that extracts versioned notes from `CHANGELOG.md` and publishes releases for `v*.*.*` tags.
+- Grounding Gate policy (`off|warn|strict`) with strict-mode finalization/export blocking on weak grounding signals.
 
 ### Changed
 - README expanded with execution modes, grounding caveats, sample artifacts, and quality/readiness guidance.

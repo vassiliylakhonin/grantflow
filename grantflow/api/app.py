@@ -282,6 +282,7 @@ class ExportRequest(BaseModel):
     review_comments: Optional[list[Dict[str, Any]]] = None
     critic_findings: Optional[list[Dict[str, Any]]] = None
     format: str = "both"
+    allow_unsafe_export: bool = False
 
     model_config = ConfigDict(extra="allow")
 
@@ -331,6 +332,18 @@ def _resolve_export_inputs(
     return toc, logframe, str(donor_id), citations, critic_findings, review_comments
 
 
+def _extract_export_grounding_gate(req: ExportRequest) -> Dict[str, Any]:
+    payload = req.payload if isinstance(req.payload, dict) else {}
+    if not payload:
+        return {}
+
+    state_payload = payload.get("state") if isinstance(payload.get("state"), dict) else payload
+    if not isinstance(state_payload, dict):
+        return {}
+    gate = state_payload.get("grounding_gate")
+    return gate if isinstance(gate, dict) else {}
+
+
 def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> None:
     feedback = checkpoint.get("feedback")
     if not feedback:
@@ -346,6 +359,25 @@ def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> N
     )
     state["hitl_feedback_history"] = history
     state["hitl_feedback"] = feedback
+
+
+def _state_grounding_gate(state: Any) -> Dict[str, Any]:
+    if not isinstance(state, dict):
+        return {}
+    gate = state.get("grounding_gate")
+    return gate if isinstance(gate, dict) else {}
+
+
+def _grounding_gate_block_reason(state: Any) -> Optional[str]:
+    gate = _state_grounding_gate(state)
+    if not gate:
+        return None
+    if not bool(gate.get("blocking")):
+        return None
+    if str(gate.get("mode") or "").lower() != "strict":
+        return None
+    summary = str(gate.get("summary") or "").strip() or "weak grounding signals"
+    return f"Grounding gate (strict) blocked finalization: {summary}"
 
 
 def _job_draft_version_exists_for_section(job: Dict[str, Any], *, section: str, version_id: str) -> bool:
@@ -658,6 +690,18 @@ def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
         normalize_state_contract(final_state)
         if _job_is_canceled(job_id):
             return
+        grounding_block_reason = _grounding_gate_block_reason(final_state)
+        if grounding_block_reason:
+            _set_job(
+                job_id,
+                {
+                    "status": "error",
+                    "error": grounding_block_reason,
+                    "state": final_state,
+                    "hitl_enabled": False,
+                },
+            )
+            return
         _set_job(job_id, {"status": "done", "state": final_state, "hitl_enabled": False})
     except Exception as exc:
         _set_job(job_id, {"status": "error", "error": str(exc), "hitl_enabled": False})
@@ -704,6 +748,18 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
         for key in RUNTIME_PIPELINE_STATE_KEYS:
             final_state.pop(key, None)
         final_state["hitl_pending"] = False
+        grounding_block_reason = _grounding_gate_block_reason(final_state)
+        if grounding_block_reason:
+            _set_job(
+                job_id,
+                {
+                    "status": "error",
+                    "error": grounding_block_reason,
+                    "state": final_state,
+                    "hitl_enabled": True,
+                },
+            )
+            return
         _set_job(job_id, {"status": "done", "state": final_state, "hitl_enabled": True})
         return
     except Exception as exc:
@@ -1513,6 +1569,20 @@ async def ingest_pdf(
 @app.post("/export")
 def export_artifacts(req: ExportRequest, request: Request):
     require_api_key_if_configured(request)
+    grounding_gate = _extract_export_grounding_gate(req)
+    if (
+        not req.allow_unsafe_export
+        and bool(grounding_gate.get("blocking"))
+        and str(grounding_gate.get("mode") or "").lower() == "strict"
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "grounding_gate_strict_block",
+                "message": "Export blocked by strict grounding gate. Set allow_unsafe_export=true to override.",
+                "grounding_gate": grounding_gate,
+            },
+        )
     toc_draft, logframe_draft, donor_id, citations, critic_findings, review_comments = _resolve_export_inputs(req)
     fmt = (req.format or "").lower()
 

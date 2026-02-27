@@ -27,6 +27,10 @@ class GraphConfig(BaseModel):
     max_iterations: int = 3
     critic_threshold: float = 8.0
     hitl_enabled: bool = True
+    grounding_gate_mode: str = "warn"
+    grounding_min_citations_for_calibration: int = 5
+    grounding_max_weak_rag_or_fallback_ratio: float = 0.6
+    grounding_max_low_confidence_ratio: float = 0.75
 
 
 class RAGConfig(BaseModel):
@@ -62,6 +66,14 @@ class GrantFlowConfig(BaseModel):
                 max_iterations=int(_env("GRANTFLOW_MAX_ITERATIONS", "3")),
                 critic_threshold=float(_env("GRANTFLOW_CRITIC_THRESHOLD", "8.0")),
                 hitl_enabled=_env("GRANTFLOW_HITL_ENABLED", "true").lower() == "true",
+                grounding_gate_mode=_env("GRANTFLOW_GROUNDING_GATE_MODE", "warn"),
+                grounding_min_citations_for_calibration=int(
+                    _env("GRANTFLOW_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION", "5")
+                ),
+                grounding_max_weak_rag_or_fallback_ratio=float(
+                    _env("GRANTFLOW_GROUNDING_MAX_WEAK_RAG_OR_FALLBACK_RATIO", "0.6")
+                ),
+                grounding_max_low_confidence_ratio=float(_env("GRANTFLOW_GROUNDING_MAX_LOW_CONFIDENCE_RATIO", "0.75")),
             ),
             rag=RAGConfig(
                 chroma_persist_dir=_env("GRANTFLOW_CHROMA_DIR", "./chroma_db"),

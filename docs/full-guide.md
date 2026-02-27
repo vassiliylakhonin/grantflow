@@ -55,6 +55,8 @@ Use `GET /donors` to resolve canonical IDs and aliases at runtime.
 ### RAG grounding
 - RAG quality is corpus-dependent
 - without relevant ingest corpus, citation quality can degrade to fallback/low-confidence
+- grounding gate policy can be configured with `GRANTFLOW_GROUNDING_GATE_MODE=off|warn|strict`
+- in `strict` mode, weak grounding signals can block job finalization and `/export` (override via `allow_unsafe_export=true`)
 
 ## 5) Quick Start
 

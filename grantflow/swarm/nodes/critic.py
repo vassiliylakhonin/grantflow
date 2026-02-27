@@ -12,6 +12,7 @@ from grantflow.swarm.critic_llm_policy import is_advisory_llm_message as _is_adv
 from grantflow.swarm.critic_llm_policy import llm_finding_policy_class as _llm_finding_policy_class
 from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
 from grantflow.swarm.findings import normalize_findings
+from grantflow.swarm.grounding_gate import evaluate_grounding_gate
 from grantflow.swarm.llm_provider import (
     chat_openai_init_kwargs,
     openai_compatible_llm_available,
@@ -412,6 +413,41 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     fatal_flaw_items: List[Dict[str, Any]] = [_dump_model(item) for item in rule_report.fatal_flaws]
     if llm_fatal_flaw_items:
         fatal_flaw_items.extend(llm_fatal_flaw_items)
+
+    grounding_gate = evaluate_grounding_gate(
+        state,
+        mode=str(getattr(config.graph, "grounding_gate_mode", "warn") or "warn"),
+        min_citations_for_calibration=int(
+            getattr(
+                config.graph, "grounding_min_citations_for_calibration", WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION
+            )
+            or WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION
+        ),
+        max_weak_rag_or_fallback_ratio=float(
+            getattr(config.graph, "grounding_max_weak_rag_or_fallback_ratio", WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD)
+            or WEAK_GROUNDING_FALLBACK_RATIO_THRESHOLD
+        ),
+        max_low_confidence_ratio=float(
+            getattr(config.graph, "grounding_max_low_confidence_ratio", WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD)
+            or WEAK_GROUNDING_LOW_CONFIDENCE_RATIO_THRESHOLD
+        ),
+    )
+    if grounding_gate.get("blocking"):
+        fatal_flaw_items.append(
+            _dump_model(
+                CriticFatalFlaw(
+                    code="GROUNDING_GATE_STRICT_BLOCK",
+                    severity="high",
+                    section="general",
+                    version_id=None,
+                    message="Grounding gate (strict mode) blocked finalization due to weak citation grounding.",
+                    rationale=f"Signals: {grounding_gate.get('summary')}",
+                    fix_suggestion="Improve corpus grounding and reduce fallback/low-confidence citations before finalize/export.",
+                    fix_hint="Ingest relevant donor/context documents and rerun with grounded mode.",
+                    source="rules",
+                )
+            )
+        )
     fatal_flaw_items = _normalize_fatal_flaw_items(fatal_flaw_items, previous_fatal_flaws)
 
     fatal_flaw_messages = [
@@ -425,6 +461,12 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         revision_parts.append(f"LLM reviewer notes: {evaluation.revision_instructions}")
     elif llm_reason and llm_mode:
         revision_parts.append(f"LLM critic fallback reason: {llm_reason}")
+    if not bool(grounding_gate.get("passed")) and str(grounding_gate.get("mode") or "") != "off":
+        revision_parts.append(
+            "Grounding gate warning: "
+            f"{grounding_gate.get('summary')}. "
+            "Improve corpus relevance and citation confidence before external use."
+        )
     revision_instructions = "\n\n".join([p for p in revision_parts if p])
 
     notes = {
@@ -436,6 +478,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         "rule_score": float(rule_report.score),
         "llm_score": llm_score,
         "engine": critic_engine,
+        "grounding_gate": grounding_gate,
     }
     if llm_reason:
         notes["llm_reason"] = llm_reason
@@ -452,6 +495,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     state["critic_score"] = score
     state["critic_notes"] = notes
     state["critic_fatal_flaws"] = fatal_flaw_items
+    state["grounding_gate"] = grounding_gate
 
     history = list(state.get("critic_feedback_history") or [])
     history.append(
