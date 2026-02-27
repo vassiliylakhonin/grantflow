@@ -225,6 +225,7 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowExportJsonBtn" in body
     assert "reviewWorkflowExportCsvBtn" in body
     assert "reviewWorkflowSlaBtn" in body
+    assert "reviewWorkflowSlaRecomputeBtn" in body
     assert "reviewWorkflowSlaSummaryLine" in body
     assert "reviewWorkflowSlaHotspotsList" in body
     assert "reviewWorkflowSlaJson" in body
@@ -237,6 +238,7 @@ def test_demo_console_page_loads():
     assert 'params.set("overdue_after_hours",' in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla" in body
+    assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/recompute" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/export" in body
 
 
@@ -1867,6 +1869,82 @@ def test_status_review_workflow_sla_endpoint_aggregates_overdue_hotspots():
     assert body["top_overdue"][1]["id"] == "comment-a"
 
 
+def test_status_review_workflow_sla_recompute_rewrites_due_dates_and_emits_event():
+    job_id = "review-workflow-sla-recompute-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "finding-r1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "message": "ToC mismatch.",
+                            "updated_at": "2026-02-27T08:00:00+00:00",
+                            "due_at": "2000-01-01T00:00:00+00:00",
+                            "sla_hours": 24,
+                        }
+                    ]
+                }
+            },
+            "review_comments": [
+                {
+                    "comment_id": "comment-r1",
+                    "ts": "2026-02-27T08:30:00+00:00",
+                    "section": "toc",
+                    "status": "open",
+                    "message": "Need stronger assumptions.",
+                    "linked_finding_id": "finding-r1",
+                    "due_at": "2000-01-01T00:00:00+00:00",
+                    "sla_hours": 24,
+                }
+            ],
+            "job_events": [],
+        },
+    )
+
+    resp = client.post(
+        f"/status/{job_id}/review/workflow/sla/recompute",
+        headers={"X-Reviewer": "qa-recompute"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "done"
+    assert body["actor"] == "qa-recompute"
+    assert body["finding_checked_count"] == 1
+    assert body["comment_checked_count"] == 1
+    assert body["finding_updated_count"] == 1
+    assert body["comment_updated_count"] == 1
+    assert body["total_updated_count"] == 2
+    assert body["sla"]["job_id"] == job_id
+
+    critic_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_resp.status_code == 200
+    critic_finding = critic_resp.json()["fatal_flaws"][0]
+    assert critic_finding["due_at"] != "2000-01-01T00:00:00+00:00"
+    assert int(critic_finding.get("sla_hours") or 0) == 24
+
+    comments_resp = client.get(f"/status/{job_id}/comments")
+    assert comments_resp.status_code == 200
+    comment = comments_resp.json()["comments"][0]
+    assert comment["due_at"] != "2000-01-01T00:00:00+00:00"
+    assert int(comment.get("sla_hours") or 0) == 24
+
+    events_resp = client.get(f"/status/{job_id}/events")
+    assert events_resp.status_code == 200
+    event_rows = [e for e in events_resp.json()["events"] if e.get("type") == "review_workflow_sla_recomputed"]
+    assert event_rows
+    last = event_rows[-1]
+    assert last["actor"] == "qa-recompute"
+    assert int(last["total_updated_count"]) == 2
+
+
 def test_status_review_workflow_export_supports_csv_json_and_gzip():
     job_id = "review-workflow-export-job-1"
     api_app_module.JOB_STORE.set(
@@ -3252,6 +3330,15 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     )
     assert review_workflow_sla_auth.status_code == 200
 
+    review_workflow_sla_recompute_unauth = client.post(f"/status/{job_id}/review/workflow/sla/recompute")
+    assert review_workflow_sla_recompute_unauth.status_code == 401
+
+    review_workflow_sla_recompute_auth = client.post(
+        f"/status/{job_id}/review/workflow/sla/recompute",
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert review_workflow_sla_recompute_auth.status_code == 200
+
     review_workflow_export_unauth = client.get(f"/status/{job_id}/review/workflow/export")
     assert review_workflow_export_unauth.status_code == 401
 
@@ -3414,6 +3501,9 @@ def test_openapi_declares_api_key_security_scheme():
     ).get("security")
     status_review_workflow_sla_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla") or {}).get("get") or {}
+    ).get("security")
+    status_review_workflow_sla_recompute_security = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla/recompute") or {}).get("post") or {}
     ).get("security")
     status_review_workflow_export_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/export") or {}).get("get") or {}
@@ -3583,6 +3673,14 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    status_review_workflow_sla_recompute_response_schema = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla/recompute") or {}).get("post") or {})
+        .get("responses", {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     status_comments_post_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}).get("responses") or {})
         .get("200", {})
@@ -3678,6 +3776,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_comments_get_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_sla_security == [{"ApiKeyAuth": []}]
+    assert status_review_workflow_sla_recompute_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_export_security == [{"ApiKeyAuth": []}]
     assert status_comments_post_security == [{"ApiKeyAuth": []}]
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
@@ -3708,6 +3807,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_review_workflow_sla_response_schema == {
         "$ref": "#/components/schemas/JobReviewWorkflowSLAPublicResponse"
     }
+    assert status_review_workflow_sla_recompute_response_schema == {
+        "$ref": "#/components/schemas/JobReviewWorkflowSLARecomputePublicResponse"
+    }
     assert status_comments_post_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_reopen_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
@@ -3732,6 +3834,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobCriticPublicResponse" in schemas
     assert "JobReviewWorkflowPublicResponse" in schemas
     assert "JobReviewWorkflowSLAPublicResponse" in schemas
+    assert "JobReviewWorkflowSLARecomputePublicResponse" in schemas
     assert "JobReviewWorkflowSLAItemPublicResponse" in schemas
     assert "CriticFindingsBulkStatusPublicResponse" in schemas
     assert "CriticFindingsBulkStatusFiltersPublicResponse" in schemas

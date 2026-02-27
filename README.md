@@ -183,6 +183,7 @@ curl -s -X POST http://127.0.0.1:8000/export \
 - `POST /generate/preflight`, `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
 - `GET /status/{job_id}` plus:
   - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/sla`, `/review/workflow/export`
+  - `POST /status/{job_id}/review/workflow/sla/recompute`
   - `POST /status/{job_id}/critic/findings/{finding_id}/ack|open|resolve`
   - `POST /status/{job_id}/critic/findings/bulk-status`
   - `GET /status/{job_id}/review/workflow` filters: `event_type`, `finding_id`, `comment_status`, `workflow_state (pending|overdue)`, `overdue_after_hours`

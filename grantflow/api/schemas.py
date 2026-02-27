@@ -260,6 +260,21 @@ class JobReviewWorkflowSLAPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobReviewWorkflowSLARecomputePublicResponse(BaseModel):
+    job_id: str
+    status: str
+    actor: str
+    recomputed_at: str
+    finding_checked_count: int
+    comment_checked_count: int
+    finding_updated_count: int
+    comment_updated_count: int
+    total_updated_count: int
+    sla: JobReviewWorkflowSLAPublicResponse
+
+    model_config = ConfigDict(extra="allow")
+
+
 class CriticFindingsBulkStatusFiltersPublicResponse(BaseModel):
     apply_to_all: bool = False
     finding_status: Optional[str] = None

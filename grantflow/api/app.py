@@ -54,6 +54,7 @@ from grantflow.api.schemas import (
     JobMetricsPublicResponse,
     JobQualitySummaryPublicResponse,
     JobReviewWorkflowPublicResponse,
+    JobReviewWorkflowSLARecomputePublicResponse,
     JobReviewWorkflowSLAPublicResponse,
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
@@ -755,6 +756,100 @@ def _normalize_review_comments_for_job(job_id: str) -> Optional[Dict[str, Any]]:
     if normalized_comments == comments:
         return job
     return _update_job(job_id, review_comments=normalized_comments[-500:])
+
+
+def _recompute_review_workflow_sla(job_id: str, *, actor: Optional[str] = None) -> Dict[str, Any]:
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    job = _normalize_review_comments_for_job(job_id) or job
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    now_iso = _utcnow_iso()
+    actor_value = str(actor or "").strip() or "api_user"
+
+    state = job.get("state")
+    state_dict = state if isinstance(state, dict) else {}
+    critic_notes = state_dict.get("critic_notes")
+    critic_notes_dict = critic_notes if isinstance(critic_notes, dict) else {}
+    raw_flaws = critic_notes_dict.get("fatal_flaws")
+    flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
+
+    finding_checked_count = len(flaws)
+    finding_updated_count = 0
+    next_flaws: list[Dict[str, Any]] = []
+    for item in flaws:
+        current = dict(item)
+        recomputed = _ensure_finding_due_at(current, now_iso=now_iso, reset=True)
+        if recomputed != current:
+            finding_updated_count += 1
+        next_flaws.append(recomputed)
+
+    next_state = state_dict
+    state_changed = False
+    if (
+        isinstance(state, dict)
+        and isinstance(critic_notes, dict)
+        and (next_flaws != (raw_flaws if isinstance(raw_flaws, list) else []))
+    ):
+        next_notes = dict(critic_notes_dict)
+        next_notes["fatal_flaws"] = next_flaws
+        next_state = dict(state_dict)
+        next_state["critic_notes"] = next_notes
+        next_state["critic_fatal_flaws"] = next_flaws
+        state_changed = True
+
+    working_job = dict(job)
+    if state_changed:
+        working_job["state"] = next_state
+
+    raw_comments = job.get("review_comments")
+    comments = [c for c in raw_comments if isinstance(c, dict)] if isinstance(raw_comments, list) else []
+    comment_checked_count = len(comments)
+    comment_updated_count = 0
+    next_comments: list[Dict[str, Any]] = []
+    for comment in comments:
+        current = dict(comment)
+        recomputed = _ensure_comment_due_at(current, job=working_job, now_iso=now_iso, reset=True)
+        if recomputed != current:
+            comment_updated_count += 1
+        next_comments.append(recomputed)
+
+    update_payload: Dict[str, Any] = {}
+    if state_changed:
+        update_payload["state"] = next_state
+    if next_comments != comments:
+        update_payload["review_comments"] = next_comments[-500:]
+    if update_payload:
+        job = _update_job(job_id, **update_payload) or _get_job(job_id) or job
+
+    total_updated_count = finding_updated_count + comment_updated_count
+    _record_job_event(
+        job_id,
+        "review_workflow_sla_recomputed",
+        actor=actor_value,
+        finding_checked_count=finding_checked_count,
+        comment_checked_count=comment_checked_count,
+        finding_updated_count=finding_updated_count,
+        comment_updated_count=comment_updated_count,
+        total_updated_count=total_updated_count,
+    )
+
+    return {
+        "job_id": str(job_id),
+        "status": str((job or {}).get("status") or ""),
+        "actor": actor_value,
+        "recomputed_at": now_iso,
+        "finding_checked_count": finding_checked_count,
+        "comment_checked_count": comment_checked_count,
+        "finding_updated_count": finding_updated_count,
+        "comment_updated_count": comment_updated_count,
+        "total_updated_count": total_updated_count,
+        "sla": public_job_review_workflow_sla_payload(
+            job_id,
+            job,
+            overdue_after_hours=REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+        ),
+    }
 
 
 def _find_critic_fatal_flaw(job: Dict[str, Any], finding_id: str) -> Optional[Dict[str, Any]]:
@@ -2135,6 +2230,16 @@ def get_status_review_workflow_sla(
         job,
         overdue_after_hours=overdue_after_hours,
     )
+
+
+@app.post(
+    "/status/{job_id}/review/workflow/sla/recompute",
+    response_model=JobReviewWorkflowSLARecomputePublicResponse,
+    response_model_exclude_none=True,
+)
+def recompute_status_review_workflow_sla(job_id: str, request: Request):
+    require_api_key_if_configured(request)
+    return _recompute_review_workflow_sla(job_id, actor=_finding_actor_from_request(request))
 
 
 @app.get("/status/{job_id}/review/workflow/export")

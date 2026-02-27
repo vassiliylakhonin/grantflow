@@ -1008,11 +1008,12 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row3" style="margin-top:10px;">
               <button id="reviewWorkflowSlaBtn" class="ghost">Load Workflow SLA</button>
+              <button id="reviewWorkflowSlaRecomputeBtn" class="secondary">Recompute SLA</button>
               <div id="reviewWorkflowSlaSummaryLine" class="footer-note mono" style="align-self:center;">
                 sla: overdue=- · breach_rate=- · oldest=-
               </div>
-              <div class="sub" style="align-self:center;">SLA hotspots for reviewer triage.</div>
             </div>
+            <div class="sub" style="margin-top:8px;">SLA hotspots for reviewer triage.</div>
             <div style="margin-top:10px;">
               <label>Top Overdue Items</label>
               <div class="list" id="reviewWorkflowSlaHotspotsList"></div>
@@ -1303,6 +1304,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowExportJsonBtn: $("reviewWorkflowExportJsonBtn"),
         reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
         reviewWorkflowSlaBtn: $("reviewWorkflowSlaBtn"),
+        reviewWorkflowSlaRecomputeBtn: $("reviewWorkflowSlaRecomputeBtn"),
         reviewWorkflowSlaSummaryLine: $("reviewWorkflowSlaSummaryLine"),
         reviewWorkflowSlaHotspotsList: $("reviewWorkflowSlaHotspotsList"),
         reviewWorkflowSlaJson: $("reviewWorkflowSlaJson"),
@@ -3499,6 +3501,20 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function recomputeReviewWorkflowSla() {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        persistUiState();
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/review/workflow/sla/recompute`, {
+          method: "POST",
+        });
+        const slaPayload = body?.sla && typeof body.sla === "object" ? body.sla : {};
+        renderReviewWorkflowSla(slaPayload);
+        setJson(els.reviewWorkflowSlaJson, body);
+        await Promise.allSettled([refreshReviewWorkflow(), refreshComments(), refreshCritic()]);
+        return body;
+      }
+
       async function refreshMetrics() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -4281,6 +4297,7 @@ def render_demo_ui_html() -> str:
           Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
         });
         els.reviewWorkflowSlaBtn.addEventListener("click", () => refreshReviewWorkflowSla().catch(showError));
+        els.reviewWorkflowSlaRecomputeBtn.addEventListener("click", () => recomputeReviewWorkflowSla().catch(showError));
         els.reviewWorkflowClearFiltersBtn.addEventListener("click", () => {
           clearReviewWorkflowFilters();
           Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);

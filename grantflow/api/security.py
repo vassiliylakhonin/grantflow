@@ -33,6 +33,7 @@ PROTECTED_OPERATIONS = {
     ("get", "/status/{job_id}/comments"),
     ("get", "/status/{job_id}/review/workflow"),
     ("get", "/status/{job_id}/review/workflow/sla"),
+    ("post", "/status/{job_id}/review/workflow/sla/recompute"),
     ("get", "/status/{job_id}/review/workflow/export"),
     ("post", "/status/{job_id}/comments"),
     ("post", "/status/{job_id}/comments/{comment_id}/resolve"),
