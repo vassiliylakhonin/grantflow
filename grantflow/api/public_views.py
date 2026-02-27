@@ -607,6 +607,18 @@ def _public_job_quality_readiness_payload(
     }
 
 
+def _public_job_preflight_payload(job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    preflight = job.get("generate_preflight")
+    if not isinstance(preflight, dict):
+        state = job.get("state")
+        state_dict = state if isinstance(state, dict) else {}
+        preflight = state_dict.get("generate_preflight")
+    if not isinstance(preflight, dict):
+        return None
+    payload = sanitize_for_public_response(preflight)
+    return cast(Dict[str, Any], payload) if isinstance(payload, dict) else None
+
+
 def public_job_quality_payload(
     job_id: str,
     job: Dict[str, Any],
@@ -714,6 +726,7 @@ def public_job_quality_payload(
         cast(Dict[str, Any], raw_architect_retrieval) if isinstance(raw_architect_retrieval, dict) else {}
     )
     readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
+    preflight_payload = _public_job_preflight_payload(job)
     traceability_gap = traceability_partial + traceability_missing
 
     return {
@@ -781,6 +794,7 @@ def public_job_quality_payload(
             "toc_schema_valid": sanitize_for_public_response(toc_validation.get("valid")),
             "citation_policy": sanitize_for_public_response(toc_generation_meta.get("citation_policy")),
         },
+        "preflight": preflight_payload,
         "readiness": readiness_payload,
     }
 

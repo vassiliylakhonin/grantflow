@@ -379,6 +379,7 @@ class GenerateRequest(BaseModel):
     input_context: Dict[str, Any]
     llm_mode: bool = False
     hitl_enabled: bool = False
+    strict_preflight: bool = False
     webhook_url: Optional[str] = None
     webhook_secret: Optional[str] = None
     client_metadata: Optional[Dict[str, Any]] = None
@@ -1186,6 +1187,15 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         strategy=strategy,
         client_metadata=client_metadata,
     )
+    if req.strict_preflight and str(preflight.get("risk_level") or "").lower() == "high":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "preflight_high_risk_block",
+                "message": "Generation blocked by strict_preflight because donor readiness risk is high.",
+                "preflight": preflight,
+            },
+        )
     job_id = str(uuid.uuid4())
     initial_state = {
         "donor_id": donor,

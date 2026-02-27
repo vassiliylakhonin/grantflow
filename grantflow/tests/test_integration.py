@@ -225,6 +225,54 @@ def test_generate_response_and_status_include_preflight_payload():
     assert status["state"]["generate_preflight"] == preflight
 
 
+def test_generate_strict_preflight_blocks_when_risk_is_high():
+    api_app_module.INGEST_AUDIT_STORE.clear()
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+            "strict_preflight": True,
+        },
+    )
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert detail["reason"] == "preflight_high_risk_block"
+    assert detail["preflight"]["risk_level"] == "high"
+    assert detail["preflight"]["go_ahead"] is False
+
+
+def test_generate_strict_preflight_allows_when_risk_is_not_high(monkeypatch):
+    monkeypatch.setattr(
+        api_app_module,
+        "_build_generate_preflight",
+        lambda donor_id, strategy, client_metadata: {
+            "donor_id": donor_id,
+            "risk_level": "medium",
+            "go_ahead": True,
+            "warning_count": 1,
+            "retrieval_namespace": "usaid_ads201",
+            "namespace_empty": False,
+            "warnings": [{"code": "LOW_DOC_COVERAGE", "severity": "medium"}],
+        },
+    )
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+            "strict_preflight": True,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "accepted"
+
+
 def test_generate_basic_async_job_flow():
     payload = {
         "donor_id": "usaid",
@@ -544,6 +592,13 @@ def test_status_export_payload_endpoint_returns_review_ready_payload():
         job_id,
         {
             "status": "done",
+            "generate_preflight": {
+                "donor_id": "usaid",
+                "risk_level": "medium",
+                "go_ahead": True,
+                "warning_count": 1,
+                "warnings": [{"code": "LOW_DOC_COVERAGE", "severity": "medium"}],
+            },
             "client_metadata": {
                 "demo_generate_preset_key": "usaid_gov_ai_kazakhstan",
                 "rag_readiness": {
@@ -1035,6 +1090,13 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
         job_id,
         {
             "status": "done",
+            "generate_preflight": {
+                "donor_id": "usaid",
+                "risk_level": "medium",
+                "go_ahead": True,
+                "warning_count": 1,
+                "warnings": [{"code": "LOW_DOC_COVERAGE", "severity": "medium"}],
+            },
             "client_metadata": {
                 "demo_generate_preset_key": "usaid_gov_ai_kazakhstan",
                 "rag_readiness": {
@@ -1181,6 +1243,9 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["architect"]["retrieval_hits_count"] == 3
     assert body["architect"]["toc_schema_valid"] is True
     assert body["architect"]["citation_policy"]["threshold_mode"] == "donor_section"
+    assert body["preflight"]["risk_level"] == "medium"
+    assert body["preflight"]["warning_count"] == 1
+    assert body["preflight"]["warnings"][0]["code"] == "LOW_DOC_COVERAGE"
     assert body["readiness"]["preset_key"] == "usaid_gov_ai_kazakhstan"
     assert body["readiness"]["donor_id"] == "usaid"
     assert body["readiness"]["expected_doc_families"] == [
