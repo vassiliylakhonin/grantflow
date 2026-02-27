@@ -270,6 +270,13 @@ def _normalize_grounding_policy_mode(raw_mode: Any) -> str:
     return mode
 
 
+def _configured_preflight_grounding_policy_mode() -> str:
+    preflight_mode = getattr(config.graph, "preflight_grounding_policy_mode", None)
+    if str(preflight_mode or "").strip():
+        return _normalize_grounding_policy_mode(preflight_mode)
+    return _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn"))
+
+
 def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
     high_cov_raw = getattr(config.graph, "preflight_grounding_high_risk_coverage_threshold", 0.5)
     medium_cov_raw = getattr(config.graph, "preflight_grounding_medium_risk_coverage_threshold", 0.8)
@@ -308,7 +315,7 @@ def _build_preflight_grounding_policy(
     inventory_total_uploads: int,
     missing_doc_families: list[str],
 ) -> Dict[str, Any]:
-    mode = _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn"))
+    mode = _configured_preflight_grounding_policy_mode()
     thresholds = _preflight_grounding_policy_thresholds()
     high_risk_coverage_threshold = float(thresholds["high_risk_coverage_threshold"])
     medium_risk_coverage_threshold = float(thresholds["medium_risk_coverage_threshold"])
@@ -1045,7 +1052,7 @@ def _health_diagnostics() -> dict[str, Any]:
             "collection_prefix": getattr(vector_store, "prefix", "grantflow"),
         },
         "preflight_grounding_policy": {
-            "mode": _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn")),
+            "mode": _configured_preflight_grounding_policy_mode(),
             "thresholds": preflight_grounding_thresholds,
         },
     }
@@ -1138,7 +1145,7 @@ def readiness_check():
         "checks": {
             "vector_store": vector_ready,
             "preflight_grounding_policy": {
-                "mode": _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn")),
+                "mode": _configured_preflight_grounding_policy_mode(),
                 "thresholds": preflight_grounding_thresholds,
             },
         },

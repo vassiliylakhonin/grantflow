@@ -76,13 +76,15 @@ curl -s http://127.0.0.1:8000/ready
 
 ```bash
 export GRANTFLOW_GROUNDING_GATE_MODE=warn
+export GRANTFLOW_PREFLIGHT_GROUNDING_POLICY_MODE=warn
 export GRANTFLOW_PREFLIGHT_GROUNDING_HIGH_RISK_COVERAGE_THRESHOLD=0.50
 export GRANTFLOW_PREFLIGHT_GROUNDING_MEDIUM_RISK_COVERAGE_THRESHOLD=0.80
 export GRANTFLOW_PREFLIGHT_GROUNDING_MIN_UPLOADS=3
 ```
 
 Notes:
-- `GRANTFLOW_GROUNDING_GATE_MODE=strict` can block `/generate` before pipeline start if preflight grounding policy evaluates to blocking.
+- `GRANTFLOW_PREFLIGHT_GROUNDING_POLICY_MODE` controls preflight block behavior (`off|warn|strict`) and is separate from pipeline critic gate mode.
+- If `GRANTFLOW_PREFLIGHT_GROUNDING_POLICY_MODE` is not set, it falls back to `GRANTFLOW_GROUNDING_GATE_MODE`.
 - `strict_preflight=true` blocks when either readiness risk or grounding risk is `high`.
 
 ### 5) (Optional) Run preflight readiness check

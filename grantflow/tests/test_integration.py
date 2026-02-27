@@ -212,6 +212,7 @@ def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
 
 def test_ready_endpoint_reflects_preflight_grounding_threshold_overrides(monkeypatch):
     monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_policy_mode", "strict")
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_high_risk_coverage_threshold", 0.42)
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_medium_risk_coverage_threshold", 0.91)
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_min_uploads", 7)
@@ -225,6 +226,16 @@ def test_ready_endpoint_reflects_preflight_grounding_threshold_overrides(monkeyp
     assert thresholds["high_risk_coverage_threshold"] == 0.42
     assert thresholds["medium_risk_coverage_threshold"] == 0.91
     assert thresholds["min_uploads"] == 7
+
+
+def test_ready_endpoint_preflight_policy_mode_can_differ_from_pipeline_mode(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_policy_mode", "warn")
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["checks"]["preflight_grounding_policy"]["mode"] == "warn"
 
 
 def test_list_donors():
@@ -388,6 +399,7 @@ def test_generate_strict_preflight_blocks_when_grounding_risk_is_high(monkeypatc
 
 def test_generate_blocks_when_preflight_grounding_policy_is_strict(monkeypatch):
     monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_policy_mode", "strict")
     api_app_module.INGEST_AUDIT_STORE.clear()
 
     response = client.post(
