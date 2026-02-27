@@ -897,8 +897,9 @@ def render_demo_ui_html() -> str:
               <label for="commentMessage">Comment</label>
               <textarea id="commentMessage" placeholder="Reviewer note for ToC / LogFrame / general workflow issue"></textarea>
             </div>
-            <div class="row3" style="margin-top:10px;">
+            <div class="row4" style="margin-top:10px;">
               <button id="commentsBtn" class="ghost">Load Comments</button>
+              <button id="reviewWorkflowBtn" class="ghost">Load Review Workflow</button>
               <button id="addCommentBtn" class="primary">Add Comment</button>
               <button id="resolveCommentBtn" class="secondary">Resolve Selected</button>
             </div>
@@ -913,6 +914,14 @@ def render_demo_ui_html() -> str:
             </div>
             <div style="margin-top:10px;">
               <div class="list" id="commentsList"></div>
+            </div>
+            <div id="reviewWorkflowSummaryLine" class="footer-note mono" style="margin-top:10px;">workflow: timeline=- · findings=- · comments=-</div>
+            <div style="margin-top:10px;">
+              <label>Review Workflow Timeline</label>
+              <div class="list" id="reviewWorkflowTimelineList"></div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="reviewWorkflowJson">{}</pre>
             </div>
           </div>
         </div>
@@ -1176,6 +1185,9 @@ def render_demo_ui_html() -> str:
         criticAdvisoryLabelsList: $("criticAdvisoryLabelsList"),
         criticAdvisoryNormalizationList: $("criticAdvisoryNormalizationList"),
         commentsList: $("commentsList"),
+        reviewWorkflowTimelineList: $("reviewWorkflowTimelineList"),
+        reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
+        reviewWorkflowJson: $("reviewWorkflowJson"),
         metricsCards: $("metricsCards"),
         qualityCards: $("qualityCards"),
         portfolioMetricsCards: $("portfolioMetricsCards"),
@@ -1259,6 +1271,7 @@ def render_demo_ui_html() -> str:
         exportPortfolioQualityJsonBtn: $("exportPortfolioQualityJsonBtn"),
         exportPortfolioQualityCsvBtn: $("exportPortfolioQualityCsvBtn"),
         commentsBtn: $("commentsBtn"),
+        reviewWorkflowBtn: $("reviewWorkflowBtn"),
         addCommentBtn: $("addCommentBtn"),
         resolveCommentBtn: $("resolveCommentBtn"),
         reopenCommentBtn: $("reopenCommentBtn"),
@@ -1335,7 +1348,7 @@ def render_demo_ui_html() -> str:
         if (state.lastCitations) renderCriticContextCitations();
         renderGeneratePreflightAlert(null);
         renderGeneratePresetReadiness();
-        await Promise.allSettled([refreshPortfolioBundle(), refreshComments(), refreshDiff()]);
+        await Promise.allSettled([refreshPortfolioBundle(), refreshComments(), refreshReviewWorkflow(), refreshDiff()]);
       }
 
       function clearLinkedFindingSelection() {
@@ -2633,6 +2646,49 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function renderReviewWorkflowTimeline(body) {
+        const timeline = Array.isArray(body?.timeline) ? body.timeline : [];
+        els.reviewWorkflowTimelineList.innerHTML = "";
+        if (!timeline.length) {
+          els.reviewWorkflowTimelineList.innerHTML = `<div class="item"><div class="sub">No review workflow events.</div></div>`;
+        } else {
+          for (const item of timeline) {
+            const findingId = String(item.finding_id || "").trim();
+            const commentId = String(item.comment_id || "").trim();
+            const parts = [item.type || "event", item.status || "-", item.section || "-"];
+            if (findingId) parts.push(`finding ${findingId.slice(0, 8)}`);
+            if (commentId) parts.push(`comment ${commentId.slice(0, 8)}`);
+            const meta = [item.ts, item.actor || item.author, item.severity].filter(Boolean).join(" · ");
+            const div = document.createElement("div");
+            div.className = "item";
+            div.innerHTML = `
+              <div class="title mono">${escapeHtml(parts.join(" · "))}</div>
+              <div class="sub">${escapeHtml(item.message || "")}</div>
+              <div class="sub" style="margin-top:6px;">${escapeHtml(meta || "")}</div>
+            `;
+            if (findingId) {
+              div.style.cursor = "pointer";
+              div.title = "Click to link finding in comment form";
+              div.addEventListener("click", () => {
+                els.linkedFindingId.value = findingId;
+                persistUiState();
+              });
+            }
+            els.reviewWorkflowTimelineList.appendChild(div);
+          }
+        }
+        const summary = body?.summary && typeof body.summary === "object" ? body.summary : {};
+        const timelineCount = Number(summary.timeline_event_count || timeline.length || 0);
+        const findingCount = Number(summary.finding_count || 0);
+        const commentCount = Number(summary.comment_count || 0);
+        const orphanLinkedCount = Number(summary.orphan_linked_comment_count || 0);
+        const lastActivity = String(summary.last_activity_at || "-");
+        if (els.reviewWorkflowSummaryLine) {
+          els.reviewWorkflowSummaryLine.textContent =
+            `workflow: timeline=${timelineCount} · findings=${findingCount} · comments=${commentCount} · orphan_links=${orphanLinkedCount} · last=${lastActivity}`;
+        }
+      }
+
       function renderCriticLists(body) {
         const section = (els.criticSectionFilter.value || "").trim();
         const severity = (els.criticSeverityFilter.value || "").trim();
@@ -3195,6 +3251,15 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshReviewWorkflow() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/review/workflow`);
+        renderReviewWorkflowTimeline(body);
+        setJson(els.reviewWorkflowJson, body);
+        return body;
+      }
+
       async function refreshMetrics() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -3427,6 +3492,7 @@ def render_demo_ui_html() -> str:
           refreshDiff(),
           refreshEvents(),
           refreshComments(),
+          refreshReviewWorkflow(),
         ]);
       }
 
@@ -3720,7 +3786,7 @@ def render_demo_ui_html() -> str:
         els.selectedCommentId.value = created.comment_id || "";
         els.commentMessage.value = "";
         persistUiState();
-        await refreshComments();
+        await Promise.allSettled([refreshComments(), refreshReviewWorkflow()]);
         return created;
       }
 
@@ -3739,7 +3805,7 @@ def render_demo_ui_html() -> str:
           `/status/${encodeURIComponent(jobId)}/critic/findings/${encodeURIComponent(findingId)}/${action}`,
           { method: "POST" }
         );
-        await refreshCritic();
+        await Promise.allSettled([refreshCritic(), refreshReviewWorkflow()]);
         return updated;
       }
 
@@ -3753,7 +3819,7 @@ def render_demo_ui_html() -> str:
           `/status/${encodeURIComponent(jobId)}/comments/${encodeURIComponent(commentId)}/${action}`,
           { method: "POST" }
         );
-        await refreshComments();
+        await Promise.allSettled([refreshComments(), refreshReviewWorkflow()]);
         return updated;
       }
 
@@ -3872,6 +3938,7 @@ def render_demo_ui_html() -> str:
           downloadPortfolioQualityCsv().catch((err) => showError(err))
         );
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
+        els.reviewWorkflowBtn.addEventListener("click", () => refreshReviewWorkflow().catch(showError));
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));

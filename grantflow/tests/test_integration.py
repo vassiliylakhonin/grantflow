@@ -203,6 +203,11 @@ def test_demo_console_page_loads():
     assert "Resolve Finding" in body
     assert "Reopen Finding" in body
     assert "linkedFindingId" in body
+    assert "reviewWorkflowBtn" in body
+    assert "reviewWorkflowSummaryLine" in body
+    assert "reviewWorkflowTimelineList" in body
+    assert "reviewWorkflowJson" in body
+    assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
 
 
 def test_ready_endpoint():
@@ -1255,6 +1260,142 @@ def test_status_comments_endpoint_rejects_invalid_section_or_version():
         json={"section": "toc", "message": "Version mismatch", "version_id": "missing-version"},
     )
     assert bad_version.status_code == 400
+
+
+def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeline():
+    job_id = "review-workflow-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "finding-1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "resolved",
+                            "message": "ToC schema mismatch.",
+                            "resolved_at": "2026-02-27T10:12:00+00:00",
+                        },
+                        {
+                            "finding_id": "finding-2",
+                            "code": "MEL_BASELINE_MISSING",
+                            "severity": "low",
+                            "section": "logframe",
+                            "status": "open",
+                            "message": "Baseline is missing for one indicator.",
+                        },
+                    ]
+                }
+            },
+            "review_comments": [
+                {
+                    "comment_id": "comment-1",
+                    "ts": "2026-02-27T10:00:00+00:00",
+                    "section": "toc",
+                    "status": "resolved",
+                    "message": "Reviewed and addressed in v2.",
+                    "author": "reviewer-1",
+                    "linked_finding_id": "finding-1",
+                },
+                {
+                    "comment_id": "comment-2",
+                    "ts": "2026-02-27T10:01:00+00:00",
+                    "section": "general",
+                    "status": "open",
+                    "message": "Need sign-off from program manager.",
+                    "author": "reviewer-2",
+                    "linked_finding_id": "missing-finding",
+                },
+            ],
+            "job_events": [
+                {
+                    "event_id": "rwf-1",
+                    "ts": "2026-02-27T10:00:00+00:00",
+                    "type": "review_comment_added",
+                    "comment_id": "comment-1",
+                    "section": "toc",
+                    "author": "reviewer-1",
+                },
+                {
+                    "event_id": "rwf-2",
+                    "ts": "2026-02-27T10:05:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-1",
+                    "status": "acknowledged",
+                    "section": "toc",
+                    "severity": "high",
+                    "actor": "qa-reviewer",
+                },
+                {
+                    "event_id": "rwf-3",
+                    "ts": "2026-02-27T10:10:00+00:00",
+                    "type": "review_comment_status_changed",
+                    "comment_id": "comment-1",
+                    "status": "resolved",
+                    "section": "toc",
+                    "actor": "qa-reviewer",
+                },
+                {
+                    "event_id": "rwf-4",
+                    "ts": "2026-02-27T10:12:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-1",
+                    "status": "resolved",
+                    "section": "toc",
+                    "severity": "high",
+                    "actor": "qa-reviewer",
+                },
+                {
+                    "event_id": "rwf-ignore",
+                    "ts": "2026-02-27T10:15:00+00:00",
+                    "type": "status_changed",
+                    "to_status": "done",
+                },
+            ],
+        },
+    )
+
+    response = client.get(f"/status/{job_id}/review/workflow")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "done"
+    assert len(body["findings"]) == 2
+    assert len(body["comments"]) == 2
+
+    summary = body["summary"]
+    assert summary["finding_count"] == 2
+    assert summary["comment_count"] == 2
+    assert summary["linked_comment_count"] == 2
+    assert summary["orphan_linked_comment_count"] == 1
+    assert summary["open_finding_count"] == 1
+    assert summary["acknowledged_finding_count"] == 0
+    assert summary["resolved_finding_count"] == 1
+    assert summary["open_comment_count"] == 1
+    assert summary["resolved_comment_count"] == 1
+    assert summary["finding_status_counts"]["open"] == 1
+    assert summary["finding_status_counts"]["resolved"] == 1
+    assert summary["finding_severity_counts"]["high"] == 1
+    assert summary["finding_severity_counts"]["low"] == 1
+    assert summary["comment_status_counts"]["open"] == 1
+    assert summary["comment_status_counts"]["resolved"] == 1
+    assert summary["timeline_event_count"] == 4
+    assert summary["last_activity_at"] == "2026-02-27T10:12:00+00:00"
+
+    timeline = body["timeline"]
+    assert len(timeline) == 4
+    assert timeline[0]["ts"] == "2026-02-27T10:12:00+00:00"
+    assert timeline[-1]["ts"] == "2026-02-27T10:00:00+00:00"
+    timeline_types = {row["type"] for row in timeline}
+    assert timeline_types == {
+        "critic_finding_status_changed",
+        "review_comment_added",
+        "review_comment_status_changed",
+    }
 
 
 def test_metrics_endpoint_derives_timeline_metrics_from_events():
@@ -2526,6 +2667,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     comments_auth = client.get(f"/status/{job_id}/comments", headers={"X-API-Key": "test-secret"})
     assert comments_auth.status_code == 200
 
+    review_workflow_unauth = client.get(f"/status/{job_id}/review/workflow")
+    assert review_workflow_unauth.status_code == 401
+
+    review_workflow_auth = client.get(f"/status/{job_id}/review/workflow", headers={"X-API-Key": "test-secret"})
+    assert review_workflow_auth.status_code == 200
+
     add_comment_unauth = client.post(
         f"/status/{job_id}/comments",
         json={"section": "general", "message": "Needs management review"},
@@ -2671,6 +2818,9 @@ def test_openapi_declares_api_key_security_scheme():
     status_comments_get_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("get") or {}
     ).get("security")
+    status_review_workflow_security = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow") or {}).get("get") or {}
+    ).get("security")
     status_comments_post_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}
     ).get("security")
@@ -2808,6 +2958,14 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    status_review_workflow_response_schema = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/review/workflow") or {}).get("get") or {})
+        .get("responses", {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     status_comments_post_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}).get("responses") or {})
         .get("200", {})
@@ -2900,6 +3058,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_critic_finding_open_security == [{"ApiKeyAuth": []}]
     assert status_critic_finding_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_get_security == [{"ApiKeyAuth": []}]
+    assert status_review_workflow_security == [{"ApiKeyAuth": []}]
     assert status_comments_post_security == [{"ApiKeyAuth": []}]
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_reopen_security == [{"ApiKeyAuth": []}]
@@ -2922,6 +3081,7 @@ def test_openapi_declares_api_key_security_scheme():
         "$ref": "#/components/schemas/CriticFatalFlawPublicResponse"
     }
     assert status_comments_response_schema == {"$ref": "#/components/schemas/JobCommentsPublicResponse"}
+    assert status_review_workflow_response_schema == {"$ref": "#/components/schemas/JobReviewWorkflowPublicResponse"}
     assert status_comments_post_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_reopen_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
@@ -2944,6 +3104,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert "JobMetricsPublicResponse" in schemas
     assert "JobQualitySummaryPublicResponse" in schemas
     assert "JobCriticPublicResponse" in schemas
+    assert "JobReviewWorkflowPublicResponse" in schemas
     assert "CriticRuleCheckPublicResponse" in schemas
     assert "CriticFatalFlawPublicResponse" in schemas
     assert "JobCommentsPublicResponse" in schemas

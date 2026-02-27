@@ -155,6 +155,53 @@ class JobCommentsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class ReviewWorkflowTimelineEventPublicResponse(BaseModel):
+    event_id: Optional[str] = None
+    ts: Optional[str] = None
+    type: str
+    kind: Optional[str] = None
+    finding_id: Optional[str] = None
+    comment_id: Optional[str] = None
+    status: Optional[str] = None
+    section: Optional[str] = None
+    severity: Optional[str] = None
+    actor: Optional[str] = None
+    author: Optional[str] = None
+    message: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobReviewWorkflowSummaryPublicResponse(BaseModel):
+    finding_count: int
+    comment_count: int
+    linked_comment_count: int
+    orphan_linked_comment_count: int
+    open_finding_count: int
+    acknowledged_finding_count: int
+    resolved_finding_count: int
+    open_comment_count: int
+    resolved_comment_count: int
+    finding_status_counts: Dict[str, int]
+    finding_severity_counts: Dict[str, int]
+    comment_status_counts: Dict[str, int]
+    timeline_event_count: int
+    last_activity_at: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobReviewWorkflowPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    summary: JobReviewWorkflowSummaryPublicResponse
+    findings: list[CriticFatalFlawPublicResponse]
+    comments: list[ReviewCommentPublicResponse]
+    timeline: list[ReviewWorkflowTimelineEventPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class CriticRuleCheckPublicResponse(BaseModel):
     code: str
     status: str

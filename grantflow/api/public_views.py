@@ -32,6 +32,11 @@ GROUNDING_RISK_LEVEL_ORDER = ("high", "medium", "low", "unknown")
 GROUNDING_RISK_LEVELS = set(GROUNDING_RISK_LEVEL_ORDER)
 FINDING_STATUS_FILTER_VALUES = {"open", "acknowledged", "resolved"}
 FINDING_SEVERITY_FILTER_VALUES = {"high", "medium", "low"}
+REVIEW_WORKFLOW_EVENT_TYPES = {
+    "critic_finding_status_changed",
+    "review_comment_added",
+    "review_comment_status_changed",
+}
 GROUNDING_FALLBACK_HIGH_THRESHOLD = 0.8
 GROUNDING_FALLBACK_MEDIUM_THRESHOLD = 0.5
 
@@ -242,6 +247,117 @@ def public_job_comments_payload(
         "status": str(job.get("status") or ""),
         "comment_count": len(comments),
         "comments": comments,
+    }
+
+
+def public_job_review_workflow_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    critic_payload = public_job_critic_payload(job_id, job)
+    findings = critic_payload.get("fatal_flaws") if isinstance(critic_payload, dict) else []
+    findings_list = [item for item in findings if isinstance(item, dict)] if isinstance(findings, list) else []
+
+    comments_payload = public_job_comments_payload(job_id, job)
+    comments = comments_payload.get("comments") if isinstance(comments_payload, dict) else []
+    comments_list = [item for item in comments if isinstance(item, dict)] if isinstance(comments, list) else []
+
+    finding_status_counts = {"open": 0, "acknowledged": 0, "resolved": 0}
+    finding_severity_counts = {"high": 0, "medium": 0, "low": 0}
+    for row in findings_list:
+        status = str(row.get("status") or "open").strip().lower()
+        severity = str(row.get("severity") or "").strip().lower()
+        if status in finding_status_counts:
+            finding_status_counts[status] += 1
+        if severity in finding_severity_counts:
+            finding_severity_counts[severity] += 1
+
+    finding_ids = {finding_primary_id(row) for row in findings_list if finding_primary_id(row)}
+    linked_comment_count = 0
+    orphan_linked_comment_count = 0
+    comment_status_counts: Dict[str, int] = {}
+    for row in comments_list:
+        comment_status = str(row.get("status") or "open").strip().lower() or "open"
+        comment_status_counts[comment_status] = int(comment_status_counts.get(comment_status, 0)) + 1
+        linked_finding_id = str(row.get("linked_finding_id") or "").strip()
+        if not linked_finding_id:
+            continue
+        linked_comment_count += 1
+        if linked_finding_id not in finding_ids:
+            orphan_linked_comment_count += 1
+
+    raw_events = job.get("job_events")
+    timeline: list[Dict[str, Any]] = []
+    if isinstance(raw_events, list):
+        for item in raw_events:
+            if not isinstance(item, dict):
+                continue
+            event = sanitize_for_public_response(item)
+            if not isinstance(event, dict):
+                continue
+            event_type = str(event.get("type") or "").strip()
+            if event_type not in REVIEW_WORKFLOW_EVENT_TYPES:
+                continue
+            finding_id = str(event.get("finding_id") or "").strip() or None
+            comment_id = str(event.get("comment_id") or "").strip() or None
+            timeline.append(
+                {
+                    "event_id": event.get("event_id"),
+                    "ts": event.get("ts"),
+                    "type": event_type,
+                    "kind": (
+                        "finding_status"
+                        if event_type == "critic_finding_status_changed"
+                        else ("comment_added" if event_type == "review_comment_added" else "comment_status")
+                    ),
+                    "finding_id": finding_id,
+                    "comment_id": comment_id,
+                    "status": event.get("status"),
+                    "section": event.get("section"),
+                    "severity": event.get("severity"),
+                    "actor": event.get("actor"),
+                    "author": event.get("author"),
+                    "message": event.get("message"),
+                }
+            )
+    timeline.sort(key=lambda row: str(row.get("ts") or ""), reverse=True)
+
+    activity_ts_values: list[str] = []
+    for row in timeline:
+        ts = str(row.get("ts") or "").strip()
+        if ts:
+            activity_ts_values.append(ts)
+    for row in comments_list:
+        ts = str(row.get("ts") or "").strip()
+        if ts:
+            activity_ts_values.append(ts)
+    for row in findings_list:
+        for key in ("updated_at", "resolved_at", "acknowledged_at"):
+            ts = str(row.get(key) or "").strip()
+            if ts:
+                activity_ts_values.append(ts)
+    last_activity_at = max(activity_ts_values) if activity_ts_values else None
+
+    summary = {
+        "finding_count": len(findings_list),
+        "comment_count": len(comments_list),
+        "linked_comment_count": linked_comment_count,
+        "orphan_linked_comment_count": orphan_linked_comment_count,
+        "open_finding_count": int(finding_status_counts.get("open", 0)),
+        "acknowledged_finding_count": int(finding_status_counts.get("acknowledged", 0)),
+        "resolved_finding_count": int(finding_status_counts.get("resolved", 0)),
+        "open_comment_count": int(comment_status_counts.get("open", 0)),
+        "resolved_comment_count": int(comment_status_counts.get("resolved", 0)),
+        "finding_status_counts": finding_status_counts,
+        "finding_severity_counts": finding_severity_counts,
+        "comment_status_counts": comment_status_counts,
+        "timeline_event_count": len(timeline),
+        "last_activity_at": last_activity_at,
+    }
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "summary": summary,
+        "findings": findings_list,
+        "comments": comments_list,
+        "timeline": timeline,
     }
 
 

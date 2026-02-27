@@ -28,6 +28,7 @@ from grantflow.api.public_views import (
     public_job_metrics_payload,
     public_job_payload,
     public_job_quality_payload,
+    public_job_review_workflow_payload,
     public_job_versions_payload,
     public_portfolio_metrics_csv_text,
     public_portfolio_metrics_payload,
@@ -47,6 +48,7 @@ from grantflow.api.schemas import (
     JobExportPayloadPublicResponse,
     JobMetricsPublicResponse,
     JobQualitySummaryPublicResponse,
+    JobReviewWorkflowPublicResponse,
     JobStatusPublicResponse,
     JobVersionsPublicResponse,
     PortfolioMetricsPublicResponse,
@@ -1743,6 +1745,19 @@ def get_status_comments(
         comment_status=comment_status,
         version_id=version_id,
     )
+
+
+@app.get(
+    "/status/{job_id}/review/workflow",
+    response_model=JobReviewWorkflowPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_review_workflow(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_review_workflow_payload(job_id, job)
 
 
 @app.post(
