@@ -5,6 +5,7 @@
 - Ensure `main` is green in CI.
 - Confirm changelog entries exist under `Unreleased`.
 - Confirm README/docs reflect shipped behavior.
+- Confirm runtime version in `grantflow/core/version.py` is set to the target release version.
 
 ## 2) Choose Version (SemVer)
 
@@ -28,13 +29,29 @@ git push origin main
 git push origin vX.Y.Z
 ```
 
-## 5) GitHub Release Automation
+## 5) Automated Release Guard
+
+This repository enforces release guardrails with `scripts/release_guard.py`:
+
+- validates SemVer shape of runtime version in `grantflow/core/version.py`
+- ensures `CHANGELOG.md` has `[Unreleased]` and current version sections
+- checks presence of API stability and release process docs + PR template
+- for tag-based release, ensures tag version equals runtime version
+
+Run locally before tagging:
+
+```bash
+python scripts/release_guard.py --tag vX.Y.Z
+```
+
+## 6) GitHub Release Automation
 
 The repository includes `.github/workflows/release.yml`:
 
 - auto-runs on pushed tags matching `v*.*.*`
 - extracts release notes for that version from `CHANGELOG.md`
 - publishes a GitHub Release with the extracted notes
+- runs release guard validation before release publication
 
 Manual runs are also supported via `workflow_dispatch`:
 
@@ -43,13 +60,13 @@ Manual runs are also supported via `workflow_dispatch`:
 - optional `prerelease`
 - optional `dry_run=true` to validate changelog extraction without publishing
 
-## 6) GitHub Release
+## 7) GitHub Release
 
 - Create release from tag `vX.Y.Z`.
 - Use the changelog section as release notes.
 - Include any migration notes and rollout caveats.
 
-## 7) Post-Release
+## 8) Post-Release
 
 - Create next `Unreleased` section if needed.
 - Monitor CI and key runtime endpoints:

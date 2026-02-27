@@ -219,8 +219,11 @@ Current constraints:
 
 - Full guide: `docs/full-guide.md`
 - Contribution process: `CONTRIBUTING.md`
+- Git/PR process: `docs/git-process.md`
 - API stability policy: `docs/api-stability-policy.md`
 - Release process: `docs/release-process.md`
+- Release guard script: `scripts/release_guard.py`
+- Runtime version source: `grantflow/core/version.py`
 - Changelog: `CHANGELOG.md`
 
 ## License

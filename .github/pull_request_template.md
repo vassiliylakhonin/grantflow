@@ -2,6 +2,7 @@
 
 - What changed?
 - Why now?
+- Suggested Conventional Commit title (`type(scope): summary`):
 
 ## Scope
 
@@ -28,9 +29,13 @@
 - [ ] If breaking: SemVer major bump planned
 - [ ] If breaking: migration notes included
 
+## Git Process
+
+- [ ] PR title follows Conventional Commit style (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`)
+- [ ] If release-impacting: runtime version in `grantflow/core/version.py` and `CHANGELOG.md` are aligned
+
 ## Release Notes Draft (if user-visible)
 
 - 1.
 - 2.
 - 3.
-

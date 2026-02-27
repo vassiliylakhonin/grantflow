@@ -73,6 +73,7 @@ from grantflow.api.webhooks import send_job_webhook_event
 from grantflow.core.config import config
 from grantflow.core.stores import create_ingest_audit_store_from_env, create_job_store_from_env
 from grantflow.core.strategies.factory import DonorFactory
+from grantflow.core.version import __version__
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace
@@ -86,7 +87,7 @@ from grantflow.swarm.state_contract import normalize_state_contract, state_donor
 app = FastAPI(
     title="GrantFlow API",
     description="Enterprise-grade grant proposal automation",
-    version="2.0.0",
+    version=__version__,
 )
 
 JOB_STORE = create_job_store_from_env()
@@ -1973,7 +1974,7 @@ def _vector_store_readiness() -> dict[str, Any]:
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "version": "2.0.0", "diagnostics": _health_diagnostics()}
+    return {"status": "healthy", "version": __version__, "diagnostics": _health_diagnostics()}
 
 
 @app.get("/ready")

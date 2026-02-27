@@ -8,6 +8,8 @@ This policy applies to public HTTP endpoints documented in `README.md` and OpenA
 - request/response field names and basic types
 - status semantics (`accepted`, `running`, `pending_hitl`, `done`, `error`, `canceled`)
 
+Runtime version source of truth is `grantflow/core/version.py`.
+
 ## Stability Levels
 
 ### Stable
@@ -56,4 +58,4 @@ For stable endpoints/fields:
 - Clients should tolerate unknown fields in responses.
 - Server should preserve existing required fields for stable endpoints.
 - Existing success/error status codes should remain consistent unless explicitly version-bumped.
-
+- Golden contract fixtures in `grantflow/tests/fixtures/` should be updated only when intended API behavior changes.

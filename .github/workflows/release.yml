@@ -66,6 +66,10 @@ jobs:
           echo "target_commitish=${TARGET_COMMITISH}" >> "${GITHUB_OUTPUT}"
           echo "Resolved tag: ${TAG_NAME} (version ${VERSION})"
 
+      - name: Validate release governance guardrails
+        run: |
+          python scripts/release_guard.py --tag "${{ steps.tag.outputs.tag_name }}"
+
       - name: Extract release notes from CHANGELOG.md
         id: changelog
         env:

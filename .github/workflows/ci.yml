@@ -27,6 +27,22 @@ jobs:
           bash -n deploy.sh
           bash -n backup.sh
 
+  release-governance:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate release governance guardrails
+        run: |
+          python scripts/release_guard.py
+
   mypy:
     runs-on: ubuntu-latest
     env:
