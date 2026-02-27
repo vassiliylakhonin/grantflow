@@ -333,6 +333,88 @@ def _configured_preflight_grounding_policy_mode() -> str:
     return _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn"))
 
 
+def _configured_export_grounding_policy_mode() -> str:
+    export_mode = getattr(config.graph, "export_grounding_policy_mode", None)
+    if str(export_mode or "").strip():
+        return _normalize_grounding_policy_mode(export_mode)
+    return _configured_preflight_grounding_policy_mode()
+
+
+def _export_grounding_policy_thresholds() -> Dict[str, Any]:
+    min_architect_citations_raw = getattr(config.graph, "export_grounding_min_architect_citations", 3)
+    min_claim_support_rate_raw = getattr(config.graph, "export_grounding_min_claim_support_rate", 0.5)
+
+    try:
+        min_architect_citations = int(min_architect_citations_raw)
+    except (TypeError, ValueError):
+        min_architect_citations = 3
+    try:
+        min_claim_support_rate = float(min_claim_support_rate_raw)
+    except (TypeError, ValueError):
+        min_claim_support_rate = 0.5
+
+    min_architect_citations = max(1, min(min_architect_citations, 1000))
+    min_claim_support_rate = max(0.0, min(min_claim_support_rate, 1.0))
+
+    return {
+        "min_architect_citations": min_architect_citations,
+        "min_claim_support_rate": round(min_claim_support_rate, 4),
+    }
+
+
+def _evaluate_export_grounding_policy(citations: list[dict[str, Any]]) -> Dict[str, Any]:
+    mode = _configured_export_grounding_policy_mode()
+    thresholds = _export_grounding_policy_thresholds()
+    min_architect_citations = int(thresholds["min_architect_citations"])
+    min_claim_support_rate = float(thresholds["min_claim_support_rate"])
+
+    architect_citations = [c for c in citations if isinstance(c, dict) and str(c.get("stage") or "") == "architect"]
+    architect_citation_count = len(architect_citations)
+    architect_claim_support_count = sum(
+        1 for c in architect_citations if str(c.get("citation_type") or "") == "rag_claim_support"
+    )
+    architect_fallback_count = sum(
+        1 for c in architect_citations if str(c.get("citation_type") or "") == "fallback_namespace"
+    )
+    architect_claim_support_rate = (
+        round(architect_claim_support_count / architect_citation_count, 4) if architect_citation_count else None
+    )
+
+    reasons: list[str] = []
+    risk_level = "low"
+    if architect_citation_count == 0:
+        reasons.append("no_architect_citations")
+        risk_level = "high"
+    elif architect_citation_count < min_architect_citations:
+        reasons.append("architect_citations_below_min")
+        risk_level = "medium"
+
+    if architect_claim_support_rate is None:
+        reasons.append("claim_support_rate_unavailable")
+        risk_level = "high"
+    elif architect_claim_support_rate < min_claim_support_rate:
+        reasons.append("claim_support_rate_below_min")
+        risk_level = "high"
+
+    passed = not reasons
+    blocking = mode == "strict" and not passed
+    summary = "export_grounding_signals_ok" if passed else ",".join(reasons)
+    return {
+        "mode": mode,
+        "thresholds": thresholds,
+        "architect_citation_count": architect_citation_count,
+        "architect_claim_support_citation_count": architect_claim_support_count,
+        "architect_fallback_namespace_citation_count": architect_fallback_count,
+        "architect_claim_support_rate": architect_claim_support_rate,
+        "risk_level": risk_level,
+        "passed": passed,
+        "blocking": blocking,
+        "go_ahead": not blocking,
+        "summary": summary,
+        "reasons": reasons,
+    }
+
+
 def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
     high_cov_raw = getattr(config.graph, "preflight_grounding_high_risk_coverage_threshold", 0.5)
     medium_cov_raw = getattr(config.graph, "preflight_grounding_medium_risk_coverage_threshold", 0.8)
@@ -1650,6 +1732,7 @@ def _health_diagnostics() -> dict[str, Any]:
 
     vector_backend = "chroma" if getattr(vector_store, "client", None) is not None else "memory"
     preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
+    export_grounding_thresholds = _export_grounding_policy_thresholds()
     diagnostics: dict[str, Any] = {
         "job_store": {"mode": job_store_mode},
         "hitl_store": {"mode": hitl_store_mode},
@@ -1665,6 +1748,10 @@ def _health_diagnostics() -> dict[str, Any]:
         "preflight_grounding_policy": {
             "mode": _configured_preflight_grounding_policy_mode(),
             "thresholds": preflight_grounding_thresholds,
+        },
+        "export_grounding_policy": {
+            "mode": _configured_export_grounding_policy_mode(),
+            "thresholds": export_grounding_thresholds,
         },
     }
     if sqlite_path and (job_store_mode == "sqlite" or hitl_store_mode == "sqlite" or ingest_store_mode == "sqlite"):
@@ -1751,6 +1838,7 @@ def readiness_check():
     vector_ready = _vector_store_readiness()
     ready = bool(vector_ready.get("ready"))
     preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
+    export_grounding_thresholds = _export_grounding_policy_thresholds()
     payload = {
         "status": "ready" if ready else "degraded",
         "checks": {
@@ -1758,6 +1846,10 @@ def readiness_check():
             "preflight_grounding_policy": {
                 "mode": _configured_preflight_grounding_policy_mode(),
                 "thresholds": preflight_grounding_thresholds,
+            },
+            "export_grounding_policy": {
+                "mode": _configured_export_grounding_policy_mode(),
+                "thresholds": export_grounding_thresholds,
             },
         },
     }
@@ -2741,6 +2833,20 @@ def export_artifacts(req: ExportRequest, request: Request):
             },
         )
     toc_draft, logframe_draft, donor_id, citations, critic_findings, review_comments = _resolve_export_inputs(req)
+    export_grounding_policy = _evaluate_export_grounding_policy(citations)
+    if not req.allow_unsafe_export and bool(export_grounding_policy.get("blocking")):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "export_grounding_policy_block",
+                "message": (
+                    "Export blocked by strict export grounding policy "
+                    "(architect claim support below configured threshold). "
+                    "Set allow_unsafe_export=true to override."
+                ),
+                "export_grounding_policy": export_grounding_policy,
+            },
+        )
     fmt = (req.format or "").lower()
 
     try:

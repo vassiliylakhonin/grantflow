@@ -395,10 +395,22 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Open findings</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Avg citation conf</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Threshold hit-rate</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Claim-support</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Architect fallback</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Preflight risk</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Strict preflight</div><div class="value mono">-</div></div>
             </div>
             <div id="qualityPreflightMetaLine" class="footer-note mono">warning_count=- · coverage_rate=-</div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Citation Types (Job)</label>
+                <div class="list" id="qualityCitationTypeCountsList"></div>
+              </div>
+              <div>
+                <label>Architect Citation Types (Job)</label>
+                <div class="list" id="qualityArchitectCitationTypeCountsList"></div>
+              </div>
+            </div>
             <div class="row" style="margin-top:10px;">
               <div>
                 <label>Advisory Normalization (LLM Critic)</label>
@@ -547,6 +559,7 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">High Severity</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Avg Citation Conf</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Threshold Hit-rate</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Claim-support Avg</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Weighted Risk</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">High-Priority Signals</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">% High-warning Jobs</div><div class="value mono">-</div></div>
@@ -614,6 +627,20 @@ def render_demo_ui_html() -> str:
               <div>
                 <label>Grounding Risk Levels</label>
                 <div class="list" id="portfolioQualityGroundingRiskLevelsList"></div>
+              </div>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <div>
+                <label>Citation Types (Portfolio)</label>
+                <div class="list" id="portfolioQualityCitationTypeCountsList"></div>
+              </div>
+              <div>
+                <label>Architect Citation Types</label>
+                <div class="list" id="portfolioQualityArchitectCitationTypeCountsList"></div>
+              </div>
+              <div>
+                <label>MEL Citation Types</label>
+                <div class="list" id="portfolioQualityMelCitationTypeCountsList"></div>
               </div>
             </div>
             <div class="row" style="margin-top:10px;">
@@ -1312,6 +1339,8 @@ def render_demo_ui_html() -> str:
         qualityJson: $("qualityJson"),
         qualityAdvisoryBadgeList: $("qualityAdvisoryBadgeList"),
         qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
+        qualityCitationTypeCountsList: $("qualityCitationTypeCountsList"),
+        qualityArchitectCitationTypeCountsList: $("qualityArchitectCitationTypeCountsList"),
         qualityReadinessWarningsList: $("qualityReadinessWarningsList"),
         qualityReadinessWarningLevelPill: $("qualityReadinessWarningLevelPill"),
         qualityPreflightMetaLine: $("qualityPreflightMetaLine"),
@@ -1371,6 +1400,9 @@ def render_demo_ui_html() -> str:
         portfolioQualityFindingStatusList: $("portfolioQualityFindingStatusList"),
         portfolioQualityFindingSeverityList: $("portfolioQualityFindingSeverityList"),
         portfolioQualityGroundingRiskList: $("portfolioQualityGroundingRiskList"),
+        portfolioQualityCitationTypeCountsList: $("portfolioQualityCitationTypeCountsList"),
+        portfolioQualityArchitectCitationTypeCountsList: $("portfolioQualityArchitectCitationTypeCountsList"),
+        portfolioQualityMelCitationTypeCountsList: $("portfolioQualityMelCitationTypeCountsList"),
         portfolioQualityPrioritySignalsList: $("portfolioQualityPrioritySignalsList"),
         portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
         portfolioQualityLlmLabelCountsList: $("portfolioQualityLlmLabelCountsList"),
@@ -2117,6 +2149,12 @@ def render_demo_ui_html() -> str:
           typeof citations.architect_threshold_hit_rate === "number"
             ? `${(Number(citations.architect_threshold_hit_rate) * 100).toFixed(1)}%`
             : "-",
+          typeof citations.architect_claim_support_rate === "number"
+            ? `${(Number(citations.architect_claim_support_rate) * 100).toFixed(1)}%`
+            : "-",
+          typeof citations.architect_fallback_namespace_citation_rate === "number"
+            ? `${(Number(citations.architect_fallback_namespace_citation_rate) * 100).toFixed(1)}%`
+            : "-",
           preflightRiskValue,
           strictPreflightValue,
         ];
@@ -2124,7 +2162,43 @@ def render_demo_ui_html() -> str:
         qualityValueNodes.forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
-        const preflightRiskNode = qualityValueNodes[6];
+        const claimSupportNode = qualityValueNodes[6];
+        if (claimSupportNode) {
+          const claimSupportRate = Number(citations?.architect_claim_support_rate ?? NaN);
+          claimSupportNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(claimSupportRate)) {
+            if (claimSupportRate < 0.5) claimSupportNode.classList.add("risk-high");
+            else if (claimSupportRate < 0.7) claimSupportNode.classList.add("risk-medium");
+            else claimSupportNode.classList.add("risk-low");
+          } else {
+            claimSupportNode.classList.add("risk-none");
+          }
+          const supportCount = Number(citations?.architect_claim_support_citation_count ?? 0);
+          const architectCount = Number(citations?.architect_citation_count ?? 0);
+          claimSupportNode.title =
+            architectCount > 0
+              ? `${supportCount}/${architectCount} architect claim-support citations`
+              : "No architect citations";
+        }
+        const architectFallbackNode = qualityValueNodes[7];
+        if (architectFallbackNode) {
+          const fallbackRate = Number(citations?.architect_fallback_namespace_citation_rate ?? NaN);
+          architectFallbackNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(fallbackRate)) {
+            if (fallbackRate >= 0.8) architectFallbackNode.classList.add("risk-high");
+            else if (fallbackRate >= 0.5) architectFallbackNode.classList.add("risk-medium");
+            else architectFallbackNode.classList.add("risk-low");
+          } else {
+            architectFallbackNode.classList.add("risk-none");
+          }
+          const fallbackCount = Number(citations?.architect_fallback_namespace_citation_count ?? 0);
+          const architectCount = Number(citations?.architect_citation_count ?? 0);
+          architectFallbackNode.title =
+            architectCount > 0
+              ? `${fallbackCount}/${architectCount} architect fallback citations`
+              : "No architect citations";
+        }
+        const preflightRiskNode = qualityValueNodes[8];
         if (preflightRiskNode) {
           const level = String(preflightRiskLevel || "").toLowerCase();
           preflightRiskNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
@@ -2153,6 +2227,18 @@ def render_demo_ui_html() -> str:
                 : `warning_count=${warningCountLabel} · coverage_rate=${coverageRateLabel} · grounding=${groundingRiskLabel}`;
           }
         }
+        renderKeyValueList(
+          els.qualityCitationTypeCountsList,
+          citations.citation_type_counts,
+          "No citation type breakdown for this job.",
+          8
+        );
+        renderKeyValueList(
+          els.qualityArchitectCitationTypeCountsList,
+          citations.architect_citation_type_counts,
+          "No architect citation type breakdown for this job.",
+          8
+        );
         renderQualityAdvisoryBadge(advisoryDiagnostics);
         renderKeyValueList(
           els.qualityLlmFindingLabelsList,
@@ -2460,6 +2546,10 @@ def render_demo_ui_html() -> str:
           typeof citations.architect_threshold_hit_rate_avg === "number"
             ? `${(Number(citations.architect_threshold_hit_rate_avg) * 100).toFixed(1)}%`
             : "-";
+        const claimSupportRate =
+          typeof citations.architect_claim_support_rate_avg === "number"
+            ? `${(Number(citations.architect_claim_support_rate_avg) * 100).toFixed(1)}%`
+            : "-";
         const formatWarningRate = (explicitValue, fallbackValue) => {
           if (typeof explicitValue === "number") return `${(Number(explicitValue) * 100).toFixed(1)}%`;
           if (typeof fallbackValue === "number") return `${(Number(fallbackValue) * 100).toFixed(1)}%`;
@@ -2489,6 +2579,7 @@ def render_demo_ui_html() -> str:
           String(critic.high_severity_findings_total ?? "-"),
           typeof citations.citation_confidence_avg === "number" ? Number(citations.citation_confidence_avg).toFixed(2) : "-",
           thresholdHitRate,
+          claimSupportRate,
           String(summary?.severity_weighted_risk_score ?? "-"),
           String(summary?.high_priority_signal_count ?? "-"),
           highWarningRate,
@@ -2502,11 +2593,29 @@ def render_demo_ui_html() -> str:
         portfolioQualityValueNodes.forEach((node, i) => {
           node.textContent = values[i] ?? "-";
         });
+        const claimSupportNode = portfolioQualityValueNodes[6];
+        if (claimSupportNode) {
+          const rate = Number(citations?.architect_claim_support_rate_avg ?? NaN);
+          claimSupportNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(rate)) {
+            if (rate < 0.5) claimSupportNode.classList.add("risk-high");
+            else if (rate < 0.7) claimSupportNode.classList.add("risk-medium");
+            else claimSupportNode.classList.add("risk-low");
+          } else {
+            claimSupportNode.classList.add("risk-none");
+          }
+          const support = Number(citations?.architect_claim_support_citation_count ?? 0);
+          const total = Number(citations?.architect_citation_count_total ?? 0);
+          claimSupportNode.title =
+            total > 0
+              ? `${support}/${total} architect claim-support citations`
+              : "No architect citations in current filter";
+        }
         const warningKpiConfig = [
-          { index: 8, level: "high", count: highWarningCount, activeClass: "risk-high" },
-          { index: 9, level: "medium", count: mediumWarningCount, activeClass: "risk-medium" },
-          { index: 10, level: "low", count: lowWarningCount, activeClass: "risk-low" },
-          { index: 11, level: "none", count: noneWarningCount, activeClass: "risk-low" },
+          { index: 9, level: "high", count: highWarningCount, activeClass: "risk-high" },
+          { index: 10, level: "medium", count: mediumWarningCount, activeClass: "risk-medium" },
+          { index: 11, level: "low", count: lowWarningCount, activeClass: "risk-low" },
+          { index: 12, level: "none", count: noneWarningCount, activeClass: "risk-low" },
         ];
         for (const cfg of warningKpiConfig) {
           const node = portfolioQualityValueNodes[cfg.index];
@@ -2520,7 +2629,7 @@ def render_demo_ui_html() -> str:
           node.style.cursor = portfolioJobCount > 0 ? "pointer" : "default";
           node.onclick = portfolioJobCount > 0 ? () => applyPortfolioWarningLevelFilter(cfg.level) : null;
         }
-        const fallbackNode = portfolioQualityValueNodes[12];
+        const fallbackNode = portfolioQualityValueNodes[13];
         if (fallbackNode) {
           const fallbackRate = Number(citations?.fallback_namespace_citation_rate ?? NaN);
           fallbackNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
@@ -2536,7 +2645,7 @@ def render_demo_ui_html() -> str:
           fallbackNode.title =
             citationCount > 0 ? `${fallbackCount}/${citationCount} fallback citations` : "No citations in current filter";
         }
-        const highGroundingNode = portfolioQualityValueNodes[13];
+        const highGroundingNode = portfolioQualityValueNodes[14];
         if (highGroundingNode) {
           highGroundingNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
           highGroundingNode.classList.add(highGroundingRiskDonorCount > 0 ? "risk-high" : "risk-none");
@@ -2550,6 +2659,24 @@ def render_demo_ui_html() -> str:
           els.portfolioWarningMetaLine.textContent =
             `high=${highWarningCount} · medium=${mediumWarningCount} · low=${lowWarningCount} · none=${noneWarningCount} · total=${portfolioJobCount}`;
         }
+        renderKeyValueList(
+          els.portfolioQualityCitationTypeCountsList,
+          citations.citation_type_counts_total,
+          "No portfolio citation type breakdown yet.",
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityArchitectCitationTypeCountsList,
+          citations.architect_citation_type_counts_total,
+          "No portfolio architect citation type breakdown yet.",
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityMelCitationTypeCountsList,
+          citations.mel_citation_type_counts_total,
+          "No portfolio MEL citation type breakdown yet.",
+          8
+        );
         renderPortfolioQualityLlmLabelDrilldown(summary);
         renderPortfolioQualityAdvisoryDrilldown(summary);
         renderPortfolioQualityFocusedDonorCard(summary);

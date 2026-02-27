@@ -44,6 +44,11 @@ def test_health_endpoint():
     assert 0.0 <= float(thresholds["high_risk_coverage_threshold"]) <= 1.0
     assert 0.0 <= float(thresholds["medium_risk_coverage_threshold"]) <= 1.0
     assert int(thresholds["min_uploads"]) >= 1
+    export_policy = diagnostics["export_grounding_policy"]
+    assert export_policy["mode"] in {"warn", "strict", "off"}
+    export_thresholds = export_policy["thresholds"]
+    assert int(export_thresholds["min_architect_citations"]) >= 1
+    assert 0.0 <= float(export_thresholds["min_claim_support_rate"]) <= 1.0
 
 
 def test_demo_console_page_loads():
@@ -121,6 +126,10 @@ def test_demo_console_page_loads():
     assert "qualityBtn" in body
     assert "qualityCards" in body
     assert "qualityPreflightMetaLine" in body
+    assert "qualityCitationTypeCountsList" in body
+    assert "qualityArchitectCitationTypeCountsList" in body
+    assert "Claim-support" in body
+    assert "Architect fallback" in body
     assert "qualityJson" in body
     assert "exportPayloadBtn" in body
     assert "copyExportPayloadBtn" in body
@@ -155,6 +164,9 @@ def test_demo_console_page_loads():
     assert "portfolioQualityOpenFindingsList" in body
     assert "portfolioQualityWarningLevelsList" in body
     assert "portfolioQualityGroundingRiskLevelsList" in body
+    assert "portfolioQualityCitationTypeCountsList" in body
+    assert "portfolioQualityArchitectCitationTypeCountsList" in body
+    assert "portfolioQualityMelCitationTypeCountsList" in body
     assert "portfolioQualityFindingStatusList" in body
     assert "portfolioQualityFindingSeverityList" in body
     assert "portfolioQualityGroundingRiskList" in body
@@ -165,6 +177,7 @@ def test_demo_console_page_loads():
     assert "% Low-warning Jobs" in body
     assert "% No-warning Jobs" in body
     assert "Fallback Dominance" in body
+    assert "Claim-support Avg" in body
     assert "High-Risk Donors" in body
     assert "portfolioWarningMetaLine" in body
     assert "qualityLlmFindingLabelsList" in body
@@ -268,6 +281,11 @@ def test_ready_endpoint():
     assert 0.0 <= float(thresholds["high_risk_coverage_threshold"]) <= 1.0
     assert 0.0 <= float(thresholds["medium_risk_coverage_threshold"]) <= 1.0
     assert int(thresholds["min_uploads"]) >= 1
+    export_policy = checks["export_grounding_policy"]
+    assert export_policy["mode"] in {"warn", "strict", "off"}
+    export_thresholds = export_policy["thresholds"]
+    assert int(export_thresholds["min_architect_citations"]) >= 1
+    assert 0.0 <= float(export_thresholds["min_claim_support_rate"]) <= 1.0
 
 
 def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
@@ -286,6 +304,8 @@ def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
     assert "chroma unavailable" in body["detail"]["checks"]["vector_store"]["error"]
     preflight_policy = body["detail"]["checks"]["preflight_grounding_policy"]
     assert preflight_policy["mode"] in {"warn", "strict", "off"}
+    export_policy = body["detail"]["checks"]["export_grounding_policy"]
+    assert export_policy["mode"] in {"warn", "strict", "off"}
 
 
 def test_ready_endpoint_reflects_preflight_grounding_threshold_overrides(monkeypatch):
@@ -314,6 +334,21 @@ def test_ready_endpoint_preflight_policy_mode_can_differ_from_pipeline_mode(monk
     assert response.status_code == 200
     body = response.json()
     assert body["checks"]["preflight_grounding_policy"]["mode"] == "warn"
+
+
+def test_ready_endpoint_reflects_export_grounding_policy_overrides(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_architect_citations", 7)
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_claim_support_rate", 0.66)
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    export_policy = body["checks"]["export_grounding_policy"]
+    assert export_policy["mode"] == "strict"
+    thresholds = export_policy["thresholds"]
+    assert thresholds["min_architect_citations"] == 7
+    assert thresholds["min_claim_support_rate"] == 0.66
 
 
 def test_list_donors():
@@ -631,6 +666,68 @@ def test_export_endpoint_blocks_when_strict_grounding_gate_failed_unless_overrid
     allowed = client.post("/export", json={"payload": payload, "format": "docx", "allow_unsafe_export": True})
     assert allowed.status_code == 200
     assert allowed.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
+def test_export_endpoint_blocks_when_export_claim_support_policy_strict_and_below_threshold(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_architect_citations", 3)
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_claim_support_rate", 0.75)
+
+    payload = {
+        "state": {
+            "donor_id": "usaid",
+            "toc_draft": {"toc": {"brief": "Sample ToC"}},
+            "logframe_draft": {"indicators": []},
+            "citations": [
+                {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.9},
+                {"stage": "architect", "citation_type": "fallback_namespace", "citation_confidence": 0.1},
+                {"stage": "architect", "citation_type": "rag_low_confidence", "citation_confidence": 0.2},
+            ],
+        }
+    }
+
+    blocked = client.post("/export", json={"payload": payload, "format": "docx"})
+    assert blocked.status_code == 409
+    detail = blocked.json()["detail"]
+    assert detail["reason"] == "export_grounding_policy_block"
+    policy = detail["export_grounding_policy"]
+    assert policy["mode"] == "strict"
+    assert policy["blocking"] is True
+    assert policy["architect_citation_count"] == 3
+    assert policy["architect_claim_support_citation_count"] == 1
+    assert policy["architect_claim_support_rate"] == 0.3333
+    assert "claim_support_rate_below_min" in (policy.get("reasons") or [])
+
+    allowed = client.post("/export", json={"payload": payload, "format": "docx", "allow_unsafe_export": True})
+    assert allowed.status_code == 200
+    assert allowed.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
+def test_export_endpoint_warn_mode_does_not_block_on_low_claim_support(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_policy_mode", "warn")
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_architect_citations", 3)
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_claim_support_rate", 0.75)
+
+    payload = {
+        "state": {
+            "donor_id": "usaid",
+            "toc_draft": {"toc": {"brief": "Sample ToC"}},
+            "logframe_draft": {"indicators": []},
+            "citations": [
+                {"stage": "architect", "citation_type": "fallback_namespace", "citation_confidence": 0.1},
+                {"stage": "architect", "citation_type": "rag_low_confidence", "citation_confidence": 0.2},
+                {"stage": "architect", "citation_type": "rag_low_confidence", "citation_confidence": 0.22},
+            ],
+        }
+    }
+
+    export = client.post("/export", json={"payload": payload, "format": "docx"})
+    assert export.status_code == 200
+    assert export.headers["content-type"].startswith(
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
