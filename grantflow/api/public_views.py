@@ -26,6 +26,29 @@ PORTFOLIO_QUALITY_HIGH_PRIORITY_SIGNALS = {
     "rag_low_confidence_citation_count",
     "traceability_gap_citation_count",
 }
+PORTFOLIO_WARNING_LEVELS = {"high", "medium", "low", "none"}
+
+
+def _job_warning_level(job: Dict[str, Any]) -> str:
+    preflight = job.get("generate_preflight")
+    if not isinstance(preflight, dict):
+        state = job.get("state")
+        state_dict = state if isinstance(state, dict) else {}
+        preflight = state_dict.get("generate_preflight")
+    preflight_dict = preflight if isinstance(preflight, dict) else {}
+    raw = str(preflight_dict.get("warning_level") or preflight_dict.get("risk_level") or "").strip().lower()
+    if raw in PORTFOLIO_WARNING_LEVELS:
+        return raw
+    return "none"
+
+
+def _normalize_warning_level_filter(warning_level: Optional[str]) -> Optional[str]:
+    if warning_level is None:
+        return None
+    token = str(warning_level or "").strip().lower()
+    if not token:
+        return None
+    return token
 
 
 def sanitize_for_public_response(value: Any) -> Any:
@@ -808,7 +831,9 @@ def public_portfolio_metrics_payload(
     donor_id: Optional[str] = None,
     status: Optional[str] = None,
     hitl_enabled: Optional[bool] = None,
+    warning_level: Optional[str] = None,
 ) -> Dict[str, Any]:
+    warning_level_filter = _normalize_warning_level_filter(warning_level)
     filtered: list[tuple[str, Dict[str, Any]]] = []
     for job_id, job in jobs_by_id.items():
         if not isinstance(job, dict):
@@ -824,10 +849,13 @@ def public_portfolio_metrics_payload(
             continue
         if hitl_enabled is not None and job_hitl != hitl_enabled:
             continue
+        if warning_level_filter is not None and _job_warning_level(job) != warning_level_filter:
+            continue
         filtered.append((str(job_id), job))
 
     status_counts: Dict[str, int] = {}
     donor_counts: Dict[str, int] = {}
+    warning_level_counts: Dict[str, int] = {}
     total_pause_count = 0
     total_resume_count = 0
     metrics_rows: list[Dict[str, Any]] = []
@@ -838,6 +866,8 @@ def public_portfolio_metrics_payload(
         state = job.get("state") if isinstance(job.get("state"), dict) else {}
         job_donor = str((state or {}).get("donor_id") or (state or {}).get("donor") or "unknown")
         donor_counts[job_donor] = donor_counts.get(job_donor, 0) + 1
+        job_warning_level = _job_warning_level(job)
+        warning_level_counts[job_warning_level] = warning_level_counts.get(job_warning_level, 0) + 1
 
         m = public_job_metrics_payload(job_id, job)
         metrics_rows.append(m)
@@ -859,9 +889,11 @@ def public_portfolio_metrics_payload(
             "donor_id": donor_id,
             "status": status,
             "hitl_enabled": hitl_enabled,
+            "warning_level": warning_level_filter,
         },
         "status_counts": status_counts,
         "donor_counts": donor_counts,
+        "warning_level_counts": warning_level_counts,
         "terminal_job_count": len(terminal_rows),
         "hitl_job_count": sum(1 for _, job in filtered if bool(job.get("hitl_enabled"))),
         "total_pause_count": total_pause_count,
@@ -878,7 +910,9 @@ def public_portfolio_quality_payload(
     donor_id: Optional[str] = None,
     status: Optional[str] = None,
     hitl_enabled: Optional[bool] = None,
+    warning_level: Optional[str] = None,
 ) -> Dict[str, Any]:
+    warning_level_filter = _normalize_warning_level_filter(warning_level)
     filtered: list[tuple[str, Dict[str, Any]]] = []
     for job_id, job in jobs_by_id.items():
         if not isinstance(job, dict):
@@ -894,10 +928,13 @@ def public_portfolio_quality_payload(
             continue
         if hitl_enabled is not None and job_hitl != hitl_enabled:
             continue
+        if warning_level_filter is not None and _job_warning_level(job) != warning_level_filter:
+            continue
         filtered.append((str(job_id), job))
 
     status_counts: Dict[str, int] = {}
     donor_counts: Dict[str, int] = {}
+    warning_level_counts: Dict[str, int] = {}
     donor_needs_revision_counts: Dict[str, int] = {}
     donor_open_findings_counts: Dict[str, int] = {}
     donor_weighted_risk_breakdown: Dict[str, Dict[str, Any]] = {}
@@ -909,6 +946,8 @@ def public_portfolio_quality_payload(
         state = job.get("state") if isinstance(job.get("state"), dict) else {}
         job_donor = str((state or {}).get("donor_id") or (state or {}).get("donor") or "unknown")
         donor_counts[job_donor] = donor_counts.get(job_donor, 0) + 1
+        job_warning_level = _job_warning_level(job)
+        warning_level_counts[job_warning_level] = warning_level_counts.get(job_warning_level, 0) + 1
 
         q = public_job_quality_payload(job_id, job)
         q["_donor_id"] = job_donor
@@ -1176,9 +1215,11 @@ def public_portfolio_quality_payload(
             "donor_id": donor_id,
             "status": status,
             "hitl_enabled": hitl_enabled,
+            "warning_level": warning_level_filter,
         },
         "status_counts": status_counts,
         "donor_counts": donor_counts,
+        "warning_level_counts": warning_level_counts,
         "terminal_job_count": len(terminal_rows),
         "quality_score_job_count": quality_score_job_count,
         "critic_score_job_count": critic_score_job_count,

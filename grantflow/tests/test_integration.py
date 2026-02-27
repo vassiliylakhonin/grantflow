@@ -115,13 +115,16 @@ def test_demo_console_page_loads():
     assert "commentsFilterVersionId" in body
     assert "grantflow_demo_diff_section" in body
     assert "grantflow_demo_strict_preflight" in body
+    assert "grantflow_demo_portfolio_warning_level" in body
     assert "portfolioBtn" in body
     assert "portfolioClearBtn" in body
+    assert "portfolioWarningLevelFilter" in body
     assert "/portfolio/quality" in body
     assert "portfolioMetricsCards" in body
     assert "portfolioQualityCards" in body
     assert "portfolioQualityRiskList" in body
     assert "portfolioQualityOpenFindingsList" in body
+    assert "portfolioQualityWarningLevelsList" in body
     assert "portfolioQualityPrioritySignalsList" in body
     assert "portfolioQualityWeightedDonorsList" in body
     assert "qualityLlmFindingLabelsList" in body
@@ -1351,6 +1354,7 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
         {
             "status": "done",
             "hitl_enabled": True,
+            "generate_preflight": {"warning_level": "medium", "risk_level": "medium"},
             "state": {"donor_id": "usaid"},
             "job_events": [
                 {
@@ -1404,6 +1408,7 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
         {
             "status": "error",
             "hitl_enabled": False,
+            "generate_preflight": {"warning_level": "high", "risk_level": "high"},
             "state": {"donor_id": "eu"},
             "job_events": [
                 {
@@ -1439,6 +1444,8 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert body["status_counts"]["error"] >= 1
     assert body["donor_counts"]["usaid"] >= 1
     assert body["donor_counts"]["eu"] >= 1
+    assert body["warning_level_counts"]["medium"] >= 1
+    assert body["warning_level_counts"]["high"] >= 1
     assert body["terminal_job_count"] >= 2
     assert body["hitl_job_count"] >= 1
     assert body["total_pause_count"] >= 1
@@ -1453,6 +1460,14 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert filtered_body["filters"]["hitl_enabled"] is True
     assert filtered_body["job_count"] >= 1
     assert "error" not in filtered_body["status_counts"]
+    assert filtered_body["warning_level_counts"]["medium"] >= 1
+
+    warning_filtered = client.get("/portfolio/metrics", params={"warning_level": "high"})
+    assert warning_filtered.status_code == 200
+    warning_filtered_body = warning_filtered.json()
+    assert warning_filtered_body["filters"]["warning_level"] == "high"
+    assert warning_filtered_body["job_count"] >= 1
+    assert warning_filtered_body["warning_level_counts"] == {"high": warning_filtered_body["job_count"]}
 
 
 def test_portfolio_quality_endpoint_aggregates_quality_signals():
@@ -1461,6 +1476,7 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
         {
             "status": "done",
             "hitl_enabled": True,
+            "generate_preflight": {"warning_level": "medium", "risk_level": "medium"},
             "state": {
                 "donor_id": "usaid",
                 "quality_score": 8.5,
@@ -1548,6 +1564,7 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
         {
             "status": "done",
             "hitl_enabled": True,
+            "generate_preflight": {"warning_level": "low", "risk_level": "low"},
             "state": {
                 "donor_id": "usaid",
                 "quality_score": 6.5,
@@ -1605,6 +1622,7 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
         {
             "status": "error",
             "hitl_enabled": False,
+            "generate_preflight": {"warning_level": "high", "risk_level": "high"},
             "state": {"donor_id": "eu", "quality_score": 4.0, "critic_score": 3.0, "needs_revision": True},
             "job_events": [
                 {
@@ -1630,6 +1648,8 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["filters"]["donor_id"] == "usaid"
     assert body["filters"]["status"] == "done"
     assert body["filters"]["hitl_enabled"] is True
+    assert body["warning_level_counts"]["medium"] >= 1
+    assert body["warning_level_counts"]["low"] >= 1
     assert body["job_count"] >= 2
     assert body["avg_quality_score"] is not None
     assert body["avg_critic_score"] is not None
@@ -1690,6 +1710,13 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["donor_needs_revision_counts"]["usaid"] >= 1
     assert body["donor_open_findings_counts"]["usaid"] >= 1
     assert "eu" not in body["donor_counts"]
+
+    warning_filtered = client.get("/portfolio/quality", params={"warning_level": "high"})
+    assert warning_filtered.status_code == 200
+    warning_filtered_body = warning_filtered.json()
+    assert warning_filtered_body["filters"]["warning_level"] == "high"
+    assert warning_filtered_body["job_count"] >= 1
+    assert warning_filtered_body["warning_level_counts"] == {"high": warning_filtered_body["job_count"]}
 
 
 def test_portfolio_quality_export_endpoint_returns_csv():

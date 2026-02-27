@@ -422,7 +422,7 @@ def render_demo_ui_html() -> str:
         <div class="card">
           <h2>Portfolio Metrics</h2>
           <div class="body">
-            <div class="row3">
+            <div class="row4">
               <div>
                 <label for="portfolioDonorFilter">Donor Filter</label>
                 <input id="portfolioDonorFilter" placeholder="usaid" />
@@ -445,6 +445,16 @@ def render_demo_ui_html() -> str:
                   <option value="">all</option>
                   <option value="true">true</option>
                   <option value="false">false</option>
+                </select>
+              </div>
+              <div>
+                <label for="portfolioWarningLevelFilter">Warning Level</label>
+                <select id="portfolioWarningLevelFilter">
+                  <option value="">all</option>
+                  <option value="high">high</option>
+                  <option value="medium">medium</option>
+                  <option value="low">low</option>
+                  <option value="none">none</option>
                 </select>
               </div>
             </div>
@@ -502,6 +512,13 @@ def render_demo_ui_html() -> str:
                 <label>Top Donors (Open Findings)</label>
                 <div class="list" id="portfolioQualityOpenFindingsList"></div>
               </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Preflight Warning Levels</label>
+                <div class="list" id="portfolioQualityWarningLevelsList"></div>
+              </div>
+              <div></div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -803,6 +820,7 @@ def render_demo_ui_html() -> str:
         ["portfolioDonorFilter", "grantflow_demo_portfolio_donor"],
         ["portfolioStatusFilter", "grantflow_demo_portfolio_status"],
         ["portfolioHitlFilter", "grantflow_demo_portfolio_hitl"],
+        ["portfolioWarningLevelFilter", "grantflow_demo_portfolio_warning_level"],
         ["commentsFilterSection", "grantflow_demo_comments_filter_section"],
         ["commentsFilterStatus", "grantflow_demo_comments_filter_status"],
         ["commentsFilterVersionId", "grantflow_demo_comments_filter_version_id"],
@@ -1045,6 +1063,7 @@ def render_demo_ui_html() -> str:
         portfolioDonorCountsList: $("portfolioDonorCountsList"),
         portfolioQualityRiskList: $("portfolioQualityRiskList"),
         portfolioQualityOpenFindingsList: $("portfolioQualityOpenFindingsList"),
+        portfolioQualityWarningLevelsList: $("portfolioQualityWarningLevelsList"),
         portfolioQualityPrioritySignalsList: $("portfolioQualityPrioritySignalsList"),
         portfolioQualityWeightedDonorsList: $("portfolioQualityWeightedDonorsList"),
         portfolioQualityLlmLabelCountsList: $("portfolioQualityLlmLabelCountsList"),
@@ -1066,6 +1085,7 @@ def render_demo_ui_html() -> str:
         portfolioDonorFilter: $("portfolioDonorFilter"),
         portfolioStatusFilter: $("portfolioStatusFilter"),
         portfolioHitlFilter: $("portfolioHitlFilter"),
+        portfolioWarningLevelFilter: $("portfolioWarningLevelFilter"),
         commentsFilterSection: $("commentsFilterSection"),
         commentsFilterStatus: $("commentsFilterStatus"),
         commentsFilterVersionId: $("commentsFilterVersionId"),
@@ -1151,6 +1171,7 @@ def render_demo_ui_html() -> str:
         els.portfolioDonorFilter.value = "";
         els.portfolioStatusFilter.value = "";
         els.portfolioHitlFilter.value = "";
+        els.portfolioWarningLevelFilter.value = "";
         persistUiState();
       }
 
@@ -2766,11 +2787,18 @@ def render_demo_ui_html() -> str:
         refreshPortfolioBundle().catch(showError);
       }
 
+      function applyPortfolioWarningLevelFilter(warningLevelValue) {
+        els.portfolioWarningLevelFilter.value = warningLevelValue || "";
+        persistUiState();
+        refreshPortfolioBundle().catch(showError);
+      }
+
       function buildPortfolioFilterQueryString() {
         const params = new URLSearchParams();
         if (els.portfolioDonorFilter.value.trim()) params.set("donor_id", els.portfolioDonorFilter.value.trim());
         if (els.portfolioStatusFilter.value) params.set("status", els.portfolioStatusFilter.value);
         if (els.portfolioHitlFilter.value) params.set("hitl_enabled", els.portfolioHitlFilter.value);
+        if (els.portfolioWarningLevelFilter.value) params.set("warning_level", els.portfolioWarningLevelFilter.value);
         const q = params.toString();
         return q ? `?${q}` : "";
       }
@@ -2846,6 +2874,13 @@ def render_demo_ui_html() -> str:
           8,
           "weighted_score",
           (donorKey) => applyPortfolioDonorFilter(donorKey)
+        );
+        renderKeyValueList(
+          els.portfolioQualityWarningLevelsList,
+          body.warning_level_counts,
+          "No warning-level data yet.",
+          4,
+          (warningLevel) => applyPortfolioWarningLevelFilter(warningLevel)
         );
         setJson(els.portfolioQualityJson, body);
         return body;
@@ -3261,6 +3296,9 @@ def render_demo_ui_html() -> str:
         });
         els.portfolioHitlFilter.addEventListener("change", () => {
           applyPortfolioHitlFilter(els.portfolioHitlFilter.value);
+        });
+        els.portfolioWarningLevelFilter.addEventListener("change", () => {
+          applyPortfolioWarningLevelFilter(els.portfolioWarningLevelFilter.value);
         });
         els.portfolioDonorFilter.addEventListener("change", () => {
           persistUiState();
