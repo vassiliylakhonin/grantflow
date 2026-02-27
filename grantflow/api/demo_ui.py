@@ -2691,6 +2691,16 @@ def render_demo_ui_html() -> str:
               });
               actionsRow.appendChild(resolveBtn);
             }
+            if (flawId && (flaw.status === "acknowledged" || flaw.status === "resolved")) {
+              const reopenBtn = document.createElement("button");
+              reopenBtn.className = "ghost";
+              reopenBtn.textContent = "Reopen Finding";
+              reopenBtn.addEventListener("click", (event) => {
+                event.stopPropagation();
+                setFindingStatus(flawId, "open").catch(showError);
+              });
+              actionsRow.appendChild(reopenBtn);
+            }
 
             const commentBtn = document.createElement("button");
             commentBtn.className = "ghost";
@@ -3718,7 +3728,13 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) throw new Error("No job_id");
         if (!findingId) throw new Error("No finding_id");
-        const action = nextStatus === "acknowledged" ? "ack" : "resolve";
+        const actionByStatus = {
+          acknowledged: "ack",
+          resolved: "resolve",
+          open: "open",
+        };
+        const action = actionByStatus[nextStatus];
+        if (!action) throw new Error(`Unsupported finding status: ${String(nextStatus)}`);
         const updated = await apiFetch(
           `/status/${encodeURIComponent(jobId)}/critic/findings/${encodeURIComponent(findingId)}/${action}`,
           { method: "POST" }

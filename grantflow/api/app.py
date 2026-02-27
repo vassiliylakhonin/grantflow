@@ -772,6 +772,7 @@ def _set_critic_fatal_flaw_status(
             status=next_status,
             section=updated_finding.get("section"),
             severity=updated_finding.get("severity"),
+            actor=actor_value,
         )
 
     return updated_finding
@@ -1685,6 +1686,21 @@ def acknowledge_status_critic_finding(job_id: str, finding_id: str, request: Req
         job_id,
         finding_id=finding_id,
         next_status="acknowledged",
+        actor=_finding_actor_from_request(request),
+    )
+
+
+@app.post(
+    "/status/{job_id}/critic/findings/{finding_id}/open",
+    response_model=CriticFatalFlawPublicResponse,
+    response_model_exclude_none=True,
+)
+def reopen_status_critic_finding(job_id: str, finding_id: str, request: Request):
+    require_api_key_if_configured(request)
+    return _set_critic_fatal_flaw_status(
+        job_id,
+        finding_id=finding_id,
+        next_status="open",
         actor=_finding_actor_from_request(request),
     )
 
