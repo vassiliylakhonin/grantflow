@@ -73,6 +73,7 @@ from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes.critic import red_team_critic
 from grantflow.swarm.nodes.discovery import validate_input_richness
 from grantflow.swarm.nodes.mel_specialist import mel_assign_indicators
+from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id
 
 app = FastAPI(
     title="GrantFlow API",
@@ -637,7 +638,8 @@ install_openapi_api_key_security(app)
 def _pause_for_hitl(job_id: str, state: dict, stage: Literal["toc", "logframe"], resume_from: HITLStartAt) -> None:
     if _job_is_canceled(job_id):
         return
-    donor_id = state.get("donor") or state.get("donor_id") or "unknown"
+    normalize_state_contract(state)
+    donor_id = state_donor_id(state, default="unknown")
     checkpoint_id = hitl_manager.create_checkpoint(stage, state, donor_id)
     if _job_is_canceled(job_id):
         hitl_manager.cancel(checkpoint_id, "Canceled before HITL checkpoint was published")
@@ -659,10 +661,12 @@ def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
     try:
         if _job_is_canceled(job_id):
             return
+        normalize_state_contract(initial_state)
         _set_job(job_id, {"status": "running", "state": initial_state, "hitl_enabled": False})
         if _job_is_canceled(job_id):
             return
         final_state = grantflow_graph.invoke(initial_state)
+        normalize_state_contract(final_state)
         if _job_is_canceled(job_id):
             return
         _set_job(job_id, {"status": "done", "state": final_state, "hitl_enabled": False})
@@ -674,6 +678,7 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
     try:
         if _job_is_canceled(job_id):
             return
+        normalize_state_contract(state)
         _set_job(
             job_id,
             {
@@ -1002,24 +1007,20 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
     client_metadata = req.client_metadata if isinstance(req.client_metadata, dict) else None
     job_id = str(uuid.uuid4())
     initial_state = {
-        "donor": donor,
         "donor_id": donor,
         "donor_strategy": strategy,
-        "strategy": strategy,
-        "input": input_payload,
         "input_context": input_payload,
         "llm_mode": req.llm_mode,
-        "iteration": 0,
         "iteration_count": 0,
         "max_iterations": config.graph.max_iterations,
-        "quality_score": 0.0,
         "critic_score": 0.0,
         "needs_revision": False,
-        "critic_notes": [],
+        "critic_notes": {},
         "critic_feedback_history": [],
         "hitl_pending": False,
         "errors": [],
     }
+    normalize_state_contract(initial_state)
 
     _set_job(
         job_id,

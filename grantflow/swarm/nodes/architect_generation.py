@@ -15,6 +15,7 @@ from grantflow.swarm.nodes.architect_policy import (
     sanitize_validation_error_hint,
 )
 from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
+from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id, state_input_context
 
 
 def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> BaseModel:
@@ -408,10 +409,14 @@ def generate_toc_under_contract(
     strategy: Any,
     evidence_hits: Iterable[Dict[str, Any]],
 ) -> tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any], list[Dict[str, Any]]]:
+    normalize_state_contract(state)
     evidence_hits = [h for h in evidence_hits if isinstance(h, dict)]
     schema_cls = strategy.get_toc_schema()
-    donor_id = str(state.get("donor") or state.get("donor_id") or getattr(strategy, "donor_id", "donor"))
-    input_context = state.get("input") or state.get("input_context") or {}
+    donor_id = state_donor_id(
+        state,
+        default=str(getattr(strategy, "donor_id", "donor")),
+    )
+    input_context = state_input_context(state)
     project = str(input_context.get("project") or "TBD project")
     country = str(input_context.get("country") or "TBD")
     critic_notes = state.get("critic_notes")

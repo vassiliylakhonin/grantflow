@@ -5,6 +5,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from pydantic import BaseModel, Field
 
 from grantflow.swarm.critic_donor_policy import apply_donor_specific_toc_checks
+from grantflow.swarm.state_contract import state_input_context
 from grantflow.swarm.versioning import filter_versions
 
 
@@ -95,23 +96,20 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
     checks: List[RuleCheckResult] = []
     flaws: List[CriticFatalFlaw] = []
 
-    raw_input_context = state.get("input_context")
-    if not isinstance(raw_input_context, dict):
-        raw_input_context = state.get("input") if isinstance(state.get("input"), dict) else {}
+    raw_input_context = state_input_context(state)
     non_empty_input_fields = 0
-    if isinstance(raw_input_context, dict):
-        for value in raw_input_context.values():
-            if value is None:
-                continue
-            if isinstance(value, str):
-                if value.strip():
-                    non_empty_input_fields += 1
-                continue
-            if isinstance(value, (list, dict, tuple, set)):
-                if len(value) > 0:
-                    non_empty_input_fields += 1
-                continue
-            non_empty_input_fields += 1
+    for value in raw_input_context.values():
+        if value is None:
+            continue
+        if isinstance(value, str):
+            if value.strip():
+                non_empty_input_fields += 1
+            continue
+        if isinstance(value, (list, dict, tuple, set)):
+            if len(value) > 0:
+                non_empty_input_fields += 1
+            continue
+        non_empty_input_fields += 1
 
     if non_empty_input_fields >= 2:
         checks.append(

@@ -17,6 +17,7 @@ from grantflow.swarm.llm_provider import (
     openai_compatible_llm_available,
     openai_compatible_missing_reason,
 )
+from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id
 
 WEAK_GROUNDING_LLM_SCORE_MAX_PENALTY = 1.5
 WEAK_GROUNDING_MIN_CITATIONS_FOR_CALIBRATION = 5
@@ -84,7 +85,7 @@ def _advisory_llm_findings_context(
     rule_report: Any,
     llm_fatal_flaw_items: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
-    donor_id = str(state.get("donor_id") or state.get("donor") or "").strip().lower()
+    donor_id = state_donor_id(state)
     llm_items = [f for f in llm_fatal_flaw_items if isinstance(f, dict)]
     if not llm_items:
         return {"applies": False, "reason": "no_llm_findings"}
@@ -352,6 +353,7 @@ def _combine_critic_scores(
 
 def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     """Evaluates the drafted ToC and LogFrame and updates loop-control fields."""
+    normalize_state_contract(state)
     donor_strategy = state.get("donor_strategy") or state.get("strategy")
     if not donor_strategy:
         raise ValueError("Critical Error: DonorStrategy not found in state.")
@@ -404,7 +406,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     llm_advisory_diagnostics = _build_llm_advisory_diagnostics(
         llm_fatal_flaw_items=llm_fatal_flaw_items,
         advisory_ctx=advisory_ctx,
-        donor_id=str(state.get("donor_id") or state.get("donor") or ""),
+        donor_id=state_donor_id(state),
     )
     llm_fatal_flaw_items, llm_advisory_normalization = _downgrade_advisory_llm_findings(
         llm_fatal_flaw_items,

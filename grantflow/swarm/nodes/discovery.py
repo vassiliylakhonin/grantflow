@@ -5,30 +5,20 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from grantflow.core.strategies.factory import DonorFactory
+from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id, state_input_context
 
 
 def validate_input_richness(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Валидирует входные данные и загружает стратегию донора.
     """
-    state.setdefault("errors", [])
-
-    donor_id = state.get("donor") or state.get("donor_id")
-    input_context = state.get("input") or state.get("input_context") or {}
+    normalize_state_contract(state)
+    donor_id = state_donor_id(state)
+    input_context = state_input_context(state)
 
     if not donor_id:
         state["errors"].append("Missing donor_id/donor")
         return state
-
-    state["donor"] = donor_id
-    state["donor_id"] = donor_id
-    state["input"] = input_context
-    state["input_context"] = input_context
-    state.setdefault("iteration", int(state.get("iteration_count", 0) or 0))
-    state.setdefault("quality_score", float(state.get("critic_score") or 0.0))
-    state.setdefault("critic_notes", [])
-    state.setdefault("needs_revision", False)
-    state.setdefault("hitl_pending", False)
 
     try:
         if state.get("donor_strategy") is None:

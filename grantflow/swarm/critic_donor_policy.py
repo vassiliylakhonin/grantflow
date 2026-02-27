@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from grantflow.swarm.state_contract import state_donor_id
+
 
 def normalized_donor_id(state: dict[str, Any]) -> str:
-    donor = state.get("donor_id") or state.get("donor") or ""
-    return str(donor).strip().lower()
+    return state_donor_id(state)
 
 
 def apply_donor_specific_toc_checks(

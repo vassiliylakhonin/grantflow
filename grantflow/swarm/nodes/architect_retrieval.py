@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Tuple
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
+from grantflow.swarm.state_contract import state_donor_id, state_input_context
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 _GENERIC_EXCERPT_TOKENS = {
@@ -49,10 +50,10 @@ _DONOR_PRIORITY_TOKENS: dict[str, set[str]] = {
 
 
 def build_architect_query_text(state: Dict[str, Any]) -> str:
-    input_context = state.get("input") or state.get("input_context") or {}
+    input_context = state_input_context(state)
     project = str(input_context.get("project") or "project").strip()
     country = str(input_context.get("country") or "").strip()
-    donor_id = str(state.get("donor") or state.get("donor_id") or "donor").strip()
+    donor_id = state_donor_id(state, default="donor")
 
     critic_notes = state.get("critic_notes") or {}
     revision_hint = ""

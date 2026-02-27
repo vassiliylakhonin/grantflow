@@ -8,11 +8,12 @@ from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
 from grantflow.swarm.citations import append_citations
+from grantflow.swarm.state_contract import normalize_state_contract, state_input_context
 from grantflow.swarm.versioning import append_draft_version
 
 
 def _build_query_text(state: Dict[str, Any]) -> str:
-    input_context = state.get("input") or state.get("input_context") or {}
+    input_context = state_input_context(state)
     project = input_context.get("project", "project")
     country = input_context.get("country", "")
     toc = state.get("toc_draft", {}) or {}
@@ -23,6 +24,7 @@ def _build_query_text(state: Dict[str, Any]) -> str:
 
 def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
     """Назначает MEL индикаторы к ToC c RAG-запросом в namespace донора."""
+    normalize_state_contract(state)
     strategy = state.get("donor_strategy") or state.get("strategy")
     if not strategy:
         state.setdefault("errors", []).append("MEL cannot run without donor_strategy")
