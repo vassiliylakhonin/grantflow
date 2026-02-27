@@ -70,7 +70,22 @@ curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/ready
 ```
 
-### 4) (Optional) Run preflight readiness check
+`/ready` now includes `checks.preflight_grounding_policy` with active mode and thresholds.
+
+### 4) (Optional) Configure preflight grounding thresholds
+
+```bash
+export GRANTFLOW_GROUNDING_GATE_MODE=warn
+export GRANTFLOW_PREFLIGHT_GROUNDING_HIGH_RISK_COVERAGE_THRESHOLD=0.50
+export GRANTFLOW_PREFLIGHT_GROUNDING_MEDIUM_RISK_COVERAGE_THRESHOLD=0.80
+export GRANTFLOW_PREFLIGHT_GROUNDING_MIN_UPLOADS=3
+```
+
+Notes:
+- `GRANTFLOW_GROUNDING_GATE_MODE=strict` can block `/generate` before pipeline start if preflight grounding policy evaluates to blocking.
+- `strict_preflight=true` blocks when either readiness risk or grounding risk is `high`.
+
+### 5) (Optional) Run preflight readiness check
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate/preflight \
@@ -80,7 +95,7 @@ curl -s -X POST http://127.0.0.1:8000/generate/preflight \
   }'
 ```
 
-### 5) Start a job
+### 6) Start a job
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate \
@@ -98,7 +113,7 @@ curl -s -X POST http://127.0.0.1:8000/generate \
 
 `/generate` is async and returns `job_id`.
 
-### 6) (Optional) Enforce strict preflight gate
+### 7) (Optional) Enforce strict preflight gate
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate \
@@ -115,7 +130,7 @@ curl -s -X POST http://127.0.0.1:8000/generate \
   }'
 ```
 
-If preflight risk is `high`, API returns `409`:
+If strict preflight blocks, API returns `409`:
 
 ```json
 {
@@ -129,13 +144,23 @@ If preflight risk is `high`, API returns `409`:
 }
 ```
 
-### 7) Poll result
+If preflight grounding policy itself is strict-blocking, API returns:
+
+```json
+{
+  "detail": {
+    "reason": "preflight_grounding_policy_block"
+  }
+}
+```
+
+### 8) Poll result
 
 ```bash
 curl -s http://127.0.0.1:8000/status/<JOB_ID>
 ```
 
-### 8) Export artifacts
+### 9) Export artifacts
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/export \

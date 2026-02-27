@@ -38,6 +38,12 @@ def test_health_endpoint():
     assert isinstance(diagnostics["auth"]["read_auth_required"], bool)
     assert diagnostics["vector_store"]["backend"] in {"chroma", "memory"}
     assert diagnostics["vector_store"]["collection_prefix"]
+    preflight_policy = diagnostics["preflight_grounding_policy"]
+    assert preflight_policy["mode"] in {"warn", "strict", "off"}
+    thresholds = preflight_policy["thresholds"]
+    assert 0.0 <= float(thresholds["high_risk_coverage_threshold"]) <= 1.0
+    assert 0.0 <= float(thresholds["medium_risk_coverage_threshold"]) <= 1.0
+    assert int(thresholds["min_uploads"]) >= 1
 
 
 def test_demo_console_page_loads():
@@ -178,6 +184,12 @@ def test_ready_endpoint():
     checks = body["checks"]
     assert checks["vector_store"]["backend"] in {"chroma", "memory"}
     assert checks["vector_store"]["ready"] is True
+    preflight_policy = checks["preflight_grounding_policy"]
+    assert preflight_policy["mode"] in {"warn", "strict", "off"}
+    thresholds = preflight_policy["thresholds"]
+    assert 0.0 <= float(thresholds["high_risk_coverage_threshold"]) <= 1.0
+    assert 0.0 <= float(thresholds["medium_risk_coverage_threshold"]) <= 1.0
+    assert int(thresholds["min_uploads"]) >= 1
 
 
 def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
@@ -194,6 +206,25 @@ def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
     assert body["detail"]["checks"]["vector_store"]["backend"] == "chroma"
     assert body["detail"]["checks"]["vector_store"]["ready"] is False
     assert "chroma unavailable" in body["detail"]["checks"]["vector_store"]["error"]
+    preflight_policy = body["detail"]["checks"]["preflight_grounding_policy"]
+    assert preflight_policy["mode"] in {"warn", "strict", "off"}
+
+
+def test_ready_endpoint_reflects_preflight_grounding_threshold_overrides(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_high_risk_coverage_threshold", 0.42)
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_medium_risk_coverage_threshold", 0.91)
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_min_uploads", 7)
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    policy = body["checks"]["preflight_grounding_policy"]
+    assert policy["mode"] == "strict"
+    thresholds = policy["thresholds"]
+    assert thresholds["high_risk_coverage_threshold"] == 0.42
+    assert thresholds["medium_risk_coverage_threshold"] == 0.91
+    assert thresholds["min_uploads"] == 7
 
 
 def test_list_donors():
@@ -221,6 +252,13 @@ def test_generate_preflight_reports_high_risk_when_namespace_empty():
     assert grounding_policy["risk_level"] == "high"
     assert grounding_policy["go_ahead"] in {True, False}
     assert isinstance(grounding_policy.get("reasons"), list)
+    thresholds = grounding_policy.get("thresholds") or {}
+    assert 0.0 <= float(thresholds.get("high_risk_coverage_threshold") or 0.0) <= 1.0
+    assert 0.0 <= float(thresholds.get("medium_risk_coverage_threshold") or 0.0) <= 1.0
+    assert float(thresholds.get("medium_risk_coverage_threshold") or 0.0) >= float(
+        thresholds.get("high_risk_coverage_threshold") or 0.0
+    )
+    assert int(thresholds.get("min_uploads") or 0) >= 1
     assert body["go_ahead"] is False
     assert body["loaded_count"] == 0
     assert body["expected_count"] >= 1

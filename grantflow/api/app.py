@@ -270,6 +270,37 @@ def _normalize_grounding_policy_mode(raw_mode: Any) -> str:
     return mode
 
 
+def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
+    high_cov_raw = getattr(config.graph, "preflight_grounding_high_risk_coverage_threshold", 0.5)
+    medium_cov_raw = getattr(config.graph, "preflight_grounding_medium_risk_coverage_threshold", 0.8)
+    min_uploads_raw = getattr(config.graph, "preflight_grounding_min_uploads", 3)
+
+    try:
+        high_cov = float(high_cov_raw)
+    except (TypeError, ValueError):
+        high_cov = 0.5
+    try:
+        medium_cov = float(medium_cov_raw)
+    except (TypeError, ValueError):
+        medium_cov = 0.8
+    try:
+        min_uploads = int(min_uploads_raw)
+    except (TypeError, ValueError):
+        min_uploads = 3
+
+    high_cov = max(0.0, min(high_cov, 1.0))
+    medium_cov = max(0.0, min(medium_cov, 1.0))
+    if medium_cov < high_cov:
+        medium_cov = high_cov
+    min_uploads = max(1, min_uploads)
+
+    return {
+        "high_risk_coverage_threshold": round(high_cov, 4),
+        "medium_risk_coverage_threshold": round(medium_cov, 4),
+        "min_uploads": min_uploads,
+    }
+
+
 def _build_preflight_grounding_policy(
     *,
     coverage_rate: Optional[float],
@@ -278,6 +309,10 @@ def _build_preflight_grounding_policy(
     missing_doc_families: list[str],
 ) -> Dict[str, Any]:
     mode = _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn"))
+    thresholds = _preflight_grounding_policy_thresholds()
+    high_risk_coverage_threshold = float(thresholds["high_risk_coverage_threshold"])
+    medium_risk_coverage_threshold = float(thresholds["medium_risk_coverage_threshold"])
+    min_uploads = int(thresholds["min_uploads"])
     reasons: list[str] = []
     risk_level = "low"
 
@@ -286,14 +321,14 @@ def _build_preflight_grounding_policy(
         risk_level = "high"
 
     if coverage_rate is not None:
-        if coverage_rate < 0.5:
-            reasons.append("coverage_below_50pct")
+        if coverage_rate < high_risk_coverage_threshold:
+            reasons.append("coverage_below_high_threshold")
             risk_level = "high"
-        elif coverage_rate < 0.8 and risk_level != "high":
-            reasons.append("coverage_below_80pct")
+        elif coverage_rate < medium_risk_coverage_threshold and risk_level != "high":
+            reasons.append("coverage_below_medium_threshold")
             risk_level = "medium"
 
-    if inventory_total_uploads > 0 and inventory_total_uploads < 3 and risk_level == "low":
+    if inventory_total_uploads > 0 and inventory_total_uploads < min_uploads and risk_level == "low":
         reasons.append("few_uploaded_documents")
         risk_level = "medium"
 
@@ -318,6 +353,7 @@ def _build_preflight_grounding_policy(
         "summary": summary,
         "blocking": blocking,
         "go_ahead": not blocking,
+        "thresholds": thresholds,
     }
 
 
@@ -995,6 +1031,7 @@ def _health_diagnostics() -> dict[str, Any]:
         sqlite_path = getattr(INGEST_AUDIT_STORE, "db_path", None)
 
     vector_backend = "chroma" if getattr(vector_store, "client", None) is not None else "memory"
+    preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
     diagnostics: dict[str, Any] = {
         "job_store": {"mode": job_store_mode},
         "hitl_store": {"mode": hitl_store_mode},
@@ -1006,6 +1043,10 @@ def _health_diagnostics() -> dict[str, Any]:
         "vector_store": {
             "backend": vector_backend,
             "collection_prefix": getattr(vector_store, "prefix", "grantflow"),
+        },
+        "preflight_grounding_policy": {
+            "mode": _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn")),
+            "thresholds": preflight_grounding_thresholds,
         },
     }
     if sqlite_path and (job_store_mode == "sqlite" or hitl_store_mode == "sqlite" or ingest_store_mode == "sqlite"):
@@ -1091,9 +1132,16 @@ def health_check():
 def readiness_check():
     vector_ready = _vector_store_readiness()
     ready = bool(vector_ready.get("ready"))
+    preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
     payload = {
         "status": "ready" if ready else "degraded",
-        "checks": {"vector_store": vector_ready},
+        "checks": {
+            "vector_store": vector_ready,
+            "preflight_grounding_policy": {
+                "mode": _normalize_grounding_policy_mode(getattr(config.graph, "grounding_gate_mode", "warn")),
+                "thresholds": preflight_grounding_thresholds,
+            },
+        },
     }
     if not ready:
         raise HTTPException(status_code=503, detail=payload)
