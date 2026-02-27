@@ -605,6 +605,7 @@ class CriticFindingsBulkStatusRequest(BaseModel):
 class ReviewWorkflowSLARecomputeRequest(BaseModel):
     finding_sla_hours: Optional[Dict[str, int]] = None
     default_comment_sla_hours: Optional[int] = None
+    use_saved_profile: bool = False
 
     model_config = ConfigDict(extra="forbid")
 
@@ -744,6 +745,34 @@ def _normalize_comment_sla_hours(default_comment_sla_hours: Optional[Any]) -> in
     return value
 
 
+def _resolve_sla_profile_for_recompute(
+    *,
+    job: Dict[str, Any],
+    finding_sla_hours_override: Optional[Dict[str, Any]],
+    default_comment_sla_hours: Optional[Any],
+    use_saved_profile: bool,
+) -> tuple[Dict[str, int], int]:
+    base_finding = dict(CRITIC_FINDING_SLA_HOURS)
+    base_comment = int(REVIEW_COMMENT_DEFAULT_SLA_HOURS)
+
+    if use_saved_profile:
+        client_metadata = job.get("client_metadata")
+        metadata = client_metadata if isinstance(client_metadata, dict) else {}
+        saved_profile = metadata.get("sla_profile")
+        saved_dict = saved_profile if isinstance(saved_profile, dict) else {}
+        saved_finding = saved_dict.get("finding_sla_hours")
+        saved_comment = saved_dict.get("default_comment_sla_hours")
+        base_finding = _normalize_finding_sla_profile(saved_finding, default=base_finding)
+        base_comment = _normalize_comment_sla_hours(saved_comment)
+
+    resolved_finding = _normalize_finding_sla_profile(finding_sla_hours_override, default=base_finding)
+    if default_comment_sla_hours is None:
+        resolved_comment = base_comment
+    else:
+        resolved_comment = _normalize_comment_sla_hours(default_comment_sla_hours)
+    return resolved_finding, resolved_comment
+
+
 def _ensure_finding_due_at(
     item: Dict[str, Any],
     *,
@@ -819,6 +848,7 @@ def _recompute_review_workflow_sla(
     actor: Optional[str] = None,
     finding_sla_hours_override: Optional[Dict[str, Any]] = None,
     default_comment_sla_hours: Optional[Any] = None,
+    use_saved_profile: bool = False,
 ) -> Dict[str, Any]:
     job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
     job = _normalize_review_comments_for_job(job_id) or job
@@ -827,8 +857,12 @@ def _recompute_review_workflow_sla(
 
     now_iso = _utcnow_iso()
     actor_value = str(actor or "").strip() or "api_user"
-    applied_finding_sla_hours = _normalize_finding_sla_profile(finding_sla_hours_override)
-    applied_default_comment_sla_hours = _normalize_comment_sla_hours(default_comment_sla_hours)
+    applied_finding_sla_hours, applied_default_comment_sla_hours = _resolve_sla_profile_for_recompute(
+        job=job,
+        finding_sla_hours_override=finding_sla_hours_override,
+        default_comment_sla_hours=default_comment_sla_hours,
+        use_saved_profile=bool(use_saved_profile),
+    )
 
     state = job.get("state")
     state_dict = state if isinstance(state, dict) else {}
@@ -894,6 +928,19 @@ def _recompute_review_workflow_sla(
         update_payload["state"] = next_state
     if next_comments != comments:
         update_payload["review_comments"] = next_comments[-500:]
+
+    client_metadata = job.get("client_metadata")
+    metadata = dict(client_metadata) if isinstance(client_metadata, dict) else {}
+    sla_profile = {
+        "finding_sla_hours": dict(applied_finding_sla_hours),
+        "default_comment_sla_hours": int(applied_default_comment_sla_hours),
+        "updated_at": now_iso,
+        "updated_by": actor_value,
+    }
+    if metadata.get("sla_profile") != sla_profile:
+        metadata["sla_profile"] = sla_profile
+        update_payload["client_metadata"] = metadata
+
     if update_payload:
         job = _update_job(job_id, **update_payload) or _get_job(job_id) or job
 
@@ -907,6 +954,7 @@ def _recompute_review_workflow_sla(
         finding_updated_count=finding_updated_count,
         comment_updated_count=comment_updated_count,
         total_updated_count=total_updated_count,
+        use_saved_profile=bool(use_saved_profile),
         applied_finding_sla_hours=applied_finding_sla_hours,
         applied_default_comment_sla_hours=applied_default_comment_sla_hours,
     )
@@ -916,6 +964,7 @@ def _recompute_review_workflow_sla(
         "status": str((job or {}).get("status") or ""),
         "actor": actor_value,
         "recomputed_at": now_iso,
+        "use_saved_profile": bool(use_saved_profile),
         "applied_finding_sla_hours": applied_finding_sla_hours,
         "applied_default_comment_sla_hours": applied_default_comment_sla_hours,
         "finding_checked_count": finding_checked_count,
@@ -2336,6 +2385,7 @@ def recompute_status_review_workflow_sla(
         actor=_finding_actor_from_request(request),
         finding_sla_hours_override=payload.finding_sla_hours,
         default_comment_sla_hours=payload.default_comment_sla_hours,
+        use_saved_profile=bool(payload.use_saved_profile),
     )
 
 

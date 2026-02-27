@@ -1031,6 +1031,15 @@ def render_demo_ui_html() -> str:
                 <input id="reviewWorkflowSlaCommentDefaultHours" type="number" min="1" step="1" value="72" />
               </div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label for="reviewWorkflowSlaUseSavedProfile">Use Saved Profile</label>
+                <select id="reviewWorkflowSlaUseSavedProfile">
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            </div>
             <div class="sub" style="margin-top:8px;">SLA hotspots for reviewer triage.</div>
             <div style="margin-top:10px;">
               <label>Top Overdue Items</label>
@@ -1078,6 +1087,7 @@ def render_demo_ui_html() -> str:
         ["reviewWorkflowSlaMediumHours", "grantflow_demo_review_workflow_sla_medium_hours"],
         ["reviewWorkflowSlaLowHours", "grantflow_demo_review_workflow_sla_low_hours"],
         ["reviewWorkflowSlaCommentDefaultHours", "grantflow_demo_review_workflow_sla_comment_default_hours"],
+        ["reviewWorkflowSlaUseSavedProfile", "grantflow_demo_review_workflow_sla_use_saved_profile"],
         ["selectedCommentId", "grantflow_demo_selected_comment_id"],
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
         ["generatePresetSelect", "grantflow_demo_generate_preset"],
@@ -1326,6 +1336,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowSlaMediumHours: $("reviewWorkflowSlaMediumHours"),
         reviewWorkflowSlaLowHours: $("reviewWorkflowSlaLowHours"),
         reviewWorkflowSlaCommentDefaultHours: $("reviewWorkflowSlaCommentDefaultHours"),
+        reviewWorkflowSlaUseSavedProfile: $("reviewWorkflowSlaUseSavedProfile"),
         reviewWorkflowClearFiltersBtn: $("reviewWorkflowClearFiltersBtn"),
         reviewWorkflowExportJsonBtn: $("reviewWorkflowExportJsonBtn"),
         reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
@@ -1501,6 +1512,7 @@ def render_demo_ui_html() -> str:
         els.reviewWorkflowSlaMediumHours.value = "72";
         els.reviewWorkflowSlaLowHours.value = "120";
         els.reviewWorkflowSlaCommentDefaultHours.value = "72";
+        els.reviewWorkflowSlaUseSavedProfile.value = "true";
         persistUiState();
       }
 
@@ -3547,6 +3559,7 @@ def render_demo_ui_html() -> str:
             low: parseHours(els.reviewWorkflowSlaLowHours.value, 120),
           },
           default_comment_sla_hours: parseHours(els.reviewWorkflowSlaCommentDefaultHours.value, 72),
+          use_saved_profile: String(els.reviewWorkflowSlaUseSavedProfile.value || "").toLowerCase() === "true",
         };
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/review/workflow/sla/recompute`, {
           method: "POST",
@@ -4402,6 +4415,17 @@ def render_demo_ui_html() -> str:
           persistUiState();
           Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
         });
+        [
+          els.reviewWorkflowSlaHighHours,
+          els.reviewWorkflowSlaMediumHours,
+          els.reviewWorkflowSlaLowHours,
+          els.reviewWorkflowSlaCommentDefaultHours,
+          els.reviewWorkflowSlaUseSavedProfile,
+        ].forEach((el) =>
+          el.addEventListener("change", () => {
+            persistUiState();
+          })
+        );
         els.commentsFilterVersionId.addEventListener("change", () => {
           persistUiState();
           refreshComments().catch(showError);

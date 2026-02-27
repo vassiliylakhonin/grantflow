@@ -230,6 +230,7 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowSlaMediumHours" in body
     assert "reviewWorkflowSlaLowHours" in body
     assert "reviewWorkflowSlaCommentDefaultHours" in body
+    assert "reviewWorkflowSlaUseSavedProfile" in body
     assert "reviewWorkflowSlaSummaryLine" in body
     assert "reviewWorkflowSlaHotspotsList" in body
     assert "reviewWorkflowSlaJson" in body
@@ -238,6 +239,7 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_review_workflow_comment_status" in body
     assert "grantflow_demo_review_workflow_state" in body
     assert "grantflow_demo_review_workflow_overdue_hours" in body
+    assert "grantflow_demo_review_workflow_sla_use_saved_profile" in body
     assert 'params.set("workflow_state",' in body
     assert 'params.set("overdue_after_hours",' in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
@@ -1936,6 +1938,7 @@ def test_status_review_workflow_sla_recompute_rewrites_due_dates_and_emits_event
     assert body["job_id"] == job_id
     assert body["status"] == "done"
     assert body["actor"] == "qa-recompute"
+    assert body["use_saved_profile"] is False
     assert body["applied_finding_sla_hours"] == {"high": 12, "medium": 48, "low": 96}
     assert body["applied_default_comment_sla_hours"] == 36
     assert body["finding_checked_count"] == 1
@@ -1966,8 +1969,86 @@ def test_status_review_workflow_sla_recompute_rewrites_due_dates_and_emits_event
     last = event_rows[-1]
     assert last["actor"] == "qa-recompute"
     assert int(last["total_updated_count"]) == 3
+    assert last["use_saved_profile"] is False
     assert last["applied_finding_sla_hours"] == {"high": 12, "medium": 48, "low": 96}
     assert int(last["applied_default_comment_sla_hours"]) == 36
+
+    stored_job = api_app_module.JOB_STORE.get(job_id)
+    assert isinstance(stored_job, dict)
+    stored_meta = stored_job.get("client_metadata")
+    assert isinstance(stored_meta, dict)
+    saved_profile = stored_meta.get("sla_profile")
+    assert isinstance(saved_profile, dict)
+    assert saved_profile["finding_sla_hours"] == {"high": 12, "medium": 48, "low": 96}
+    assert int(saved_profile["default_comment_sla_hours"]) == 36
+
+
+def test_status_review_workflow_sla_recompute_can_use_saved_profile():
+    job_id = "review-workflow-sla-recompute-use-saved-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "finding-saved-1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "message": "ToC mismatch.",
+                            "updated_at": "2026-02-27T08:00:00+00:00",
+                            "due_at": "2000-01-01T00:00:00+00:00",
+                            "sla_hours": 24,
+                        }
+                    ]
+                }
+            },
+            "review_comments": [
+                {
+                    "comment_id": "comment-saved-1",
+                    "ts": "2026-02-27T09:00:00+00:00",
+                    "section": "general",
+                    "status": "open",
+                    "message": "General queue.",
+                    "due_at": "2000-01-01T00:00:00+00:00",
+                    "sla_hours": 72,
+                }
+            ],
+            "client_metadata": {
+                "sla_profile": {
+                    "finding_sla_hours": {"high": 10, "medium": 20, "low": 30},
+                    "default_comment_sla_hours": 16,
+                }
+            },
+            "job_events": [],
+        },
+    )
+
+    resp = client.post(
+        f"/status/{job_id}/review/workflow/sla/recompute",
+        json={"use_saved_profile": True},
+        headers={"X-Reviewer": "qa-saved"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["use_saved_profile"] is True
+    assert body["applied_finding_sla_hours"] == {"high": 10, "medium": 20, "low": 30}
+    assert int(body["applied_default_comment_sla_hours"]) == 16
+
+    critic_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_resp.status_code == 200
+    critic_finding = critic_resp.json()["fatal_flaws"][0]
+    assert critic_finding["due_at"] == "2026-02-27T18:00:00+00:00"
+    assert int(critic_finding.get("sla_hours") or 0) == 10
+
+    comments_resp = client.get(f"/status/{job_id}/comments")
+    assert comments_resp.status_code == 200
+    comment = comments_resp.json()["comments"][0]
+    assert comment["due_at"] == "2026-02-28T01:00:00+00:00"
+    assert int(comment.get("sla_hours") or 0) == 16
 
 
 def test_status_review_workflow_sla_recompute_rejects_invalid_profile():
