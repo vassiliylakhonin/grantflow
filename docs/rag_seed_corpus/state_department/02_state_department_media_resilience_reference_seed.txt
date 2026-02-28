@@ -1,0 +1,15 @@
+State Department Media Resilience Implementation Reference (Seed)
+
+Implementation focus areas
+- Professional standards in editorial practice and verification.
+- Capacity for coordinated response to disinformation campaigns.
+- Practical safety and continuity planning for media actors.
+
+Illustrative activity package
+1. Editorial verification and fact-checking routines.
+2. Legal and digital risk awareness training.
+3. Small grants for audience engagement and content integrity pilots.
+4. Coordination mechanisms between media and civic support actors.
+
+Measurement direction
+Track changes in newsroom practices, coordination frequency, and use of risk mitigation protocols.

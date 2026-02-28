@@ -10,6 +10,8 @@ Important
 - `usaid_gov_ai_kazakhstan`
 - `eu_digital_governance_moldova`
 - `worldbank_public_sector_uzbekistan`
+- `giz_sme_resilience_jordan`
+- `state_department_media_georgia`
 
 ## Ingest
 Use `docs/rag_seed_corpus/ingest_manifest.jsonl` to upload files via `POST /ingest`.
@@ -24,10 +26,11 @@ curl -s -X POST http://127.0.0.1:8000/ingest \
 ```
 
 ## Suggested first grounded eval
-Load USAID/EU/World Bank files, then run `LLM Eval (Grounded)` with donor filters `usaid,eu,worldbank`.
+Load seed files for all specialized donors, then run `LLM Eval (Grounded)` with donor filters:
+`usaid,eu,worldbank,giz,state_department`.
 
 ## Local grounded benchmark (API)
-Run a quick local benchmark across the three governance presets after ingest:
+Run a quick local benchmark across all specialized donor presets after ingest:
 
 ```bash
 python3 docs/rag_seed_corpus/local_grounded_benchmark.py --api-base http://127.0.0.1:8000 --llm-mode

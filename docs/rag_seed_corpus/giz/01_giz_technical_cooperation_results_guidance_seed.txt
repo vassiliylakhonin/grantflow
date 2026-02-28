@@ -1,0 +1,19 @@
+GIZ Technical Cooperation Results Guidance (Seed)
+
+Purpose
+This seed note summarizes practical design principles often used in GIZ-style technical cooperation projects.
+
+Core logic
+- Define a realistic programme objective linked to institutional performance and service quality.
+- Translate the objective into implementable outputs that partner institutions can own.
+- Use outcomes that describe partner behavior change and adoption of new routines.
+
+Implementation quality criteria
+- Co-design implementation plans with partner institutions and document ownership roles.
+- Sequence capacity development, pilot implementation, and institutionalization steps.
+- Include adaptation checkpoints when assumptions change.
+
+Monitoring expectations
+- Track output completion, quality of application, and institutional uptake over time.
+- Prefer indicators that partners can report through routine systems.
+- Document assumptions and sustainability factors in each review cycle.

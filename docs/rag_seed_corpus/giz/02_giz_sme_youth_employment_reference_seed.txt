@@ -1,0 +1,18 @@
+GIZ SME and Youth Employment Implementation Reference (Seed)
+
+Typical constraints
+- Skills providers and SME support services are often fragmented.
+- Employers report mismatch between training content and applied workplace needs.
+- Coordination between local institutions is uneven.
+
+Reference implementation pattern
+1. Joint diagnostics with local institutions and private sector stakeholders.
+2. Training of trainers and service advisors using practical modules.
+3. Pilot support cycles for SMEs and youth job-seekers.
+4. Coaching for institutional teams to standardize service delivery.
+5. Review and scale-up planning with partner leadership.
+
+Output examples
+- Updated training modules with workplace tasks.
+- Partner SOPs for intake, coaching, and referral workflows.
+- Shared monitoring dashboard for implementation teams.

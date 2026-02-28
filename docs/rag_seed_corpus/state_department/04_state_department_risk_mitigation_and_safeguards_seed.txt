@@ -1,0 +1,16 @@
+State Department Risk Mitigation and Safeguards Guidance (Seed)
+
+Risk categories
+- Participant safety and retaliation risk.
+- Digital security and data exposure risk.
+- Reputational and political sensitivity risk.
+
+Mitigation practices
+- Conduct context-sensitive risk screening before high-visibility activities.
+- Define incident response and referral mechanisms.
+- Train implementing teams on do-no-harm and confidentiality practices.
+
+Monitoring and review
+- Include periodic risk status reviews in implementation cadence.
+- Update mitigation plans when context assumptions shift.
+- Document adaptation decisions for oversight and auditability.

@@ -48,6 +48,15 @@ class RAGConfig(BaseModel):
 
     chroma_persist_dir: str = "./chroma_db"
     default_top_k: int = 5
+    architect_top_k: int = 3
+    architect_rerank_pool_size: int = 12
+    architect_query_variants: int = 3
+    architect_min_hit_confidence: float = 0.25
+    mel_top_k: int = 3
+    mel_rerank_pool_size: int = 12
+    mel_query_variants: int = 3
+    mel_min_hit_confidence: float = 0.3
+    mel_citation_high_confidence_threshold: float = 0.33
     chunk_size: int = 1000
     chunk_overlap: int = 200
 
@@ -110,6 +119,17 @@ class GrantFlowConfig(BaseModel):
             rag=RAGConfig(
                 chroma_persist_dir=_env("GRANTFLOW_CHROMA_DIR", "./chroma_db"),
                 default_top_k=int(_env("GRANTFLOW_TOP_K", "5")),
+                architect_top_k=int(_env("GRANTFLOW_ARCHITECT_TOP_K", "3")),
+                architect_rerank_pool_size=int(_env("GRANTFLOW_ARCHITECT_RERANK_POOL_SIZE", "12")),
+                architect_query_variants=int(_env("GRANTFLOW_ARCHITECT_QUERY_VARIANTS", "3")),
+                architect_min_hit_confidence=float(_env("GRANTFLOW_ARCHITECT_MIN_HIT_CONFIDENCE", "0.25")),
+                mel_top_k=int(_env("GRANTFLOW_MEL_TOP_K", "3")),
+                mel_rerank_pool_size=int(_env("GRANTFLOW_MEL_RERANK_POOL_SIZE", "12")),
+                mel_query_variants=int(_env("GRANTFLOW_MEL_QUERY_VARIANTS", "3")),
+                mel_min_hit_confidence=float(_env("GRANTFLOW_MEL_MIN_HIT_CONFIDENCE", "0.3")),
+                mel_citation_high_confidence_threshold=float(
+                    _env("GRANTFLOW_MEL_CITATION_HIGH_CONFIDENCE_THRESHOLD", "0.33")
+                ),
             ),
             api_host=_env("GRANTFLOW_API_HOST", "0.0.0.0"),
             api_port=int(_env("GRANTFLOW_API_PORT", "8000")),

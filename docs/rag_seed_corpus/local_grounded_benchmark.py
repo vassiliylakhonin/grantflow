@@ -120,6 +120,79 @@ PRESET_CASES: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "giz": {
+        "preset_key": "giz_sme_resilience_jordan",
+        "expected_doc_families": [
+            "donor_policy",
+            "implementation_reference",
+            "country_context",
+            "sustainability_guidance",
+        ],
+        "payload": {
+            "donor_id": "giz",
+            "input_context": {
+                "project": "SME and Youth Employment Resilience through TVET-Industry Partnerships",
+                "country": "Jordan",
+                "region": "Northern and central governorates",
+                "timeframe": "2026-2028 (30 months)",
+                "problem": (
+                    "SMEs and youth employment programs face gaps in practical skills alignment, "
+                    "business support quality, and institutionalized implementation routines."
+                ),
+                "target_population": (
+                    "Youth job-seekers, SME owners/managers, and partner institutions responsible for "
+                    "skills development and enterprise support."
+                ),
+                "expected_change": (
+                    "Partner institutions and service providers apply stronger implementation routines, "
+                    "improve employability support, and sustain results through institutional adoption."
+                ),
+                "key_activities": [
+                    "joint diagnostics with partner institutions",
+                    "training-of-trainers for service providers",
+                    "SME coaching and market linkage support",
+                    "institutional SOP rollout and follow-up mentoring",
+                    "results monitoring and adaptive learning reviews",
+                ],
+            },
+        },
+    },
+    "state_department": {
+        "preset_key": "state_department_media_georgia",
+        "expected_doc_families": [
+            "donor_policy",
+            "country_context",
+            "risk_context",
+            "implementation_reference",
+        ],
+        "payload": {
+            "donor_id": "state_department",
+            "input_context": {
+                "project": "Independent Media Resilience and Civic Information Integrity",
+                "country": "Georgia",
+                "region": "National with regional media hubs",
+                "timeframe": "2026-2028 (24 months)",
+                "problem": (
+                    "Independent media and civic information ecosystems face sustained pressure from "
+                    "disinformation, legal uncertainty, and uneven institutional resilience."
+                ),
+                "target_population": (
+                    "Independent journalists, media editors, civic communicators, and local partner organizations."
+                ),
+                "expected_change": (
+                    "Media and civic actors strengthen professional practice, risk mitigation, and coordinated "
+                    "response mechanisms that protect information integrity."
+                ),
+                "key_activities": [
+                    "editorial resilience and legal-risk training",
+                    "collaborative fact-checking and verification routines",
+                    "grants for audience engagement and safety protocols",
+                    "stakeholder coordination with civic and legal support actors",
+                    "monitoring of media integrity and response outcomes",
+                ],
+            },
+        },
+    },
 }
 
 
@@ -292,8 +365,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--api-key", default="", help="Optional X-API-Key.")
     parser.add_argument(
         "--donors",
-        default="usaid,eu,worldbank",
-        help="Comma-separated donors from preset set: usaid,eu,worldbank",
+        default="usaid,eu,worldbank,giz,state_department",
+        help="Comma-separated donors from preset set: usaid,eu,worldbank,giz,state_department",
     )
     parser.add_argument("--llm-mode", action="store_true", help="Run with llm_mode=true (default false).")
     parser.add_argument("--hitl-enabled", action="store_true", help="Run with hitl_enabled=true (default false).")

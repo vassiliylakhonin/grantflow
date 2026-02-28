@@ -68,28 +68,112 @@ def _build_query_text(state: Dict[str, Any]) -> str:
     )
 
 
+def _bounded_int(value: Any, *, default: int, low: int, high: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(low, min(high, parsed))
+
+
+def _bounded_float(value: Any, *, default: float, low: float, high: float) -> float:
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        parsed = default
+    return max(low, min(high, parsed))
+
+
+def _rows(value: Any) -> list[list[Any]]:
+    if not isinstance(value, list):
+        return [[]]
+    if value and not isinstance(value[0], list):
+        return [value]
+    return value
+
+
+def _query_variants(state: Dict[str, Any], base_query: str, *, max_variants: int) -> list[str]:
+    input_context = state_input_context(state)
+    project = str(input_context.get("project") or "").strip()
+    country = str(input_context.get("country") or "").strip()
+    problem = str(input_context.get("problem") or "").strip()
+    expected_change = str(input_context.get("expected_change") or "").strip()
+    toc = state.get("toc_draft", {}) or {}
+    toc_payload = (toc.get("toc") or {}) if isinstance(toc, dict) else {}
+    toc_summary = json.dumps(toc_payload, ensure_ascii=True)[:220] if isinstance(toc_payload, dict) else ""
+
+    candidates = [
+        base_query.strip(),
+        f"{project} {country} MEL indicators baseline target verification frequency".strip(),
+        f"{project} {country} monitoring evaluation learning results framework assumptions".strip(),
+        f"{project} {country} problem {problem[:160]} expected change {expected_change[:160]}".strip(),
+        f"{project} {country} toc summary {toc_summary}".strip(),
+    ]
+    unique: list[str] = []
+    seen: set[str] = set()
+    for raw in candidates:
+        query = str(raw or "").strip()
+        if not query:
+            continue
+        marker = query.lower()
+        if marker in seen:
+            continue
+        seen.add(marker)
+        unique.append(query)
+        if len(unique) >= max_variants:
+            break
+    return unique or [base_query]
+
+
 def _retrieval_confidence(raw_distance: Any, idx: int) -> float:
     if isinstance(raw_distance, (int, float)):
         return round(max(0.0, min(1.0, 1.0 / (1.0 + float(raw_distance)))), 4)
     return round(max(0.1, 1.0 - (idx * 0.2)), 4)
 
 
-def _collect_retrieval_hits(result: Dict[str, Any], *, namespace: str) -> list[Dict[str, Any]]:
-    docs = ((result or {}).get("documents") or [[]])[0]
-    metas = ((result or {}).get("metadatas") or [[]])[0]
-    ids = ((result or {}).get("ids") or [[]])[0]
-    distances = ((result or {}).get("distances") or [[]])[0]
+def _collect_retrieval_hits(
+    result: Dict[str, Any],
+    *,
+    namespace: str,
+    query_text: str,
+    query_variants: list[str],
+    top_k: int,
+    min_hit_confidence: float,
+) -> tuple[list[Dict[str, Any]], Dict[str, Any]]:
+    docs_rows = _rows((result or {}).get("documents"))
+    metas_rows = _rows((result or {}).get("metadatas"))
+    ids_rows = _rows((result or {}).get("ids"))
+    distances_rows = _rows((result or {}).get("distances"))
 
-    hits: list[Dict[str, Any]] = []
-    for idx, doc in enumerate(docs):
-        meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
-        rank = idx + 1
-        doc_id = meta.get("doc_id") or meta.get("chunk_id") or (ids[idx] if idx < len(ids) else None)
-        source = citation_source_from_metadata(meta)
-        hits.append(
-            {
-                "rank": rank,
-                "retrieval_rank": rank,
+    base_tokens = _token_set(query_text)
+    best_by_signature: dict[tuple[Any, ...], Dict[str, Any]] = {}
+    for q_idx, query_variant in enumerate(query_variants):
+        docs = docs_rows[q_idx] if q_idx < len(docs_rows) else []
+        metas = metas_rows[q_idx] if q_idx < len(metas_rows) else []
+        ids = ids_rows[q_idx] if q_idx < len(ids_rows) else []
+        distances = distances_rows[q_idx] if q_idx < len(distances_rows) else []
+        query_tokens = _token_set(query_variant)
+        for idx, doc in enumerate(docs):
+            meta = metas[idx] if idx < len(metas) and isinstance(metas[idx], dict) else {}
+            retrieval_rank = idx + 1
+            doc_id = meta.get("doc_id") or meta.get("chunk_id") or (ids[idx] if idx < len(ids) else None)
+            source = citation_source_from_metadata(meta)
+            excerpt = str(doc or "")[:240]
+            retrieval_conf = _retrieval_confidence(distances[idx] if idx < len(distances) else None, idx)
+            hit_tokens = _token_set(excerpt) | _token_set(str(source or ""))
+            query_overlap = len(query_tokens & hit_tokens) / max(1, len(query_tokens))
+            base_overlap = len(base_tokens & hit_tokens) / max(1, len(base_tokens))
+            rank_penalty = min(0.18, idx * 0.03)
+            rerank_score = max(
+                0.0,
+                (base_overlap * 0.35) + (query_overlap * 0.25) + (retrieval_conf * 0.40) - rank_penalty,
+            )
+
+            hit = {
+                "rank": retrieval_rank,
+                "retrieval_rank": retrieval_rank,
+                "query_variant_index": q_idx + 1,
+                "query_variant": query_variant,
                 "doc_id": doc_id,
                 "indicator_id": meta.get("indicator_id"),
                 "name": meta.get("name"),
@@ -101,12 +185,66 @@ def _collect_retrieval_hits(result: Dict[str, Any], *, namespace: str) -> list[D
                 "page_end": meta.get("page_end"),
                 "chunk": meta.get("chunk"),
                 "chunk_id": meta.get("chunk_id") or doc_id,
-                "label": citation_label_from_metadata(meta, namespace=namespace, rank=rank),
-                "excerpt": str(doc or "")[:240],
-                "retrieval_confidence": _retrieval_confidence(distances[idx] if idx < len(distances) else None, idx),
+                "label": citation_label_from_metadata(meta, namespace=namespace, rank=retrieval_rank),
+                "excerpt": excerpt,
+                "retrieval_confidence": retrieval_conf,
+                "rerank_score": round(min(1.0, rerank_score), 4),
             }
-        )
-    return hits
+
+            signature = (hit.get("doc_id"), hit.get("chunk_id"), hit.get("source"), hit.get("page"))
+            current = best_by_signature.get(signature)
+            if current is None:
+                best_by_signature[signature] = hit
+                continue
+            current_key = (
+                float(current.get("rerank_score") or 0.0),
+                float(current.get("retrieval_confidence") or 0.0),
+                -int(current.get("retrieval_rank") or 999),
+            )
+            candidate_key = (
+                float(hit.get("rerank_score") or 0.0),
+                float(hit.get("retrieval_confidence") or 0.0),
+                -int(hit.get("retrieval_rank") or 999),
+            )
+            if candidate_key > current_key:
+                best_by_signature[signature] = hit
+
+    ranked = sorted(
+        best_by_signature.values(),
+        key=lambda hit: (
+            float(hit.get("rerank_score") or 0.0),
+            float(hit.get("retrieval_confidence") or 0.0),
+            -int(hit.get("retrieval_rank") or 999),
+            -int(hit.get("query_variant_index") or 999),
+        ),
+        reverse=True,
+    )
+    filtered = [
+        hit
+        for hit in ranked
+        if float(hit.get("retrieval_confidence") or 0.0) >= min_hit_confidence
+        or float(hit.get("rerank_score") or 0.0) >= min_hit_confidence
+    ]
+    if not filtered and ranked:
+        filtered = ranked[:1]
+
+    hits = filtered[:top_k]
+    for idx, hit in enumerate(hits):
+        hit["rank"] = idx + 1
+
+    diagnostics = {
+        "candidate_hits_count": len(ranked),
+        "filtered_out_low_confidence": max(0, len(ranked) - len(filtered)),
+        "avg_rerank_score": (
+            round(
+                sum(float(hit.get("rerank_score") or 0.0) for hit in hits) / len(hits),
+                4,
+            )
+            if hits
+            else None
+        ),
+    }
+    return hits, diagnostics
 
 
 def _token_set(text: str) -> set[str]:
@@ -124,8 +262,9 @@ def _pick_best_mel_evidence_hit(statement: str, hits: Iterable[Dict[str, Any]]) 
         else:
             overlap = 0.0
         retrieval_confidence = float(hit.get("retrieval_confidence") or 0.0)
+        rerank_score = float(hit.get("rerank_score") or 0.0)
         rank_penalty = min(0.2, idx * 0.03)
-        score = max(0.0, (overlap * 0.55) + (retrieval_confidence * 0.45) - rank_penalty)
+        score = max(0.0, (overlap * 0.5) + (retrieval_confidence * 0.3) + (rerank_score * 0.2) - rank_penalty)
         if score > best_score:
             best_score = score
             best_hit = hit
@@ -284,6 +423,12 @@ def _build_mel_citations(
     namespace: str,
 ) -> list[Dict[str, Any]]:
     hits = [h for h in evidence_hits if isinstance(h, dict)]
+    threshold = _bounded_float(
+        getattr(config.rag, "mel_citation_high_confidence_threshold", MEL_CITATION_HIGH_CONFIDENCE_THRESHOLD),
+        default=MEL_CITATION_HIGH_CONFIDENCE_THRESHOLD,
+        low=0.0,
+        high=1.0,
+    )
     citations: list[Dict[str, Any]] = []
     for idx, indicator in enumerate(indicators):
         indicator_id = str(indicator.get("indicator_id") or f"IND_{idx + 1:03d}")
@@ -293,11 +438,33 @@ def _build_mel_citations(
         hit: Dict[str, Any]
         confidence: float
         if hits:
-            hit, confidence = _pick_best_mel_evidence_hit(statement, hits)
+            citation_hint = str(indicator.get("citation") or "").strip()
+            matched_hit = next(
+                (
+                    candidate
+                    for candidate in hits
+                    if str(candidate.get("label") or "").strip() == citation_hint
+                    or str(candidate.get("source") or "").strip() == citation_hint
+                    or str(candidate.get("doc_id") or "").strip() == citation_hint
+                    or str(candidate.get("chunk_id") or "").strip() == citation_hint
+                ),
+                None,
+            )
+            if isinstance(matched_hit, dict):
+                hit = matched_hit
+                confidence = round(
+                    max(
+                        float(hit.get("retrieval_confidence") or 0.0),
+                        float(hit.get("rerank_score") or 0.0),
+                    ),
+                    4,
+                )
+            else:
+                hit, confidence = _pick_best_mel_evidence_hit(statement, hits)
         else:
             hit, confidence = {}, 0.1
         traceability_status = _hit_traceability_status(hit) if hit else "missing"
-        if hit and traceability_status == "complete" and confidence >= MEL_CITATION_HIGH_CONFIDENCE_THRESHOLD:
+        if hit and traceability_status == "complete" and confidence >= threshold:
             citation_type = "rag_result"
         elif hit:
             citation_type = "rag_low_confidence"
@@ -325,7 +492,7 @@ def _build_mel_citations(
                 "evidence_rank": hit.get("rank"),
                 "retrieval_rank": hit.get("retrieval_rank") or hit.get("rank"),
                 "retrieval_confidence": hit.get("retrieval_confidence") if hit else 0.1,
-                "confidence_threshold": MEL_CITATION_HIGH_CONFIDENCE_THRESHOLD,
+                "confidence_threshold": threshold,
                 "traceability_status": traceability_status,
                 "traceability_complete": traceability_status == "complete",
             }
@@ -343,7 +510,31 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
 
     namespace = strategy.get_rag_collection()
     query_text = _build_query_text(state)
-    top_k = max(1, min(int(config.rag.default_top_k or 3), 3))
+    top_k = _bounded_int(
+        getattr(config.rag, "mel_top_k", getattr(config.rag, "default_top_k", 5)),
+        default=5,
+        low=1,
+        high=12,
+    )
+    rerank_pool_size = _bounded_int(
+        getattr(config.rag, "mel_rerank_pool_size", max(top_k, 10)),
+        default=max(top_k, 10),
+        low=top_k,
+        high=36,
+    )
+    query_variants_limit = _bounded_int(
+        getattr(config.rag, "mel_query_variants", 3),
+        default=3,
+        low=1,
+        high=6,
+    )
+    min_hit_confidence = _bounded_float(
+        getattr(config.rag, "mel_min_hit_confidence", 0.3),
+        default=0.3,
+        low=0.0,
+        high=1.0,
+    )
+    query_variants = _query_variants(state, query_text, max_variants=query_variants_limit)
     input_context = state_input_context(state)
     project = str(input_context.get("project") or "TBD project")
     country = str(input_context.get("country") or "TBD")
@@ -360,7 +551,11 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
     rag_trace: Dict[str, Any] = {
         "namespace": namespace,
         "query": query_text,
+        "query_variants": query_variants,
+        "query_variants_count": len(query_variants),
         "top_k": top_k,
+        "rerank_pool_size": rerank_pool_size,
+        "min_hit_confidence": round(min_hit_confidence, 3),
         "used_results": 0,
     }
     llm_mode = bool(state.get("llm_mode", False))
@@ -373,18 +568,28 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
     fallback_class = "deterministic_mode"
 
     try:
-        result = vector_store.query(namespace=namespace, query_texts=[query_text], n_results=top_k)
-        retrieval_hits = _collect_retrieval_hits(result if isinstance(result, dict) else {}, namespace=namespace)
+        result = vector_store.query(namespace=namespace, query_texts=query_variants, n_results=rerank_pool_size)
+        retrieval_hits, retrieval_diag = _collect_retrieval_hits(
+            result if isinstance(result, dict) else {},
+            namespace=namespace,
+            query_text=query_text,
+            query_variants=query_variants,
+            top_k=top_k,
+            min_hit_confidence=min_hit_confidence,
+        )
+        rag_trace.update(retrieval_diag)
         rag_trace["used_results"] = len(retrieval_hits)
         if retrieval_hits:
             rag_trace["hits"] = [
                 {
                     "retrieval_rank": int(hit.get("retrieval_rank") or hit.get("rank") or 0),
+                    "query_variant_index": int(hit.get("query_variant_index") or 0),
                     "doc_id": hit.get("doc_id"),
                     "source": hit.get("source"),
                     "page": hit.get("page"),
                     "chunk_id": hit.get("chunk_id"),
                     "retrieval_confidence": hit.get("retrieval_confidence"),
+                    "rerank_score": hit.get("rerank_score"),
                 }
                 for hit in retrieval_hits
             ]
