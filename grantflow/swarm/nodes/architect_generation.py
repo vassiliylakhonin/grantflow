@@ -482,27 +482,55 @@ def build_architect_claim_citations(
 
     bounded_claims = claims
     if not hits:
-        sample_paths = [str(row.get("statement_path") or "") for row in bounded_claims[:5]]
-        citations.append(
-            {
-                "stage": "architect",
-                "citation_type": "fallback_namespace",
-                "namespace": namespace,
-                "namespace_normalized": namespace_normalized,
-                "label": f"{namespace} (no retrieved evidence)",
-                "used_for": "toc_claims",
-                "statement_path": "toc",
-                "statement": f"{len(bounded_claims)} ToC claims generated without retrieval evidence.",
-                "missing_claim_count": len(bounded_claims),
-                "missing_statement_paths_preview": " | ".join(sample_paths),
-                "citation_confidence": 0.1,
-                "evidence_score": 0.1,
-                "retrieval_confidence": 0.1,
-                "confidence_threshold": architect_claim_confidence_threshold(donor_id=donor_id, statement_path="toc"),
-                "traceability_status": "missing",
-                "traceability_complete": False,
-            }
-        )
+        for row in bounded_claims:
+            statement_path = str(row.get("statement_path") or "toc")
+            statement = str(row.get("statement") or "").strip()
+            if not statement:
+                continue
+            priority = int(row.get("priority") or 1)
+            citations.append(
+                {
+                    "stage": "architect",
+                    "citation_type": "fallback_namespace",
+                    "namespace": namespace,
+                    "namespace_normalized": namespace_normalized,
+                    "label": f"{namespace} (no retrieved evidence)",
+                    "used_for": "toc_claim",
+                    "statement_path": statement_path,
+                    "statement": statement[:240],
+                    "statement_priority": priority,
+                    "citation_confidence": 0.1,
+                    "raw_claim_confidence": 0.1,
+                    "evidence_score": 0.1,
+                    "retrieval_confidence": 0.1,
+                    "confidence_threshold": architect_claim_confidence_threshold(
+                        donor_id=donor_id,
+                        statement_path=statement_path,
+                    ),
+                    "traceability_status": "missing",
+                    "traceability_complete": False,
+                }
+            )
+        if not citations:
+            citations.append(
+                {
+                    "stage": "architect",
+                    "citation_type": "fallback_namespace",
+                    "namespace": namespace,
+                    "namespace_normalized": namespace_normalized,
+                    "label": f"{namespace} (no retrieved evidence)",
+                    "used_for": "toc_claim",
+                    "statement_path": "toc",
+                    "statement": "ToC claims generated without retrieval evidence.",
+                    "citation_confidence": 0.1,
+                    "raw_claim_confidence": 0.1,
+                    "evidence_score": 0.1,
+                    "retrieval_confidence": 0.1,
+                    "confidence_threshold": architect_claim_confidence_threshold(donor_id=donor_id, statement_path="toc"),
+                    "traceability_status": "missing",
+                    "traceability_complete": False,
+                }
+            )
         return citations
 
     for row in bounded_claims:

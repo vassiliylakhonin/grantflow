@@ -199,7 +199,7 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
         assert float(citations[0]["citation_confidence"]) < float(citations[0]["confidence_threshold"])
 
 
-def test_architect_claim_citations_without_hits_emit_single_fallback_summary():
+def test_architect_claim_citations_without_hits_emit_per_claim_fallback_records():
     toc_payload = {
         "project_goal": "Improve water sanitation outcomes",
         "development_objectives": [
@@ -213,13 +213,14 @@ def test_architect_claim_citations_without_hits_emit_single_fallback_summary():
         donor_id="usaid",
         evidence_hits=[],
     )
-    assert len(citations) == 1
-    citation = citations[0]
-    assert citation["citation_type"] == "fallback_namespace"
-    assert citation["missing_claim_count"] >= 1
-    assert citation["traceability_status"] == "missing"
-    assert citation["traceability_complete"] is False
-    assert "no retrieved evidence" in str(citation.get("label") or "").lower()
+    assert len(citations) >= 3
+    assert all(c["citation_type"] == "fallback_namespace" for c in citations)
+    assert all(c.get("used_for") == "toc_claim" for c in citations)
+    assert all(str(c.get("statement_path") or "").strip() for c in citations)
+    assert all(c.get("traceability_status") == "missing" for c in citations)
+    assert all(c.get("traceability_complete") is False for c in citations)
+    assert all("no retrieved evidence" in str(c.get("label") or "").lower() for c in citations)
+    assert all(0.0 < float(c.get("confidence_threshold") or 0.0) < 1.0 for c in citations)
 
 
 def test_architect_claim_support_requires_traceable_hit_even_when_overlap_is_high():
