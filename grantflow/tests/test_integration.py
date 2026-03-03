@@ -49,11 +49,15 @@ def test_health_endpoint():
     mel_thresholds = mel_policy["thresholds"]
     assert int(mel_thresholds["min_mel_citations"]) >= 1
     assert 0.0 <= float(mel_thresholds["min_claim_support_rate"]) <= 1.0
+    assert 0.0 <= float(mel_thresholds["min_traceability_complete_rate"]) <= 1.0
+    assert 0.0 <= float(mel_thresholds["max_traceability_gap_rate"]) <= 1.0
     export_policy = diagnostics["export_grounding_policy"]
     assert export_policy["mode"] in {"warn", "strict", "off"}
     export_thresholds = export_policy["thresholds"]
     assert int(export_thresholds["min_architect_citations"]) >= 1
     assert 0.0 <= float(export_thresholds["min_claim_support_rate"]) <= 1.0
+    assert 0.0 <= float(export_thresholds["min_traceability_complete_rate"]) <= 1.0
+    assert 0.0 <= float(export_thresholds["max_traceability_gap_rate"]) <= 1.0
 
 
 def test_demo_console_page_loads():
@@ -294,11 +298,15 @@ def test_ready_endpoint():
     mel_thresholds = mel_policy["thresholds"]
     assert int(mel_thresholds["min_mel_citations"]) >= 1
     assert 0.0 <= float(mel_thresholds["min_claim_support_rate"]) <= 1.0
+    assert 0.0 <= float(mel_thresholds["min_traceability_complete_rate"]) <= 1.0
+    assert 0.0 <= float(mel_thresholds["max_traceability_gap_rate"]) <= 1.0
     export_policy = checks["export_grounding_policy"]
     assert export_policy["mode"] in {"warn", "strict", "off"}
     export_thresholds = export_policy["thresholds"]
     assert int(export_thresholds["min_architect_citations"]) >= 1
     assert 0.0 <= float(export_thresholds["min_claim_support_rate"]) <= 1.0
+    assert 0.0 <= float(export_thresholds["min_traceability_complete_rate"]) <= 1.0
+    assert 0.0 <= float(export_thresholds["max_traceability_gap_rate"]) <= 1.0
 
 
 def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
@@ -355,6 +363,8 @@ def test_ready_endpoint_reflects_mel_grounding_policy_overrides(monkeypatch):
     monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_policy_mode", "strict")
     monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_mel_citations", 5)
     monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_claim_support_rate", 0.61)
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_min_traceability_complete_rate", 0.72)
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_max_traceability_gap_rate", 0.28)
 
     response = client.get("/ready")
     assert response.status_code == 200
@@ -364,12 +374,16 @@ def test_ready_endpoint_reflects_mel_grounding_policy_overrides(monkeypatch):
     thresholds = mel_policy["thresholds"]
     assert thresholds["min_mel_citations"] == 5
     assert thresholds["min_claim_support_rate"] == 0.61
+    assert thresholds["min_traceability_complete_rate"] == 0.72
+    assert thresholds["max_traceability_gap_rate"] == 0.28
 
 
 def test_ready_endpoint_reflects_export_grounding_policy_overrides(monkeypatch):
     monkeypatch.setattr(api_app_module.config.graph, "export_grounding_policy_mode", "strict")
     monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_architect_citations", 7)
     monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_claim_support_rate", 0.66)
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_traceability_complete_rate", 0.74)
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_max_traceability_gap_rate", 0.26)
 
     response = client.get("/ready")
     assert response.status_code == 200
@@ -379,6 +393,8 @@ def test_ready_endpoint_reflects_export_grounding_policy_overrides(monkeypatch):
     thresholds = export_policy["thresholds"]
     assert thresholds["min_architect_citations"] == 7
     assert thresholds["min_claim_support_rate"] == 0.66
+    assert thresholds["min_traceability_complete_rate"] == 0.74
+    assert thresholds["max_traceability_gap_rate"] == 0.26
 
 
 def test_list_donors():
@@ -866,6 +882,44 @@ def test_export_endpoint_blocks_when_export_claim_support_policy_strict_and_belo
     assert policy["architect_claim_support_citation_count"] == 1
     assert policy["architect_claim_support_rate"] == 0.3333
     assert "claim_support_rate_below_min" in (policy.get("reasons") or [])
+
+    allowed = client.post("/export", json={"payload": payload, "format": "docx", "allow_unsafe_export": True})
+    assert allowed.status_code == 200
+    assert allowed.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
+def test_export_endpoint_blocks_when_export_traceability_policy_strict_and_below_threshold(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_architect_citations", 1)
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_claim_support_rate", 0.0)
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_min_traceability_complete_rate", 1.0)
+    monkeypatch.setattr(api_app_module.config.graph, "export_grounding_max_traceability_gap_rate", 0.0)
+
+    payload = {
+        "state": {
+            "donor_id": "usaid",
+            "toc_draft": {"toc": {"brief": "Sample ToC"}},
+            "logframe_draft": {"indicators": []},
+            "citations": [
+                {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.95},
+                {"stage": "architect", "citation_type": "rag_claim_support", "citation_confidence": 0.91},
+            ],
+        }
+    }
+
+    blocked = client.post("/export", json={"payload": payload, "format": "docx"})
+    assert blocked.status_code == 409
+    detail = blocked.json()["detail"]
+    assert detail["reason"] == "export_grounding_policy_block"
+    policy = detail["export_grounding_policy"]
+    assert policy["mode"] == "strict"
+    assert policy["blocking"] is True
+    assert policy["architect_traceability_complete_rate"] == 0.0
+    assert policy["architect_traceability_gap_rate"] == 1.0
+    assert "traceability_complete_rate_below_min" in (policy.get("reasons") or [])
+    assert "traceability_gap_rate_above_max" in (policy.get("reasons") or [])
 
     allowed = client.post("/export", json={"payload": payload, "format": "docx", "allow_unsafe_export": True})
     assert allowed.status_code == 200

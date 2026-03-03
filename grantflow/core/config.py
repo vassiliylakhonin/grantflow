@@ -35,9 +35,13 @@ class GraphConfig(BaseModel):
     mel_grounding_policy_mode: str = "warn"
     mel_grounding_min_mel_citations: int = 2
     mel_grounding_min_claim_support_rate: float = 0.5
+    mel_grounding_min_traceability_complete_rate: float = 0.5
+    mel_grounding_max_traceability_gap_rate: float = 0.5
     export_grounding_policy_mode: str = "warn"
     export_grounding_min_architect_citations: int = 3
     export_grounding_min_claim_support_rate: float = 0.5
+    export_grounding_min_traceability_complete_rate: float = 0.5
+    export_grounding_max_traceability_gap_rate: float = 0.5
     preflight_grounding_high_risk_coverage_threshold: float = 0.5
     preflight_grounding_medium_risk_coverage_threshold: float = 0.8
     preflight_grounding_min_uploads: int = 3
@@ -101,12 +105,24 @@ class GrantFlowConfig(BaseModel):
                 mel_grounding_min_claim_support_rate=float(
                     _env("GRANTFLOW_MEL_GROUNDING_MIN_CLAIM_SUPPORT_RATE", "0.5")
                 ),
+                mel_grounding_min_traceability_complete_rate=float(
+                    _env("GRANTFLOW_MEL_GROUNDING_MIN_TRACEABILITY_COMPLETE_RATE", "0.5")
+                ),
+                mel_grounding_max_traceability_gap_rate=float(
+                    _env("GRANTFLOW_MEL_GROUNDING_MAX_TRACEABILITY_GAP_RATE", "0.5")
+                ),
                 export_grounding_policy_mode=_env("GRANTFLOW_EXPORT_GROUNDING_POLICY_MODE", "warn"),
                 export_grounding_min_architect_citations=int(
                     _env("GRANTFLOW_EXPORT_GROUNDING_MIN_ARCHITECT_CITATIONS", "3")
                 ),
                 export_grounding_min_claim_support_rate=float(
                     _env("GRANTFLOW_EXPORT_GROUNDING_MIN_CLAIM_SUPPORT_RATE", "0.5")
+                ),
+                export_grounding_min_traceability_complete_rate=float(
+                    _env("GRANTFLOW_EXPORT_GROUNDING_MIN_TRACEABILITY_COMPLETE_RATE", "0.5")
+                ),
+                export_grounding_max_traceability_gap_rate=float(
+                    _env("GRANTFLOW_EXPORT_GROUNDING_MAX_TRACEABILITY_GAP_RATE", "0.5")
                 ),
                 preflight_grounding_high_risk_coverage_threshold=float(
                     _env("GRANTFLOW_PREFLIGHT_GROUNDING_HIGH_RISK_COVERAGE_THRESHOLD", "0.5")
