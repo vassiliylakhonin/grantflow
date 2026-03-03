@@ -36,6 +36,23 @@ DONOR_XLSX_PRIMARY_HEADERS: dict[str, list[str]] = {
     "eu": ["Level", "ID", "Title", "Description"],
     "worldbank": ["Level", "ID", "Title", "Description"],
 }
+EXPORT_CONTRACT_POLICY_MODES = {"off", "warn", "strict"}
+
+
+def normalize_export_contract_policy_mode(raw_mode: Any) -> str:
+    mode = str(raw_mode or "warn").strip().lower()
+    if mode not in EXPORT_CONTRACT_POLICY_MODES:
+        return "warn"
+    return mode
+
+
+def normalize_toc_payload(toc_payload: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(toc_payload, dict):
+        return {}
+    toc_root = toc_payload.get("toc")
+    if isinstance(toc_root, dict):
+        return toc_root
+    return toc_payload
 
 
 def evaluate_export_contract(
@@ -44,8 +61,9 @@ def evaluate_export_contract(
     toc_payload: Dict[str, Any],
     workbook_sheetnames: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:
+    toc_root = normalize_toc_payload(toc_payload if isinstance(toc_payload, dict) else {})
     donor_key = normalize_export_template_key(donor_id)
-    profile = build_export_template_profile(donor_id=donor_id, toc_payload=toc_payload)
+    profile = build_export_template_profile(donor_id=donor_id, toc_payload=toc_root)
 
     required_sections = list(profile.get("required_sections") or [])
     missing_required_sections = list(profile.get("missing_sections") or [])
@@ -84,3 +102,58 @@ def evaluate_export_contract(
         "status": status,
         "warnings": warnings,
     }
+
+
+def evaluate_export_contract_gate(
+    *,
+    donor_id: str,
+    toc_payload: Dict[str, Any],
+    policy_mode: str,
+    workbook_sheetnames: Optional[Iterable[str]] = None,
+) -> Dict[str, Any]:
+    contract = evaluate_export_contract(
+        donor_id=donor_id,
+        toc_payload=toc_payload,
+        workbook_sheetnames=workbook_sheetnames,
+    )
+    mode = normalize_export_contract_policy_mode(policy_mode)
+    contract_status = str(contract.get("status") or "warning").lower()
+    missing_required_sections = list(contract.get("missing_required_sections") or [])
+    missing_required_sheets = list(contract.get("missing_required_sheets") or [])
+    warnings = [str(item) for item in (contract.get("warnings") or []) if str(item or "").strip()]
+    reasons = list(warnings)
+    if not reasons and contract_status != "pass":
+        reasons.append("export_contract_warning")
+
+    if mode == "off":
+        passed = True
+        blocking = False
+        summary = "policy_off"
+        reasons = []
+        risk_level = "low"
+    else:
+        passed = contract_status == "pass"
+        blocking = mode == "strict" and not passed
+        summary = "export_contract_ok" if passed else ",".join(reasons)
+        if missing_required_sections:
+            risk_level = "high"
+        elif missing_required_sheets:
+            risk_level = "medium"
+        elif passed:
+            risk_level = "low"
+        else:
+            risk_level = "medium"
+
+    gate = dict(contract)
+    gate.update(
+        {
+            "mode": mode,
+            "passed": passed,
+            "blocking": blocking,
+            "go_ahead": not blocking,
+            "summary": summary,
+            "reasons": reasons,
+            "risk_level": risk_level,
+        }
+    )
+    return gate

@@ -78,6 +78,54 @@
     "warned_rule_check_count": 1
   },
   "critic_score": 6.8,
+  "export_contract": {
+    "actual_sheets": [],
+    "blocking": false,
+    "donor_id": "usaid",
+    "expected_docx_headings": [
+      "USAID Results Framework",
+      "Project Goal",
+      "Development Objectives",
+      "Critical Assumptions"
+    ],
+    "expected_primary_sheet": "USAID_RF",
+    "expected_primary_sheet_headers": [
+      "DO ID",
+      "DO Description",
+      "IR ID",
+      "IR Description"
+    ],
+    "go_ahead": true,
+    "missing_required_sections": [
+      "project_goal",
+      "development_objectives"
+    ],
+    "missing_required_sheets": [],
+    "mode": "warn",
+    "passed": false,
+    "present_sections": [],
+    "reasons": [
+      "missing_required_toc_sections"
+    ],
+    "required_sections": [
+      "project_goal",
+      "development_objectives"
+    ],
+    "required_sheets": [
+      "LogFrame",
+      "USAID_RF",
+      "Template Meta"
+    ],
+    "risk_level": "high",
+    "status": "warning",
+    "summary": "missing_required_toc_sections",
+    "template_display_name": "USAID Results Framework",
+    "template_key": "usaid",
+    "warnings": [
+      "missing_required_toc_sections"
+    ],
+    "workbook_validation_enabled": false
+  },
   "job_id": "job-quality-1",
   "mel": {
     "avg_retrieval_confidence": 0.64,

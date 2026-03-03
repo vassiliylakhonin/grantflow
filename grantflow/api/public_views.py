@@ -7,6 +7,8 @@ from enum import Enum
 from typing import Any, Dict, Optional, cast
 
 from grantflow.api.csv_utils import csv_text_from_mapping
+from grantflow.core.config import config
+from grantflow.exporters.donor_contracts import evaluate_export_contract_gate, normalize_export_contract_policy_mode
 from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.findings import finding_messages, finding_primary_id, state_critic_findings
 from grantflow.swarm.state_contract import normalized_state_copy, state_donor_id
@@ -48,6 +50,29 @@ GROUNDING_FALLBACK_MEDIUM_THRESHOLD = 0.5
 def _job_state_dict(job: Dict[str, Any]) -> Dict[str, Any]:
     state = job.get("state") if isinstance(job.get("state"), dict) else {}
     return dict(normalized_state_copy(state))
+
+
+def _state_export_contract_gate(state_dict: Dict[str, Any]) -> Dict[str, Any]:
+    raw_gate = state_dict.get("export_contract_gate")
+    if isinstance(raw_gate, dict):
+        return raw_gate
+
+    donor_id = state_donor_id(state_dict, default="grantflow")
+    raw_toc = state_dict.get("toc_draft")
+    toc_payload = raw_toc if isinstance(raw_toc, dict) else {}
+    if not toc_payload:
+        raw_toc_fallback = state_dict.get("toc")
+        if isinstance(raw_toc_fallback, dict):
+            toc_payload = raw_toc_fallback
+    mode_raw = getattr(config.graph, "export_contract_policy_mode", None)
+    if not str(mode_raw or "").strip():
+        mode_raw = getattr(config.graph, "export_grounding_policy_mode", "warn")
+    mode = normalize_export_contract_policy_mode(mode_raw)
+    return evaluate_export_contract_gate(
+        donor_id=donor_id,
+        toc_payload=toc_payload,
+        policy_mode=mode,
+    )
 
 
 def _job_donor_id(job: Dict[str, Any], *, default: str = "") -> str:
@@ -887,6 +912,8 @@ def public_job_export_payload(
 ) -> Dict[str, Any]:
     state = job.get("state")
     state_payload = public_state_snapshot(state) if isinstance(state, dict) else {}
+    state_dict = _job_state_dict(job)
+    export_contract_gate = _state_export_contract_gate(state_dict)
 
     critic = public_job_critic_payload(job_id, job)
     critic_findings = critic.get("fatal_flaws") if isinstance(critic, dict) else []
@@ -907,6 +934,7 @@ def public_job_export_payload(
             "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
             "review_comments": [item for item in review_comments if isinstance(item, dict)],
             "readiness": readiness_payload,
+            "export_contract": sanitize_for_public_response(export_contract_gate),
         },
     }
 
@@ -1460,6 +1488,7 @@ def public_job_quality_payload(
     )
     readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
     preflight_payload = _public_job_preflight_payload(job)
+    export_contract_gate = _state_export_contract_gate(state_dict)
     traceability_gap = traceability_partial + traceability_missing
 
     return {
@@ -1580,6 +1609,7 @@ def public_job_quality_payload(
             ),
         },
         "mel_grounding_policy": sanitize_for_public_response(mel_grounding_policy),
+        "export_contract": sanitize_for_public_response(export_contract_gate),
         "preflight": preflight_payload,
         "readiness": readiness_payload,
     }

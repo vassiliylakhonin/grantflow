@@ -82,6 +82,7 @@ from grantflow.core.job_runner import InMemoryJobRunner
 from grantflow.core.stores import create_ingest_audit_store_from_env, create_job_store_from_env
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.core.version import __version__
+from grantflow.exporters.donor_contracts import evaluate_export_contract_gate, normalize_export_contract_policy_mode
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace
@@ -918,6 +919,41 @@ def _evaluate_export_grounding_policy(citations: list[dict[str, Any]]) -> Dict[s
     }
 
 
+def _configured_export_contract_policy_mode() -> str:
+    contract_mode = getattr(config.graph, "export_contract_policy_mode", None)
+    if str(contract_mode or "").strip():
+        return normalize_export_contract_policy_mode(contract_mode)
+    return _configured_export_grounding_policy_mode()
+
+
+def _evaluate_export_contract_gate(
+    *,
+    donor_id: str,
+    toc_draft: dict[str, Any],
+    workbook_sheetnames: Optional[list[str]] = None,
+) -> Dict[str, Any]:
+    return evaluate_export_contract_gate(
+        donor_id=donor_id,
+        toc_payload=toc_draft,
+        policy_mode=_configured_export_contract_policy_mode(),
+        workbook_sheetnames=workbook_sheetnames,
+    )
+
+
+def _attach_export_contract_gate(state: Any) -> Dict[str, Any]:
+    state_dict: dict[str, Any] = state if isinstance(state, dict) else {}
+    donor_id = state_donor_id(state_dict, default="grantflow")
+    raw_toc = state_dict.get("toc_draft")
+    toc_draft = raw_toc if isinstance(raw_toc, dict) else {}
+    if not toc_draft:
+        raw_toc_fallback = state_dict.get("toc")
+        if isinstance(raw_toc_fallback, dict):
+            toc_draft = raw_toc_fallback
+    gate = _evaluate_export_contract_gate(donor_id=donor_id, toc_draft=toc_draft)
+    state_dict["export_contract_gate"] = gate
+    return gate
+
+
 def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
     high_cov_raw = getattr(config.graph, "preflight_grounding_high_risk_coverage_threshold", 0.5)
     medium_cov_raw = getattr(config.graph, "preflight_grounding_medium_risk_coverage_threshold", 0.8)
@@ -1391,6 +1427,7 @@ class ExportRequest(BaseModel):
     critic_findings: Optional[list[Dict[str, Any]]] = None
     format: str = "both"
     allow_unsafe_export: bool = False
+    production_export: bool = False
 
     model_config = ConfigDict(extra="allow")
 
@@ -2654,6 +2691,7 @@ def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
             final_state.pop(key, None)
         final_state["hitl_pending"] = False
         normalize_state_contract(final_state)
+        _attach_export_contract_gate(final_state)
         if _job_is_canceled(job_id):
             return
         grounding_block_reason = _grounding_gate_block_reason(final_state)
@@ -2727,6 +2765,7 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
         for key in RUNTIME_PIPELINE_STATE_KEYS:
             final_state.pop(key, None)
         final_state["hitl_pending"] = False
+        _attach_export_contract_gate(final_state)
         grounding_block_reason = _grounding_gate_block_reason(final_state)
         if grounding_block_reason:
             _set_job(
@@ -2830,6 +2869,9 @@ def _health_diagnostics() -> dict[str, Any]:
         "export_grounding_policy": {
             "mode": _configured_export_grounding_policy_mode(),
             "thresholds": export_grounding_thresholds,
+        },
+        "export_contract_policy": {
+            "mode": _configured_export_contract_policy_mode(),
         },
     }
     if sqlite_path and (job_store_mode == "sqlite" or hitl_store_mode == "sqlite" or ingest_store_mode == "sqlite"):
@@ -2943,6 +2985,9 @@ def readiness_check():
             "export_grounding_policy": {
                 "mode": _configured_export_grounding_policy_mode(),
                 "thresholds": export_grounding_thresholds,
+            },
+            "export_contract_policy": {
+                "mode": _configured_export_contract_policy_mode(),
             },
         },
     }
@@ -4419,6 +4464,20 @@ def export_artifacts(req: ExportRequest, request: Request):
             },
         )
     toc_draft, logframe_draft, donor_id, citations, critic_findings, review_comments = _resolve_export_inputs(req)
+    export_contract_gate = _evaluate_export_contract_gate(donor_id=donor_id, toc_draft=toc_draft)
+    if req.production_export and not req.allow_unsafe_export and bool(export_contract_gate.get("blocking")):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "export_contract_policy_block",
+                "message": (
+                    "Export blocked by strict export contract policy "
+                    "(missing required donor sections/sheets). "
+                    "Set allow_unsafe_export=true to override, or use production_export=false."
+                ),
+                "export_contract_gate": export_contract_gate,
+            },
+        )
     export_grounding_policy = _evaluate_export_grounding_policy(citations)
     if not req.allow_unsafe_export and bool(export_grounding_policy.get("blocking")):
         raise HTTPException(
@@ -4434,6 +4493,11 @@ def export_artifacts(req: ExportRequest, request: Request):
             },
         )
     fmt = (req.format or "").lower()
+    export_headers = {
+        "X-GrantFlow-Export-Contract-Mode": str(export_contract_gate.get("mode") or ""),
+        "X-GrantFlow-Export-Contract-Status": str(export_contract_gate.get("status") or ""),
+        "X-GrantFlow-Export-Contract-Summary": str(export_contract_gate.get("summary") or ""),
+    }
 
     try:
         docx_bytes: Optional[bytes] = None
@@ -4459,17 +4523,25 @@ def export_artifacts(req: ExportRequest, request: Request):
             )
 
         if fmt == "docx" and docx_bytes is not None:
+            headers = {
+                "Content-Disposition": "attachment; filename=proposal.docx",
+                **export_headers,
+            }
             return StreamingResponse(
                 io.BytesIO(docx_bytes),
                 media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                headers={"Content-Disposition": "attachment; filename=proposal.docx"},
+                headers=headers,
             )
 
         if fmt == "xlsx" and xlsx_bytes is not None:
+            headers = {
+                "Content-Disposition": "attachment; filename=mel.xlsx",
+                **export_headers,
+            }
             return StreamingResponse(
                 io.BytesIO(xlsx_bytes),
                 media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": "attachment; filename=mel.xlsx"},
+                headers=headers,
             )
 
         if fmt == "both" and docx_bytes is not None and xlsx_bytes is not None:
@@ -4481,7 +4553,10 @@ def export_artifacts(req: ExportRequest, request: Request):
             return StreamingResponse(
                 buf,
                 media_type="application/zip",
-                headers={"Content-Disposition": "attachment; filename=grantflow_export.zip"},
+                headers={
+                    "Content-Disposition": "attachment; filename=grantflow_export.zip",
+                    **export_headers,
+                },
             )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

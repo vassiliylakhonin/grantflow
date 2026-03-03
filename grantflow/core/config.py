@@ -42,6 +42,7 @@ class GraphConfig(BaseModel):
     export_grounding_min_claim_support_rate: float = 0.5
     export_grounding_min_traceability_complete_rate: float = 0.5
     export_grounding_max_traceability_gap_rate: float = 0.5
+    export_contract_policy_mode: str = "warn"
     preflight_grounding_high_risk_coverage_threshold: float = 0.5
     preflight_grounding_medium_risk_coverage_threshold: float = 0.8
     preflight_grounding_min_uploads: int = 3
@@ -89,6 +90,8 @@ class GrantFlowConfig(BaseModel):
         """Загружает конфигурацию из переменных окружения."""
         grounding_gate_mode = _env("GRANTFLOW_GROUNDING_GATE_MODE", "warn")
         preflight_grounding_policy_mode = _env("GRANTFLOW_PREFLIGHT_GROUNDING_POLICY_MODE", grounding_gate_mode)
+        export_grounding_policy_mode = _env("GRANTFLOW_EXPORT_GROUNDING_POLICY_MODE", "warn")
+        export_contract_policy_mode = _env("GRANTFLOW_EXPORT_CONTRACT_POLICY_MODE", export_grounding_policy_mode)
         return cls(
             llm=LLMConfig(
                 cheap_model=_env("GRANTFLOW_CHEAP_MODEL", "gpt-4o-mini"),
@@ -120,7 +123,7 @@ class GrantFlowConfig(BaseModel):
                 mel_grounding_max_traceability_gap_rate=float(
                     _env("GRANTFLOW_MEL_GROUNDING_MAX_TRACEABILITY_GAP_RATE", "0.5")
                 ),
-                export_grounding_policy_mode=_env("GRANTFLOW_EXPORT_GROUNDING_POLICY_MODE", "warn"),
+                export_grounding_policy_mode=export_grounding_policy_mode,
                 export_grounding_min_architect_citations=int(
                     _env("GRANTFLOW_EXPORT_GROUNDING_MIN_ARCHITECT_CITATIONS", "3")
                 ),
@@ -133,6 +136,7 @@ class GrantFlowConfig(BaseModel):
                 export_grounding_max_traceability_gap_rate=float(
                     _env("GRANTFLOW_EXPORT_GROUNDING_MAX_TRACEABILITY_GAP_RATE", "0.5")
                 ),
+                export_contract_policy_mode=export_contract_policy_mode,
                 preflight_grounding_high_risk_coverage_threshold=float(
                     _env("GRANTFLOW_PREFLIGHT_GROUNDING_HIGH_RISK_COVERAGE_THRESHOLD", "0.5")
                 ),

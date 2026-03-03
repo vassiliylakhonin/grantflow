@@ -527,6 +527,23 @@ class JobQualityReadinessSummaryPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobQualityExportContractPublicResponse(BaseModel):
+    mode: Optional[str] = None
+    status: Optional[str] = None
+    passed: Optional[bool] = None
+    blocking: Optional[bool] = None
+    go_ahead: Optional[bool] = None
+    risk_level: Optional[str] = None
+    summary: Optional[str] = None
+    reasons: Optional[list[str]] = None
+    template_key: Optional[str] = None
+    template_display_name: Optional[str] = None
+    missing_required_sections: Optional[list[str]] = None
+    missing_required_sheets: Optional[list[str]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 class JobQualitySummaryPublicResponse(BaseModel):
     job_id: str
     status: str
@@ -541,6 +558,7 @@ class JobQualitySummaryPublicResponse(BaseModel):
     architect: JobQualityArchitectSummaryPublicResponse
     mel: Optional[JobQualityMelSummaryPublicResponse] = None
     mel_grounding_policy: Optional[Dict[str, Any]] = None
+    export_contract: Optional[JobQualityExportContractPublicResponse] = None
     readiness: Optional[JobQualityReadinessSummaryPublicResponse] = None
 
     model_config = ConfigDict(extra="allow")

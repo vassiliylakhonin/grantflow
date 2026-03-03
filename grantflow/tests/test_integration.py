@@ -61,6 +61,8 @@ def test_health_endpoint():
     assert 0.0 <= float(export_thresholds["min_claim_support_rate"]) <= 1.0
     assert 0.0 <= float(export_thresholds["min_traceability_complete_rate"]) <= 1.0
     assert 0.0 <= float(export_thresholds["max_traceability_gap_rate"]) <= 1.0
+    export_contract_policy = diagnostics["export_contract_policy"]
+    assert export_contract_policy["mode"] in {"warn", "strict", "off"}
 
 
 def test_demo_console_page_loads():
@@ -313,6 +315,8 @@ def test_ready_endpoint():
     assert 0.0 <= float(export_thresholds["min_claim_support_rate"]) <= 1.0
     assert 0.0 <= float(export_thresholds["min_traceability_complete_rate"]) <= 1.0
     assert 0.0 <= float(export_thresholds["max_traceability_gap_rate"]) <= 1.0
+    export_contract_policy = checks["export_contract_policy"]
+    assert export_contract_policy["mode"] in {"warn", "strict", "off"}
 
 
 def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
@@ -335,6 +339,8 @@ def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
     assert mel_policy["mode"] in {"warn", "strict", "off"}
     export_policy = body["detail"]["checks"]["export_grounding_policy"]
     assert export_policy["mode"] in {"warn", "strict", "off"}
+    export_contract_policy = body["detail"]["checks"]["export_contract_policy"]
+    assert export_contract_policy["mode"] in {"warn", "strict", "off"}
 
 
 def test_ready_endpoint_reflects_preflight_grounding_threshold_overrides(monkeypatch):
@@ -401,6 +407,16 @@ def test_ready_endpoint_reflects_export_grounding_policy_overrides(monkeypatch):
     assert thresholds["min_claim_support_rate"] == 0.66
     assert thresholds["min_traceability_complete_rate"] == 0.74
     assert thresholds["max_traceability_gap_rate"] == 0.26
+
+
+def test_ready_endpoint_reflects_export_contract_policy_override(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "export_contract_policy_mode", "strict")
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    contract_policy = body["checks"]["export_contract_policy"]
+    assert contract_policy["mode"] == "strict"
 
 
 def test_list_donors():
@@ -1153,6 +1169,53 @@ def test_export_endpoint_blocks_when_strict_grounding_gate_failed_unless_overrid
     allowed = client.post("/export", json={"payload": payload, "format": "docx", "allow_unsafe_export": True})
     assert allowed.status_code == 200
     assert allowed.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
+def test_export_endpoint_blocks_production_export_when_contract_policy_strict_and_missing_sections(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "export_contract_policy_mode", "strict")
+    payload = {
+        "state": {
+            "donor_id": "eu",
+            "toc_draft": {
+                "toc": {
+                    "overall_objective": {
+                        "objective_id": "OO1",
+                        "title": "Digital governance",
+                        "rationale": "EU fit",
+                    }
+                }
+            },
+            "logframe_draft": {"indicators": []},
+        }
+    }
+
+    blocked = client.post("/export", json={"payload": payload, "format": "docx", "production_export": True})
+    assert blocked.status_code == 409
+    detail = blocked.json()["detail"]
+    assert detail["reason"] == "export_contract_policy_block"
+    gate = detail["export_contract_gate"]
+    assert gate["mode"] == "strict"
+    assert gate["blocking"] is True
+    assert gate["status"] == "warning"
+    assert "specific_objectives" in (gate.get("missing_required_sections") or [])
+    assert "missing_required_toc_sections" in (gate.get("reasons") or [])
+
+    non_production = client.post("/export", json={"payload": payload, "format": "docx"})
+    assert non_production.status_code == 200
+    assert non_production.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    assert non_production.headers.get("x-grantflow-export-contract-mode") == "strict"
+    assert non_production.headers.get("x-grantflow-export-contract-status") == "warning"
+
+    overridden = client.post(
+        "/export",
+        json={"payload": payload, "format": "docx", "production_export": True, "allow_unsafe_export": True},
+    )
+    assert overridden.status_code == 200
+    assert overridden.headers["content-type"].startswith(
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
@@ -2242,6 +2305,10 @@ def test_status_export_payload_endpoint_returns_review_ready_payload():
     assert payload["readiness"]["present_doc_families"] == ["donor_policy"]
     assert payload["readiness"]["missing_doc_families"] == ["country_context"]
     assert payload["readiness"]["coverage_rate"] == 0.5
+    export_contract = payload["export_contract"]
+    assert export_contract["template_key"] == "usaid"
+    assert export_contract["status"] == "warning"
+    assert "missing_required_toc_sections" in (export_contract.get("reasons") or [])
 
 
 def test_status_includes_citations_traceability(monkeypatch):
@@ -3613,6 +3680,7 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
             },
             "state": {
                 "donor_id": "usaid",
+                "toc_draft": {"toc": {"brief": "Sample ToC"}},
                 "quality_score": 9.1,
                 "critic_score": 8.9,
                 "needs_revision": False,
@@ -3773,6 +3841,10 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert mel_summary.get("retrieval_namespace") in {None, "usaid_ads201"}
     assert mel_summary.get("retrieval_hits_count") in {None, 3}
     assert "mel_grounding_policy" in body
+    export_contract = body.get("export_contract") or {}
+    assert export_contract["template_key"] == "usaid"
+    assert export_contract["status"] == "warning"
+    assert "missing_required_toc_sections" in (export_contract.get("reasons") or [])
     assert body["preflight"]["risk_level"] == "medium"
     assert body["preflight"]["warning_count"] == 1
     assert body["preflight"]["warnings"][0]["code"] == "LOW_DOC_COVERAGE"
