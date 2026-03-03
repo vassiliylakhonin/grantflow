@@ -548,6 +548,70 @@ def test_generate_preflight_reports_depth_coverage_warning_when_family_min_not_m
     assert "depth_coverage_below_medium_threshold" in (grounding_policy.get("reasons") or [])
 
 
+def test_ingest_readiness_reports_preflight_payload_and_expected_families_override():
+    api_app_module.INGEST_AUDIT_STORE.clear()
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "ing-read-1",
+            "ts": "2026-03-03T10:00:00+00:00",
+            "donor_id": "usaid",
+            "tenant_id": None,
+            "namespace": "usaid_ads201",
+            "filename": "ads201-a.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "donor_policy", "source_type": "donor_guidance"},
+            "result": {"chunks_ingested": 7},
+        }
+    )
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "ing-read-2",
+            "ts": "2026-03-03T10:01:00+00:00",
+            "donor_id": "usaid",
+            "tenant_id": None,
+            "namespace": "usaid_ads201",
+            "filename": "ads201-b.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "donor_policy", "source_type": "donor_guidance"},
+            "result": {"chunks_ingested": 6},
+        }
+    )
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "ing-read-3",
+            "ts": "2026-03-03T10:02:00+00:00",
+            "donor_id": "usaid",
+            "tenant_id": None,
+            "namespace": "usaid_ads201",
+            "filename": "country.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "country_context", "source_type": "country_context"},
+            "result": {"chunks_ingested": 5},
+        }
+    )
+
+    response = client.post(
+        "/ingest/readiness",
+        json={
+            "donor_id": "usaid",
+            "expected_doc_families": ["donor_policy", "country_context"],
+            "input_context": {"project": "AI training", "country": "Kazakhstan"},
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["donor_id"] == "usaid"
+    assert body["expected_doc_families"] == ["donor_policy", "country_context"]
+    assert body["present_doc_families"] == ["donor_policy", "country_context"]
+    assert body["missing_doc_families"] == []
+    assert body["coverage_rate"] == 1.0
+    assert body["depth_coverage_rate"] == 1.0
+    assert body["risk_level"] in {"none", "low"}
+    assert body["namespace_empty"] is False
+    claims = body.get("architect_claims") or {}
+    assert claims.get("available") is True
+
+
 def test_generate_with_tenant_id_uses_tenant_scoped_namespace():
     response = client.post(
         "/generate",
@@ -5162,6 +5226,16 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     ingest_recent_auth = client.get("/ingest/recent", headers={"X-API-Key": "test-secret"})
     assert ingest_recent_auth.status_code == 200
 
+    ingest_readiness_unauth = client.post("/ingest/readiness", json={"donor_id": "usaid"})
+    assert ingest_readiness_unauth.status_code == 401
+
+    ingest_readiness_auth = client.post(
+        "/ingest/readiness",
+        json={"donor_id": "usaid"},
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert ingest_readiness_auth.status_code == 200
+
     ingest_inventory_unauth = client.get("/ingest/inventory")
     assert ingest_inventory_unauth.status_code == 401
 
@@ -5197,6 +5271,9 @@ def test_openapi_declares_api_key_security_scheme():
         "security"
     )
     ingest_security = (((spec.get("paths") or {}).get("/ingest") or {}).get("post") or {}).get("security")
+    ingest_readiness_security = (((spec.get("paths") or {}).get("/ingest/readiness") or {}).get("post") or {}).get(
+        "security"
+    )
     ingest_recent_security = (((spec.get("paths") or {}).get("/ingest/recent") or {}).get("get") or {}).get("security")
     ingest_inventory_security = (((spec.get("paths") or {}).get("/ingest/inventory") or {}).get("get") or {}).get(
         "security"
@@ -5550,6 +5627,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert generate_security == [{"ApiKeyAuth": []}]
     assert generate_preflight_security == [{"ApiKeyAuth": []}]
     assert ingest_security == [{"ApiKeyAuth": []}]
+    assert ingest_readiness_security == [{"ApiKeyAuth": []}]
     assert ingest_recent_security == [{"ApiKeyAuth": []}]
     assert ingest_inventory_security == [{"ApiKeyAuth": []}]
     assert ingest_inventory_export_security == [{"ApiKeyAuth": []}]

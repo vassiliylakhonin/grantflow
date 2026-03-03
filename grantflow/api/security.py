@@ -10,6 +10,7 @@ PROTECTED_OPERATIONS = {
     ("post", "/generate"),
     ("post", "/generate/preflight"),
     ("post", "/ingest"),
+    ("post", "/ingest/readiness"),
     ("get", "/ingest/recent"),
     ("get", "/ingest/inventory"),
     ("get", "/ingest/inventory/export"),

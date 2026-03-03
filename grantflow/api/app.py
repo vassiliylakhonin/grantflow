@@ -1787,6 +1787,16 @@ class GeneratePreflightRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class IngestReadinessRequest(BaseModel):
+    donor_id: str
+    tenant_id: Optional[str] = None
+    expected_doc_families: Optional[list[str]] = None
+    client_metadata: Optional[Dict[str, Any]] = None
+    input_context: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class HITLApprovalRequest(BaseModel):
     checkpoint_id: str
     approved: bool
@@ -3527,25 +3537,75 @@ def export_portfolio_quality(
 @app.post("/generate/preflight")
 def generate_preflight(req: GeneratePreflightRequest, request: Request):
     require_api_key_if_configured(request)
-    donor = req.donor_id.strip()
+    donor, strategy, client_metadata = _resolve_preflight_request_context(
+        request=request,
+        donor_id=req.donor_id,
+        tenant_id=req.tenant_id,
+        client_metadata=req.client_metadata,
+        input_context=req.input_context,
+    )
+    return _build_generate_preflight(
+        donor_id=donor,
+        strategy=strategy,
+        client_metadata=client_metadata,
+    )
+
+
+def _resolve_preflight_request_context(
+    *,
+    request: Request,
+    donor_id: str,
+    tenant_id: Optional[str] = None,
+    client_metadata: Optional[Dict[str, Any]] = None,
+    input_context: Optional[Dict[str, Any]] = None,
+    expected_doc_families: Optional[list[str]] = None,
+) -> tuple[str, Any, Optional[Dict[str, Any]]]:
+    donor = str(donor_id or "").strip()
     if not donor:
         raise HTTPException(status_code=400, detail="Missing donor_id")
+
     try:
         strategy = DonorFactory.get_strategy(donor)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    metadata = dict(req.client_metadata) if isinstance(req.client_metadata, dict) else {}
-    tenant_id = _resolve_tenant_id(
+
+    metadata = dict(client_metadata) if isinstance(client_metadata, dict) else {}
+    resolved_tenant_id = _resolve_tenant_id(
         request,
-        explicit_tenant=req.tenant_id,
+        explicit_tenant=tenant_id,
         client_metadata=metadata,
         require_if_enabled=True,
     )
-    if tenant_id:
-        metadata["tenant_id"] = tenant_id
-    if isinstance(req.input_context, dict) and req.input_context:
-        metadata["_preflight_input_context"] = dict(req.input_context)
-    client_metadata = metadata or None
+    if resolved_tenant_id:
+        metadata["tenant_id"] = resolved_tenant_id
+
+    if isinstance(input_context, dict) and input_context:
+        metadata["_preflight_input_context"] = dict(input_context)
+
+    if isinstance(expected_doc_families, list):
+        expected = _dedupe_doc_families(expected_doc_families)
+        if expected:
+            rag_readiness_raw = metadata.get("rag_readiness")
+            rag_readiness: Dict[str, Any] = dict(rag_readiness_raw) if isinstance(rag_readiness_raw, dict) else {}
+            rag_readiness["expected_doc_families"] = expected
+            if not str(rag_readiness.get("donor_id") or "").strip():
+                rag_readiness["donor_id"] = donor
+            metadata["rag_readiness"] = rag_readiness
+
+    return donor, strategy, (metadata or None)
+
+
+@app.post("/ingest/readiness")
+def ingest_readiness(req: IngestReadinessRequest, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    donor, strategy, client_metadata = _resolve_preflight_request_context(
+        request=request,
+        donor_id=req.donor_id,
+        tenant_id=req.tenant_id,
+        client_metadata=req.client_metadata,
+        input_context=req.input_context,
+        expected_doc_families=req.expected_doc_families,
+    )
     return _build_generate_preflight(
         donor_id=donor,
         strategy=strategy,
