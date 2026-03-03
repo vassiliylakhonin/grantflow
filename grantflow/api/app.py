@@ -145,6 +145,11 @@ GENERATE_PREFLIGHT_DEFAULT_DOC_FAMILIES: dict[str, list[str]] = {
     "state_department": ["donor_policy", "country_context", "risk_context"],
     "us_state_department": ["donor_policy", "country_context", "risk_context"],
 }
+PREFLIGHT_CRITICAL_DOC_FAMILY_MIN_UPLOADS: dict[str, int] = {
+    "donor_policy": 2,
+    "compliance_requirements": 2,
+    "eligibility_rules": 2,
+}
 GROUNDING_POLICY_MODES = {"off", "warn", "strict"}
 TENANT_HEADER = "x-tenant-id"
 HITL_HISTORY_EVENT_TYPES = {
@@ -635,6 +640,72 @@ def _preflight_expected_doc_families(
     return ["donor_policy", "country_context"]
 
 
+def _preflight_doc_family_min_uploads_map(
+    *,
+    expected_doc_families: list[str],
+    client_metadata: Optional[Dict[str, Any]],
+) -> Dict[str, int]:
+    metadata = client_metadata if isinstance(client_metadata, dict) else {}
+    raw_rag_readiness = metadata.get("rag_readiness")
+    rag_readiness: Dict[str, Any] = raw_rag_readiness if isinstance(raw_rag_readiness, dict) else {}
+    raw_map = rag_readiness.get("doc_family_min_uploads")
+    override_map = raw_map if isinstance(raw_map, dict) else {}
+    out: Dict[str, int] = {}
+    for family in expected_doc_families:
+        token = str(family or "").strip()
+        if not token:
+            continue
+        raw_override = override_map.get(token)
+        try:
+            min_uploads = int(raw_override) if raw_override is not None else int(
+                PREFLIGHT_CRITICAL_DOC_FAMILY_MIN_UPLOADS.get(token, 1)
+            )
+        except (TypeError, ValueError):
+            min_uploads = int(PREFLIGHT_CRITICAL_DOC_FAMILY_MIN_UPLOADS.get(token, 1))
+        out[token] = max(1, min_uploads)
+    return out
+
+
+def _preflight_doc_family_depth_profile(
+    *,
+    expected_doc_families: list[str],
+    doc_family_counts: Dict[str, Any],
+    min_uploads_by_family: Dict[str, int],
+) -> Dict[str, Any]:
+    expected = _dedupe_doc_families(expected_doc_families)
+    if not expected:
+        return {
+            "depth_ready_doc_families": [],
+            "depth_gap_doc_families": [],
+            "depth_ready_count": 0,
+            "depth_gap_count": 0,
+            "depth_coverage_rate": None,
+        }
+    depth_ready: list[str] = []
+    depth_gap: list[str] = []
+    for family in expected:
+        try:
+            count_value = int(doc_family_counts.get(family) or 0)
+        except (TypeError, ValueError):
+            count_value = 0
+        min_required = int(min_uploads_by_family.get(family) or 1)
+        if count_value >= max(1, min_required):
+            depth_ready.append(family)
+        else:
+            depth_gap.append(family)
+    expected_count = len(expected)
+    depth_ready_count = len(depth_ready)
+    depth_gap_count = len(depth_gap)
+    depth_coverage_rate = round(depth_ready_count / expected_count, 4) if expected_count else None
+    return {
+        "depth_ready_doc_families": depth_ready,
+        "depth_gap_doc_families": depth_gap,
+        "depth_ready_count": depth_ready_count,
+        "depth_gap_count": depth_gap_count,
+        "depth_coverage_rate": depth_coverage_rate,
+    }
+
+
 def _preflight_input_context(client_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     metadata = client_metadata if isinstance(client_metadata, dict) else {}
     raw = metadata.get("_preflight_input_context")
@@ -973,6 +1044,8 @@ def _attach_export_contract_gate(state: Any) -> Dict[str, Any]:
 def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
     high_cov_raw = getattr(config.graph, "preflight_grounding_high_risk_coverage_threshold", 0.5)
     medium_cov_raw = getattr(config.graph, "preflight_grounding_medium_risk_coverage_threshold", 0.8)
+    high_depth_cov_raw = getattr(config.graph, "preflight_grounding_high_risk_depth_coverage_threshold", 0.2)
+    medium_depth_cov_raw = getattr(config.graph, "preflight_grounding_medium_risk_depth_coverage_threshold", 0.5)
     min_uploads_raw = getattr(config.graph, "preflight_grounding_min_uploads", 3)
     min_key_claim_coverage_raw = getattr(config.graph, "preflight_grounding_min_key_claim_coverage_rate", 0.6)
     max_fallback_claim_ratio_raw = getattr(config.graph, "preflight_grounding_max_fallback_claim_ratio", 0.8)
@@ -987,6 +1060,14 @@ def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
         medium_cov = float(medium_cov_raw)
     except (TypeError, ValueError):
         medium_cov = 0.8
+    try:
+        high_depth_cov = float(high_depth_cov_raw)
+    except (TypeError, ValueError):
+        high_depth_cov = 0.2
+    try:
+        medium_depth_cov = float(medium_depth_cov_raw)
+    except (TypeError, ValueError):
+        medium_depth_cov = 0.5
     try:
         min_uploads = int(min_uploads_raw)
     except (TypeError, ValueError):
@@ -1012,6 +1093,10 @@ def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
     medium_cov = max(0.0, min(medium_cov, 1.0))
     if medium_cov < high_cov:
         medium_cov = high_cov
+    high_depth_cov = max(0.0, min(high_depth_cov, 1.0))
+    medium_depth_cov = max(0.0, min(medium_depth_cov, 1.0))
+    if medium_depth_cov < high_depth_cov:
+        medium_depth_cov = high_depth_cov
     min_uploads = max(1, min_uploads)
     min_key_claim_coverage = max(0.0, min(min_key_claim_coverage, 1.0))
     max_fallback_claim_ratio = max(0.0, min(max_fallback_claim_ratio, 1.0))
@@ -1021,6 +1106,8 @@ def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
     return {
         "high_risk_coverage_threshold": round(high_cov, 4),
         "medium_risk_coverage_threshold": round(medium_cov, 4),
+        "high_risk_depth_coverage_threshold": round(high_depth_cov, 4),
+        "medium_risk_depth_coverage_threshold": round(medium_depth_cov, 4),
         "min_uploads": min_uploads,
         "min_key_claim_coverage_rate": round(min_key_claim_coverage, 4),
         "max_fallback_claim_ratio": round(max_fallback_claim_ratio, 4),
@@ -1145,15 +1232,19 @@ def _estimate_preflight_architect_claims(
 def _build_preflight_grounding_policy(
     *,
     coverage_rate: Optional[float],
+    depth_coverage_rate: Optional[float],
     namespace_empty: bool,
     inventory_total_uploads: int,
     missing_doc_families: list[str],
+    depth_gap_doc_families: list[str],
     architect_claims: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     mode = _configured_preflight_grounding_policy_mode()
     thresholds = _preflight_grounding_policy_thresholds()
     high_risk_coverage_threshold = float(thresholds["high_risk_coverage_threshold"])
     medium_risk_coverage_threshold = float(thresholds["medium_risk_coverage_threshold"])
+    high_risk_depth_coverage_threshold = float(thresholds["high_risk_depth_coverage_threshold"])
+    medium_risk_depth_coverage_threshold = float(thresholds["medium_risk_depth_coverage_threshold"])
     min_uploads = int(thresholds["min_uploads"])
     min_key_claim_coverage_rate = float(thresholds["min_key_claim_coverage_rate"])
     max_fallback_claim_ratio = float(thresholds["max_fallback_claim_ratio"])
@@ -1174,12 +1265,23 @@ def _build_preflight_grounding_policy(
             reasons.append("coverage_below_medium_threshold")
             risk_level = "medium"
 
+    if depth_coverage_rate is not None:
+        if depth_coverage_rate < high_risk_depth_coverage_threshold:
+            reasons.append("depth_coverage_below_high_threshold")
+            risk_level = "high"
+        elif depth_coverage_rate < medium_risk_depth_coverage_threshold and risk_level != "high":
+            reasons.append("depth_coverage_below_medium_threshold")
+            risk_level = "medium"
+
     if inventory_total_uploads > 0 and inventory_total_uploads < min_uploads and risk_level == "low":
         reasons.append("few_uploaded_documents")
         risk_level = "medium"
 
     if missing_doc_families and risk_level == "low":
         reasons.append("recommended_doc_families_missing")
+        risk_level = "medium"
+    if depth_gap_doc_families and risk_level == "low":
+        reasons.append("recommended_doc_families_depth_gap")
         risk_level = "medium"
 
     architect_claims_payload = architect_claims if isinstance(architect_claims, dict) else {}
@@ -1293,8 +1395,26 @@ def _build_generate_preflight(
     inventory_total_uploads = int(inventory_payload.get("total_uploads") or 0)
 
     expected_doc_families = _preflight_expected_doc_families(donor_id=donor_id, client_metadata=client_metadata)
+    doc_family_min_uploads = _preflight_doc_family_min_uploads_map(
+        expected_doc_families=expected_doc_families,
+        client_metadata=client_metadata,
+    )
     present_doc_families = [doc for doc in expected_doc_families if int(doc_family_counts.get(doc) or 0) > 0]
     missing_doc_families = [doc for doc in expected_doc_families if int(doc_family_counts.get(doc) or 0) <= 0]
+    depth_profile = _preflight_doc_family_depth_profile(
+        expected_doc_families=expected_doc_families,
+        doc_family_counts=doc_family_counts,
+        min_uploads_by_family=doc_family_min_uploads,
+    )
+    depth_ready_doc_families = list(depth_profile.get("depth_ready_doc_families") or [])
+    depth_gap_doc_families = list(depth_profile.get("depth_gap_doc_families") or [])
+    depth_ready_count = int(depth_profile.get("depth_ready_count") or 0)
+    depth_gap_count = int(depth_profile.get("depth_gap_count") or 0)
+    depth_coverage_rate = depth_profile.get("depth_coverage_rate")
+    try:
+        depth_coverage_rate = float(depth_coverage_rate) if depth_coverage_rate is not None else None
+    except (TypeError, ValueError):
+        depth_coverage_rate = None
     expected_count = len(expected_doc_families)
     loaded_count = len(present_doc_families)
     coverage_rate = round(loaded_count / expected_count, 4) if expected_count else None
@@ -1324,6 +1444,17 @@ def _build_generate_preflight(
                 "message": f"Recommended document-family coverage is low ({loaded_count}/{expected_count}).",
             }
         )
+    if depth_coverage_rate is not None and depth_coverage_rate < 0.5:
+        warnings.append(
+            {
+                "code": "LOW_DOC_DEPTH_COVERAGE",
+                "severity": "high" if depth_ready_count == 0 else "medium",
+                "message": (
+                    "Document-family depth coverage is low "
+                    f"({depth_ready_count}/{expected_count} families meet minimum uploads)."
+                ),
+            }
+        )
     if inventory_total_uploads > 0 and inventory_total_uploads < 3:
         warnings.append(
             {
@@ -1335,9 +1466,11 @@ def _build_generate_preflight(
     risk_level = _preflight_severity_max([str(row.get("severity") or "low") for row in warnings])
     grounding_policy = _build_preflight_grounding_policy(
         coverage_rate=coverage_rate,
+        depth_coverage_rate=depth_coverage_rate,
         namespace_empty=namespace_empty,
         inventory_total_uploads=inventory_total_uploads,
         missing_doc_families=missing_doc_families,
+        depth_gap_doc_families=depth_gap_doc_families,
         architect_claims=architect_claims,
     )
     grounding_risk_level = str(grounding_policy.get("risk_level") or "low")
@@ -1351,9 +1484,15 @@ def _build_generate_preflight(
         "expected_doc_families": expected_doc_families,
         "present_doc_families": present_doc_families,
         "missing_doc_families": missing_doc_families,
+        "doc_family_min_uploads": doc_family_min_uploads,
+        "depth_ready_doc_families": depth_ready_doc_families,
+        "depth_gap_doc_families": depth_gap_doc_families,
         "expected_count": expected_count,
         "loaded_count": loaded_count,
         "coverage_rate": coverage_rate,
+        "depth_ready_count": depth_ready_count,
+        "depth_gap_count": depth_gap_count,
+        "depth_coverage_rate": depth_coverage_rate,
         "inventory_total_uploads": inventory_total_uploads,
         "inventory_family_count": int(inventory_payload.get("family_count") or 0),
         "namespace_empty": namespace_empty,

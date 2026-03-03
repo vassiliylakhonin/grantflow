@@ -45,6 +45,8 @@ class GraphConfig(BaseModel):
     export_contract_policy_mode: str = "warn"
     preflight_grounding_high_risk_coverage_threshold: float = 0.5
     preflight_grounding_medium_risk_coverage_threshold: float = 0.8
+    preflight_grounding_high_risk_depth_coverage_threshold: float = 0.2
+    preflight_grounding_medium_risk_depth_coverage_threshold: float = 0.5
     preflight_grounding_min_uploads: int = 3
     preflight_grounding_min_key_claim_coverage_rate: float = 0.6
     preflight_grounding_max_fallback_claim_ratio: float = 0.8
@@ -146,6 +148,12 @@ class GrantFlowConfig(BaseModel):
                 ),
                 preflight_grounding_medium_risk_coverage_threshold=float(
                     _env("GRANTFLOW_PREFLIGHT_GROUNDING_MEDIUM_RISK_COVERAGE_THRESHOLD", "0.8")
+                ),
+                preflight_grounding_high_risk_depth_coverage_threshold=float(
+                    _env("GRANTFLOW_PREFLIGHT_GROUNDING_HIGH_RISK_DEPTH_COVERAGE_THRESHOLD", "0.2")
+                ),
+                preflight_grounding_medium_risk_depth_coverage_threshold=float(
+                    _env("GRANTFLOW_PREFLIGHT_GROUNDING_MEDIUM_RISK_DEPTH_COVERAGE_THRESHOLD", "0.5")
                 ),
                 preflight_grounding_min_uploads=int(_env("GRANTFLOW_PREFLIGHT_GROUNDING_MIN_UPLOADS", "3")),
                 preflight_grounding_min_key_claim_coverage_rate=float(

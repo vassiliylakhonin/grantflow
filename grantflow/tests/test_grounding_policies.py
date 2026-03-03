@@ -54,6 +54,8 @@ def test_preflight_grounding_policy_strict_blocks_on_architect_claim_thresholds(
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_policy_mode", "strict")
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_high_risk_coverage_threshold", 0.5)
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_medium_risk_coverage_threshold", 0.8)
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_high_risk_depth_coverage_threshold", 0.2)
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_medium_risk_depth_coverage_threshold", 0.5)
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_min_uploads", 3)
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_min_key_claim_coverage_rate", 0.6)
     monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_max_fallback_claim_ratio", 0.8)
@@ -62,9 +64,11 @@ def test_preflight_grounding_policy_strict_blocks_on_architect_claim_thresholds(
 
     policy = api_app_module._build_preflight_grounding_policy(
         coverage_rate=1.0,
+        depth_coverage_rate=1.0,
         namespace_empty=False,
         inventory_total_uploads=8,
         missing_doc_families=[],
+        depth_gap_doc_families=[],
         architect_claims={
             "available": True,
             "claim_citation_count": 4,
@@ -89,12 +93,34 @@ def test_preflight_grounding_policy_warns_when_architect_claims_not_evaluated(mo
 
     policy = api_app_module._build_preflight_grounding_policy(
         coverage_rate=1.0,
+        depth_coverage_rate=1.0,
         namespace_empty=False,
         inventory_total_uploads=8,
         missing_doc_families=[],
+        depth_gap_doc_families=[],
         architect_claims={"available": False, "reason": "input_context_missing"},
     )
     assert policy["mode"] == "warn"
     assert policy["risk_level"] == "medium"
     assert policy["blocking"] is False
     assert "architect_claim_policy_not_evaluated" in (policy.get("reasons") or [])
+
+
+def test_preflight_grounding_policy_strict_blocks_on_depth_coverage(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_high_risk_depth_coverage_threshold", 0.4)
+    monkeypatch.setattr(api_app_module.config.graph, "preflight_grounding_medium_risk_depth_coverage_threshold", 0.7)
+
+    policy = api_app_module._build_preflight_grounding_policy(
+        coverage_rate=1.0,
+        depth_coverage_rate=0.2,
+        namespace_empty=False,
+        inventory_total_uploads=8,
+        missing_doc_families=[],
+        depth_gap_doc_families=["donor_policy"],
+        architect_claims=None,
+    )
+    assert policy["mode"] == "strict"
+    assert policy["risk_level"] == "high"
+    assert policy["blocking"] is True
+    assert "depth_coverage_below_high_threshold" in (policy.get("reasons") or [])

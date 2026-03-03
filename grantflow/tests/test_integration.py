@@ -46,6 +46,8 @@ def test_health_endpoint():
     thresholds = preflight_policy["thresholds"]
     assert 0.0 <= float(thresholds["high_risk_coverage_threshold"]) <= 1.0
     assert 0.0 <= float(thresholds["medium_risk_coverage_threshold"]) <= 1.0
+    assert 0.0 <= float(thresholds["high_risk_depth_coverage_threshold"]) <= 1.0
+    assert 0.0 <= float(thresholds["medium_risk_depth_coverage_threshold"]) <= 1.0
     assert int(thresholds["min_uploads"]) >= 1
     mel_policy = diagnostics["mel_grounding_policy"]
     assert mel_policy["mode"] in {"warn", "strict", "off"}
@@ -475,8 +477,13 @@ def test_generate_preflight_reports_high_risk_when_namespace_empty():
     thresholds = grounding_policy.get("thresholds") or {}
     assert 0.0 <= float(thresholds.get("high_risk_coverage_threshold") or 0.0) <= 1.0
     assert 0.0 <= float(thresholds.get("medium_risk_coverage_threshold") or 0.0) <= 1.0
+    assert 0.0 <= float(thresholds.get("high_risk_depth_coverage_threshold") or 0.0) <= 1.0
+    assert 0.0 <= float(thresholds.get("medium_risk_depth_coverage_threshold") or 0.0) <= 1.0
     assert float(thresholds.get("medium_risk_coverage_threshold") or 0.0) >= float(
         thresholds.get("high_risk_coverage_threshold") or 0.0
+    )
+    assert float(thresholds.get("medium_risk_depth_coverage_threshold") or 0.0) >= float(
+        thresholds.get("high_risk_depth_coverage_threshold") or 0.0
     )
     assert int(thresholds.get("min_uploads") or 0) >= 1
     assert 0.0 <= float(thresholds.get("min_key_claim_coverage_rate") or 0.0) <= 1.0
@@ -487,6 +494,58 @@ def test_generate_preflight_reports_high_risk_when_namespace_empty():
     assert isinstance(architect_claims, dict)
     assert architect_claims.get("available") is False
     assert architect_claims.get("reason") == "input_context_missing"
+    assert isinstance(body.get("doc_family_min_uploads"), dict)
+    assert isinstance(body.get("depth_ready_doc_families"), list)
+    assert isinstance(body.get("depth_gap_doc_families"), list)
+    assert body.get("depth_ready_count") == 0
+    assert body.get("depth_gap_count") == int(body.get("expected_count") or 0)
+    assert body.get("depth_coverage_rate") == 0.0
+
+
+def test_generate_preflight_reports_depth_coverage_warning_when_family_min_not_met():
+    api_app_module.INGEST_AUDIT_STORE.clear()
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "pref-depth-1",
+            "ts": "2026-03-03T10:00:00+00:00",
+            "donor_id": "usaid",
+            "tenant_id": None,
+            "namespace": "usaid_ads201",
+            "filename": "ads201.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "donor_policy", "source_type": "donor_guidance"},
+            "result": {"chunks_ingested": 10},
+        }
+    )
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "pref-depth-2",
+            "ts": "2026-03-03T10:05:00+00:00",
+            "donor_id": "usaid",
+            "tenant_id": None,
+            "namespace": "usaid_ads201",
+            "filename": "country.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "country_context", "source_type": "country_context"},
+            "result": {"chunks_ingested": 8},
+        }
+    )
+
+    response = client.post("/generate/preflight", json={"donor_id": "usaid"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["donor_id"] == "usaid"
+    assert body["namespace_empty"] is False
+    assert body["coverage_rate"] == 0.6667
+    assert body["depth_ready_count"] == 1
+    assert body["depth_gap_count"] == 2
+    assert body["depth_coverage_rate"] == 0.3333
+    warnings = body.get("warnings") or []
+    warning_codes = {str(row.get("code") or "") for row in warnings if isinstance(row, dict)}
+    assert "LOW_DOC_DEPTH_COVERAGE" in warning_codes
+    grounding_policy = body.get("grounding_policy") or {}
+    assert grounding_policy["risk_level"] in {"medium", "high"}
+    assert "depth_coverage_below_medium_threshold" in (grounding_policy.get("reasons") or [])
 
 
 def test_generate_with_tenant_id_uses_tenant_scoped_namespace():
