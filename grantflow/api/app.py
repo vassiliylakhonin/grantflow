@@ -57,6 +57,7 @@ from grantflow.api.schemas import (
     JobDiffPublicResponse,
     JobEventsPublicResponse,
     JobExportPayloadPublicResponse,
+    JobHITLHistoryPublicResponse,
     JobMetricsPublicResponse,
     JobQualitySummaryPublicResponse,
     JobReviewWorkflowPublicResponse,
@@ -137,6 +138,13 @@ GENERATE_PREFLIGHT_DEFAULT_DOC_FAMILIES: dict[str, list[str]] = {
 }
 GROUNDING_POLICY_MODES = {"off", "warn", "strict"}
 TENANT_HEADER = "x-tenant-id"
+HITL_HISTORY_EVENT_TYPES = {
+    "status_changed",
+    "resume_requested",
+    "hitl_checkpoint_published",
+    "hitl_checkpoint_decision",
+    "hitl_checkpoint_canceled",
+}
 GLOBAL_IDEMPOTENCY_RECORDS: Dict[str, Dict[str, Any]] = {}
 GLOBAL_IDEMPOTENCY_LOCK = threading.Lock()
 
@@ -1142,6 +1150,90 @@ def _list_jobs() -> Dict[str, Dict[str, Any]]:
         if isinstance(result, dict):
             return result
     return {}
+
+
+def _find_job_by_checkpoint_id(checkpoint_id: str) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
+    token = str(checkpoint_id or "").strip()
+    if not token:
+        return None, None
+    for job_id, job in _list_jobs().items():
+        if not isinstance(job, dict):
+            continue
+        if str(job.get("checkpoint_id") or "").strip() == token:
+            return str(job_id), job
+    return None, None
+
+
+def _is_hitl_history_event(event: Dict[str, Any]) -> bool:
+    event_type = str(event.get("type") or "").strip()
+    if event_type not in HITL_HISTORY_EVENT_TYPES:
+        return False
+    if event_type != "status_changed":
+        return True
+    from_status = str(event.get("from_status") or "").strip().lower()
+    to_status = str(event.get("to_status") or "").strip().lower()
+    return from_status == "pending_hitl" or to_status == "pending_hitl"
+
+
+def _hitl_history_payload(
+    job_id: str,
+    job: Dict[str, Any],
+    *,
+    event_type: Optional[str] = None,
+    checkpoint_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    event_type_filter = str(event_type or "").strip() or None
+    if event_type_filter and event_type_filter not in HITL_HISTORY_EVENT_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported event_type filter")
+    checkpoint_filter = str(checkpoint_id or "").strip() or None
+    raw_events_value = job.get("job_events")
+    raw_events: list[Any] = raw_events_value if isinstance(raw_events_value, list) else []
+    events: list[Dict[str, Any]] = []
+    for row in raw_events:
+        if not isinstance(row, dict) or not _is_hitl_history_event(row):
+            continue
+        row_type = str(row.get("type") or "").strip()
+        row_checkpoint_id = str(row.get("checkpoint_id") or "").strip() or None
+        if event_type_filter and row_type != event_type_filter:
+            continue
+        if checkpoint_filter and row_checkpoint_id != checkpoint_filter:
+            continue
+        status = str(row.get("status") or "").strip()
+        from_status = str(row.get("from_status") or "").strip()
+        to_status = str(row.get("to_status") or "").strip()
+        event: Dict[str, Any] = {
+            "event_id": row.get("event_id"),
+            "ts": row.get("ts"),
+            "type": row_type,
+            "from_status": from_status or None,
+            "to_status": to_status or None,
+            "status": status or None,
+            "checkpoint_id": row_checkpoint_id,
+            "checkpoint_stage": str(row.get("checkpoint_stage") or row.get("stage") or "").strip() or None,
+            "checkpoint_status": str(row.get("checkpoint_status") or "").strip() or None,
+            "resuming_from": str(row.get("resuming_from") or "").strip() or None,
+            "approved": row.get("approved") if isinstance(row.get("approved"), bool) else None,
+            "feedback": str(row.get("feedback") or "").strip() or None,
+            "actor": str(row.get("actor") or "").strip() or None,
+            "request_id": str(row.get("request_id") or "").strip() or None,
+            "reason": str(row.get("reason") or "").strip() or None,
+            "backend": str(row.get("backend") or "").strip() or None,
+        }
+        events.append(event)
+    events.sort(key=lambda item: str(item.get("ts") or ""), reverse=True)
+    event_type_counts: Dict[str, int] = {}
+    for row in events:
+        row_type = str(row.get("type") or "").strip()
+        if row_type:
+            event_type_counts[row_type] = int(event_type_counts.get(row_type, 0)) + 1
+    return {
+        "job_id": str(job_id),
+        "status": str(job.get("status") or ""),
+        "filters": {"event_type": event_type_filter, "checkpoint_id": checkpoint_filter},
+        "event_count": len(events),
+        "event_type_counts": event_type_counts,
+        "events": events,
+    }
 
 
 def _tenant_from_namespace(namespace: Any) -> Optional[str]:
@@ -2537,6 +2629,13 @@ def _pause_for_hitl(job_id: str, state: dict, stage: Literal["toc", "logframe"],
             "hitl_enabled": True,
         },
     )
+    _record_job_event(
+        job_id,
+        "hitl_checkpoint_published",
+        checkpoint_id=checkpoint_id,
+        checkpoint_stage=stage,
+        resume_from=resume_from,
+    )
 
 
 def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
@@ -3255,10 +3354,19 @@ def cancel_job(job_id: str, request: Request, request_id: Optional[str] = Query(
         raise HTTPException(status_code=409, detail=f"Job is already terminal: {status}")
 
     checkpoint_id = job.get("checkpoint_id")
+    checkpoint_canceled = False
     if checkpoint_id:
         checkpoint = hitl_manager.get_checkpoint(str(checkpoint_id))
         if checkpoint and checkpoint.get("status") == HITLStatus.PENDING:
-            hitl_manager.cancel(str(checkpoint_id), "Canceled by user")
+            checkpoint_canceled = bool(hitl_manager.cancel(str(checkpoint_id), "Canceled by user"))
+    if checkpoint_id and checkpoint_canceled:
+        _record_job_event(
+            job_id,
+            "hitl_checkpoint_canceled",
+            checkpoint_id=str(checkpoint_id),
+            reason="Canceled by user",
+            request_id=request_id_token,
+        )
 
     _update_job(
         job_id,
@@ -3490,6 +3598,30 @@ def get_status_events(job_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Job not found")
     _ensure_job_tenant_read_access(request, job)
     return public_job_events_payload(job_id, job)
+
+
+@app.get(
+    "/status/{job_id}/hitl/history",
+    response_model=JobHITLHistoryPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_hitl_history(
+    job_id: str,
+    request: Request,
+    event_type: Optional[str] = Query(default=None),
+    checkpoint_id: Optional[str] = Query(default=None),
+):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    _ensure_job_tenant_read_access(request, job)
+    return _hitl_history_payload(
+        job_id,
+        job,
+        event_type=(event_type or None),
+        checkpoint_id=(checkpoint_id or None),
+    )
 
 
 @app.get(
@@ -4064,6 +4196,8 @@ def approve_checkpoint(
     if not checkpoint:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
     _ensure_checkpoint_tenant_write_access(request, checkpoint)
+    actor = _finding_actor_from_request(request)
+    job_id_for_checkpoint, _job_for_checkpoint = _find_job_by_checkpoint_id(req.checkpoint_id)
 
     if req.approved:
         hitl_manager.approve(req.checkpoint_id, feedback)
@@ -4071,6 +4205,18 @@ def approve_checkpoint(
     else:
         hitl_manager.reject(req.checkpoint_id, feedback)
         response = {"status": "rejected", "checkpoint_id": req.checkpoint_id}
+    if job_id_for_checkpoint:
+        _record_job_event(
+            str(job_id_for_checkpoint),
+            "hitl_checkpoint_decision",
+            checkpoint_id=req.checkpoint_id,
+            checkpoint_stage=checkpoint.get("stage"),
+            checkpoint_status=response["status"],
+            approved=bool(req.approved),
+            feedback=feedback,
+            actor=actor,
+            request_id=request_id_token,
+        )
 
     if request_id_token:
         response["request_id"] = request_id_token

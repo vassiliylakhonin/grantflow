@@ -231,7 +231,7 @@ curl -s -X POST http://127.0.0.1:8000/export \
   - `tenant_id` supported on `generate/preflight` and `generate`
   - lifecycle idempotency via `request_id` (query/body) or `X-Request-Id` is supported for `generate`, `cancel`, `resume`, and `hitl/approve`
 - `GET /status/{job_id}` plus:
-  - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/sla`, `/review/workflow/export`
+  - `/citations`, `/versions`, `/diff`, `/events`, `/hitl/history`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/sla`, `/review/workflow/export`
   - `GET /status/{job_id}/review/workflow/sla/profile`
   - `POST /status/{job_id}/review/workflow/sla/recompute`
     - optional body: `finding_sla_hours` (`high|medium|low`), `default_comment_sla_hours`, `use_saved_profile`

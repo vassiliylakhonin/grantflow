@@ -715,6 +715,45 @@ class HITLPendingListPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobHITLHistoryFiltersPublicResponse(BaseModel):
+    event_type: Optional[str] = None
+    checkpoint_id: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobHITLHistoryEventPublicResponse(BaseModel):
+    event_id: Optional[str] = None
+    ts: Optional[str] = None
+    type: str
+    from_status: Optional[str] = None
+    to_status: Optional[str] = None
+    status: Optional[str] = None
+    checkpoint_id: Optional[str] = None
+    checkpoint_stage: Optional[str] = None
+    checkpoint_status: Optional[str] = None
+    resuming_from: Optional[str] = None
+    approved: Optional[bool] = None
+    feedback: Optional[str] = None
+    actor: Optional[str] = None
+    request_id: Optional[str] = None
+    reason: Optional[str] = None
+    backend: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class JobHITLHistoryPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    filters: JobHITLHistoryFiltersPublicResponse
+    event_count: int
+    event_type_counts: Dict[str, int]
+    events: list[JobHITLHistoryEventPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class IngestRecentRecordPublicResponse(BaseModel):
     event_id: str
     ts: str

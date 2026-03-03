@@ -6200,6 +6200,92 @@ def test_hitl_checkpoint_endpoints():
     assert response.json()["status"] == "approved"
 
 
+def test_status_hitl_history_endpoint_lists_and_filters_events():
+    job_id = "hitl-history-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {"donor_id": "usaid", "input_context": {"project": "History", "country": "Kenya"}},
+            "hitl_enabled": True,
+            "job_events": [
+                {
+                    "event_id": "h1",
+                    "ts": "2026-03-01T10:00:00+00:00",
+                    "type": "status_changed",
+                    "from_status": "running",
+                    "to_status": "pending_hitl",
+                    "status": "pending_hitl",
+                },
+                {
+                    "event_id": "h2",
+                    "ts": "2026-03-01T10:00:05+00:00",
+                    "type": "hitl_checkpoint_published",
+                    "checkpoint_id": "cp-h-1",
+                    "checkpoint_stage": "toc",
+                },
+                {
+                    "event_id": "h3",
+                    "ts": "2026-03-01T10:00:10+00:00",
+                    "type": "hitl_checkpoint_decision",
+                    "checkpoint_id": "cp-h-1",
+                    "checkpoint_stage": "toc",
+                    "checkpoint_status": "approved",
+                    "approved": True,
+                    "feedback": "ok",
+                    "actor": "qa",
+                    "request_id": "rid-hitl-h1",
+                },
+                {
+                    "event_id": "h4",
+                    "ts": "2026-03-01T10:00:20+00:00",
+                    "type": "resume_requested",
+                    "checkpoint_id": "cp-h-1",
+                    "resuming_from": "mel",
+                },
+                {
+                    "event_id": "h5",
+                    "ts": "2026-03-01T10:00:30+00:00",
+                    "type": "status_changed",
+                    "from_status": "pending_hitl",
+                    "to_status": "running",
+                    "status": "running",
+                },
+                {"event_id": "h6", "ts": "2026-03-01T10:00:40+00:00", "type": "job_canceled"},
+            ],
+        },
+    )
+
+    response = client.get(f"/status/{job_id}/hitl/history")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["job_id"] == job_id
+    assert body["event_count"] == 5
+    assert body["event_type_counts"]["status_changed"] == 2
+    assert body["event_type_counts"]["hitl_checkpoint_decision"] == 1
+    assert body["events"][0]["event_id"] == "h5"
+    assert body["events"][-1]["event_id"] == "h1"
+
+    decision_only = client.get(
+        f"/status/{job_id}/hitl/history",
+        params={"event_type": "hitl_checkpoint_decision"},
+    )
+    assert decision_only.status_code == 200
+    decision_body = decision_only.json()
+    assert decision_body["event_count"] == 1
+    assert decision_body["events"][0]["type"] == "hitl_checkpoint_decision"
+    assert decision_body["events"][0]["checkpoint_status"] == "approved"
+
+    checkpoint_only = client.get(
+        f"/status/{job_id}/hitl/history",
+        params={"checkpoint_id": "cp-h-1"},
+    )
+    assert checkpoint_only.status_code == 200
+    checkpoint_body = checkpoint_only.json()
+    assert checkpoint_body["event_count"] == 3
+    assert all((row.get("checkpoint_id") == "cp-h-1") for row in checkpoint_body["events"])
+
+
 def test_hitl_approve_request_id_is_idempotent():
     from grantflow.swarm.hitl import hitl_manager
 
@@ -6251,3 +6337,46 @@ def test_hitl_approve_request_id_is_idempotent():
     assert mismatch.status_code == 409
     mismatch_detail = mismatch.json().get("detail") or {}
     assert mismatch_detail.get("reason") == "request_id_reused_with_different_payload"
+
+
+def test_hitl_approve_records_audit_event_and_exposes_in_history():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "HITL audit", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": True,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "pending_hitl"
+    checkpoint_id = status["checkpoint_id"]
+
+    approve = client.post(
+        "/hitl/approve",
+        headers={"X-Actor": "reviewer_a"},
+        json={
+            "checkpoint_id": checkpoint_id,
+            "approved": True,
+            "feedback": "approved by reviewer",
+            "request_id": "rid-hitl-audit-1",
+        },
+    )
+    assert approve.status_code == 200
+
+    history = client.get(f"/status/{job_id}/hitl/history", params={"event_type": "hitl_checkpoint_decision"})
+    assert history.status_code == 200
+    history_body = history.json()
+    assert history_body["event_count"] >= 1
+    latest = history_body["events"][0]
+    assert latest["type"] == "hitl_checkpoint_decision"
+    assert latest["checkpoint_id"] == checkpoint_id
+    assert latest["checkpoint_status"] == "approved"
+    assert latest["approved"] is True
+    assert latest["feedback"] == "approved by reviewer"
+    assert latest["actor"] == "reviewer_a"
+    assert latest["request_id"] == "rid-hitl-audit-1"

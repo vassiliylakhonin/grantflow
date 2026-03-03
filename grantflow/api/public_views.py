@@ -37,6 +37,7 @@ REVIEW_WORKFLOW_EVENT_TYPES = {
     "critic_finding_status_changed",
     "review_comment_added",
     "review_comment_status_changed",
+    "hitl_checkpoint_decision",
 }
 REVIEW_WORKFLOW_STATE_FILTER_VALUES = {"pending", "overdue"}
 REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS = 48
@@ -352,7 +353,11 @@ def public_job_review_workflow_payload(
                     "kind": (
                         "finding_status"
                         if event_type == "critic_finding_status_changed"
-                        else ("comment_added" if event_type == "review_comment_added" else "comment_status")
+                        else (
+                            "comment_added"
+                            if event_type == "review_comment_added"
+                            else ("hitl_decision" if event_type == "hitl_checkpoint_decision" else "comment_status")
+                        )
                     ),
                     "finding_id": event_finding_id,
                     "comment_id": comment_id,
