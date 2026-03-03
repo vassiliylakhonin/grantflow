@@ -915,8 +915,9 @@ def render_demo_ui_html() -> str:
             </div>
             <div id="exportContractMetaLine" class="footer-note mono">mode=- · status=- · risk=- · missing=-</div>
             <div class="list" id="exportContractWarningsList" style="margin-top:10px;"></div>
-            <div style="margin-top:10px;">
+            <div class="row" style="margin-top:10px;">
               <button id="exportZipFromPayloadBtn" class="secondary">Export ZIP from Payload</button>
+              <button id="exportProductionZipFromPayloadBtn" class="danger">Production Export (enforced)</button>
             </div>
             <div class="footer-note">
               Review-ready payload for <code>POST /export</code> (<code>state</code> + <code>critic_findings</code> + <code>review_comments</code>).
@@ -1496,6 +1497,7 @@ def render_demo_ui_html() -> str:
         exportPayloadBtn: $("exportPayloadBtn"),
         copyExportPayloadBtn: $("copyExportPayloadBtn"),
         exportZipFromPayloadBtn: $("exportZipFromPayloadBtn"),
+        exportProductionZipFromPayloadBtn: $("exportProductionZipFromPayloadBtn"),
         eventsBtn: $("eventsBtn"),
         criticBtn: $("criticBtn"),
         criticBulkApplyBtn: $("criticBulkApplyBtn"),
@@ -4418,7 +4420,54 @@ def render_demo_ui_html() -> str:
         await exportReviewWorkflowAggregate("csv");
       }
 
-      async function exportZipFromPayload() {
+      function formatExportPolicyError(statusCode, detail, rawBody) {
+        if (Number(statusCode) !== 409 || !detail || typeof detail !== "object") return "";
+        const reason = String(detail.reason || "").trim();
+        if (reason === "export_contract_policy_block") {
+          const gate = detail.export_contract_gate && typeof detail.export_contract_gate === "object"
+            ? detail.export_contract_gate
+            : {};
+          const mode = String(gate.mode || "strict");
+          const status = String(gate.status || "warning");
+          const missingSections = Array.isArray(gate.missing_required_sections)
+            ? gate.missing_required_sections.map((x) => String(x || "").trim()).filter(Boolean)
+            : [];
+          const missingSheets = Array.isArray(gate.missing_required_sheets)
+            ? gate.missing_required_sheets.map((x) => String(x || "").trim()).filter(Boolean)
+            : [];
+          const reasons = Array.isArray(gate.reasons)
+            ? gate.reasons.map((x) => String(x || "").trim()).filter(Boolean)
+            : [];
+          const parts = [
+            `Production export blocked by export contract policy (mode=${mode}, status=${status}).`,
+          ];
+          if (missingSections.length) parts.push(`Missing ToC sections: ${missingSections.join(", ")}.`);
+          if (missingSheets.length) parts.push(`Missing workbook sheets: ${missingSheets.join(", ")}.`);
+          if (reasons.length) parts.push(`Reasons: ${reasons.join(", ")}.`);
+          parts.push("Use non-production export, fix missing sections/sheets, or set allow_unsafe_export=true.");
+          return parts.join(" ");
+        }
+        if (reason === "export_grounding_policy_block") {
+          const policy = detail.export_grounding_policy && typeof detail.export_grounding_policy === "object"
+            ? detail.export_grounding_policy
+            : {};
+          const summary = String(policy.summary || "").trim();
+          const reasons = Array.isArray(policy.reasons)
+            ? policy.reasons.map((x) => String(x || "").trim()).filter(Boolean)
+            : [];
+          const mode = String(policy.mode || "strict");
+          return `Export blocked by grounding policy (mode=${mode})${summary ? `: ${summary}` : ""}${reasons.length ? `. Reasons: ${reasons.join(", ")}.` : "."}`;
+        }
+        if (reason === "grounding_gate_strict_block") {
+          const gate = detail.grounding_gate && typeof detail.grounding_gate === "object" ? detail.grounding_gate : {};
+          const summary = String(gate.summary || "").trim() || "strict grounding gate failed";
+          return `Export blocked by strict grounding gate: ${summary}.`;
+        }
+        return typeof rawBody === "object" ? "" : String(rawBody || "");
+      }
+
+      async function exportZipFromPayload(opts = {}) {
+        const enforcedProduction = Boolean(opts && opts.enforcedProduction);
         let currentText = (els.exportPayloadJson?.textContent || "").trim();
         if (!currentText || currentText === "{}") {
           await refreshExportPayload();
@@ -4441,8 +4490,8 @@ def render_demo_ui_html() -> str:
         const requestBody = {
           payload: parsed.payload,
           format: "both",
-          production_export: productionExportEnabled(),
-          allow_unsafe_export: allowUnsafeExportEnabled(),
+          production_export: enforcedProduction ? true : productionExportEnabled(),
+          allow_unsafe_export: enforcedProduction ? false : allowUnsafeExportEnabled(),
         };
         const res = await fetch(`${apiBase()}/export`, {
           method: "POST",
@@ -4451,10 +4500,13 @@ def render_demo_ui_html() -> str:
         });
         if (!res.ok) {
           const ct = res.headers.get("content-type") || "";
+          let body = null;
           let errText = "";
           if (ct.includes("application/json")) {
-            const body = await res.json();
-            errText = JSON.stringify(body, null, 2);
+            body = await res.json();
+            const detail = body && typeof body === "object" ? body.detail : null;
+            const pretty = formatExportPolicyError(res.status, detail, body);
+            errText = pretty || JSON.stringify(body, null, 2);
           } else {
             errText = await res.text();
           }
@@ -4680,6 +4732,9 @@ def render_demo_ui_html() -> str:
         );
         els.exportZipFromPayloadBtn.addEventListener("click", () =>
           exportZipFromPayload().catch((err) => showError(err))
+        );
+        els.exportProductionZipFromPayloadBtn.addEventListener("click", () =>
+          exportZipFromPayload({ enforcedProduction: true }).catch((err) => showError(err))
         );
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));

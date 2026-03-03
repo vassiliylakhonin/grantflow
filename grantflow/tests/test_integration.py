@@ -151,6 +151,8 @@ def test_demo_console_page_loads():
     assert "exportPayloadBtn" in body
     assert "copyExportPayloadBtn" in body
     assert "exportZipFromPayloadBtn" in body
+    assert "exportProductionZipFromPayloadBtn" in body
+    assert "Production Export (enforced)" in body
     assert "exportContractPill" in body
     assert "exportContractPillText" in body
     assert "exportContractMetaLine" in body
