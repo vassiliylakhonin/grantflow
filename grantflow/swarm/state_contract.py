@@ -6,6 +6,9 @@ from typing import Any, Mapping, MutableMapping, TypedDict, cast
 class GrantFlowState(TypedDict, total=False):
     donor_id: str
     donor: str
+    tenant_id: str
+    rag_namespace: str
+    retrieval_namespace: str
     donor_strategy: Any
     strategy: Any
     input_context: dict[str, Any]
@@ -98,6 +101,11 @@ def state_input_context(state: Mapping[str, Any]) -> dict[str, Any]:
     return {}
 
 
+def state_rag_namespace(state: Mapping[str, Any], default: str = "") -> str:
+    namespace = str(state.get("rag_namespace") or state.get("retrieval_namespace") or "").strip()
+    return namespace or default
+
+
 def state_iteration(state: Mapping[str, Any], default: int = 0) -> int:
     return _as_int(state.get("iteration_count"), default=_as_int(state.get("iteration"), default=default))
 
@@ -115,6 +123,16 @@ def normalize_state_contract(state: MutableMapping[str, Any]) -> GrantFlowState:
     state["input"] = input_context
 
     set_state_donor_strategy(state, state_donor_strategy(state))
+
+    tenant_id = str(state.get("tenant_id") or "").strip()
+    if tenant_id:
+        state["tenant_id"] = tenant_id
+
+    rag_namespace = state_rag_namespace(state)
+    if rag_namespace:
+        state["rag_namespace"] = rag_namespace
+        # Legacy alias retained for compatibility with older payload consumers.
+        state["retrieval_namespace"] = rag_namespace
 
     iteration = state_iteration(state)
     state["iteration_count"] = iteration

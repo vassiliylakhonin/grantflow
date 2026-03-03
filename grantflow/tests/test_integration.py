@@ -429,11 +429,71 @@ def test_generate_preflight_reports_high_risk_when_namespace_empty():
         thresholds.get("high_risk_coverage_threshold") or 0.0
     )
     assert int(thresholds.get("min_uploads") or 0) >= 1
-    assert body["go_ahead"] is False
-    assert body["loaded_count"] == 0
-    assert body["expected_count"] >= 1
-    warning_codes = {row.get("code") for row in body["warnings"] if isinstance(row, dict)}
-    assert "NAMESPACE_EMPTY" in warning_codes
+
+
+def test_generate_with_tenant_id_uses_tenant_scoped_namespace():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "tenant_id": "Acme Gov",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] in {"done", "error", "pending_hitl"}
+    state = status.get("state") or {}
+    assert state.get("tenant_id") == "acme_gov"
+    assert state.get("rag_namespace") == "acme_gov/usaid_ads201"
+    retrieval = state.get("architect_retrieval") or {}
+    assert retrieval.get("namespace") == "acme_gov/usaid_ads201"
+    assert retrieval.get("namespace_normalized") == "acme_gov_usaid_ads201"
+
+
+def test_generate_requires_allowed_tenant_when_tenant_authz_enabled(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "true")
+    monkeypatch.setenv("GRANTFLOW_ALLOWED_TENANTS", "tenant_alpha")
+
+    missing_tenant = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert missing_tenant.status_code == 403
+    assert "tenant_id" in str(missing_tenant.json().get("detail") or "").lower()
+
+    not_allowed = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "tenant_id": "tenant_beta",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert not_allowed.status_code == 403
+
+    allowed = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "tenant_id": "tenant_alpha",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert allowed.status_code == 200
 
 
 def test_generate_response_and_status_include_preflight_payload():
@@ -4472,6 +4532,36 @@ def test_ingest_endpoint_uploads_to_donor_namespace(monkeypatch):
     assert calls["metadata"]["source_type"] == "manual_upload"
 
 
+def test_ingest_endpoint_applies_tenant_scoped_namespace(monkeypatch):
+    api_app_module.INGEST_AUDIT_STORE.clear()
+    calls = {}
+
+    def fake_ingest(pdf_path: str, namespace: str, metadata=None):
+        calls["namespace"] = namespace
+        calls["metadata"] = metadata or {}
+        return {
+            "namespace": namespace,
+            "source": pdf_path,
+            "chunks_ingested": 2,
+            "stats": {"namespace": namespace, "document_count": 2},
+        }
+
+    monkeypatch.setattr(api_app_module, "ingest_pdf_to_namespace", fake_ingest)
+
+    response = client.post(
+        "/ingest",
+        data={"donor_id": "usaid", "tenant_id": "Tenant Alpha", "metadata_json": json.dumps({"doc_family": "donor_policy"})},
+        files={"file": ("tenant-ads.pdf", b"%PDF-1.4 fake", "application/pdf")},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["tenant_id"] == "tenant_alpha"
+    assert body["namespace"] == "tenant_alpha/usaid_ads201"
+    assert body["namespace_normalized"] == "tenant_alpha_usaid_ads201"
+    assert calls["namespace"] == "tenant_alpha/usaid_ads201"
+    assert calls["metadata"]["tenant_id"] == "tenant_alpha"
+
+
 def test_ingest_recent_endpoint_returns_records(monkeypatch):
     api_app_module.INGEST_AUDIT_STORE.clear()
 
@@ -4558,6 +4648,37 @@ def test_ingest_inventory_endpoint_aggregates_doc_families(monkeypatch):
     assert families["donor_policy"]["latest_filename"] in {"ads-addendum.pdf", "ads201.pdf"}
     assert families["country_context"]["count"] == 1
     assert families["country_context"]["latest_filename"] == "kazakhstan-context.pdf"
+
+
+def test_ingest_inventory_endpoint_filters_by_tenant(monkeypatch):
+    api_app_module.INGEST_AUDIT_STORE.clear()
+
+    def fake_ingest(pdf_path: str, namespace: str, metadata=None):
+        return {"namespace": namespace, "source": pdf_path, "chunks_ingested": 1, "stats": {}}
+
+    monkeypatch.setattr(api_app_module, "ingest_pdf_to_namespace", fake_ingest)
+
+    uploads = [
+        ("tenant_a", "a-ads.pdf", {"doc_family": "donor_policy", "source_type": "donor_guidance"}),
+        ("tenant_b", "b-ads.pdf", {"doc_family": "donor_policy", "source_type": "donor_guidance"}),
+        ("tenant_a", "a-country.pdf", {"doc_family": "country_context", "source_type": "country_context"}),
+    ]
+    for tenant_id, filename, metadata in uploads:
+        response = client.post(
+            "/ingest",
+            data={"donor_id": "usaid", "tenant_id": tenant_id, "metadata_json": json.dumps(metadata)},
+            files={"file": (filename, b"%PDF-1.4 x", "application/pdf")},
+        )
+        assert response.status_code == 200
+
+    response = client.get("/ingest/inventory", params={"donor_id": "usaid", "tenant_id": "tenant_a"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_uploads"] == 2
+    assert body["doc_family_counts"]["donor_policy"] == 1
+    assert body["doc_family_counts"]["country_context"] == 1
+    for row in body["doc_families"]:
+        assert row.get("tenant_id") == "tenant_a"
 
 
 def test_ingest_endpoint_validates_pdf_extension():

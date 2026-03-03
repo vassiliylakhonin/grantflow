@@ -24,6 +24,7 @@ from grantflow.swarm.state_contract import (
     state_donor_strategy,
     state_input_context,
     state_iteration,
+    state_rag_namespace,
 )
 from grantflow.swarm.versioning import append_draft_version
 
@@ -552,7 +553,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
         state.setdefault("errors", []).append("MEL cannot run without donor_strategy")
         return state
 
-    namespace = strategy.get_rag_collection()
+    namespace = state_rag_namespace(state, default=strategy.get_rag_collection())
     namespace_trace = vector_store.namespace_trace(namespace)
     namespace_normalized = namespace_trace["namespace_normalized"]
     collection = namespace_trace["collection"]

@@ -20,7 +20,7 @@ from grantflow.swarm.nodes.architect_policy import (
     sanitize_validation_error_hint,
 )
 from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
-from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id, state_input_context
+from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id, state_input_context, state_rag_namespace
 
 
 def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> BaseModel:
@@ -564,7 +564,7 @@ def generate_toc_under_contract(
     if model is None:
         model = _model_validate(schema_cls, raw_payload)
     toc_payload = _model_dump(model)
-    namespace = strategy.get_rag_collection()
+    namespace = state_rag_namespace(state, default=strategy.get_rag_collection())
     claim_citations = build_architect_claim_citations(
         toc_payload=toc_payload,
         namespace=namespace,

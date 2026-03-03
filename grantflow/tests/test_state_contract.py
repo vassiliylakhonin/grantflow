@@ -8,6 +8,7 @@ from grantflow.swarm.state_contract import (
     state_donor_strategy,
     state_input_context,
     state_iteration,
+    state_rag_namespace,
 )
 
 
@@ -89,3 +90,13 @@ def test_normalize_state_contract_coerces_string_lists_and_max_iterations():
     assert out["critic_feedback_history"] == ["ok", "123"]
     assert out["errors"] == ["single error"]
     assert out["max_iterations"] == 1
+
+
+def test_state_rag_namespace_prefers_canonical_field_and_normalizes_alias():
+    state = {"rag_namespace": "tenant_a/usaid_ads201", "retrieval_namespace": "legacy/value"}
+    assert state_rag_namespace(state) == "tenant_a/usaid_ads201"
+
+    alias_only = {"retrieval_namespace": "tenant_b/eu_intpa"}
+    out = normalize_state_contract(alias_only)
+    assert out["rag_namespace"] == "tenant_b/eu_intpa"
+    assert out["retrieval_namespace"] == "tenant_b/eu_intpa"

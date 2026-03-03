@@ -49,6 +49,22 @@ def sanitize_jsonable(value: Any) -> Any:
     return str(value)
 
 
+def _normalized_tenant_token(value: Any) -> str:
+    token = str(value or "").strip().lower()
+    return token
+
+
+def _tenant_from_row(namespace: Any, metadata: Any) -> str:
+    metadata_dict = metadata if isinstance(metadata, dict) else {}
+    from_meta = _normalized_tenant_token(metadata_dict.get("tenant_id") or metadata_dict.get("tenant"))
+    if from_meta:
+        return from_meta
+    raw_namespace = str(namespace or "").strip()
+    if "/" in raw_namespace:
+        return _normalized_tenant_token(raw_namespace.split("/", 1)[0])
+    return ""
+
+
 def prepare_state_for_storage(state: Any) -> Any:
     if not isinstance(state, dict):
         return sanitize_jsonable(state)
@@ -189,13 +205,29 @@ class InMemoryIngestAuditStore:
         with self._lock:
             self._rows.append(copy.deepcopy(sanitize_jsonable(row)))
 
-    def list_recent(self, donor_id: Optional[str] = None, limit: int = 50) -> list[Dict[str, Any]]:
+    def list_recent(
+        self,
+        donor_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> list[Dict[str, Any]]:
         donor_filter = str(donor_id or "").strip().lower()
+        tenant_filter = _normalized_tenant_token(tenant_id)
         with self._lock:
             rows = list(self._rows)
         rows = list(reversed(rows))
         if donor_filter:
             rows = [r for r in rows if str(r.get("donor_id") or "").strip().lower() == donor_filter]
+        if tenant_filter:
+            rows = [
+                r
+                for r in rows
+                if _tenant_from_row(
+                    r.get("namespace"),
+                    r.get("metadata") if isinstance(r.get("metadata"), dict) else {},
+                )
+                == tenant_filter
+            ]
         capped = rows[: max(1, min(int(limit or 50), 200))]
         return [copy.deepcopy(r) for r in capped]
 
@@ -203,8 +235,9 @@ class InMemoryIngestAuditStore:
         with self._lock:
             self._rows.clear()
 
-    def inventory(self, donor_id: Optional[str] = None) -> list[Dict[str, Any]]:
+    def inventory(self, donor_id: Optional[str] = None, tenant_id: Optional[str] = None) -> list[Dict[str, Any]]:
         donor_filter = str(donor_id or "").strip().lower()
+        tenant_filter = _normalized_tenant_token(tenant_id)
         with self._lock:
             rows = list(self._rows)
 
@@ -214,14 +247,18 @@ class InMemoryIngestAuditStore:
             if donor_filter and row_donor.lower() != donor_filter:
                 continue
             metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            row_tenant = _tenant_from_row(row.get("namespace"), metadata)
+            if tenant_filter and row_tenant != tenant_filter:
+                continue
             doc_family = str((metadata or {}).get("doc_family") or "").strip()
             if not doc_family:
                 continue
-            key = f"{row_donor.lower()}::{doc_family}"
+            key = f"{row_tenant}::{row_donor.lower()}::{doc_family}"
             ts = str(row.get("ts") or "")
             current = grouped.get(key)
             if current is None:
                 grouped[key] = {
+                    "tenant_id": row_tenant or None,
                     "donor_id": row_donor,
                     "doc_family": doc_family,
                     "count": 1,
@@ -241,6 +278,7 @@ class InMemoryIngestAuditStore:
         return sorted(
             grouped.values(),
             key=lambda item: (
+                str(item.get("tenant_id") or ""),
                 str(item.get("donor_id") or ""),
                 -int(item.get("count") or 0),
                 str(item.get("doc_family") or ""),
@@ -387,9 +425,15 @@ class SQLiteIngestAuditStore:
                     ),
                 )
 
-    def list_recent(self, donor_id: Optional[str] = None, limit: int = 50) -> list[Dict[str, Any]]:
+    def list_recent(
+        self,
+        donor_id: Optional[str] = None,
+        tenant_id: Optional[str] = None,
+        limit: int = 50,
+    ) -> list[Dict[str, Any]]:
         cap = max(1, min(int(limit or 50), 200))
         donor_filter = str(donor_id or "").strip()
+        tenant_filter = _normalized_tenant_token(tenant_id)
         query = (
             "SELECT event_id, ts, donor_id, namespace, filename, content_type, metadata_json, result_json "
             "FROM ingest_audit_events "
@@ -405,6 +449,11 @@ class SQLiteIngestAuditStore:
 
         items: list[Dict[str, Any]] = []
         for row in rows:
+            metadata = storage_json_loads(row["metadata_json"])
+            metadata = metadata if isinstance(metadata, dict) else {}
+            row_tenant = _tenant_from_row(row["namespace"], metadata)
+            if tenant_filter and row_tenant != tenant_filter:
+                continue
             items.append(
                 {
                     "event_id": row["event_id"],
@@ -413,7 +462,7 @@ class SQLiteIngestAuditStore:
                     "namespace": row["namespace"],
                     "filename": row["filename"],
                     "content_type": row["content_type"],
-                    "metadata": storage_json_loads(row["metadata_json"]),
+                    "metadata": metadata,
                     "result": storage_json_loads(row["result_json"]),
                 }
             )
@@ -424,9 +473,10 @@ class SQLiteIngestAuditStore:
             with self._connect() as conn:
                 conn.execute("DELETE FROM ingest_audit_events")
 
-    def inventory(self, donor_id: Optional[str] = None) -> list[Dict[str, Any]]:
+    def inventory(self, donor_id: Optional[str] = None, tenant_id: Optional[str] = None) -> list[Dict[str, Any]]:
         donor_filter = str(donor_id or "").strip()
-        query = "SELECT event_id, ts, donor_id, filename, metadata_json " "FROM ingest_audit_events "
+        tenant_filter = _normalized_tenant_token(tenant_id)
+        query = "SELECT event_id, ts, donor_id, namespace, filename, metadata_json " "FROM ingest_audit_events "
         params: list[Any] = []
         if donor_filter:
             query += "WHERE lower(donor_id) = lower(?) "
@@ -440,14 +490,18 @@ class SQLiteIngestAuditStore:
             row_donor = str(row["donor_id"] or "").strip()
             metadata = storage_json_loads(row["metadata_json"])
             metadata = metadata if isinstance(metadata, dict) else {}
+            row_tenant = _tenant_from_row(row["namespace"], metadata)
+            if tenant_filter and row_tenant != tenant_filter:
+                continue
             doc_family = str(metadata.get("doc_family") or "").strip()
             if not doc_family:
                 continue
-            key = f"{row_donor.lower()}::{doc_family}"
+            key = f"{row_tenant}::{row_donor.lower()}::{doc_family}"
             ts = str(row["ts"] or "")
             current = grouped.get(key)
             if current is None:
                 grouped[key] = {
+                    "tenant_id": row_tenant or None,
                     "donor_id": row_donor,
                     "doc_family": doc_family,
                     "count": 1,
@@ -462,6 +516,7 @@ class SQLiteIngestAuditStore:
         return sorted(
             grouped.values(),
             key=lambda item: (
+                str(item.get("tenant_id") or ""),
                 str(item.get("donor_id") or ""),
                 -int(item.get("count") or 0),
                 str(item.get("doc_family") or ""),

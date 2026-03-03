@@ -14,6 +14,7 @@ from grantflow.swarm.state_contract import (
     state_donor_strategy,
     state_input_context,
     state_iteration,
+    state_rag_namespace,
 )
 from grantflow.swarm.versioning import append_draft_version
 
@@ -39,7 +40,7 @@ def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
     elif isinstance(critic_notes, str):
         revision_hint = critic_notes
 
-    namespace = strategy.get_rag_collection()
+    namespace = state_rag_namespace(state, default=strategy.get_rag_collection())
     retrieval_summary, retrieval_hits = retrieve_architect_evidence(state, namespace)
 
     try:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import io
 import json
+import os
 import tempfile
 import uuid
 import zipfile
@@ -122,6 +123,7 @@ GENERATE_PREFLIGHT_DEFAULT_DOC_FAMILIES: dict[str, list[str]] = {
     "us_state_department": ["donor_policy", "country_context", "risk_context"],
 }
 GROUNDING_POLICY_MODES = {"off", "warn", "strict"}
+TENANT_HEADER = "x-tenant-id"
 
 
 def _utcnow_iso() -> str:
@@ -245,29 +247,92 @@ def _record_ingest_event(
     INGEST_AUDIT_STORE.append(row)
 
 
-def _list_ingest_events(*, donor_id: Optional[str] = None, limit: int = 50) -> list[Dict[str, Any]]:
-    return INGEST_AUDIT_STORE.list_recent(donor_id=donor_id, limit=limit)
+def _tenant_authz_enabled() -> bool:
+    return os.getenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "false").strip().lower() == "true"
 
 
-def _ingest_inventory(*, donor_id: Optional[str] = None) -> list[Dict[str, Any]]:
+def _allowed_tenant_tokens() -> set[str]:
+    raw = os.getenv("GRANTFLOW_ALLOWED_TENANTS", os.getenv("AIDGRAPH_ALLOWED_TENANTS", ""))
+    tokens = [part.strip() for part in str(raw or "").split(",") if part.strip()]
+    return {vector_store.normalize_namespace(token) for token in tokens if token}
+
+
+def _default_tenant_token() -> Optional[str]:
+    token = str(os.getenv("GRANTFLOW_DEFAULT_TENANT", os.getenv("AIDGRAPH_DEFAULT_TENANT", "")) or "").strip()
+    if not token:
+        return None
+    return vector_store.normalize_namespace(token)
+
+
+def _normalize_tenant_candidate(value: Any) -> Optional[str]:
+    token = str(value or "").strip()
+    if not token:
+        return None
+    return vector_store.normalize_namespace(token)
+
+
+def _resolve_tenant_id(
+    request: Request,
+    *,
+    explicit_tenant: Optional[str] = None,
+    client_metadata: Optional[Dict[str, Any]] = None,
+    require_if_enabled: bool = True,
+) -> Optional[str]:
+    metadata = client_metadata if isinstance(client_metadata, dict) else {}
+    candidate = (
+        _normalize_tenant_candidate(explicit_tenant)
+        or _normalize_tenant_candidate(request.headers.get(TENANT_HEADER))
+        or _normalize_tenant_candidate(metadata.get("tenant_id"))
+        or _normalize_tenant_candidate(metadata.get("tenant"))
+        or _default_tenant_token()
+    )
+    allowed = _allowed_tenant_tokens()
+    enforce = _tenant_authz_enabled()
+    if require_if_enabled and enforce and not candidate:
+        raise HTTPException(status_code=403, detail="tenant_id is required when tenant authz is enabled")
+    if candidate and allowed and candidate not in allowed:
+        raise HTTPException(status_code=403, detail="tenant_id is not allowed for this server")
+    return candidate
+
+
+def _tenant_rag_namespace(base_namespace: str, tenant_id: Optional[str]) -> str:
+    base = str(base_namespace or "").strip() or "default"
+    tenant = str(tenant_id or "").strip()
+    if not tenant:
+        return base
+    return f"{tenant}/{base}"
+
+
+def _list_ingest_events(
+    *,
+    donor_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    limit: int = 50,
+) -> list[Dict[str, Any]]:
+    return INGEST_AUDIT_STORE.list_recent(donor_id=donor_id, tenant_id=tenant_id, limit=limit)
+
+
+def _ingest_inventory(*, donor_id: Optional[str] = None, tenant_id: Optional[str] = None) -> list[Dict[str, Any]]:
     inventory_fn = getattr(INGEST_AUDIT_STORE, "inventory", None)
     if callable(inventory_fn):
-        rows = inventory_fn(donor_id=donor_id)
+        rows = inventory_fn(donor_id=donor_id, tenant_id=tenant_id)
         return rows if isinstance(rows, list) else []
     # Fallback for older store implementations.
-    rows = _list_ingest_events(donor_id=donor_id, limit=200)
+    rows = _list_ingest_events(donor_id=donor_id, tenant_id=tenant_id, limit=200)
     grouped: Dict[str, Dict[str, Any]] = {}
     for row in rows:
         raw_metadata = row.get("metadata")
         metadata: Dict[str, Any] = raw_metadata if isinstance(raw_metadata, dict) else {}
         doc_family = str((metadata or {}).get("doc_family") or "").strip()
         donor = str(row.get("donor_id") or "").strip()
+        tenant = str((metadata or {}).get("tenant_id") or "").strip()
         if not doc_family:
             continue
-        key = f"{donor.lower()}::{doc_family}"
+        key = f"{tenant.lower()}::{donor.lower()}::{doc_family}"
         current = grouped.get(key)
         if current is None:
             grouped[key] = {
+                "tenant_id": tenant or None,
                 "donor_id": donor,
                 "doc_family": doc_family,
                 "count": 1,
@@ -697,9 +762,16 @@ def _build_generate_preflight(
     donor_id: str,
     strategy: Any,
     client_metadata: Optional[Dict[str, Any]],
+    tenant_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    namespace = str(getattr(strategy, "get_rag_collection", lambda: "")() or "").strip() or None
-    inventory_rows = _ingest_inventory(donor_id=donor_id or None)
+    metadata = client_metadata if isinstance(client_metadata, dict) else {}
+    resolved_tenant_id = _normalize_tenant_candidate(tenant_id) or _normalize_tenant_candidate(
+        metadata.get("tenant_id") or metadata.get("tenant")
+    )
+    base_namespace = str(getattr(strategy, "get_rag_collection", lambda: "")() or "").strip() or None
+    namespace = _tenant_rag_namespace(base_namespace or "", resolved_tenant_id) if base_namespace else None
+    namespace_normalized = vector_store.normalize_namespace(namespace or "")
+    inventory_rows = _ingest_inventory(donor_id=donor_id or None, tenant_id=resolved_tenant_id)
     inventory_payload = public_ingest_inventory_payload(inventory_rows, donor_id=donor_id or None)
     doc_family_counts_raw = inventory_payload.get("doc_family_counts")
     doc_family_counts = doc_family_counts_raw if isinstance(doc_family_counts_raw, dict) else {}
@@ -749,7 +821,9 @@ def _build_generate_preflight(
     blocking = bool(grounding_policy.get("blocking"))
     return {
         "donor_id": donor_id,
+        "tenant_id": resolved_tenant_id,
         "retrieval_namespace": namespace,
+        "retrieval_namespace_normalized": namespace_normalized,
         "retrieval_query_terms": donor_query_preset_terms(donor_id),
         "expected_doc_families": expected_doc_families,
         "present_doc_families": present_doc_families,
@@ -817,6 +891,7 @@ def _list_jobs() -> Dict[str, Dict[str, Any]]:
 class GenerateRequest(BaseModel):
     donor_id: str
     input_context: Dict[str, Any]
+    tenant_id: Optional[str] = None
     llm_mode: bool = False
     hitl_enabled: bool = False
     hitl_checkpoints: Optional[list[Literal["architect", "toc", "mel", "logframe"]]] = None
@@ -830,6 +905,7 @@ class GenerateRequest(BaseModel):
 
 class GeneratePreflightRequest(BaseModel):
     donor_id: str
+    tenant_id: Optional[str] = None
     client_metadata: Optional[Dict[str, Any]] = None
     input_context: Optional[Dict[str, Any]] = None
 
@@ -1980,6 +2056,8 @@ def _health_diagnostics() -> dict[str, Any]:
         "auth": {
             "api_key_configured": bool(api_key_configured()),
             "read_auth_required": bool(read_auth_required()),
+            "tenant_authz_enabled": _tenant_authz_enabled(),
+            "allowed_tenant_count": len(_allowed_tenant_tokens()),
         },
         "vector_store": {
             "backend": vector_backend,
@@ -2253,7 +2331,16 @@ def generate_preflight(req: GeneratePreflightRequest, request: Request):
         strategy = DonorFactory.get_strategy(donor)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    client_metadata = req.client_metadata if isinstance(req.client_metadata, dict) else None
+    metadata = dict(req.client_metadata) if isinstance(req.client_metadata, dict) else {}
+    tenant_id = _resolve_tenant_id(
+        request,
+        explicit_tenant=req.tenant_id,
+        client_metadata=metadata,
+        require_if_enabled=True,
+    )
+    if tenant_id:
+        metadata["tenant_id"] = tenant_id
+    client_metadata = metadata or None
     return _build_generate_preflight(
         donor_id=donor,
         strategy=strategy,
@@ -2281,7 +2368,16 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     input_payload = req.input_context or {}
-    client_metadata = req.client_metadata if isinstance(req.client_metadata, dict) else None
+    metadata = dict(req.client_metadata) if isinstance(req.client_metadata, dict) else {}
+    tenant_id = _resolve_tenant_id(
+        request,
+        explicit_tenant=req.tenant_id,
+        client_metadata=metadata,
+        require_if_enabled=True,
+    )
+    if tenant_id:
+        metadata["tenant_id"] = tenant_id
+    client_metadata = metadata or None
     preflight = _build_generate_preflight(
         donor_id=donor,
         strategy=strategy,
@@ -2329,6 +2425,8 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
     job_id = str(uuid.uuid4())
     initial_state = {
         "donor_id": donor,
+        "tenant_id": tenant_id,
+        "rag_namespace": preflight_payload.get("retrieval_namespace"),
         "donor_strategy": strategy,
         "input_context": input_payload,
         "generate_preflight": preflight,
@@ -2362,6 +2460,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
     _record_job_event(
         job_id,
         "generate_preflight_evaluated",
+        tenant_id=preflight_payload.get("tenant_id"),
         risk_level=str(preflight_payload.get("risk_level") or "none"),
         grounding_risk_level=str(preflight_payload.get("grounding_risk_level") or "none"),
         warning_count=int(preflight_payload.get("warning_count") or 0),
@@ -2940,10 +3039,12 @@ def list_pending_hitl(request: Request, donor_id: Optional[str] = None):
 def list_recent_ingests(
     request: Request,
     donor_id: Optional[str] = Query(default=None),
+    tenant_id: Optional[str] = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
 ):
     require_api_key_if_configured(request, for_read=True)
-    rows = _list_ingest_events(donor_id=donor_id, limit=limit)
+    resolved_tenant_id = _resolve_tenant_id(request, explicit_tenant=tenant_id, require_if_enabled=True)
+    rows = _list_ingest_events(donor_id=donor_id, tenant_id=resolved_tenant_id, limit=limit)
     return public_ingest_recent_payload(rows, donor_id=(donor_id or None))
 
 
@@ -2951,9 +3052,11 @@ def list_recent_ingests(
 def get_ingest_inventory(
     request: Request,
     donor_id: Optional[str] = Query(default=None),
+    tenant_id: Optional[str] = Query(default=None),
 ):
     require_api_key_if_configured(request, for_read=True)
-    rows = _ingest_inventory(donor_id=donor_id)
+    resolved_tenant_id = _resolve_tenant_id(request, explicit_tenant=tenant_id, require_if_enabled=True)
+    rows = _ingest_inventory(donor_id=donor_id, tenant_id=resolved_tenant_id)
     return public_ingest_inventory_payload(rows, donor_id=(donor_id or None))
 
 
@@ -2961,11 +3064,13 @@ def get_ingest_inventory(
 def export_ingest_inventory(
     request: Request,
     donor_id: Optional[str] = None,
+    tenant_id: Optional[str] = Query(default=None),
     format: Literal["csv", "json"] = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
-    rows = _ingest_inventory(donor_id=donor_id)
+    resolved_tenant_id = _resolve_tenant_id(request, explicit_tenant=tenant_id, require_if_enabled=True)
+    rows = _ingest_inventory(donor_id=donor_id, tenant_id=resolved_tenant_id)
     payload = public_ingest_inventory_payload(rows, donor_id=(donor_id or None))
     return _portfolio_export_response(
         payload=payload,
@@ -2983,6 +3088,7 @@ def export_ingest_inventory(
 async def ingest_pdf(
     request: Request,
     donor_id: str = Form(...),
+    tenant_id: Optional[str] = Form(None),
     file: UploadFile = File(...),
     metadata_json: Optional[str] = Form(None),
 ):
@@ -3022,7 +3128,13 @@ async def ingest_pdf(
     if not content:
         raise HTTPException(status_code=400, detail="Uploaded file is empty")
 
-    namespace = strategy.get_rag_collection()
+    resolved_tenant_id = _resolve_tenant_id(
+        request,
+        explicit_tenant=tenant_id,
+        client_metadata=metadata,
+        require_if_enabled=True,
+    )
+    namespace = _tenant_rag_namespace(strategy.get_rag_collection(), resolved_tenant_id)
     namespace_normalized = vector_store.normalize_namespace(namespace)
     upload_metadata: Dict[str, Any] = {
         "uploaded_filename": filename,
@@ -3030,6 +3142,8 @@ async def ingest_pdf(
         "donor_id": donor,
         "namespace_normalized": namespace_normalized,
     }
+    if resolved_tenant_id:
+        upload_metadata["tenant_id"] = resolved_tenant_id
     if metadata:
         upload_metadata.update(metadata)
 
@@ -3063,6 +3177,7 @@ async def ingest_pdf(
     return {
         "status": "ingested",
         "donor_id": donor,
+        "tenant_id": resolved_tenant_id,
         "namespace": namespace,
         "namespace_normalized": namespace_normalized,
         "filename": filename,
