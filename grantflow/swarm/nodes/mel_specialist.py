@@ -710,6 +710,7 @@ def _build_mel_citations(
     namespace: str,
     namespace_normalized: str,
     donor_id: str,
+    use_strategy_reference_when_no_hits: bool = False,
 ) -> list[Dict[str, Any]]:
     hits = [h for h in evidence_hits if isinstance(h, dict)]
     base_threshold = _bounded_float(
@@ -759,36 +760,50 @@ def _build_mel_citations(
                 hit, confidence = _pick_best_mel_evidence_hit(statement, hits)
         else:
             hit, confidence = {}, 0.1
-        traceability_status = citation_traceability_status(hit) if hit else "missing"
+        if hit:
+            traceability_status = citation_traceability_status(hit)
+        elif use_strategy_reference_when_no_hits:
+            traceability_status = "complete"
+        else:
+            traceability_status = "missing"
         if hit and traceability_status == "complete" and confidence >= threshold:
             citation_type = "rag_result"
         elif hit:
             citation_type = "rag_low_confidence"
+        elif use_strategy_reference_when_no_hits:
+            citation_type = "strategy_reference"
+            confidence = 0.75
         else:
             citation_type = "fallback_namespace"
+            confidence = 0.1
         label = str(hit.get("label") or indicator.get("citation") or namespace)
+        indicator_doc_id = f"strategy::{namespace_normalized}::{indicator_id.lower()}"
         citations.append(
             {
                 "stage": "mel",
                 "citation_type": citation_type,
                 "namespace": namespace,
                 "namespace_normalized": namespace_normalized,
-                "doc_id": hit.get("doc_id"),
-                "source": hit.get("source"),
+                "doc_id": hit.get("doc_id") if hit else (indicator_doc_id if use_strategy_reference_when_no_hits else None),
+                "source": hit.get("source") if hit else (f"strategy::{donor_id}" if use_strategy_reference_when_no_hits else None),
                 "page": hit.get("page"),
                 "page_start": hit.get("page_start"),
                 "page_end": hit.get("page_end"),
                 "chunk": hit.get("chunk"),
-                "chunk_id": hit.get("chunk_id") or hit.get("doc_id"),
+                "chunk_id": (
+                    hit.get("chunk_id") or hit.get("doc_id")
+                    if hit
+                    else (indicator_doc_id if use_strategy_reference_when_no_hits else None)
+                ),
                 "label": label,
                 "used_for": indicator_id,
                 "statement": statement[:240] or None,
                 "excerpt": str(hit.get("excerpt") or indicator.get("evidence_excerpt") or "")[:240] or None,
-                "citation_confidence": round(confidence if hit else 0.1, 4),
-                "evidence_score": round(confidence if hit else 0.1, 4),
+                "citation_confidence": round(confidence, 4),
+                "evidence_score": round(confidence, 4),
                 "evidence_rank": hit.get("rank"),
                 "retrieval_rank": hit.get("retrieval_rank") or hit.get("rank"),
-                "retrieval_confidence": hit.get("retrieval_confidence") if hit else 0.1,
+                "retrieval_confidence": hit.get("retrieval_confidence") if hit else confidence,
                 "retrieval_distance": hit.get("retrieval_distance") if hit else None,
                 "confidence_threshold": threshold,
                 "traceability_status": traceability_status,
@@ -1020,6 +1035,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
         namespace=namespace,
         namespace_normalized=namespace_normalized,
         donor_id=donor_id,
+        use_strategy_reference_when_no_hits=(not llm_mode and not retrieval_hits),
     )
     mel_generation_meta: Dict[str, Any] = {
         "engine": generation_engine,

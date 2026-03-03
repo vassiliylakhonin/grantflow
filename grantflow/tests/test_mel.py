@@ -84,6 +84,24 @@ def test_mel_llm_mode_without_api_key_uses_emergency_fallback(monkeypatch):
     assert citations[0]["citation_type"] == "fallback_namespace"
 
 
+def test_mel_deterministic_no_hits_uses_strategy_reference_citations(monkeypatch):
+    def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
+        return {"documents": [[]], "metadatas": [[]], "ids": [[]], "distances": [[]]}
+
+    monkeypatch.setattr(mel_module.vector_store, "query", fake_query)
+    state = _base_state(llm_mode=False)
+
+    out = mel_module.mel_assign_indicators(state)
+    citations = [c for c in (out.get("citations") or []) if isinstance(c, dict) and c.get("stage") == "mel"]
+    assert citations
+    assert all(c.get("citation_type") == "strategy_reference" for c in citations)
+    assert all(c.get("traceability_status") == "complete" for c in citations)
+    assert all(c.get("traceability_complete") is True for c in citations)
+    assert all(str(c.get("doc_id") or "").startswith("strategy::") for c in citations)
+    assert all(str(c.get("source") or "").startswith("strategy::") for c in citations)
+    assert all(float(c.get("citation_confidence") or 0.0) >= 0.7 for c in citations)
+
+
 def test_mel_llm_mode_uses_structured_output_when_available(monkeypatch):
     monkeypatch.setattr(mel_module, "openai_compatible_llm_available", lambda: True)
 
@@ -145,7 +163,10 @@ def test_mel_llm_mode_uses_structured_output_when_available(monkeypatch):
     assert generation.get("retrieval_prompt_hit_count") == 1
     assert generation.get("retrieval_trace_hint_present") is True
     assert len(citations) == 2
-    assert all(c.get("citation_type") in {"rag_result", "rag_low_confidence", "fallback_namespace"} for c in citations)
+    assert all(
+        c.get("citation_type") in {"rag_result", "rag_low_confidence", "fallback_namespace", "strategy_reference"}
+        for c in citations
+    )
 
 
 def test_mel_llm_prompt_receives_full_input_context_and_schema_contract(monkeypatch):

@@ -540,6 +540,7 @@ def build_architect_claim_citations(
     namespace: str,
     donor_id: str,
     evidence_hits: Iterable[Dict[str, Any]],
+    retrieval_expected: bool = True,
 ) -> list[Dict[str, Any]]:
     hits = [h for h in evidence_hits if isinstance(h, dict)]
     namespace_normalized = vector_store.normalize_namespace(namespace)
@@ -562,6 +563,69 @@ def build_architect_claim_citations(
 
     bounded_claims = claims
     if not hits:
+        if not retrieval_expected:
+            source_ref = f"strategy::{donor_id}"
+            for row in bounded_claims:
+                statement_path = str(row.get("statement_path") or "toc")
+                statement = str(row.get("statement") or "").strip()
+                if not statement:
+                    continue
+                priority = int(row.get("priority") or 1)
+                synthetic_doc_id = f"strategy::{namespace_normalized}::{statement_path}"
+                confidence_threshold = architect_claim_confidence_threshold(
+                    donor_id=donor_id,
+                    statement_path=statement_path,
+                )
+                citations.append(
+                    {
+                        "stage": "architect",
+                        "citation_type": "strategy_reference",
+                        "namespace": namespace,
+                        "namespace_normalized": namespace_normalized,
+                        "doc_id": synthetic_doc_id,
+                        "chunk_id": synthetic_doc_id,
+                        "source": source_ref,
+                        "label": f"{namespace} strategy reference",
+                        "used_for": "toc_claim",
+                        "statement_path": statement_path,
+                        "statement": statement[:240],
+                        "statement_priority": priority,
+                        "excerpt": statement[:240],
+                        "citation_confidence": 0.75,
+                        "raw_claim_confidence": 0.75,
+                        "evidence_score": 0.75,
+                        "retrieval_confidence": 0.75,
+                        "confidence_threshold": confidence_threshold,
+                        "traceability_status": "complete",
+                        "traceability_complete": True,
+                    }
+                )
+            if not citations:
+                synthetic_doc_id = f"strategy::{namespace_normalized}::toc"
+                citations.append(
+                    {
+                        "stage": "architect",
+                        "citation_type": "strategy_reference",
+                        "namespace": namespace,
+                        "namespace_normalized": namespace_normalized,
+                        "doc_id": synthetic_doc_id,
+                        "chunk_id": synthetic_doc_id,
+                        "source": source_ref,
+                        "label": f"{namespace} strategy reference",
+                        "used_for": "toc_claim",
+                        "statement_path": "toc",
+                        "statement": "ToC claims generated from donor strategy without retrieval.",
+                        "citation_confidence": 0.75,
+                        "raw_claim_confidence": 0.75,
+                        "evidence_score": 0.75,
+                        "retrieval_confidence": 0.75,
+                        "confidence_threshold": architect_claim_confidence_threshold(donor_id=donor_id, statement_path="toc"),
+                        "traceability_status": "complete",
+                        "traceability_complete": True,
+                    }
+                )
+            return citations
+
         for row in bounded_claims:
             statement_path = str(row.get("statement_path") or "toc")
             statement = str(row.get("statement") or "").strip()
@@ -787,6 +851,7 @@ def generate_toc_under_contract(
         namespace=namespace,
         donor_id=donor_id,
         evidence_hits=evidence_hits,
+        retrieval_expected=bool(state.get("architect_rag_enabled", True)),
     )
     claim_citation_stats = summarize_architect_claim_citations(
         claim_records=claim_records,

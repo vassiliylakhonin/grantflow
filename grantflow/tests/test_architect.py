@@ -223,6 +223,32 @@ def test_architect_claim_citations_without_hits_emit_per_claim_fallback_records(
     assert all(0.0 < float(c.get("confidence_threshold") or 0.0) < 1.0 for c in citations)
 
 
+def test_architect_claim_citations_without_hits_use_strategy_reference_when_retrieval_disabled():
+    toc_payload = {
+        "project_goal": "Improve water sanitation outcomes",
+        "development_objectives": [
+            {"description": "Improve governance and service quality"},
+            {"description": "Improve coverage and reliability"},
+        ],
+    }
+    citations = build_architect_claim_citations(
+        toc_payload=toc_payload,
+        namespace="usaid_ads201",
+        donor_id="usaid",
+        evidence_hits=[],
+        retrieval_expected=False,
+    )
+    assert len(citations) >= 3
+    assert all(c["citation_type"] == "strategy_reference" for c in citations)
+    assert all(c.get("used_for") == "toc_claim" for c in citations)
+    assert all(str(c.get("statement_path") or "").strip() for c in citations)
+    assert all(c.get("traceability_status") == "complete" for c in citations)
+    assert all(c.get("traceability_complete") is True for c in citations)
+    assert all(str(c.get("doc_id") or "").startswith("strategy::") for c in citations)
+    assert all(str(c.get("source") or "").startswith("strategy::") for c in citations)
+    assert all(float(c.get("citation_confidence") or 0.0) >= 0.7 for c in citations)
+
+
 def test_architect_claim_support_requires_traceable_hit_even_when_overlap_is_high():
     statement = "Improve water sanitation outcomes in Kenya through community systems"
     toc_payload = {"project_goal": statement}
