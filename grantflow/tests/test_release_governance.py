@@ -43,3 +43,31 @@ def test_release_guard_fails_on_tag_version_mismatch():
     )
     assert completed.returncode == 1
     assert "does not match runtime version" in completed.stdout
+
+
+def test_pr_title_guard_accepts_conventional_commit_title():
+    repo_root = _repo_root()
+    script = repo_root / "scripts" / "pr_title_guard.py"
+    completed = subprocess.run(
+        [sys.executable, str(script), "--title", "feat(api): add readiness metadata endpoint"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert "follows Conventional Commit format" in completed.stdout
+
+
+def test_pr_title_guard_rejects_non_conventional_title():
+    repo_root = _repo_root()
+    script = repo_root / "scripts" / "pr_title_guard.py"
+    completed = subprocess.run(
+        [sys.executable, str(script), "--title", "Update readme and cleanup stuff"],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 1
+    assert "does not follow Conventional Commit format" in completed.stdout

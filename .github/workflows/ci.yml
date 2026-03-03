@@ -9,6 +9,21 @@ on:
     branches: [ main ]
 
 jobs:
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate PR title follows Conventional Commit format
+        run: |
+          python scripts/pr_title_guard.py
+
   shell:
     runs-on: ubuntu-latest
     steps:

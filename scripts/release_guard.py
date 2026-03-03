@@ -13,6 +13,7 @@ if str(REPO_ROOT) not in sys.path:
 from grantflow.core.version import __version__, is_valid_core_semver  # noqa: E402
 
 TAG_PATTERN = re.compile(r"^v\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.]+)?$")
+CHANGELOG_VERSION_HEADING_PATTERN = re.compile(r"^## \[(?P<version>\d+\.\d+\.\d+)\] - \d{4}-\d{2}-\d{2}$")
 
 
 def _normalize_tag(raw_tag: str) -> str:
@@ -28,6 +29,18 @@ def _check(condition: bool, ok_message: str, fail_message: str, errors: list[str
     else:
         errors.append(fail_message)
         print(f"[fail] {fail_message}")
+
+
+def _has_version_heading_with_date(changelog_text: str, version: str) -> bool:
+    marker = f"## [{version}] - "
+    return any(line.startswith(marker) for line in changelog_text.splitlines())
+
+
+def _has_any_version_heading_with_date(changelog_text: str) -> bool:
+    for line in changelog_text.splitlines():
+        if CHANGELOG_VERSION_HEADING_PATTERN.match(line.strip()):
+            return True
+    return False
 
 
 def main() -> int:
@@ -72,6 +85,19 @@ def main() -> int:
         f"CHANGELOG missing current version section: ## [{__version__}]",
         errors,
     )
+    _check(
+        _has_version_heading_with_date(changelog_text, __version__),
+        f"CHANGELOG current version heading includes release date ({__version__})",
+        f"CHANGELOG current version heading must include date: ## [{__version__}] - YYYY-MM-DD",
+        errors,
+    )
+
+    _check(
+        _has_any_version_heading_with_date(changelog_text),
+        "CHANGELOG version headings follow Keep a Changelog date format",
+        "CHANGELOG must contain at least one heading like: ## [X.Y.Z] - YYYY-MM-DD",
+        errors,
+    )
 
     tag = _normalize_tag(args.tag)
     if tag:
@@ -93,6 +119,12 @@ def main() -> int:
                 f"## [{tag_version}]" in changelog_text,
                 f"CHANGELOG contains release section for {tag_version}",
                 f"CHANGELOG missing release section for {tag_version}",
+                errors,
+            )
+            _check(
+                _has_version_heading_with_date(changelog_text, tag_version),
+                f"CHANGELOG release heading includes date for {tag_version}",
+                f"CHANGELOG release heading missing date for {tag_version}: ## [{tag_version}] - YYYY-MM-DD",
                 errors,
             )
 

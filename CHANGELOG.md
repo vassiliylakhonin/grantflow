@@ -13,6 +13,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Legacy `requirements` files kept as compatibility shims pointing to the project metadata.
 - State contract now exposes canonical helpers for strategy and iteration access; core swarm nodes (`discovery`, `architect`, `mel`, `critic`) now consume those helpers instead of ad-hoc alias reads.
 - Critic findings hardened as stable entities: deterministic `finding_id` generation for legacy/unstructured payloads and stricter LLM `fatal_flaws` coercion to object lists.
+- Release governance now validates Keep-a-Changelog heading format (`## [X.Y.Z] - YYYY-MM-DD`) for current/tagged versions.
+- CI now enforces Conventional Commit PR titles via `scripts/pr_title_guard.py`.
 
 ## [2.1.0] - 2026-03-03
 

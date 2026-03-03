@@ -44,6 +44,12 @@ Run locally before tagging:
 python scripts/release_guard.py --tag vX.Y.Z
 ```
 
+For pull requests, CI also enforces Conventional Commit PR titles via:
+
+```bash
+python scripts/pr_title_guard.py --title "feat(scope): summary"
+```
+
 ## 6) GitHub Release Automation
 
 The repository includes `.github/workflows/release.yml`:
