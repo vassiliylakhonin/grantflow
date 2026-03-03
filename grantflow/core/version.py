@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-__version__ = "2.0.1"
+__version__ = "2.1.0"
 
 SEMVER_CORE_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 

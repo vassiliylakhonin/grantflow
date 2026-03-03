@@ -7,6 +7,17 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-03-03
+
+### Added
+- Grounded smoke CI lane that boots API, ingests seed corpus, and validates donor readiness/benchmark status.
+- Pilot run artifacts for grounded deterministic and LLM benchmark tracks under `docs/pilot_runs/2026-03-03-grounded-llm-p2/`.
+
+### Changed
+- Architect and MEL citation confidence calibration tuned for more stable scoring behavior.
+- CI mypy baseline updated for stricter type safety in API preflight and public review SLA payload shaping.
+- Eval baseline snapshot aligned with clean no-corpus environment to prevent false CI regressions.
+
 ## [2.0.1] - 2026-02-27
 
 ### Added
