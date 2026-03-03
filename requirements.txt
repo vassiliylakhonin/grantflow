@@ -1,3 +1,3 @@
 # Compatibility shim for pip workflows.
 # Canonical dependency source of truth: pyproject.toml
--e ..
+-e .
