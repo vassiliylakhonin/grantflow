@@ -4,6 +4,11 @@ from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.nodes import mel_specialist as mel_module
 
 
+def _is_placeholder(value: str) -> bool:
+    lowered = str(value or "").strip().lower()
+    return lowered in {"", "tbd", "to be determined", "placeholder", "n/a", "na", "unknown", "-", "--"}
+
+
 def _base_state(*, llm_mode: bool) -> dict:
     strategy = DonorFactory.get_strategy("usaid")
     return {
@@ -204,3 +209,85 @@ def test_mel_llm_prompt_receives_full_input_context_and_schema_contract(monkeypa
     retrieval_hint = str(captured.get("retrieval_trace_hint") or "")
     assert retrieval_hint
     assert "used_results" in retrieval_hint
+
+
+def test_mel_deterministic_mode_replaces_placeholder_baseline_target(monkeypatch):
+    def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
+        return {
+            "documents": [["Training completion tracking guidance for civil servants"]],
+            "metadatas": [
+                [
+                    {
+                        "doc_id": "usaid_ads201_p18_c2",
+                        "chunk_id": "usaid_ads201_p18_c2",
+                        "page": 18,
+                        "name": "Civil servants trained on AI governance",
+                        "baseline": "TBD",
+                        "target": "",
+                    }
+                ]
+            ],
+            "ids": [["usaid_ads201_p18_c2"]],
+            "distances": [[0.06]],
+        }
+
+    monkeypatch.setattr(mel_module.vector_store, "query", fake_query)
+    state = _base_state(llm_mode=False)
+    state["input_context"]["duration_months"] = 24
+    state["input_context"]["budget"] = 1_800_000
+
+    out = mel_module.mel_assign_indicators(state)
+    indicator = out["logframe_draft"]["indicators"][0]
+
+    assert not _is_placeholder(indicator.get("baseline"))
+    assert not _is_placeholder(indicator.get("target"))
+    assert "tbd" not in str(indicator.get("baseline", "")).lower()
+    assert "tbd" not in str(indicator.get("target", "")).lower()
+
+
+def test_mel_emergency_fallback_indicator_uses_concrete_baseline_target(monkeypatch):
+    monkeypatch.setattr(mel_module, "openai_compatible_llm_available", lambda: False)
+
+    def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
+        return {"documents": [[]], "metadatas": [[]], "ids": [[]], "distances": [[]]}
+
+    monkeypatch.setattr(mel_module.vector_store, "query", fake_query)
+    state = _base_state(llm_mode=True)
+    state["input_context"]["duration_months"] = 18
+
+    out = mel_module.mel_assign_indicators(state)
+    indicator = out["logframe_draft"]["indicators"][0]
+
+    assert not _is_placeholder(indicator.get("baseline"))
+    assert not _is_placeholder(indicator.get("target"))
+    assert indicator.get("baseline") != indicator.get("target")
+
+
+def test_mel_preserves_explicit_baseline_target_from_retrieval_metadata(monkeypatch):
+    def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
+        return {
+            "documents": [["Operational KPI guidance for turnaround times"]],
+            "metadatas": [
+                [
+                    {
+                        "doc_id": "usaid_ads201_p22_c1",
+                        "chunk_id": "usaid_ads201_p22_c1",
+                        "page": 22,
+                        "name": "Case processing time",
+                        "baseline": "90 days",
+                        "target": "60 days",
+                    }
+                ]
+            ],
+            "ids": [["usaid_ads201_p22_c1"]],
+            "distances": [[0.04]],
+        }
+
+    monkeypatch.setattr(mel_module.vector_store, "query", fake_query)
+    state = _base_state(llm_mode=False)
+
+    out = mel_module.mel_assign_indicators(state)
+    indicator = out["logframe_draft"]["indicators"][0]
+
+    assert indicator["baseline"] == "90 days"
+    assert indicator["target"] == "60 days"

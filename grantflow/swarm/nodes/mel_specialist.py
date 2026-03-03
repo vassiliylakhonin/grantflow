@@ -40,6 +40,19 @@ MEL_CITATION_DONOR_THRESHOLD_OVERRIDES: dict[str, float] = {
     "state_department": 0.3,
     "us_state_department": 0.3,
 }
+MEL_PLACEHOLDER_BASELINE_TARGET_VALUES = {
+    "",
+    "tbd",
+    "to be determined",
+    "placeholder",
+    "n/a",
+    "na",
+    "unknown",
+    "-",
+    "--",
+    "none",
+    "null",
+}
 
 
 class MELIndicatorOutput(BaseModel):
@@ -397,29 +410,170 @@ def _pick_best_mel_evidence_hit(statement: str, hits: Iterable[Dict[str, Any]]) 
     return best_hit, round(min(1.0, best_score), 4)
 
 
-def _indicator_from_hit(hit: Dict[str, Any], *, idx: int, namespace: str) -> Dict[str, Any]:
+def _is_placeholder_baseline_target(value: Any) -> bool:
+    text = str(value or "").strip().lower()
+    return text in MEL_PLACEHOLDER_BASELINE_TARGET_VALUES
+
+
+def _input_context_int(input_context: Dict[str, Any], *keys: str) -> Optional[int]:
+    for key in keys:
+        raw = input_context.get(key)
+        if isinstance(raw, bool):
+            continue
+        if isinstance(raw, int):
+            return raw
+        if isinstance(raw, float):
+            return int(raw)
+        if isinstance(raw, str):
+            match = re.search(r"[-+]?\d+", raw.replace(",", ""))
+            if match:
+                try:
+                    return int(match.group(0))
+                except ValueError:
+                    continue
+    return None
+
+
+def _baseline_target_seed(input_context: Dict[str, Any]) -> int:
+    duration_months = _input_context_int(input_context, "duration_months", "duration", "project_duration_months")
+    budget = _input_context_int(input_context, "budget", "budget_usd", "grant_amount")
+    participants = _input_context_int(input_context, "target_population_size", "beneficiary_count", "participants")
+
+    seed = 120
+    if isinstance(duration_months, int) and duration_months > 0:
+        seed = max(seed, min(600, duration_months * 12))
+    if isinstance(budget, int) and budget > 0:
+        seed = max(seed, min(1200, max(60, budget // 20000)))
+    if isinstance(participants, int) and participants > 0:
+        seed = max(seed, min(1200, participants))
+    return max(40, seed)
+
+
+def _suggest_baseline_target(
+    *,
+    indicator_name: str,
+    input_context: Dict[str, Any],
+    idx: int,
+    existing_baseline: str = "",
+) -> tuple[str, str]:
+    name = str(indicator_name or "").lower()
+    seed = _baseline_target_seed(input_context)
+    if any(token in name for token in ("time", "days", "duration", "delay", "processing", "turnaround")):
+        return "90 days", "60 days"
+    if any(token in name for token in ("percent", "%", "rate", "share", "coverage")):
+        return "0%", "25%"
+    if any(token in name for token in ("policy", "regulation", "protocol", "sop", "guideline")):
+        return "0 policies", "3 policies"
+    if any(token in name for token in ("institution", "agency", "ministry", "municipal", "department")):
+        return "0 institutions", "5 institutions"
+    if any(token in name for token in ("train", "certif", "capacity", "skills", "official", "staff")):
+        return "0 people", f"{seed} people"
+
+    if existing_baseline:
+        baseline_l = existing_baseline.lower()
+        if "%" in baseline_l:
+            return existing_baseline, "25%"
+        number_match = re.search(r"(\d+(?:\.\d+)?)", baseline_l.replace(",", ""))
+        if number_match:
+            baseline_num = float(number_match.group(1))
+            if any(token in name for token in ("time", "days", "duration", "delay", "processing", "turnaround")):
+                target_num = max(1.0, baseline_num * 0.7)
+            else:
+                target_num = baseline_num + max(5.0, baseline_num * 0.3)
+            if target_num.is_integer():
+                target_repr = str(int(target_num))
+            else:
+                target_repr = f"{target_num:.1f}"
+            unit = re.sub(r"[-+]?\d+(?:\.\d+)?", "", existing_baseline).strip()
+            if unit:
+                target_repr = f"{target_repr} {unit}".strip()
+            return existing_baseline, target_repr
+
+    return "0", str(seed + (idx * 20))
+
+
+def _resolve_baseline_target(
+    *,
+    baseline_raw: Any,
+    target_raw: Any,
+    indicator_name: str,
+    input_context: Dict[str, Any],
+    idx: int,
+) -> tuple[str, str]:
+    baseline = str(baseline_raw or "").strip()
+    target = str(target_raw or "").strip()
+
+    baseline_placeholder = _is_placeholder_baseline_target(baseline)
+    target_placeholder = _is_placeholder_baseline_target(target)
+    if baseline_placeholder and target_placeholder:
+        return _suggest_baseline_target(indicator_name=indicator_name, input_context=input_context, idx=idx)
+    if baseline_placeholder:
+        suggested_baseline, _ = _suggest_baseline_target(
+            indicator_name=indicator_name,
+            input_context=input_context,
+            idx=idx,
+            existing_baseline=target,
+        )
+        return suggested_baseline, target
+    if target_placeholder:
+        _, suggested_target = _suggest_baseline_target(
+            indicator_name=indicator_name,
+            input_context=input_context,
+            idx=idx,
+            existing_baseline=baseline,
+        )
+        return baseline, suggested_target
+    return baseline, target
+
+
+def _indicator_from_hit(
+    hit: Dict[str, Any],
+    *,
+    idx: int,
+    namespace: str,
+    input_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    name = str(hit.get("name") or f"Indicator from {namespace} #{idx + 1}")
+    baseline, target = _resolve_baseline_target(
+        baseline_raw=hit.get("baseline"),
+        target_raw=hit.get("target"),
+        indicator_name=name,
+        input_context=input_context or {},
+        idx=idx,
+    )
     return {
         "indicator_id": str(hit.get("indicator_id") or f"IND_{idx + 1:03d}"),
-        "name": str(hit.get("name") or f"Indicator from {namespace} #{idx + 1}"),
+        "name": name,
         "justification": (
             "Selected from donor-specific RAG collection " f"'{namespace}' based on project and ToC relevance."
         ),
         "citation": str(hit.get("label") or namespace),
-        "baseline": str(hit.get("baseline") or "TBD"),
-        "target": str(hit.get("target") or "TBD"),
+        "baseline": baseline,
+        "target": target,
         "evidence_excerpt": str(hit.get("excerpt") or "")[:240],
     }
 
 
-def _normalize_indicator_item(item: Any, *, idx: int, namespace: str) -> Optional[Dict[str, Any]]:
+def _normalize_indicator_item(
+    item: Any,
+    *,
+    idx: int,
+    namespace: str,
+    input_context: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
     if not isinstance(item, dict):
         return None
     indicator_id = str(item.get("indicator_id") or f"IND_{idx + 1:03d}").strip() or f"IND_{idx + 1:03d}"
     name = str(item.get("name") or "").strip() or f"Indicator {idx + 1}"
     justification = str(item.get("justification") or "").strip() or "Indicator selected for MEL coverage."
     citation = str(item.get("citation") or "").strip() or namespace
-    baseline = str(item.get("baseline") or "TBD").strip() or "TBD"
-    target = str(item.get("target") or "TBD").strip() or "TBD"
+    baseline, target = _resolve_baseline_target(
+        baseline_raw=item.get("baseline"),
+        target_raw=item.get("target"),
+        indicator_name=name,
+        input_context=input_context or {},
+        idx=idx,
+    )
     evidence_excerpt = str(item.get("evidence_excerpt") or "").strip() or None
     return {
         "indicator_id": indicator_id,
@@ -432,14 +586,21 @@ def _normalize_indicator_item(item: Any, *, idx: int, namespace: str) -> Optiona
     }
 
 
-def _fallback_indicator(namespace: str) -> Dict[str, Any]:
+def _fallback_indicator(namespace: str, *, input_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    baseline, target = _resolve_baseline_target(
+        baseline_raw="",
+        target_raw="",
+        indicator_name="Project Output Indicator",
+        input_context=input_context or {},
+        idx=0,
+    )
     return {
         "indicator_id": "IND_001",
         "name": "Project Output Indicator",
         "justification": "Fallback indicator used because donor-specific RAG retrieval returned no grounded results.",
         "citation": namespace,
-        "baseline": "TBD",
-        "target": "TBD",
+        "baseline": baseline,
+        "target": target,
         "evidence_excerpt": None,
     }
 
@@ -448,12 +609,13 @@ def _normalize_llm_indicators(
     raw_indicators: Any,
     *,
     namespace: str,
+    input_context: Optional[Dict[str, Any]] = None,
 ) -> list[Dict[str, Any]]:
     if not isinstance(raw_indicators, list):
         return []
     indicators: list[Dict[str, Any]] = []
     for idx, item in enumerate(raw_indicators):
-        normalized = _normalize_indicator_item(item, idx=idx, namespace=namespace)
+        normalized = _normalize_indicator_item(item, idx=idx, namespace=namespace, input_context=input_context)
         if normalized is None:
             continue
         indicators.append(normalized)
@@ -797,7 +959,11 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
             generation_engine = llm_engine or "llm:unknown"
             try:
                 parsed = _model_validate(MELDraftOutput, raw_payload)
-                indicators = _normalize_llm_indicators(_model_dump(parsed).get("indicators"), namespace=namespace)
+                indicators = _normalize_llm_indicators(
+                    _model_dump(parsed).get("indicators"),
+                    namespace=namespace,
+                    input_context=input_context,
+                )
             except Exception as exc:
                 llm_repair_attempted = True
                 raw_payload_retry, llm_engine_retry, llm_error_retry = _llm_structured_mel(
@@ -818,7 +984,9 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                     try:
                         parsed_retry = _model_validate(MELDraftOutput, raw_payload_retry)
                         indicators = _normalize_llm_indicators(
-                            _model_dump(parsed_retry).get("indicators"), namespace=namespace
+                            _model_dump(parsed_retry).get("indicators"),
+                            namespace=namespace,
+                            input_context=input_context,
                         )
                     except Exception as exc_retry:
                         llm_error = f"LLM MEL structured output validation failed after retry: {exc_retry}"
@@ -833,10 +1001,11 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
     if not indicators:
         if retrieval_hits:
             indicators = [
-                _indicator_from_hit(hit, idx=idx, namespace=namespace) for idx, hit in enumerate(retrieval_hits)
+                _indicator_from_hit(hit, idx=idx, namespace=namespace, input_context=input_context)
+                for idx, hit in enumerate(retrieval_hits)
             ]
         else:
-            indicators = [_fallback_indicator(namespace)]
+            indicators = [_fallback_indicator(namespace, input_context=input_context)]
         if llm_mode:
             generation_engine = "fallback:retrieval_template"
             fallback_used = True
