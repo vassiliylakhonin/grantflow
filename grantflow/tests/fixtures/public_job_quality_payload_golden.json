@@ -1,0 +1,156 @@
+{
+  "architect": {
+    "citation_policy": {
+      "threshold_mode": "donor_section"
+    },
+    "engine": "llm:gpt-4.1-mini",
+    "llm_used": true,
+    "retrieval_enabled": true,
+    "retrieval_hits_count": 2,
+    "retrieval_namespace": "tenant_a/usaid_ads201",
+    "retrieval_used": true,
+    "toc_schema_name": "USAIDToCSchema",
+    "toc_schema_valid": true
+  },
+  "citations": {
+    "architect_citation_count": 2,
+    "architect_citation_type_counts": {
+      "rag_claim_support": 1,
+      "rag_low_confidence": 1
+    },
+    "architect_claim_support_citation_count": 1,
+    "architect_claim_support_rate": 0.5,
+    "architect_fallback_namespace_citation_count": 0,
+    "architect_fallback_namespace_citation_rate": 0.0,
+    "architect_rag_low_confidence_citation_count": 1,
+    "architect_threshold_hit_rate": 0.5,
+    "citation_confidence_avg": 0.39,
+    "citation_count": 3,
+    "citation_type_counts": {
+      "fallback_namespace": 1,
+      "rag_claim_support": 1,
+      "rag_low_confidence": 1
+    },
+    "fallback_namespace_citation_count": 1,
+    "fallback_namespace_citation_rate": 0.3333,
+    "grounding_risk_level": "low",
+    "high_confidence_citation_count": 1,
+    "low_confidence_citation_count": 2,
+    "mel_citation_count": 1,
+    "mel_citation_type_counts": {
+      "fallback_namespace": 1
+    },
+    "mel_claim_support_citation_count": 0,
+    "mel_claim_support_rate": 0.0,
+    "mel_fallback_namespace_citation_count": 1,
+    "mel_fallback_namespace_citation_rate": 1.0,
+    "mel_rag_low_confidence_citation_count": 0,
+    "rag_low_confidence_citation_count": 1,
+    "traceability_complete_citation_count": 1,
+    "traceability_gap_citation_count": 2,
+    "traceability_gap_citation_rate": 0.6667,
+    "traceability_missing_citation_count": 1,
+    "traceability_partial_citation_count": 1
+  },
+  "critic": {
+    "acknowledged_finding_count": 1,
+    "engine": "rules+llm:gpt-4.1-mini",
+    "failed_rule_check_count": 1,
+    "fatal_flaw_count": 2,
+    "high_severity_fatal_flaw_count": 1,
+    "llm_advisory_diagnostics": {
+      "applied": false,
+      "reason": "architect_fallback_citations_present"
+    },
+    "llm_finding_label_counts": {
+      "BASELINE_TARGET_MISSING": 1
+    },
+    "llm_score": 6.5,
+    "low_severity_fatal_flaw_count": 0,
+    "medium_severity_fatal_flaw_count": 1,
+    "open_finding_count": 1,
+    "resolved_finding_count": 0,
+    "rule_check_count": 3,
+    "rule_score": 7.0,
+    "version_bindable_finding_count": 2,
+    "version_binding_rate": 1.0,
+    "version_bound_finding_count": 2,
+    "warned_rule_check_count": 1
+  },
+  "critic_score": 6.8,
+  "job_id": "job-quality-1",
+  "mel": {
+    "avg_retrieval_confidence": 0.64,
+    "citation_policy": {
+      "claim_support_types": [
+        "rag_result",
+        "rag_support",
+        "rag_claim_support"
+      ],
+      "high_confidence_threshold": 0.35
+    },
+    "engine": "deterministic:retrieval_template",
+    "llm_used": false,
+    "retrieval_hits_count": 2,
+    "retrieval_namespace": "tenant_a/usaid_ads201",
+    "retrieval_used": true
+  },
+  "mel_grounding_policy": {
+    "blocking": false,
+    "mode": "warn",
+    "reason": "mel_grounding_signals_ok"
+  },
+  "needs_revision": true,
+  "preflight": {
+    "coverage_rate": 0.5,
+    "donor_id": "usaid",
+    "risk_level": "medium",
+    "warning_count": 1,
+    "warnings": [
+      {
+        "code": "LOW_DOC_COVERAGE",
+        "message": "Coverage low",
+        "severity": "medium"
+      }
+    ]
+  },
+  "quality_score": 7.2,
+  "readiness": {
+    "architect_retrieval_enabled": true,
+    "architect_retrieval_hits_count": 2,
+    "coverage_rate": 0.6667,
+    "doc_family_counts": {
+      "donor_policy": 2,
+      "responsible_ai_guidance": 1
+    },
+    "donor_id": "usaid",
+    "expected_count": 3,
+    "expected_doc_families": [
+      "donor_policy",
+      "country_context",
+      "responsible_ai_guidance"
+    ],
+    "inventory_family_count": 2,
+    "inventory_total_uploads": 3,
+    "loaded_count": 2,
+    "low_doc_coverage": false,
+    "missing_doc_families": [
+      "country_context"
+    ],
+    "namespace_empty": false,
+    "present_doc_families": [
+      "donor_policy",
+      "responsible_ai_guidance"
+    ],
+    "preset_key": "usaid_gov_ai_kazakhstan",
+    "retrieval_namespace": "tenant_a/usaid_ads201",
+    "warning_count": 0,
+    "warning_level": "none",
+    "warnings": []
+  },
+  "status": "done",
+  "strict_preflight": true,
+  "terminal_status": "done",
+  "time_to_first_draft_seconds": 60.0,
+  "time_to_terminal_seconds": 240.0
+}

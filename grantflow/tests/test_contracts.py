@@ -4,7 +4,12 @@ import json
 from pathlib import Path
 from typing import Any
 
-from grantflow.api.public_views import public_job_export_payload, public_job_payload
+from grantflow.api.public_views import (
+    public_job_critic_payload,
+    public_job_export_payload,
+    public_job_payload,
+    public_job_quality_payload,
+)
 from grantflow.core.strategies.catalog import resolve_donor_record
 from grantflow.memory_bank.vector_store import VectorStore
 from grantflow.swarm.citations import append_citations
@@ -16,6 +21,162 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 def _fixture_json(name: str) -> Any:
     path = FIXTURES_DIR / name
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _sample_quality_contract_job() -> dict[str, Any]:
+    return {
+        "status": "done",
+        "hitl_enabled": True,
+        "strict_preflight": True,
+        "generate_preflight": {
+            "donor_id": "usaid",
+            "coverage_rate": 0.5,
+            "risk_level": "medium",
+            "warning_count": 1,
+            "warnings": [{"code": "LOW_DOC_COVERAGE", "severity": "medium", "message": "Coverage low"}],
+        },
+        "client_metadata": {
+            "donor_id": "usaid",
+            "demo_generate_preset_key": "usaid_gov_ai_kazakhstan",
+            "rag_readiness": {
+                "donor_id": "usaid",
+                "expected_doc_families": ["donor_policy", "country_context", "responsible_ai_guidance"],
+            },
+        },
+        "review_comments": [
+            {
+                "comment_id": "comment-1",
+                "status": "open",
+                "section": "toc",
+                "author": "reviewer",
+                "message": "Need stronger evidence for outcome chain",
+                "linked_finding_id": "finding-1",
+                "version_id": "toc_v1",
+                "ts": "2026-03-01T10:03:00+00:00",
+            }
+        ],
+        "job_events": [
+            {"event_id": "e1", "type": "status_changed", "to_status": "accepted", "ts": "2026-03-01T10:00:00+00:00"},
+            {"event_id": "e2", "type": "status_changed", "to_status": "running", "ts": "2026-03-01T10:00:05+00:00"},
+            {
+                "event_id": "e3",
+                "type": "status_changed",
+                "to_status": "pending_hitl",
+                "ts": "2026-03-01T10:01:00+00:00",
+            },
+            {"event_id": "e4", "type": "resume_requested", "ts": "2026-03-01T10:02:00+00:00"},
+            {"event_id": "e5", "type": "status_changed", "to_status": "running", "ts": "2026-03-01T10:02:10+00:00"},
+            {"event_id": "e6", "type": "status_changed", "to_status": "done", "ts": "2026-03-01T10:04:00+00:00"},
+        ],
+        "state": {
+            "donor_id": "usaid",
+            "quality_score": 7.2,
+            "critic_score": 6.8,
+            "needs_revision": True,
+            "toc_validation": {"valid": True, "schema_name": "USAIDToCSchema"},
+            "toc_generation_meta": {
+                "engine": "llm:gpt-4.1-mini",
+                "llm_used": True,
+                "retrieval_used": True,
+                "citation_policy": {"threshold_mode": "donor_section"},
+            },
+            "architect_retrieval": {
+                "enabled": True,
+                "hits_count": 2,
+                "namespace": "tenant_a/usaid_ads201",
+            },
+            "mel_generation_meta": {
+                "engine": "deterministic:retrieval_template",
+                "llm_used": False,
+                "retrieval_used": True,
+            },
+            "logframe_draft": {
+                "rag_trace": {
+                    "namespace": "tenant_a/usaid_ads201",
+                    "used_results": 2,
+                    "avg_retrieval_confidence": 0.64,
+                }
+            },
+            "mel_grounding_policy": {
+                "mode": "warn",
+                "blocking": False,
+                "reason": "mel_grounding_signals_ok",
+            },
+            "citations": [
+                {
+                    "stage": "architect",
+                    "citation_type": "rag_claim_support",
+                    "citation_confidence": 0.82,
+                    "confidence_threshold": 0.5,
+                    "traceability_status": "complete",
+                    "used_for": "toc_claim",
+                },
+                {
+                    "stage": "architect",
+                    "citation_type": "rag_low_confidence",
+                    "citation_confidence": 0.25,
+                    "confidence_threshold": 0.5,
+                    "traceability_status": "partial",
+                    "used_for": "toc_claim",
+                },
+                {
+                    "stage": "mel",
+                    "citation_type": "fallback_namespace",
+                    "citation_confidence": 0.1,
+                    "traceability_status": "missing",
+                    "used_for": "IND_001",
+                },
+            ],
+            "critic_notes": {
+                "engine": "rules+llm:gpt-4.1-mini",
+                "rule_score": 7.0,
+                "llm_score": 6.5,
+                "revision_instructions": "Fix TOC evidence gaps and tighten MEL indicators.",
+                "fatal_flaws": [
+                    {
+                        "id": "finding-1",
+                        "finding_id": "finding-1",
+                        "status": "open",
+                        "severity": "high",
+                        "section": "toc",
+                        "code": "TOC_EVIDENCE_GAP",
+                        "message": "Outcome chain lacks grounded support.",
+                        "source": "rules",
+                        "version_id": "toc_v1",
+                    },
+                    {
+                        "id": "finding-2",
+                        "finding_id": "finding-2",
+                        "status": "acknowledged",
+                        "severity": "medium",
+                        "section": "logframe",
+                        "code": "MEL_BASELINE_WEAK",
+                        "message": "Baselines are not explicit.",
+                        "source": "llm",
+                        "label": "BASELINE_TARGET_MISSING",
+                        "version_id": "logframe_v1",
+                    },
+                ],
+                "rule_checks": [
+                    {"check": "toc_schema_valid", "status": "pass"},
+                    {"check": "evidence_grounding", "status": "fail"},
+                    {"check": "mel_alignment", "status": "warn"},
+                ],
+                "llm_advisory_diagnostics": {
+                    "applied": False,
+                    "reason": "architect_fallback_citations_present",
+                },
+                "llm_advisory_normalization": {
+                    "applied": True,
+                    "downgraded_count": 1,
+                },
+                "llm_advisory_score_calibration": {
+                    "applied": True,
+                    "max_llm_penalty": 0.75,
+                },
+            },
+        },
+    }
 
 
 def test_donor_resolution_contract_for_key_aliases():
@@ -198,3 +359,22 @@ def test_public_job_export_payload_matches_golden_snapshot_and_redacts_strategy(
     state = ((actual.get("payload") or {}).get("state") or {}) if isinstance(actual, dict) else {}
     assert "strategy" not in state
     assert "donor_strategy" not in state
+
+
+def test_public_job_critic_payload_matches_golden_snapshot():
+    expected = _fixture_json("public_job_critic_payload_golden.json")
+    job = _sample_quality_contract_job()
+    actual = public_job_critic_payload("job-quality-1", job)
+    assert actual == expected
+
+
+def test_public_job_quality_payload_matches_golden_snapshot():
+    expected = _fixture_json("public_job_quality_payload_golden.json")
+    job = _sample_quality_contract_job()
+    inventory_rows = [
+        {"doc_family": "donor_policy", "count": 2},
+        {"doc_family": "country_context", "count": 0},
+        {"doc_family": "responsible_ai_guidance", "count": 1},
+    ]
+    actual = public_job_quality_payload("job-quality-1", job, ingest_inventory_rows=inventory_rows)
+    assert actual == expected
