@@ -19,7 +19,25 @@
   - `## [X.Y.Z] - YYYY-MM-DD`
 - Keep concise migration notes for breaking changes.
 
-## 4) Tag and Push
+## 4) Cut Tag (Recommended: CI)
+
+Use CI workflow `.github/workflows/release-cut.yml` with manual approval gate:
+
+- workflow: `Release Cut`
+- inputs:
+  - `version` (e.g. `2.1.1`)
+  - `target_commitish` (default `main`)
+  - optional `dry_run=true`
+- approval: job `cut-tag` runs in GitHub Environment `release` (configure required reviewers there)
+
+This flow:
+
+- validates SemVer input and tag uniqueness
+- runs `scripts/release_guard.py --tag vX.Y.Z`
+- creates and pushes annotated tag `vX.Y.Z`
+- triggers `.github/workflows/release.yml` automatically via tag push
+
+Optional local fallback:
 
 ```bash
 git checkout main
@@ -66,13 +84,22 @@ Manual runs are also supported via `workflow_dispatch`:
 - optional `prerelease`
 - optional `dry_run=true` to validate changelog extraction without publishing
 
-## 7) GitHub Release
+## 7) Release Drafting
+
+The repository uses Release Drafter:
+
+- workflow: `.github/workflows/release-drafter.yml`
+- config: `.github/release-drafter.yml`
+- updates a draft GitHub release automatically on PR/push events
+- resolves proposed next version from labels (`semver:major|minor|patch`, plus `feat/fix/...`)
+
+## 8) GitHub Release
 
 - Create release from tag `vX.Y.Z`.
 - Use the changelog section as release notes.
 - Include any migration notes and rollout caveats.
 
-## 8) Post-Release
+## 9) Post-Release
 
 - Create next `Unreleased` section if needed.
 - Monitor CI and key runtime endpoints:

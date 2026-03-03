@@ -33,6 +33,7 @@
 
 - [ ] PR title follows Conventional Commit style (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`)
 - [ ] If release-impacting: runtime version in `grantflow/core/version.py` and `CHANGELOG.md` are aligned
+- [ ] SemVer label applied for release drafter (`semver:major`, `semver:minor`, or `semver:patch`)
 
 ## Release Notes Draft (if user-visible)
 

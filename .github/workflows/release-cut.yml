@@ -1,0 +1,120 @@
+name: Release Cut
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without prefix (example: 2.1.1)"
+        required: true
+        type: string
+      target_commitish:
+        description: "Branch/SHA to tag from"
+        required: false
+        default: "main"
+        type: string
+      dry_run:
+        description: "Validate release guardrails only (do not create/push tag)"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-cut-${{ github.ref_name || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.resolve.outputs.tag_name }}
+      target_commitish: ${{ steps.resolve.outputs.target_commitish }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Resolve and validate release input
+        id: resolve
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_TARGET_COMMITISH: ${{ github.event.inputs.target_commitish }}
+        run: |
+          VERSION="$(echo "${INPUT_VERSION}" | xargs)"
+          if ! echo "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Invalid version: ${VERSION}. Expected X.Y.Z"
+            exit 1
+          fi
+
+          TAG_NAME="v${VERSION}"
+          TARGET_COMMITISH="$(echo "${INPUT_TARGET_COMMITISH}" | xargs)"
+          if [ -z "${TARGET_COMMITISH}" ]; then
+            TARGET_COMMITISH="main"
+          fi
+
+          echo "tag_name=${TAG_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "target_commitish=${TARGET_COMMITISH}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved tag: ${TAG_NAME}"
+          echo "Target commitish: ${TARGET_COMMITISH}"
+
+      - name: Ensure tag does not already exist
+        env:
+          TAG_NAME: ${{ steps.resolve.outputs.tag_name }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/${TAG_NAME}" >/dev/null; then
+            echo "Tag already exists locally: ${TAG_NAME}"
+            exit 1
+          fi
+          if git ls-remote --tags origin "refs/tags/${TAG_NAME}" | grep -q .; then
+            echo "Tag already exists on origin: ${TAG_NAME}"
+            exit 1
+          fi
+
+      - name: Validate release governance guardrails
+        env:
+          TAG_NAME: ${{ steps.resolve.outputs.tag_name }}
+        run: |
+          python scripts/release_guard.py --tag "${TAG_NAME}"
+
+      - name: Dry run summary
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: |
+          echo "Dry run completed. No tag was created."
+
+  cut-tag:
+    if: ${{ github.event.inputs.dry_run != 'true' }}
+    needs: validate
+    runs-on: ubuntu-latest
+    environment:
+      name: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and push annotated tag
+        env:
+          TAG_NAME: ${{ needs.validate.outputs.tag_name }}
+          TARGET_COMMITISH: ${{ needs.validate.outputs.target_commitish }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch --no-tags origin "${TARGET_COMMITISH}" || true
+
+          TARGET_REF="${TARGET_COMMITISH}"
+          if git rev-parse -q --verify "origin/${TARGET_COMMITISH}" >/dev/null; then
+            TARGET_REF="origin/${TARGET_COMMITISH}"
+          fi
+
+          TARGET_SHA="$(git rev-parse "${TARGET_REF}")"
+          git tag -a "${TAG_NAME}" "${TARGET_SHA}" -m "Release ${TAG_NAME}"
+          git push origin "${TAG_NAME}"
+          echo "Created and pushed ${TAG_NAME} from ${TARGET_SHA}"

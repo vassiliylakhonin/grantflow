@@ -15,6 +15,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Critic findings hardened as stable entities: deterministic `finding_id` generation for legacy/unstructured payloads and stricter LLM `fatal_flaws` coercion to object lists.
 - Release governance now validates Keep-a-Changelog heading format (`## [X.Y.Z] - YYYY-MM-DD`) for current/tagged versions.
 - CI now enforces Conventional Commit PR titles via `scripts/pr_title_guard.py`.
+- Added CI-driven tag cutting workflow (`Release Cut`) with manual approval gate through environment `release`.
+- Added Release Drafter automation (`.github/release-drafter.yml` + workflow) for continuously updated draft release notes.
 
 ## [2.1.0] - 2026-03-03
 

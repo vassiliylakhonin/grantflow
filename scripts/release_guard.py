@@ -58,12 +58,40 @@ def main() -> int:
     api_stability_path = repo_root / "docs" / "api-stability-policy.md"
     release_process_path = repo_root / "docs" / "release-process.md"
     pr_template_path = repo_root / ".github" / "pull_request_template.md"
+    release_workflow_path = repo_root / ".github" / "workflows" / "release.yml"
+    release_cut_workflow_path = repo_root / ".github" / "workflows" / "release-cut.yml"
+    release_drafter_workflow_path = repo_root / ".github" / "workflows" / "release-drafter.yml"
+    release_drafter_config_path = repo_root / ".github" / "release-drafter.yml"
 
     errors: list[str] = []
     _check(changelog_path.exists(), "CHANGELOG.md present", "CHANGELOG.md missing", errors)
     _check(api_stability_path.exists(), "API stability policy present", "docs/api-stability-policy.md missing", errors)
     _check(release_process_path.exists(), "Release process doc present", "docs/release-process.md missing", errors)
     _check(pr_template_path.exists(), "PR template present", ".github/pull_request_template.md missing", errors)
+    _check(
+        release_workflow_path.exists(),
+        "Release workflow present",
+        ".github/workflows/release.yml missing",
+        errors,
+    )
+    _check(
+        release_cut_workflow_path.exists(),
+        "Release cut workflow present",
+        ".github/workflows/release-cut.yml missing",
+        errors,
+    )
+    _check(
+        release_drafter_workflow_path.exists(),
+        "Release drafter workflow present",
+        ".github/workflows/release-drafter.yml missing",
+        errors,
+    )
+    _check(
+        release_drafter_config_path.exists(),
+        "Release drafter config present",
+        ".github/release-drafter.yml missing",
+        errors,
+    )
 
     _check(
         is_valid_core_semver(__version__),

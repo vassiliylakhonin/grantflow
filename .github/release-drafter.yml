@@ -1,0 +1,57 @@
+name-template: "GrantFlow v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+change-title-escapes: "\\<*_&"
+template: |
+  ## Changes
+  $CHANGES
+
+  ## Contributors
+  $CONTRIBUTORS
+
+categories:
+  - title: "Features"
+    labels:
+      - "feat"
+      - "feature"
+  - title: "Fixes"
+    labels:
+      - "fix"
+      - "bug"
+  - title: "Refactors"
+    labels:
+      - "refactor"
+  - title: "Docs"
+    labels:
+      - "docs"
+  - title: "Tests"
+    labels:
+      - "test"
+  - title: "Chore / CI"
+    labels:
+      - "chore"
+      - "ci"
+
+exclude-labels:
+  - "skip-changelog"
+  - "no-release-notes"
+
+version-resolver:
+  major:
+    labels:
+      - "semver:major"
+      - "breaking"
+  minor:
+    labels:
+      - "semver:minor"
+      - "feat"
+      - "feature"
+  patch:
+    labels:
+      - "semver:patch"
+      - "fix"
+      - "docs"
+      - "test"
+      - "refactor"
+      - "chore"
+  default: patch
