@@ -11,6 +11,7 @@ from grantflow.core.config import config
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.graph import grantflow_graph
+from grantflow.swarm.state_contract import build_graph_state
 
 FIXTURES_DIR = Path(__file__).with_name("fixtures")
 DEFAULT_BASELINE_PATH = FIXTURES_DIR / "baseline_regression_snapshot.json"
@@ -186,26 +187,17 @@ def build_initial_state(case: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(input_payload, dict):
         raise ValueError("input_context must be an object")
 
-    return {
-        "donor": donor_id,
-        "donor_id": donor_id,
-        "donor_strategy": strategy,
-        "strategy": strategy,
-        "input": input_payload,
-        "input_context": input_payload,
-        "llm_mode": bool(case.get("llm_mode", False)),
-        "architect_rag_enabled": bool(case.get("architect_rag_enabled", False)),
-        "iteration": 0,
-        "iteration_count": 0,
-        "max_iterations": int(case.get("max_iterations", config.graph.max_iterations)),
-        "quality_score": 0.0,
-        "critic_score": 0.0,
-        "needs_revision": False,
-        "critic_notes": [],
-        "critic_feedback_history": [],
-        "hitl_pending": False,
-        "errors": [],
-    }
+    return build_graph_state(
+        donor_id=donor_id,
+        input_context=input_payload,
+        donor_strategy=strategy,
+        llm_mode=bool(case.get("llm_mode", False)),
+        max_iterations=int(case.get("max_iterations", config.graph.max_iterations)),
+        extras={
+            "architect_rag_enabled": bool(case.get("architect_rag_enabled", False)),
+            "critic_notes": {},
+        },
+    )
 
 
 def _count_stage_citations(citations: list[Any], stage: str) -> int:

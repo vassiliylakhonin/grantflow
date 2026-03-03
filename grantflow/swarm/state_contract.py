@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Mapping, MutableMapping, TypedDict, cast
+from typing import Any, Iterable, Mapping, MutableMapping, Optional, TypedDict, cast
 
 
 class GrantFlowState(TypedDict, total=False):
@@ -70,8 +70,18 @@ def _as_str_list(value: Any) -> list[str]:
     return []
 
 
+def normalize_donor_token(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def normalize_input_context(value: Any) -> dict[str, Any]:
+    if isinstance(value, Mapping):
+        return {str(key): inner for key, inner in value.items()}
+    return {}
+
+
 def state_donor_id(state: Mapping[str, Any], default: str = "") -> str:
-    donor = str(state.get("donor_id") or state.get("donor") or "").strip().lower()
+    donor = normalize_donor_token(state.get("donor_id") or state.get("donor"))
     return donor or default
 
 
@@ -92,11 +102,11 @@ def set_state_donor_strategy(state: MutableMapping[str, Any], strategy: Any) -> 
 
 
 def state_input_context(state: Mapping[str, Any]) -> dict[str, Any]:
-    input_context = state.get("input_context")
-    if isinstance(input_context, dict):
+    input_context = normalize_input_context(state.get("input_context"))
+    if input_context:
         return input_context
-    legacy_input = state.get("input")
-    if isinstance(legacy_input, dict):
+    legacy_input = normalize_input_context(state.get("input"))
+    if legacy_input:
         return legacy_input
     return {}
 
@@ -138,6 +148,51 @@ def state_revision_hint(state: Mapping[str, Any]) -> str:
 def normalized_state_copy(state: Any) -> GrantFlowState:
     raw = dict(state) if isinstance(state, Mapping) else {}
     return normalize_state_contract(raw)
+
+
+def build_graph_state(
+    *,
+    donor_id: str,
+    input_context: Optional[Mapping[str, Any]] = None,
+    donor_strategy: Any = None,
+    tenant_id: Optional[str] = None,
+    rag_namespace: Optional[str] = None,
+    llm_mode: bool = False,
+    hitl_checkpoints: Optional[Iterable[str]] = None,
+    max_iterations: int = 3,
+    generate_preflight: Optional[Mapping[str, Any]] = None,
+    strict_preflight: bool = False,
+    extras: Optional[Mapping[str, Any]] = None,
+) -> GrantFlowState:
+    state: dict[str, Any] = {
+        "donor_id": normalize_donor_token(donor_id),
+        "input_context": normalize_input_context(input_context),
+        "llm_mode": bool(llm_mode),
+        "iteration_count": 0,
+        "max_iterations": _as_int(max_iterations, default=3),
+        "critic_score": 0.0,
+        "quality_score": 0.0,
+        "needs_revision": False,
+        "critic_notes": {},
+        "critic_feedback_history": [],
+        "hitl_pending": False,
+        "hitl_checkpoints": [str(token).strip() for token in (hitl_checkpoints or []) if str(token).strip()],
+        "errors": [],
+        "strict_preflight": bool(strict_preflight),
+    }
+    if donor_strategy is not None:
+        set_state_donor_strategy(state, donor_strategy)
+    normalized_tenant = str(tenant_id or "").strip()
+    if normalized_tenant:
+        state["tenant_id"] = normalized_tenant
+    normalized_namespace = str(rag_namespace or "").strip()
+    if normalized_namespace:
+        state["rag_namespace"] = normalized_namespace
+    if isinstance(generate_preflight, Mapping):
+        state["generate_preflight"] = dict(generate_preflight)
+    if isinstance(extras, Mapping):
+        state.update(dict(extras))
+    return normalize_state_contract(state)
 
 
 def normalize_state_contract(state: MutableMapping[str, Any]) -> GrantFlowState:

@@ -240,6 +240,27 @@ def test_eval_harness_runtime_overrides_apply_to_cases_without_mutating_original
     assert "architect_rag_enabled" not in source_cases[1]
 
 
+def test_build_initial_state_uses_canonical_state_contract():
+    state = harness.build_initial_state(
+        {
+            "case_id": "s1",
+            "donor_id": "USAID",
+            "input_context": {"project": "AI training", "country": "Kazakhstan"},
+            "llm_mode": True,
+            "architect_rag_enabled": True,
+            "max_iterations": 0,
+        }
+    )
+    assert state["donor_id"] == "usaid"
+    assert state["donor"] == "usaid"
+    assert state["input_context"]["project"] == "AI training"
+    assert state["input"]["country"] == "Kazakhstan"
+    assert state["llm_mode"] is True
+    assert state["architect_rag_enabled"] is True
+    assert state["max_iterations"] == 1
+    assert isinstance(state.get("critic_notes"), dict)
+
+
 def test_load_eval_cases_supports_explicit_case_files(tmp_path):
     payload = [
         {

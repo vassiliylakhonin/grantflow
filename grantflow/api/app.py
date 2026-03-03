@@ -99,7 +99,7 @@ from grantflow.swarm.nodes.architect_generation import generate_toc_under_contra
 from grantflow.swarm.nodes.architect_retrieval import retrieve_architect_evidence
 from grantflow.swarm.retrieval_query import donor_query_preset_terms
 from grantflow.swarm.citations import citation_traceability_status
-from grantflow.swarm.state_contract import normalize_state_contract, normalized_state_copy, state_donor_id
+from grantflow.swarm.state_contract import build_graph_state, normalize_state_contract, normalized_state_copy, state_donor_id
 
 JOB_STORE = create_job_store_from_env()
 INGEST_AUDIT_STORE = create_ingest_audit_store_from_env()
@@ -1036,20 +1036,18 @@ def _estimate_preflight_architect_claims(
     if not isinstance(input_context, dict) or not input_context:
         return {"available": False, "reason": "input_context_missing"}
 
-    state: Dict[str, Any] = {
-        "donor_id": donor_id,
-        "tenant_id": tenant_id,
-        "donor_strategy": strategy,
-        "input_context": dict(input_context),
-        "rag_namespace": namespace,
-        "architect_rag_enabled": True,
-        "llm_mode": False,
-        "iteration_count": 0,
-        "max_iterations": int(getattr(config.graph, "max_iterations", 3) or 3),
-        "critic_notes": {},
-        "errors": [],
-    }
-    normalize_state_contract(state)
+    state = build_graph_state(
+        donor_id=donor_id,
+        input_context=input_context,
+        donor_strategy=strategy,
+        tenant_id=tenant_id,
+        rag_namespace=namespace,
+        llm_mode=False,
+        max_iterations=int(getattr(config.graph, "max_iterations", 3) or 3),
+        extras={
+            "architect_rag_enabled": True,
+        },
+    )
     try:
         retrieval_summary, retrieval_hits = retrieve_architect_evidence(state, namespace)
         _toc, _validation, generation_meta, claim_citations = generate_toc_under_contract(
@@ -3508,26 +3506,18 @@ async def generate(
             },
         )
     job_id = str(uuid.uuid4())
-    initial_state = {
-        "donor_id": donor,
-        "tenant_id": tenant_id,
-        "rag_namespace": preflight_payload.get("retrieval_namespace"),
-        "donor_strategy": strategy,
-        "input_context": input_payload,
-        "generate_preflight": preflight,
-        "strict_preflight": req.strict_preflight,
-        "llm_mode": req.llm_mode,
-        "hitl_checkpoints": list(req.hitl_checkpoints or []),
-        "iteration_count": 0,
-        "max_iterations": config.graph.max_iterations,
-        "critic_score": 0.0,
-        "needs_revision": False,
-        "critic_notes": {},
-        "critic_feedback_history": [],
-        "hitl_pending": False,
-        "errors": [],
-    }
-    normalize_state_contract(initial_state)
+    initial_state = build_graph_state(
+        donor_id=donor,
+        input_context=input_payload,
+        donor_strategy=strategy,
+        tenant_id=tenant_id,
+        rag_namespace=str(preflight_payload.get("retrieval_namespace") or ""),
+        llm_mode=bool(req.llm_mode),
+        hitl_checkpoints=list(req.hitl_checkpoints or []),
+        max_iterations=int(config.graph.max_iterations),
+        generate_preflight=preflight_payload,
+        strict_preflight=bool(req.strict_preflight),
+    )
 
     _set_job(
         job_id,

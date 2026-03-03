@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from grantflow.swarm.nodes.discovery import validate_input_richness
 from grantflow.swarm.state_contract import (
+    build_graph_state,
     normalize_state_contract,
+    normalize_donor_token,
+    normalize_input_context,
     normalized_state_copy,
     set_state_donor_strategy,
     set_state_iteration,
@@ -143,3 +146,45 @@ def test_set_state_iteration_updates_canonical_and_legacy_aliases():
     assert value == 4
     assert state["iteration_count"] == 4
     assert state["iteration"] == 4
+
+
+def test_build_graph_state_creates_canonical_runtime_state_with_aliases():
+    strategy = object()
+    preflight = {"risk_level": "low"}
+    out = build_graph_state(
+        donor_id="USAID",
+        input_context={"project": "GovTech", "country": "Kazakhstan"},
+        donor_strategy=strategy,
+        tenant_id="tenant_a",
+        rag_namespace="tenant_a/usaid_ads201",
+        llm_mode=True,
+        hitl_checkpoints=["Architect", "LOGFRAME"],
+        max_iterations=0,
+        generate_preflight=preflight,
+        strict_preflight=True,
+        extras={"architect_rag_enabled": True},
+    )
+
+    assert out["donor_id"] == "usaid"
+    assert out["donor"] == "usaid"
+    assert out["input_context"] == {"project": "GovTech", "country": "Kazakhstan"}
+    assert out["input"] == {"project": "GovTech", "country": "Kazakhstan"}
+    assert out["donor_strategy"] is strategy
+    assert out["strategy"] is strategy
+    assert out["tenant_id"] == "tenant_a"
+    assert out["rag_namespace"] == "tenant_a/usaid_ads201"
+    assert out["retrieval_namespace"] == "tenant_a/usaid_ads201"
+    assert out["llm_mode"] is True
+    assert out["max_iterations"] == 1
+    assert out["strict_preflight"] is True
+    assert out["generate_preflight"] == preflight
+    assert out["architect_rag_enabled"] is True
+    assert out["hitl_checkpoints"] == ["architect", "logframe"]
+    assert out["errors"] == []
+
+
+def test_normalize_helpers_handle_non_dict_inputs_safely():
+    assert normalize_donor_token(" USAID ") == "usaid"
+    assert normalize_donor_token(None) == ""
+    assert normalize_input_context(None) == {}
+    assert normalize_input_context({"project": "Water", 1: "x"}) == {"project": "Water", "1": "x"}
