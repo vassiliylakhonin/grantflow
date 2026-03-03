@@ -156,3 +156,27 @@ def test_bind_findings_to_latest_versions_fills_missing_version_id():
     assert by_id["f-toc"]["version_id"] == "toc_v2"
     assert by_id["f-logframe"]["version_id"] == "logframe_v1"
     assert by_id["f-general"].get("version_id") is None
+
+
+def test_normalize_findings_generates_deterministic_id_for_legacy_string():
+    payload = ["Missing indicator baseline in logframe."]
+    first = normalize_findings(payload, default_source="rules")
+    second = normalize_findings(payload, default_source="rules")
+    assert first[0]["finding_id"] == second[0]["finding_id"]
+    assert first[0]["id"] == second[0]["id"]
+
+
+def test_normalize_findings_generates_deterministic_id_for_object_without_id():
+    payload = [
+        {
+            "code": "TOC_WEAK",
+            "section": "toc",
+            "severity": "high",
+            "message": "Objective statement is too broad.",
+            "source": "rules",
+        }
+    ]
+    first = normalize_findings(payload, default_source="rules")
+    second = normalize_findings(payload, default_source="rules")
+    assert first[0]["finding_id"] == second[0]["finding_id"]
+    assert first[0]["id"] == second[0]["id"]

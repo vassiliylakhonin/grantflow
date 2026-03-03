@@ -11,6 +11,7 @@ from grantflow.swarm.nodes.critic import (
     _downgrade_advisory_llm_findings,
     _is_advisory_llm_message,
     _llm_flaws_to_structured,
+    RedTeamEvaluation,
     red_team_critic,
 )
 
@@ -39,6 +40,23 @@ def test_rule_based_critic_emits_structured_flaws_with_section_and_version():
     )
     assert report.score < 8.0
     assert report.checks
+
+
+def test_red_team_evaluation_coerces_string_fatal_flaws_to_entities():
+    payload = RedTeamEvaluation.model_validate(
+        {
+            "score": 7.0,
+            "fatal_flaws": [
+                "Objective is too broad.",
+                {"message": "Indicator baseline missing.", "section": "logframe"},
+            ],
+            "revision_instructions": "Tighten objectives and indicators.",
+        }
+    )
+    assert isinstance(payload.fatal_flaws, list)
+    assert len(payload.fatal_flaws) == 2
+    assert payload.fatal_flaws[0]["message"] == "Objective is too broad."
+    assert payload.fatal_flaws[1]["message"] == "Indicator baseline missing."
 
 
 def test_red_team_critic_uses_rules_without_llm_and_stores_structured_notes():

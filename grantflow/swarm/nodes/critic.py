@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from grantflow.core.config import config
 from grantflow.swarm.critic_llm_policy import build_llm_advisory_diagnostics as _build_llm_advisory_diagnostics
@@ -44,10 +44,27 @@ class RedTeamEvaluation(BaseModel):
         ge=0.0,
         le=10.0,
     )
-    fatal_flaws: List[Union[Dict[str, Any], str]] = Field(
-        description="List of critical logical gaps, missing indicators, or unrealistic assumptions."
+    fatal_flaws: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Structured list of critical logical gaps, missing indicators, or unrealistic assumptions.",
     )
     revision_instructions: str = Field(description="Clear, actionable instructions for follow-up revision.")
+
+    @field_validator("fatal_flaws", mode="before")
+    @classmethod
+    def _coerce_fatal_flaws_entities(cls, value: Any) -> list[Dict[str, Any]]:
+        if not isinstance(value, list):
+            return []
+        out: list[Dict[str, Any]] = []
+        for item in value:
+            if isinstance(item, dict):
+                out.append(item)
+                continue
+            if isinstance(item, str):
+                message = item.strip()
+                if message:
+                    out.append({"message": message})
+        return out
 
 
 def _dump_model(model: BaseModel) -> Dict[str, Any]:
@@ -57,11 +74,11 @@ def _dump_model(model: BaseModel) -> Dict[str, Any]:
     return model.dict()  # type: ignore[attr-defined]
 
 
-def _llm_flaws_to_structured(flaws: List[Union[Dict[str, Any], str]], *, state: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _llm_flaws_to_structured(flaws: List[Dict[str, Any]], *, state: Dict[str, Any]) -> List[Dict[str, Any]]:
     structured: List[Dict[str, Any]] = []
     for idx, item in enumerate(flaws or []):
         payload = item if isinstance(item, dict) else {}
-        msg = str(payload.get("message") if isinstance(payload, dict) else item or "").strip()
+        msg = str(payload.get("message") or "").strip()
         if not msg:
             continue
         section = str(payload.get("section") or "general").strip().lower()

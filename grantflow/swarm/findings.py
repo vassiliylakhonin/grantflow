@@ -1,13 +1,35 @@
 from __future__ import annotations
 
-import uuid
-from typing import Any, Dict, Iterable, Mapping, Optional
+import hashlib
+from typing import Any, Dict, Iterable, Mapping, Optional, TypedDict
 
 from grantflow.swarm.versioning import filter_versions
 
 _VALID_SEVERITIES = {"low", "medium", "high"}
 _VALID_SECTIONS = {"toc", "logframe", "general"}
 _VALID_STATUSES = {"open", "acknowledged", "resolved"}
+
+
+class FindingEntity(TypedDict, total=False):
+    id: str
+    finding_id: str
+    code: str
+    label: Optional[str]
+    severity: str
+    section: str
+    status: str
+    version_id: Optional[str]
+    message: str
+    rationale: Optional[str]
+    fix_suggestion: Optional[str]
+    fix_hint: Optional[str]
+    source: str
+    updated_at: Optional[str]
+    updated_by: Optional[str]
+    acknowledged_at: Optional[str]
+    acknowledged_by: Optional[str]
+    resolved_at: Optional[str]
+    resolved_by: Optional[str]
 
 
 def finding_primary_id(item: Dict[str, Any]) -> str:
@@ -46,18 +68,37 @@ def finding_identity_key(item: Dict[str, Any]) -> tuple[str, str, str, str, str]
     )
 
 
+def _generated_finding_id(
+    *,
+    code: str,
+    section: str,
+    version_id: Optional[str],
+    message: str,
+    source: str,
+) -> str:
+    seed = "|".join([code.strip().upper(), section.strip().lower(), str(version_id or "").strip(), message, source])
+    digest = hashlib.sha1(seed.encode("utf-8")).hexdigest()[:12]
+    return f"finding-{digest}"
+
+
 def normalize_finding_item(
     item: Any,
     *,
     default_source: str = "rules",
-) -> Optional[Dict[str, Any]]:
+) -> Optional[FindingEntity]:
     if isinstance(item, str):
         message = item.strip()
         if not message:
             return None
         section = _coerce_section(None, message=message)
-        canonical_id = str(uuid.uuid4())
-        normalized: Dict[str, Any] = {
+        canonical_id = _generated_finding_id(
+            code="LEGACY_UNSTRUCTURED_FINDING",
+            section=section,
+            version_id=None,
+            message=message,
+            source=default_source,
+        )
+        normalized: FindingEntity = {
             "id": canonical_id,
             "finding_id": canonical_id,
             "code": "LEGACY_UNSTRUCTURED_FINDING",
@@ -86,11 +127,18 @@ def normalize_finding_item(
     status = _coerce_status(current.get("status"))
     source = str(current.get("source") or "").strip() or default_source
     code = str(current.get("code") or "").strip() or "FINDING_UNSPECIFIED"
-    canonical_id = finding_primary_id(current) or str(uuid.uuid4())
+    version_id = str(current.get("version_id") or "").strip() or None
+    canonical_id = finding_primary_id(current) or _generated_finding_id(
+        code=code,
+        section=section,
+        version_id=version_id,
+        message=message,
+        source=source,
+    )
     rationale = str(current.get("rationale") or "").strip() or None
     fix_suggestion = str(current.get("fix_suggestion") or current.get("fix_hint") or "").strip() or None
 
-    normalized = dict(current)
+    normalized: FindingEntity = dict(current)
     normalized["id"] = canonical_id
     normalized["finding_id"] = canonical_id
     normalized["code"] = code
@@ -102,7 +150,7 @@ def normalize_finding_item(
     normalized["rationale"] = rationale
     normalized["fix_suggestion"] = fix_suggestion
     normalized["fix_hint"] = fix_suggestion
-    normalized["version_id"] = str(current.get("version_id") or "").strip() or None
+    normalized["version_id"] = version_id
 
     if status == "open":
         normalized.pop("acknowledged_at", None)
@@ -122,15 +170,15 @@ def normalize_findings(
     *,
     previous_items: Optional[Iterable[Any]] = None,
     default_source: str = "rules",
-) -> list[Dict[str, Any]]:
-    previous_by_key: Dict[tuple[str, str, str, str, str], Dict[str, Any]] = {}
+) -> list[FindingEntity]:
+    previous_by_key: Dict[tuple[str, str, str, str, str], FindingEntity] = {}
     for prev in previous_items or []:
         normalized_prev = normalize_finding_item(prev, default_source=default_source)
         if normalized_prev is None:
             continue
         previous_by_key[finding_identity_key(normalized_prev)] = normalized_prev
 
-    normalized_items: list[Dict[str, Any]] = []
+    normalized_items: list[FindingEntity] = []
     for item in items:
         normalized = normalize_finding_item(item, default_source=default_source)
         if normalized is None:
@@ -174,9 +222,9 @@ def bind_findings_to_latest_versions(
     findings: Iterable[Any],
     *,
     state: Optional[Mapping[str, Any]] = None,
-) -> list[Dict[str, Any]]:
+) -> list[FindingEntity]:
     section_versions = latest_version_id_by_section(state)
-    out: list[Dict[str, Any]] = []
+    out: list[FindingEntity] = []
     for finding in findings:
         if not isinstance(finding, dict):
             continue

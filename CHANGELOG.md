@@ -12,6 +12,7 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - CI, Docker, and docs install flows updated to `pip install .` / `pip install ".[dev]"`.
 - Legacy `requirements` files kept as compatibility shims pointing to the project metadata.
 - State contract now exposes canonical helpers for strategy and iteration access; core swarm nodes (`discovery`, `architect`, `mel`, `critic`) now consume those helpers instead of ad-hoc alias reads.
+- Critic findings hardened as stable entities: deterministic `finding_id` generation for legacy/unstructured payloads and stricter LLM `fatal_flaws` coercion to object lists.
 
 ## [2.1.0] - 2026-03-03
 
