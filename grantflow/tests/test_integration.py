@@ -1527,6 +1527,43 @@ def test_status_critic_accepts_id_only_finding_entities():
     assert ack_body["status"] == "acknowledged"
 
 
+def test_status_critic_supports_legacy_state_critic_fatal_flaws_alias():
+    job_id = "critic-findings-legacy-alias-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "quality_score": 6.0,
+                "critic_score": 6.0,
+                "needs_revision": True,
+                "critic_fatal_flaws": [
+                    {
+                        "code": "TOC_SCHEMA_INVALID",
+                        "severity": "high",
+                        "section": "toc",
+                        "message": "Legacy alias finding should still be normalized.",
+                        "source": "rules",
+                    }
+                ],
+            },
+            "review_comments": [],
+        },
+    )
+
+    critic_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_resp.status_code == 200
+    body = critic_resp.json()
+    assert body["fatal_flaw_count"] == 1
+    flaw = body["fatal_flaws"][0]
+    assert flaw["id"] == flaw["finding_id"]
+    assert flaw["status"] == "open"
+
+    ack_resp = client.post(f"/status/{job_id}/critic/findings/{flaw['finding_id']}/ack")
+    assert ack_resp.status_code == 200
+    assert ack_resp.json()["status"] == "acknowledged"
+
+
 def test_status_critic_bulk_status_updates_support_filters_and_apply_all():
     job_id = "critic-findings-bulk-1"
     api_app_module.JOB_STORE.set(

@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, cast
 
 from grantflow.api.csv_utils import csv_text_from_mapping
 from grantflow.swarm.citations import citation_traceability_status
-from grantflow.swarm.findings import bind_findings_to_latest_versions, finding_primary_id, normalize_findings
+from grantflow.swarm.findings import finding_messages, finding_primary_id, state_critic_findings
 from grantflow.swarm.state_contract import normalized_state_copy, state_donor_id
 
 PORTFOLIO_QUALITY_SIGNAL_WEIGHTS: dict[str, int] = {
@@ -193,13 +193,7 @@ def _job_grounding_risk_level(job: Dict[str, Any]) -> str:
 def _job_critic_findings(job: Dict[str, Any]) -> list[Dict[str, Any]]:
     state = job.get("state")
     state_dict = state if isinstance(state, dict) else {}
-    critic_notes = state_dict.get("critic_notes")
-    critic_notes_dict = critic_notes if isinstance(critic_notes, dict) else {}
-    raw_flaws = critic_notes_dict.get("fatal_flaws")
-    if not isinstance(raw_flaws, list):
-        return []
-    findings = normalize_findings(raw_flaws, default_source="rules")
-    return bind_findings_to_latest_versions(findings, state=state_dict)
+    return [dict(item) for item in state_critic_findings(state_dict, default_source="rules")]
 
 
 def _job_matches_finding_filters(
@@ -801,13 +795,8 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
     if not isinstance(critic_notes, dict):
         critic_notes = {}
 
-    raw_flaws = critic_notes.get("fatal_flaws")
-    if isinstance(raw_flaws, list):
-        normalized_flaws = normalize_findings(raw_flaws, default_source="rules")
-        normalized_flaws = bind_findings_to_latest_versions(normalized_flaws, state=state)
-        fatal_flaws = [sanitize_for_public_response(item) for item in normalized_flaws]
-    else:
-        fatal_flaws = []
+    normalized_flaws = state_critic_findings(state if isinstance(state, dict) else {}, default_source="rules")
+    fatal_flaws = [sanitize_for_public_response(item) for item in normalized_flaws]
 
     raw_comments = job.get("review_comments")
     linked_comment_ids_by_finding: dict[str, list[str]] = {}
@@ -834,11 +823,12 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
                 flaw["linked_comment_ids"] = linked
 
     raw_messages = critic_notes.get("fatal_flaw_messages")
-    fatal_flaw_messages = (
-        [str(item) for item in raw_messages if isinstance(item, (str, int, float))]
-        if isinstance(raw_messages, list)
-        else []
-    )
+    if isinstance(raw_messages, list):
+        fatal_flaw_messages = [str(item) for item in raw_messages if isinstance(item, (str, int, float))]
+    else:
+        fatal_flaw_messages = []
+    if not fatal_flaw_messages:
+        fatal_flaw_messages = finding_messages(normalized_flaws)
 
     raw_checks = critic_notes.get("rule_checks")
     rule_checks = (

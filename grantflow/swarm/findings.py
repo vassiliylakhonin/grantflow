@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Dict, Iterable, Mapping, Optional, TypedDict
+from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional, TypedDict
 
 from grantflow.swarm.versioning import filter_versions
 
@@ -198,6 +198,103 @@ def normalize_findings(
 
         normalized_items.append(normalized)
     return normalized_items
+
+
+def canonicalize_findings(
+    items: Iterable[Any],
+    *,
+    state: Optional[Mapping[str, Any]] = None,
+    previous_items: Optional[Iterable[Any]] = None,
+    default_source: str = "rules",
+    dedupe: bool = True,
+) -> list[FindingEntity]:
+    normalized = normalize_findings(
+        items,
+        previous_items=previous_items,
+        default_source=default_source,
+    )
+    bound = bind_findings_to_latest_versions(normalized, state=state)
+    if not dedupe:
+        return bound
+    deduped: list[FindingEntity] = []
+    by_id: Dict[str, int] = {}
+    for row in bound:
+        current = dict(row)
+        fid = finding_primary_id(current)
+        if not fid:
+            deduped.append(current)
+            continue
+        current["id"] = fid
+        current["finding_id"] = fid
+        if fid in by_id:
+            deduped[by_id[fid]] = current
+            continue
+        by_id[fid] = len(deduped)
+        deduped.append(current)
+    return deduped
+
+
+def finding_messages(findings: Iterable[Any], *, fallback: Optional[str] = None) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in findings:
+        message = str((item or {}).get("message") if isinstance(item, dict) else "").strip()
+        if not message:
+            continue
+        if message in seen:
+            continue
+        seen.add(message)
+        out.append(message)
+    if out:
+        return out
+    if fallback:
+        return [fallback]
+    return []
+
+
+def state_critic_findings(
+    state: Mapping[str, Any],
+    *,
+    previous_items: Optional[Iterable[Any]] = None,
+    default_source: str = "rules",
+) -> list[FindingEntity]:
+    if not isinstance(state, Mapping):
+        return []
+    critic_notes = state.get("critic_notes") if isinstance(state.get("critic_notes"), dict) else {}
+    raw = critic_notes.get("fatal_flaws")
+    if not isinstance(raw, list):
+        raw = state.get("critic_fatal_flaws")
+    if not isinstance(raw, list):
+        return []
+    return canonicalize_findings(
+        raw,
+        state=state,
+        previous_items=previous_items,
+        default_source=default_source,
+        dedupe=True,
+    )
+
+
+def write_state_critic_findings(
+    state: MutableMapping[str, Any],
+    findings: Iterable[Any],
+    *,
+    previous_items: Optional[Iterable[Any]] = None,
+    default_source: str = "rules",
+) -> list[FindingEntity]:
+    canonical = canonicalize_findings(
+        findings,
+        state=state,
+        previous_items=previous_items,
+        default_source=default_source,
+        dedupe=True,
+    )
+    notes = state.get("critic_notes")
+    notes_dict = dict(notes) if isinstance(notes, dict) else {}
+    notes_dict["fatal_flaws"] = canonical
+    state["critic_notes"] = notes_dict
+    state["critic_fatal_flaws"] = canonical
+    return canonical
 
 
 def latest_version_id_by_section(state: Optional[Mapping[str, Any]]) -> Dict[str, str]:

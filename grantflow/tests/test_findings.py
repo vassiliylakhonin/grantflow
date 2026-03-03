@@ -1,6 +1,13 @@
 from __future__ import annotations
 
-from grantflow.swarm.findings import bind_findings_to_latest_versions, normalize_findings
+from grantflow.swarm.findings import (
+    bind_findings_to_latest_versions,
+    canonicalize_findings,
+    finding_messages,
+    normalize_findings,
+    state_critic_findings,
+    write_state_critic_findings,
+)
 
 
 def test_normalize_findings_converts_legacy_string_items():
@@ -180,3 +187,68 @@ def test_normalize_findings_generates_deterministic_id_for_object_without_id():
     second = normalize_findings(payload, default_source="rules")
     assert first[0]["finding_id"] == second[0]["finding_id"]
     assert first[0]["id"] == second[0]["id"]
+
+
+def test_canonicalize_findings_dedupes_by_finding_id():
+    items = [
+        {
+            "finding_id": "f-dup",
+            "code": "TOC_WEAK",
+            "section": "toc",
+            "severity": "high",
+            "status": "open",
+            "message": "First",
+            "source": "rules",
+        },
+        {
+            "id": "f-dup",
+            "code": "TOC_WEAK",
+            "section": "toc",
+            "severity": "low",
+            "status": "acknowledged",
+            "message": "Second",
+            "source": "rules",
+        },
+    ]
+    rows = canonicalize_findings(items, default_source="rules")
+    assert len(rows) == 1
+    assert rows[0]["id"] == "f-dup"
+    assert rows[0]["finding_id"] == "f-dup"
+    assert rows[0]["status"] == "acknowledged"
+    assert rows[0]["message"] == "Second"
+
+
+def test_state_critic_findings_reads_legacy_alias_and_write_syncs_aliases():
+    state = {
+        "critic_fatal_flaws": [
+            {
+                "code": "TOC_WEAK",
+                "section": "toc",
+                "severity": "high",
+                "message": "Legacy alias item",
+                "source": "rules",
+            }
+        ],
+        "draft_versions": [{"version_id": "toc_v2", "section": "toc", "sequence": 2}],
+    }
+    read_rows = state_critic_findings(state, default_source="rules")
+    assert len(read_rows) == 1
+    assert read_rows[0]["version_id"] == "toc_v2"
+    assert read_rows[0]["id"] == read_rows[0]["finding_id"]
+
+    written = write_state_critic_findings(state, read_rows, default_source="rules")
+    assert len(written) == 1
+    notes = state.get("critic_notes")
+    assert isinstance(notes, dict)
+    assert notes.get("fatal_flaws") == written
+    assert state.get("critic_fatal_flaws") == written
+
+
+def test_finding_messages_returns_unique_entries():
+    findings = [
+        {"message": "Fix logframe baseline."},
+        {"message": "Fix logframe baseline."},
+        {"message": "Add ToC assumptions."},
+    ]
+    out = finding_messages(findings, fallback="Minor improvements suggested")
+    assert out == ["Fix logframe baseline.", "Add ToC assumptions."]

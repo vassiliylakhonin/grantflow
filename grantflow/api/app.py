@@ -79,7 +79,12 @@ from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace
 from grantflow.memory_bank.vector_store import vector_store
-from grantflow.swarm.findings import bind_findings_to_latest_versions, finding_primary_id, normalize_findings
+from grantflow.swarm.findings import (
+    canonicalize_findings,
+    finding_primary_id,
+    state_critic_findings,
+    write_state_critic_findings,
+)
 from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
 from grantflow.swarm.retrieval_query import donor_query_preset_terms
@@ -1105,8 +1110,7 @@ def _resolve_export_inputs(
     if not isinstance(review_comments, list):
         review_comments = []
     citations = [c for c in citations if isinstance(c, dict)]
-    critic_findings = normalize_findings(critic_findings, default_source="rules")
-    critic_findings = bind_findings_to_latest_versions(critic_findings, state=payload_state)
+    critic_findings = canonicalize_findings(critic_findings, state=payload_state, default_source="rules")
     review_comments = [c for c in review_comments if isinstance(c, dict)]
     return toc, logframe, str(donor_id), citations, critic_findings, review_comments
 
@@ -1326,27 +1330,22 @@ def _normalize_critic_fatal_flaws_for_job(job_id: str) -> Optional[Dict[str, Any
     state = job.get("state")
     if not isinstance(state, dict):
         return job
-    critic_notes = state.get("critic_notes")
-    if not isinstance(critic_notes, dict):
-        return job
-    raw_flaws = critic_notes.get("fatal_flaws")
-    if not isinstance(raw_flaws, list):
+    raw_flaws = state_critic_findings(state, default_source="rules")
+    if not raw_flaws:
         return job
 
-    normalized = normalize_findings(raw_flaws, previous_items=raw_flaws, default_source="rules")
-    normalized = bind_findings_to_latest_versions(normalized, state=state)
     now_iso = _utcnow_iso()
-    normalized_with_due = [_ensure_finding_due_at(item, now_iso=now_iso) for item in normalized]
-    changed = normalized_with_due != raw_flaws
+    normalized_with_due = [_ensure_finding_due_at(item, now_iso=now_iso) for item in raw_flaws]
+    existing_notes = state.get("critic_notes") if isinstance(state.get("critic_notes"), dict) else {}
+    existing_notes_flaws = existing_notes.get("fatal_flaws") if isinstance(existing_notes.get("fatal_flaws"), list) else []
+    existing_state_flaws = state.get("critic_fatal_flaws") if isinstance(state.get("critic_fatal_flaws"), list) else []
+    changed = normalized_with_due != existing_notes_flaws or normalized_with_due != existing_state_flaws
 
     if not changed:
         return job
 
-    next_notes = dict(critic_notes)
-    next_notes["fatal_flaws"] = normalized_with_due
     next_state = dict(state)
-    next_state["critic_notes"] = next_notes
-    next_state["critic_fatal_flaws"] = normalized_with_due
+    write_state_critic_findings(next_state, normalized_with_due, previous_items=normalized_with_due, default_source="rules")
     return _update_job(job_id, state=next_state)
 
 
@@ -1389,11 +1388,7 @@ def _recompute_review_workflow_sla(
 
     state = job.get("state")
     state_dict = state if isinstance(state, dict) else {}
-    critic_notes = state_dict.get("critic_notes")
-    critic_notes_dict = critic_notes if isinstance(critic_notes, dict) else {}
-    raw_flaws = critic_notes_dict.get("fatal_flaws")
-    flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
-    flaws = bind_findings_to_latest_versions(flaws, state=state)
+    flaws = state_critic_findings(state_dict, default_source="rules")
 
     finding_checked_count = len(flaws)
     finding_updated_count = 0
@@ -1412,16 +1407,12 @@ def _recompute_review_workflow_sla(
 
     next_state = state_dict
     state_changed = False
-    if (
-        isinstance(state, dict)
-        and isinstance(critic_notes, dict)
-        and (next_flaws != (raw_flaws if isinstance(raw_flaws, list) else []))
-    ):
-        next_notes = dict(critic_notes_dict)
-        next_notes["fatal_flaws"] = next_flaws
+    existing_notes = state_dict.get("critic_notes") if isinstance(state_dict.get("critic_notes"), dict) else {}
+    existing_notes_flaws = existing_notes.get("fatal_flaws") if isinstance(existing_notes.get("fatal_flaws"), list) else []
+    existing_state_flaws = state_dict.get("critic_fatal_flaws") if isinstance(state_dict.get("critic_fatal_flaws"), list) else []
+    if isinstance(state, dict) and (next_flaws != existing_notes_flaws or next_flaws != existing_state_flaws):
         next_state = dict(state_dict)
-        next_state["critic_notes"] = next_notes
-        next_state["critic_fatal_flaws"] = next_flaws
+        write_state_critic_findings(next_state, next_flaws, previous_items=next_flaws, default_source="rules")
         state_changed = True
 
     working_job = dict(job)
@@ -1508,13 +1499,8 @@ def _find_critic_fatal_flaw(job: Dict[str, Any], finding_id: str) -> Optional[Di
     state = job.get("state")
     if not isinstance(state, dict):
         return None
-    critic_notes = state.get("critic_notes")
-    if not isinstance(critic_notes, dict):
-        return None
-    raw_flaws = critic_notes.get("fatal_flaws")
-    if not isinstance(raw_flaws, list):
-        return None
-    for item in raw_flaws:
+    flaws = state_critic_findings(state, default_source="rules")
+    for item in flaws:
         if not isinstance(item, dict):
             continue
         if finding_primary_id(item) == finding_id:
@@ -1542,9 +1528,7 @@ def _set_critic_fatal_flaw_status(
     if not isinstance(critic_notes, dict):
         raise HTTPException(status_code=404, detail="Critic findings not found")
 
-    raw_flaws = critic_notes.get("fatal_flaws")
-    flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
-    flaws = bind_findings_to_latest_versions(flaws, state=state)
+    flaws = state_critic_findings(state, default_source="rules")
     if not flaws:
         raise HTTPException(status_code=404, detail="Critic findings not found")
 
@@ -1574,11 +1558,8 @@ def _set_critic_fatal_flaw_status(
         raise HTTPException(status_code=404, detail="Critic finding not found")
 
     if changed:
-        next_notes = dict(critic_notes)
-        next_notes["fatal_flaws"] = next_flaws
         next_state = dict(state)
-        next_state["critic_notes"] = next_notes
-        next_state["critic_fatal_flaws"] = next_flaws
+        write_state_critic_findings(next_state, next_flaws, previous_items=next_flaws, default_source="rules")
         _update_job(job_id, state=next_state)
         _record_job_event(
             job_id,
@@ -1684,9 +1665,7 @@ def _set_critic_fatal_flaws_status_bulk(
     if not isinstance(critic_notes, dict):
         raise HTTPException(status_code=404, detail="Critic findings not found")
 
-    raw_flaws = critic_notes.get("fatal_flaws")
-    flaws = normalize_findings(raw_flaws if isinstance(raw_flaws, list) else [], default_source="rules")
-    flaws = bind_findings_to_latest_versions(flaws, state=state)
+    flaws = state_critic_findings(state, default_source="rules")
     if not flaws:
         raise HTTPException(status_code=404, detail="Critic findings not found")
 
@@ -1740,11 +1719,8 @@ def _set_critic_fatal_flaws_status_bulk(
             changed_items.append(updated)
 
     if changed:
-        next_notes = dict(critic_notes)
-        next_notes["fatal_flaws"] = next_flaws
         next_state = dict(state)
-        next_state["critic_notes"] = next_notes
-        next_state["critic_fatal_flaws"] = next_flaws
+        write_state_critic_findings(next_state, next_flaws, previous_items=next_flaws, default_source="rules")
         _update_job(job_id, state=next_state)
         for updated in changed_items:
             _record_job_event(

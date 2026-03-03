@@ -12,7 +12,7 @@ from grantflow.swarm.critic_llm_policy import is_advisory_llm_message as _is_adv
 from grantflow.swarm.critic_llm_policy import llm_finding_policy_class as _llm_finding_policy_class
 from grantflow.swarm.critic_rules import CriticFatalFlaw, evaluate_rule_based_critic
 from grantflow.swarm.citations import citation_traceability_status
-from grantflow.swarm.findings import bind_findings_to_latest_versions, normalize_findings
+from grantflow.swarm.findings import canonicalize_findings, finding_messages
 from grantflow.swarm.grounding_gate import evaluate_grounding_gate
 from grantflow.swarm.llm_provider import (
     chat_openai_init_kwargs,
@@ -116,8 +116,7 @@ def _llm_flaws_to_structured(flaws: List[Dict[str, Any]], *, state: Dict[str, An
                 )
             )
         )
-    normalized = normalize_findings(structured, default_source="llm")
-    return bind_findings_to_latest_versions(normalized, state=state)
+    return canonicalize_findings(structured, state=state, default_source="llm")
 
 
 def _advisory_llm_findings_context(
@@ -250,8 +249,7 @@ def _normalize_fatal_flaw_items(
     state: Dict[str, Any],
     previous_items: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
-    normalized = normalize_findings(items, previous_items=previous_items, default_source="rules")
-    return bind_findings_to_latest_versions(normalized, state=state)
+    return canonicalize_findings(items, state=state, previous_items=previous_items, default_source="rules")
 
 
 def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -526,11 +524,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         previous_items=previous_fatal_flaws,
     )
 
-    fatal_flaw_messages = [
-        str(item.get("message") or "") for item in fatal_flaw_items if str(item.get("message") or "").strip()
-    ]
-    if not fatal_flaw_messages:
-        fatal_flaw_messages = ["Minor improvements suggested"]
+    fatal_flaw_messages = finding_messages(fatal_flaw_items, fallback="Minor improvements suggested")
 
     revision_parts = [rule_report.revision_instructions]
     if evaluation is not None and str(evaluation.revision_instructions or "").strip():
