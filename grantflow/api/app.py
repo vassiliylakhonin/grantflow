@@ -2995,6 +2995,17 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
                 resume_literal = "mel" if stage_literal == "toc" else "critic"
             _pause_for_hitl(job_id, final_state, stage=stage_literal, resume_from=resume_literal)
             return
+        if bool(final_state.get("hitl_pending")):
+            _set_job(
+                job_id,
+                {
+                    "status": "error",
+                    "error": "HITL pending state returned without a valid checkpoint stage",
+                    "state": final_state,
+                    "hitl_enabled": True,
+                },
+            )
+            return
         for key in RUNTIME_PIPELINE_STATE_KEYS:
             final_state.pop(key, None)
         final_state["hitl_pending"] = False

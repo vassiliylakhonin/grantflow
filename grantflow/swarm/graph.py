@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from langgraph.graph import END, StateGraph
 
-from grantflow.swarm.hitl import hitl_manager
 from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes.critic import red_team_critic
 from grantflow.swarm.nodes.discovery import validate_input_richness
 from grantflow.swarm.nodes.mel_specialist import mel_assign_indicators
-from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id
+from grantflow.swarm.state_contract import normalize_state_contract
 
 
 def _start_node(state: dict) -> dict:
@@ -62,15 +61,10 @@ def _configured_hitl_stages(state: dict) -> set[str]:
 
 
 def _set_hitl_pending_state(state: dict, *, stage: str, resume_from: str) -> dict:
-    snapshot = dict(state)
-    snapshot.pop("_start_at", None)
-    snapshot.pop("hitl_checkpoint_id", None)
-    donor_id = state_donor_id(state, default="unknown")
-    checkpoint_id = hitl_manager.create_checkpoint(stage, snapshot, donor_id)
     state["hitl_pending"] = True
     state["hitl_checkpoint_stage"] = stage
     state["hitl_resume_from"] = resume_from
-    state["hitl_checkpoint_id"] = checkpoint_id
+    state.pop("hitl_checkpoint_id", None)
     return state
 
 

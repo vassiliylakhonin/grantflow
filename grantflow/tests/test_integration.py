@@ -6121,6 +6121,45 @@ def test_resume_clears_hitl_runtime_flags_before_relaunch(monkeypatch):
     assert job.get("checkpoint_stage") is None
 
 
+def test_run_hitl_pipeline_errors_when_pending_marker_has_no_checkpoint_stage(monkeypatch):
+    job_id = "hitl-invalid-pending-marker-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "accepted",
+            "state": {
+                "donor_id": "usaid",
+                "input_context": {"project": "Marker test", "country": "Kenya"},
+                "hitl_enabled": True,
+            },
+            "hitl_enabled": True,
+        },
+    )
+
+    def _stub_invoke(state):
+        out = dict(state)
+        out["hitl_pending"] = True
+        out.pop("hitl_checkpoint_stage", None)
+        out.pop("hitl_resume_from", None)
+        return out
+
+    class _StubGraph:
+        def invoke(self, state):
+            return _stub_invoke(state)
+
+    monkeypatch.setattr(api_app_module, "grantflow_graph", _StubGraph())
+
+    state = {"donor_id": "usaid", "input_context": {"project": "Marker test", "country": "Kenya"}, "hitl_enabled": True}
+    api_app_module._run_hitl_pipeline(job_id, state, "start")
+
+    status = client.get(f"/status/{job_id}")
+    assert status.status_code == 200
+    body = status.json()
+    assert body["status"] == "error"
+    assert "without a valid checkpoint stage" in str(body.get("error") or "")
+    assert body.get("checkpoint_id") in {None, ""}
+
+
 def test_resume_request_id_is_idempotent(monkeypatch):
     checkpoint_id = api_app_module.hitl_manager.create_checkpoint(
         stage="toc",
