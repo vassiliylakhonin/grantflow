@@ -1,0 +1,1459 @@
+{
+  "status": "done",
+  "state": {
+    "donor_id": "state_department",
+    "input_context": {
+      "project": "Independent Media Resilience and Civic Information Integrity",
+      "country": "Georgia",
+      "region": "National with regional media hubs",
+      "timeframe": "2026-2028 (24 months)",
+      "problem": "Independent media and civic information ecosystems face sustained pressure from disinformation, legal uncertainty, and uneven institutional resilience.",
+      "target_population": "Independent journalists, media editors, civic communicators, and local partner organizations.",
+      "expected_change": "Media and civic actors strengthen professional practice, risk mitigation, and coordinated response mechanisms that protect information integrity.",
+      "key_activities": [
+        "editorial resilience and legal-risk training",
+        "collaborative fact-checking and verification routines",
+        "grants for audience engagement and safety protocols",
+        "stakeholder coordination with civic and legal support actors",
+        "monitoring of media integrity and response outcomes"
+      ]
+    },
+    "generate_preflight": {
+      "donor_id": "state_department",
+      "retrieval_namespace": "us_state_department_guidance",
+      "retrieval_query_terms": "strategic context | stakeholder map | risk mitigation | program outcomes",
+      "expected_doc_families": [
+        "donor_policy",
+        "country_context",
+        "risk_context",
+        "implementation_reference"
+      ],
+      "present_doc_families": [
+        "donor_policy",
+        "country_context",
+        "risk_context",
+        "implementation_reference"
+      ],
+      "missing_doc_families": [],
+      "expected_count": 4,
+      "loaded_count": 4,
+      "coverage_rate": 1.0,
+      "inventory_total_uploads": 4,
+      "inventory_family_count": 4,
+      "namespace_empty": false,
+      "warning_count": 0,
+      "warning_level": "none",
+      "risk_level": "none",
+      "grounding_risk_level": "low",
+      "grounding_policy": {
+        "mode": "warn",
+        "risk_level": "low",
+        "reasons": [
+          "sufficient_readiness_signals"
+        ],
+        "summary": "readiness_signals_ok",
+        "blocking": false,
+        "go_ahead": true,
+        "thresholds": {
+          "high_risk_coverage_threshold": 0.5,
+          "medium_risk_coverage_threshold": 0.8,
+          "min_uploads": 3
+        }
+      },
+      "go_ahead": true,
+      "warnings": []
+    },
+    "strict_preflight": false,
+    "llm_mode": true,
+    "hitl_checkpoints": [],
+    "iteration_count": 1,
+    "max_iterations": 3,
+    "critic_score": 9.25,
+    "needs_revision": false,
+    "critic_notes": {
+      "score": 9.25,
+      "fatal_flaws": [],
+      "fatal_flaw_messages": [
+        "Minor improvements suggested"
+      ],
+      "revision_instructions": "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.\n\nLLM critic fallback reason: LLM unavailable: Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}",
+      "rule_checks": [
+        {
+          "code": "INPUT_BRIEF_MINIMUM_CONTEXT",
+          "status": "pass",
+          "section": "general",
+          "detail": "8 non-empty input field(s)"
+        },
+        {
+          "code": "TOC_PRESENT",
+          "status": "pass",
+          "section": "toc",
+          "detail": null
+        },
+        {
+          "code": "TOC_SCHEMA_VALID",
+          "status": "pass",
+          "section": "toc",
+          "detail": null
+        },
+        {
+          "code": "STATE_STRATEGIC_CONTEXT_PRESENT",
+          "status": "pass",
+          "section": "toc",
+          "detail": null
+        },
+        {
+          "code": "STATE_STAKEHOLDER_MAP_PRESENT",
+          "status": "pass",
+          "section": "toc",
+          "detail": "2 stakeholder_map entries"
+        },
+        {
+          "code": "STATE_RISK_MITIGATION_PRESENT",
+          "status": "pass",
+          "section": "toc",
+          "detail": "2 risk_mitigation entries"
+        },
+        {
+          "code": "TOC_CLAIM_CITATIONS",
+          "status": "pass",
+          "section": "toc",
+          "detail": "7 claim-level architect citations"
+        },
+        {
+          "code": "LOGFRAME_INDICATORS_PRESENT",
+          "status": "pass",
+          "section": "logframe",
+          "detail": "3 indicators"
+        },
+        {
+          "code": "LOGFRAME_CITATIONS_PRESENT",
+          "status": "pass",
+          "section": "logframe",
+          "detail": "3 MEL citations"
+        }
+      ],
+      "rule_score": 9.25,
+      "llm_score": null,
+      "engine": "rules",
+      "grounding_gate": {
+        "mode": "warn",
+        "passed": true,
+        "blocking": false,
+        "severity": "none",
+        "summary": "ok",
+        "reasons": [],
+        "citation_count": 10,
+        "low_confidence_citation_count": 0,
+        "rag_low_confidence_citation_count": 0,
+        "fallback_namespace_citation_count": 0,
+        "traceability_complete_citation_count": 10,
+        "traceability_partial_citation_count": 0,
+        "traceability_missing_citation_count": 0,
+        "traceability_gap_citation_count": 0,
+        "traceability_gap_ratio": 0.0,
+        "weak_rag_or_fallback_ratio": 0.0,
+        "low_confidence_ratio": 0.0,
+        "architect_retrieval_enabled": true,
+        "architect_retrieval_hits_count": 3,
+        "thresholds": {
+          "min_citations_for_calibration": 5,
+          "max_weak_rag_or_fallback_ratio": 0.6,
+          "max_low_confidence_ratio": 0.75,
+          "max_traceability_gap_ratio": 0.6
+        }
+      },
+      "llm_reason": "LLM unavailable: Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+    },
+    "critic_feedback_history": [
+      "Iteration 1: score=9.25; flaws=['Minor improvements suggested']; instructions=Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.\n\nLLM critic fallback reason: LLM unavailable: Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+    ],
+    "hitl_pending": false,
+    "errors": [],
+    "donor": "state_department",
+    "input": {
+      "project": "Independent Media Resilience and Civic Information Integrity",
+      "country": "Georgia",
+      "region": "National with regional media hubs",
+      "timeframe": "2026-2028 (24 months)",
+      "problem": "Independent media and civic information ecosystems face sustained pressure from disinformation, legal uncertainty, and uneven institutional resilience.",
+      "target_population": "Independent journalists, media editors, civic communicators, and local partner organizations.",
+      "expected_change": "Media and civic actors strengthen professional practice, risk mitigation, and coordinated response mechanisms that protect information integrity.",
+      "key_activities": [
+        "editorial resilience and legal-risk training",
+        "collaborative fact-checking and verification routines",
+        "grants for audience engagement and safety protocols",
+        "stakeholder coordination with civic and legal support actors",
+        "monitoring of media integrity and response outcomes"
+      ]
+    },
+    "iteration": 1,
+    "quality_score": 9.25,
+    "hitl_enabled": false,
+    "toc": {
+      "strategic_context": "Strategic context for Independent Media Resilience and Civic Information Integrity 1",
+      "program_goal": "Improve Independent Media Resilience and Civic Information Integrity outcomes in Georgia.",
+      "objectives": [
+        {
+          "objective": "Independent Media Resilience and Civic Information Integrity objective 1 aligned with state_department priorities.",
+          "line_of_effort": "Governance and civic resilience",
+          "expected_change": "Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic informat"
+        },
+        {
+          "objective": "Independent Media Resilience and Civic Information Integrity objective 2 aligned with state_department priorities.",
+          "line_of_effort": "Governance and civic resilience",
+          "expected_change": "Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic informat"
+        }
+      ],
+      "stakeholder_map": [
+        "Stakeholder 1: implementing partner and relevant public institutions",
+        "Stakeholder 2: implementing partner and relevant public institutions"
+      ],
+      "risk_mitigation": [
+        "Assumption 1: enabling conditions remain stable for implementation.",
+        "Assumption 2: enabling conditions remain stable for implementation."
+      ]
+    },
+    "toc_validation": {
+      "valid": true,
+      "schema_name": "StateDeptTOC",
+      "error_count": 0,
+      "errors": []
+    },
+    "architect_retrieval": {
+      "enabled": true,
+      "namespace": "us_state_department_guidance",
+      "query": "architect | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+      "query_variants": [
+        "architect | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+        "Independent Media Resilience and Civic Information Integrity Georgia state_department theory of change objectives outcomes results chain assumptions",
+        "Independent Media Resilience and Civic Information Integrity Georgia implementation pathways indicators donor compliance risks constraints"
+      ],
+      "query_variants_count": 3,
+      "top_k": 3,
+      "rerank_pool_size": 12,
+      "min_hit_confidence": 0.25,
+      "hits_count": 3,
+      "candidate_hits_count": 20,
+      "used_results": 3,
+      "filtered_out_low_confidence": 0,
+      "traceability_counts": {
+        "complete": 3,
+        "partial": 0,
+        "missing": 0
+      },
+      "hit_labels": [
+        "03_georgia_information_integrity_context_seed.pdf",
+        "03_georgia_information_integrity_context_seed.pdf",
+        "03_georgia_information_integrity_context_seed.pdf"
+      ],
+      "avg_retrieval_confidence": 0.3397,
+      "avg_rerank_score": 0.4198,
+      "hits": [
+        {
+          "retrieval_rank": 1,
+          "query_variant_index": 3,
+          "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+          "source": "03_georgia_information_integrity_context_seed.pdf",
+          "page": 1,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+          "retrieval_confidence": 0.3397,
+          "rerank_score": 0.4311,
+          "traceability_status": "complete",
+          "namespace": "us_state_department_guidance"
+        },
+        {
+          "retrieval_rank": 2,
+          "query_variant_index": 3,
+          "doc_id": "us_state_department_guidance_grantflow_ingest_oxintcw0_p1_c0",
+          "source": "03_georgia_information_integrity_context_seed.pdf",
+          "page": 1,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_oxintcw0_p1_c0",
+          "retrieval_confidence": 0.3397,
+          "rerank_score": 0.4198,
+          "traceability_status": "complete",
+          "namespace": "us_state_department_guidance"
+        },
+        {
+          "retrieval_rank": 3,
+          "query_variant_index": 3,
+          "doc_id": "us_state_department_guidance_grantflow_ingest_3wy7kn6d_p1_c0",
+          "source": "03_georgia_information_integrity_context_seed.pdf",
+          "page": 1,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_3wy7kn6d_p1_c0",
+          "retrieval_confidence": 0.3397,
+          "rerank_score": 0.4086,
+          "traceability_status": "complete",
+          "namespace": "us_state_department_guidance"
+        }
+      ]
+    },
+    "toc_generation_meta": {
+      "engine": "fallback:contract_synthesizer",
+      "llm_used": false,
+      "llm_requested": true,
+      "llm_available": true,
+      "llm_attempted": true,
+      "retrieval_used": true,
+      "fallback_used": true,
+      "fallback_class": "emergency",
+      "architect_mode": "llm",
+      "schema_name": "StateDeptTOC",
+      "citation_policy": {
+        "default_high_confidence_threshold": 0.35,
+        "threshold_mode": "donor_section",
+        "donor_overrides": {
+          "eu": 0.34,
+          "giz": 0.32,
+          "state_department": 0.4,
+          "us_state_department": 0.4,
+          "usaid": 0.38,
+          "worldbank": 0.34
+        },
+        "low_confidence_type": "rag_low_confidence"
+      },
+      "llm_fallback_reason": "Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+    },
+    "toc_draft": {
+      "toc": {
+        "strategic_context": "Strategic context for Independent Media Resilience and Civic Information Integrity 1",
+        "program_goal": "Improve Independent Media Resilience and Civic Information Integrity outcomes in Georgia.",
+        "objectives": [
+          {
+            "objective": "Independent Media Resilience and Civic Information Integrity objective 1 aligned with state_department priorities.",
+            "line_of_effort": "Governance and civic resilience",
+            "expected_change": "Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic informat"
+          },
+          {
+            "objective": "Independent Media Resilience and Civic Information Integrity objective 2 aligned with state_department priorities.",
+            "line_of_effort": "Governance and civic resilience",
+            "expected_change": "Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic informat"
+          }
+        ],
+        "stakeholder_map": [
+          "Stakeholder 1: implementing partner and relevant public institutions",
+          "Stakeholder 2: implementing partner and relevant public institutions"
+        ],
+        "risk_mitigation": [
+          "Assumption 1: enabling conditions remain stable for implementation.",
+          "Assumption 2: enabling conditions remain stable for implementation."
+        ]
+      },
+      "citation": "Based on us_state_department_guidance",
+      "generation_meta": {
+        "engine": "fallback:contract_synthesizer",
+        "llm_used": false,
+        "llm_requested": true,
+        "llm_available": true,
+        "llm_attempted": true,
+        "retrieval_used": true,
+        "fallback_used": true,
+        "fallback_class": "emergency",
+        "architect_mode": "llm",
+        "schema_name": "StateDeptTOC",
+        "citation_policy": {
+          "default_high_confidence_threshold": 0.35,
+          "threshold_mode": "donor_section",
+          "donor_overrides": {
+            "eu": 0.34,
+            "giz": 0.32,
+            "state_department": 0.4,
+            "us_state_department": 0.4,
+            "usaid": 0.38,
+            "worldbank": 0.34
+          },
+          "low_confidence_type": "rag_low_confidence"
+        },
+        "llm_fallback_reason": "Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+      },
+      "validation": {
+        "valid": true,
+        "schema_name": "StateDeptTOC",
+        "error_count": 0,
+        "errors": []
+      },
+      "architect_retrieval": {
+        "enabled": true,
+        "namespace": "us_state_department_guidance",
+        "query": "architect | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+        "query_variants": [
+          "architect | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+          "Independent Media Resilience and Civic Information Integrity Georgia state_department theory of change objectives outcomes results chain assumptions",
+          "Independent Media Resilience and Civic Information Integrity Georgia implementation pathways indicators donor compliance risks constraints"
+        ],
+        "query_variants_count": 3,
+        "top_k": 3,
+        "rerank_pool_size": 12,
+        "min_hit_confidence": 0.25,
+        "hits_count": 3,
+        "candidate_hits_count": 20,
+        "used_results": 3,
+        "filtered_out_low_confidence": 0,
+        "traceability_counts": {
+          "complete": 3,
+          "partial": 0,
+          "missing": 0
+        },
+        "hit_labels": [
+          "03_georgia_information_integrity_context_seed.pdf",
+          "03_georgia_information_integrity_context_seed.pdf",
+          "03_georgia_information_integrity_context_seed.pdf"
+        ],
+        "avg_retrieval_confidence": 0.3397,
+        "avg_rerank_score": 0.4198,
+        "hits": [
+          {
+            "retrieval_rank": 1,
+            "query_variant_index": 3,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+            "source": "03_georgia_information_integrity_context_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+            "retrieval_confidence": 0.3397,
+            "rerank_score": 0.4311,
+            "traceability_status": "complete",
+            "namespace": "us_state_department_guidance"
+          },
+          {
+            "retrieval_rank": 2,
+            "query_variant_index": 3,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_oxintcw0_p1_c0",
+            "source": "03_georgia_information_integrity_context_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_oxintcw0_p1_c0",
+            "retrieval_confidence": 0.3397,
+            "rerank_score": 0.4198,
+            "traceability_status": "complete",
+            "namespace": "us_state_department_guidance"
+          },
+          {
+            "retrieval_rank": 3,
+            "query_variant_index": 3,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_3wy7kn6d_p1_c0",
+            "source": "03_georgia_information_integrity_context_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_3wy7kn6d_p1_c0",
+            "retrieval_confidence": 0.3397,
+            "rerank_score": 0.4086,
+            "traceability_status": "complete",
+            "namespace": "us_state_department_guidance"
+          }
+        ]
+      }
+    },
+    "draft_versions": [
+      {
+        "version_id": "toc_v1",
+        "sequence": 1,
+        "section": "toc",
+        "node": "architect",
+        "iteration": 1,
+        "content": {
+          "toc": {
+            "strategic_context": "Strategic context for Independent Media Resilience and Civic Information Integrity 1",
+            "program_goal": "Improve Independent Media Resilience and Civic Information Integrity outcomes in Georgia.",
+            "objectives": [
+              {
+                "objective": "Independent Media Resilience and Civic Information Integrity objective 1 aligned with state_department priorities.",
+                "line_of_effort": "Governance and civic resilience",
+                "expected_change": "Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic informat"
+              },
+              {
+                "objective": "Independent Media Resilience and Civic Information Integrity objective 2 aligned with state_department priorities.",
+                "line_of_effort": "Governance and civic resilience",
+                "expected_change": "Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic informat"
+              }
+            ],
+            "stakeholder_map": [
+              "Stakeholder 1: implementing partner and relevant public institutions",
+              "Stakeholder 2: implementing partner and relevant public institutions"
+            ],
+            "risk_mitigation": [
+              "Assumption 1: enabling conditions remain stable for implementation.",
+              "Assumption 2: enabling conditions remain stable for implementation."
+            ]
+          },
+          "citation": "Based on us_state_department_guidance",
+          "generation_meta": {
+            "engine": "fallback:contract_synthesizer",
+            "llm_used": false,
+            "llm_requested": true,
+            "llm_available": true,
+            "llm_attempted": true,
+            "retrieval_used": true,
+            "fallback_used": true,
+            "fallback_class": "emergency",
+            "architect_mode": "llm",
+            "schema_name": "StateDeptTOC",
+            "citation_policy": {
+              "default_high_confidence_threshold": 0.35,
+              "threshold_mode": "donor_section",
+              "donor_overrides": {
+                "eu": 0.34,
+                "giz": 0.32,
+                "state_department": 0.4,
+                "us_state_department": 0.4,
+                "usaid": 0.38,
+                "worldbank": 0.34
+              },
+              "low_confidence_type": "rag_low_confidence"
+            },
+            "llm_fallback_reason": "Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+          },
+          "validation": {
+            "valid": true,
+            "schema_name": "StateDeptTOC",
+            "error_count": 0,
+            "errors": []
+          },
+          "architect_retrieval": {
+            "enabled": true,
+            "namespace": "us_state_department_guidance",
+            "query": "architect | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+            "query_variants": [
+              "architect | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+              "Independent Media Resilience and Civic Information Integrity Georgia state_department theory of change objectives outcomes results chain assumptions",
+              "Independent Media Resilience and Civic Information Integrity Georgia implementation pathways indicators donor compliance risks constraints"
+            ],
+            "query_variants_count": 3,
+            "top_k": 3,
+            "rerank_pool_size": 12,
+            "min_hit_confidence": 0.25,
+            "hits_count": 3,
+            "candidate_hits_count": 20,
+            "used_results": 3,
+            "filtered_out_low_confidence": 0,
+            "traceability_counts": {
+              "complete": 3,
+              "partial": 0,
+              "missing": 0
+            },
+            "hit_labels": [
+              "03_georgia_information_integrity_context_seed.pdf",
+              "03_georgia_information_integrity_context_seed.pdf",
+              "03_georgia_information_integrity_context_seed.pdf"
+            ],
+            "avg_retrieval_confidence": 0.3397,
+            "avg_rerank_score": 0.4198,
+            "hits": [
+              {
+                "retrieval_rank": 1,
+                "query_variant_index": 3,
+                "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+                "source": "03_georgia_information_integrity_context_seed.pdf",
+                "page": 1,
+                "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+                "retrieval_confidence": 0.3397,
+                "rerank_score": 0.4311,
+                "traceability_status": "complete",
+                "namespace": "us_state_department_guidance"
+              },
+              {
+                "retrieval_rank": 2,
+                "query_variant_index": 3,
+                "doc_id": "us_state_department_guidance_grantflow_ingest_oxintcw0_p1_c0",
+                "source": "03_georgia_information_integrity_context_seed.pdf",
+                "page": 1,
+                "chunk_id": "us_state_department_guidance_grantflow_ingest_oxintcw0_p1_c0",
+                "retrieval_confidence": 0.3397,
+                "rerank_score": 0.4198,
+                "traceability_status": "complete",
+                "namespace": "us_state_department_guidance"
+              },
+              {
+                "retrieval_rank": 3,
+                "query_variant_index": 3,
+                "doc_id": "us_state_department_guidance_grantflow_ingest_3wy7kn6d_p1_c0",
+                "source": "03_georgia_information_integrity_context_seed.pdf",
+                "page": 1,
+                "chunk_id": "us_state_department_guidance_grantflow_ingest_3wy7kn6d_p1_c0",
+                "retrieval_confidence": 0.3397,
+                "rerank_score": 0.4086,
+                "traceability_status": "complete",
+                "namespace": "us_state_department_guidance"
+              }
+            ]
+          }
+        },
+        "content_hash": "{\"architect_retrieval\":{\"avg_rerank_score\":0.4198,\"avg_retrieval_confidence\":0.3397,\"candidate_hits_count\":20,\"enabled\":true,\"filtered_out_low_confidence\":0,\"hit_labels\":[\"03_georgia_information_integrity_context_seed.pdf\",\"03_georgia_information_integrity_context_seed.pdf\",\"03_georgia_information_integrity_context_seed.pdf\"],\"hits\":[{\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0\",\"doc_id\":\"us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0\",\"namespace\":\"us_state_department_guidance\",\"page\":1,\"query_variant_index\":3,\"rerank_score\":0.4311,\"retrieval_confidence\":0.3397,\"retrieval_rank\":1,\"source\":\"03_georgia_information_integrity_context_seed.pdf\",\"traceability_status\":\"complete\"},{\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_oxintcw0_p1_c0\",\"doc_id\":\"us_state_department_guidance_grantflow_ingest_oxintcw0_p1_c0\",\"namespace\":\"us_state_department_guidance\",\"page\":1,\"query_variant_index\":3,\"rerank_score\":0.4198,\"retrieval_confidence\":0.3397,\"retrieval_rank\":2,\"source\":\"03_georgia_information_integrity_context_seed.pdf\",\"traceability_status\":\"complete\"},{\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_3wy7kn6d_p1_c0\",\"doc_id\":\"us_state_department_guidance_grantflow_ingest_3wy7kn6d_p1_c0\",\"namespace\":\"us_state_department_guidance\",\"page\":1,\"query_variant_index\":3,\"rerank_score\":0.4086,\"retrieval_confidence\":0.3397,\"retrieval_rank\":3,\"source\":\"03_georgia_information_integrity_context_seed.pdf\",\"traceability_status\":\"complete\"}],\"hits_count\":3,\"min_hit_confidence\":0.25,\"namespace\":\"us_state_department_guidance\",\"query\":\"architect | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes\",\"query_variants\":[\"architect | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes\",\"Independent Media Resilience and Civic Information Integrity Georgia state_department theory of change objectives outcomes results chain assumptions\",\"Independent Media Resilience and Civic Information Integrity Georgia implementation pathways indicators donor compliance risks constraints\"],\"query_variants_count\":3,\"rerank_pool_size\":12,\"top_k\":3,\"traceability_counts\":{\"complete\":3,\"missing\":0,\"partial\":0},\"used_results\":3},\"citation\":\"Based on us_state_department_guidance\",\"generation_meta\":{\"architect_mode\":\"llm\",\"citation_policy\":{\"default_high_confidence_threshold\":0.35,\"donor_overrides\":{\"eu\":0.34,\"giz\":0.32,\"state_department\":0.4,\"us_state_department\":0.4,\"usaid\":0.38,\"worldbank\":0.34},\"low_confidence_type\":\"rag_low_confidence\",\"threshold_mode\":\"donor_section\"},\"engine\":\"fallback:contract_synthesizer\",\"fallback_class\":\"emergency\",\"fallback_used\":true,\"llm_attempted\":true,\"llm_available\":true,\"llm_fallback_reason\":\"Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}\",\"llm_requested\":true,\"llm_used\":false,\"retrieval_used\":true,\"schema_name\":\"StateDeptTOC\"},\"toc\":{\"objectives\":[{\"expected_change\":\"Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed Brief)\\nContext snapshot\\nIndependent media and civic informat\",\"line_of_effort\":\"Governance and civic resilience\",\"objective\":\"Independent Media Resilience and Civic Information Integrity objective 1 aligned with state_department priorities.\"},{\"expected_change\":\"Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed Brief)\\nContext snapshot\\nIndependent media and civic informat\",\"line_of_effort\":\"Governance and civic resilience\",\"objective\":\"Independent Media Resilience and Civic Information Integrity objective 2 aligned with state_department priorities.\"}],\"program_goal\":\"Improve Independent Media Resilience and Civic Information Integrity outcomes in Georgia.\",\"risk_mitigation\":[\"Assumption 1: enabling conditions remain stable for implementation.\",\"Assumption 2: enabling conditions remain stable for implementation.\"],\"stakeholder_map\":[\"Stakeholder 1: implementing partner and relevant public institutions\",\"Stakeholder 2: implementing partner and relevant public institutions\"],\"strategic_context\":\"Strategic context for Independent Media Resilience and Civic Information Integrity 1\"},\"validation\":{\"error_count\":0,\"errors\":[],\"schema_name\":\"StateDeptTOC\",\"valid\":true}}"
+      },
+      {
+        "version_id": "logframe_v1",
+        "sequence": 2,
+        "section": "logframe",
+        "node": "mel_specialist",
+        "iteration": 0,
+        "content": {
+          "indicators": [
+            {
+              "indicator_id": "IND_001",
+              "name": "Indicator from us_state_department_guidance #1",
+              "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+              "citation": "02_state_department_media_resilience_reference_seed.pdf",
+              "baseline": "TBD",
+              "target": "TBD",
+              "evidence_excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet"
+            },
+            {
+              "indicator_id": "IND_002",
+              "name": "Indicator from us_state_department_guidance #2",
+              "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+              "citation": "02_state_department_media_resilience_reference_seed.pdf",
+              "baseline": "TBD",
+              "target": "TBD",
+              "evidence_excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet"
+            },
+            {
+              "indicator_id": "IND_003",
+              "name": "Indicator from us_state_department_guidance #3",
+              "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+              "citation": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+              "baseline": "TBD",
+              "target": "TBD",
+              "evidence_excerpt": "State Department Risk Mitigation and Safeguards Guidance (Seed)\nRisk categories\n- Participant safety and retaliation risk.\n- Digital security and data exposure risk.\n- Reputational and political sensitivity risk.\nMitigation practices\n- Cond"
+            }
+          ],
+          "rag_trace": {
+            "namespace": "us_state_department_guidance",
+            "query": "mel | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+            "query_variants": [
+              "mel | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+              "Independent Media Resilience and Civic Information Integrity Georgia MEL indicators baseline target verification frequency",
+              "Independent Media Resilience and Civic Information Integrity Georgia monitoring evaluation learning results framework assumptions"
+            ],
+            "query_variants_count": 3,
+            "top_k": 3,
+            "rerank_pool_size": 12,
+            "min_hit_confidence": 0.3,
+            "used_results": 3,
+            "candidate_hits_count": 20,
+            "filtered_out_low_confidence": 5,
+            "avg_rerank_score": 0.2236,
+            "hits": [
+              {
+                "retrieval_rank": 1,
+                "query_variant_index": 3,
+                "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+                "source": "02_state_department_media_resilience_reference_seed.pdf",
+                "page": 1,
+                "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+                "retrieval_confidence": 0.3808,
+                "rerank_score": 0.2448
+              },
+              {
+                "retrieval_rank": 2,
+                "query_variant_index": 3,
+                "doc_id": "us_state_department_guidance_grantflow_ingest_tp7l2jjq_p1_c0",
+                "source": "02_state_department_media_resilience_reference_seed.pdf",
+                "page": 1,
+                "chunk_id": "us_state_department_guidance_grantflow_ingest_tp7l2jjq_p1_c0",
+                "retrieval_confidence": 0.3808,
+                "rerank_score": 0.2148
+              },
+              {
+                "retrieval_rank": 1,
+                "query_variant_index": 1,
+                "doc_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+                "source": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+                "page": 1,
+                "chunk_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+                "retrieval_confidence": 0.3614,
+                "rerank_score": 0.2112
+              }
+            ],
+            "avg_retrieval_confidence": 0.3743,
+            "citation_count": 3,
+            "indicator_count": 3,
+            "generation": {
+              "engine": "fallback:retrieval_template",
+              "llm_used": false,
+              "llm_requested": true,
+              "llm_available": true,
+              "llm_attempted": true,
+              "retrieval_used": true,
+              "fallback_used": true,
+              "fallback_class": "emergency",
+              "max_prompt_evidence_hits": 3,
+              "llm_fallback_reason": "Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+            }
+          },
+          "citations": [
+            {
+              "stage": "mel",
+              "citation_type": "rag_result",
+              "namespace": "us_state_department_guidance",
+              "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+              "source": "02_state_department_media_resilience_reference_seed.pdf",
+              "page": 1,
+              "page_start": 1,
+              "page_end": 1,
+              "chunk": 0,
+              "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+              "label": "02_state_department_media_resilience_reference_seed.pdf",
+              "used_for": "IND_001",
+              "statement": "Indicator from us_state_department_guidance #1. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+              "excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet",
+              "citation_confidence": 0.3808,
+              "evidence_score": 0.3808,
+              "evidence_rank": 1,
+              "retrieval_rank": 1,
+              "retrieval_confidence": 0.3808,
+              "confidence_threshold": 0.3,
+              "traceability_status": "complete",
+              "traceability_complete": true
+            },
+            {
+              "stage": "mel",
+              "citation_type": "rag_result",
+              "namespace": "us_state_department_guidance",
+              "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+              "source": "02_state_department_media_resilience_reference_seed.pdf",
+              "page": 1,
+              "page_start": 1,
+              "page_end": 1,
+              "chunk": 0,
+              "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+              "label": "02_state_department_media_resilience_reference_seed.pdf",
+              "used_for": "IND_002",
+              "statement": "Indicator from us_state_department_guidance #2. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+              "excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet",
+              "citation_confidence": 0.3808,
+              "evidence_score": 0.3808,
+              "evidence_rank": 1,
+              "retrieval_rank": 1,
+              "retrieval_confidence": 0.3808,
+              "confidence_threshold": 0.3,
+              "traceability_status": "complete",
+              "traceability_complete": true
+            },
+            {
+              "stage": "mel",
+              "citation_type": "rag_result",
+              "namespace": "us_state_department_guidance",
+              "doc_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+              "source": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+              "page": 1,
+              "page_start": 1,
+              "page_end": 1,
+              "chunk": 0,
+              "chunk_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+              "label": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+              "used_for": "IND_003",
+              "statement": "Indicator from us_state_department_guidance #3. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+              "excerpt": "State Department Risk Mitigation and Safeguards Guidance (Seed)\nRisk categories\n- Participant safety and retaliation risk.\n- Digital security and data exposure risk.\n- Reputational and political sensitivity risk.\nMitigation practices\n- Cond",
+              "citation_confidence": 0.3614,
+              "evidence_score": 0.3614,
+              "evidence_rank": 3,
+              "retrieval_rank": 1,
+              "retrieval_confidence": 0.3614,
+              "confidence_threshold": 0.3,
+              "traceability_status": "complete",
+              "traceability_complete": true
+            }
+          ]
+        },
+        "content_hash": "{\"citations\":[{\"chunk\":0,\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0\",\"citation_confidence\":0.3808,\"citation_type\":\"rag_result\",\"confidence_threshold\":0.3,\"doc_id\":\"us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0\",\"evidence_rank\":1,\"evidence_score\":0.3808,\"excerpt\":\"State Department Media Resilience Implementation Reference (Seed)\\nImplementation focus areas\\n- Professional standards in editorial practice and verification.\\n- Capacity for coordinated response to disinformation campaigns.\\n- Practical safet\",\"label\":\"02_state_department_media_resilience_reference_seed.pdf\",\"namespace\":\"us_state_department_guidance\",\"page\":1,\"page_end\":1,\"page_start\":1,\"retrieval_confidence\":0.3808,\"retrieval_rank\":1,\"source\":\"02_state_department_media_resilience_reference_seed.pdf\",\"stage\":\"mel\",\"statement\":\"Indicator from us_state_department_guidance #1. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.\",\"traceability_complete\":true,\"traceability_status\":\"complete\",\"used_for\":\"IND_001\"},{\"chunk\":0,\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0\",\"citation_confidence\":0.3808,\"citation_type\":\"rag_result\",\"confidence_threshold\":0.3,\"doc_id\":\"us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0\",\"evidence_rank\":1,\"evidence_score\":0.3808,\"excerpt\":\"State Department Media Resilience Implementation Reference (Seed)\\nImplementation focus areas\\n- Professional standards in editorial practice and verification.\\n- Capacity for coordinated response to disinformation campaigns.\\n- Practical safet\",\"label\":\"02_state_department_media_resilience_reference_seed.pdf\",\"namespace\":\"us_state_department_guidance\",\"page\":1,\"page_end\":1,\"page_start\":1,\"retrieval_confidence\":0.3808,\"retrieval_rank\":1,\"source\":\"02_state_department_media_resilience_reference_seed.pdf\",\"stage\":\"mel\",\"statement\":\"Indicator from us_state_department_guidance #2. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.\",\"traceability_complete\":true,\"traceability_status\":\"complete\",\"used_for\":\"IND_002\"},{\"chunk\":0,\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0\",\"citation_confidence\":0.3614,\"citation_type\":\"rag_result\",\"confidence_threshold\":0.3,\"doc_id\":\"us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0\",\"evidence_rank\":3,\"evidence_score\":0.3614,\"excerpt\":\"State Department Risk Mitigation and Safeguards Guidance (Seed)\\nRisk categories\\n- Participant safety and retaliation risk.\\n- Digital security and data exposure risk.\\n- Reputational and political sensitivity risk.\\nMitigation practices\\n- Cond\",\"label\":\"04_state_department_risk_mitigation_and_safeguards_seed.pdf\",\"namespace\":\"us_state_department_guidance\",\"page\":1,\"page_end\":1,\"page_start\":1,\"retrieval_confidence\":0.3614,\"retrieval_rank\":1,\"source\":\"04_state_department_risk_mitigation_and_safeguards_seed.pdf\",\"stage\":\"mel\",\"statement\":\"Indicator from us_state_department_guidance #3. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.\",\"traceability_complete\":true,\"traceability_status\":\"complete\",\"used_for\":\"IND_003\"}],\"indicators\":[{\"baseline\":\"TBD\",\"citation\":\"02_state_department_media_resilience_reference_seed.pdf\",\"evidence_excerpt\":\"State Department Media Resilience Implementation Reference (Seed)\\nImplementation focus areas\\n- Professional standards in editorial practice and verification.\\n- Capacity for coordinated response to disinformation campaigns.\\n- Practical safet\",\"indicator_id\":\"IND_001\",\"justification\":\"Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.\",\"name\":\"Indicator from us_state_department_guidance #1\",\"target\":\"TBD\"},{\"baseline\":\"TBD\",\"citation\":\"02_state_department_media_resilience_reference_seed.pdf\",\"evidence_excerpt\":\"State Department Media Resilience Implementation Reference (Seed)\\nImplementation focus areas\\n- Professional standards in editorial practice and verification.\\n- Capacity for coordinated response to disinformation campaigns.\\n- Practical safet\",\"indicator_id\":\"IND_002\",\"justification\":\"Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.\",\"name\":\"Indicator from us_state_department_guidance #2\",\"target\":\"TBD\"},{\"baseline\":\"TBD\",\"citation\":\"04_state_department_risk_mitigation_and_safeguards_seed.pdf\",\"evidence_excerpt\":\"State Department Risk Mitigation and Safeguards Guidance (Seed)\\nRisk categories\\n- Participant safety and retaliation risk.\\n- Digital security and data exposure risk.\\n- Reputational and political sensitivity risk.\\nMitigation practices\\n- Cond\",\"indicator_id\":\"IND_003\",\"justification\":\"Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.\",\"name\":\"Indicator from us_state_department_guidance #3\",\"target\":\"TBD\"}],\"rag_trace\":{\"avg_rerank_score\":0.2236,\"avg_retrieval_confidence\":0.3743,\"candidate_hits_count\":20,\"citation_count\":3,\"filtered_out_low_confidence\":5,\"generation\":{\"engine\":\"fallback:retrieval_template\",\"fallback_class\":\"emergency\",\"fallback_used\":true,\"llm_attempted\":true,\"llm_available\":true,\"llm_fallback_reason\":\"Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}\",\"llm_requested\":true,\"llm_used\":false,\"max_prompt_evidence_hits\":3,\"retrieval_used\":true},\"hits\":[{\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0\",\"doc_id\":\"us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0\",\"page\":1,\"query_variant_index\":3,\"rerank_score\":0.2448,\"retrieval_confidence\":0.3808,\"retrieval_rank\":1,\"source\":\"02_state_department_media_resilience_reference_seed.pdf\"},{\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_tp7l2jjq_p1_c0\",\"doc_id\":\"us_state_department_guidance_grantflow_ingest_tp7l2jjq_p1_c0\",\"page\":1,\"query_variant_index\":3,\"rerank_score\":0.2148,\"retrieval_confidence\":0.3808,\"retrieval_rank\":2,\"source\":\"02_state_department_media_resilience_reference_seed.pdf\"},{\"chunk_id\":\"us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0\",\"doc_id\":\"us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0\",\"page\":1,\"query_variant_index\":1,\"rerank_score\":0.2112,\"retrieval_confidence\":0.3614,\"retrieval_rank\":1,\"source\":\"04_state_department_risk_mitigation_and_safeguards_seed.pdf\"}],\"indicator_count\":3,\"min_hit_confidence\":0.3,\"namespace\":\"us_state_department_guidance\",\"query\":\"mel | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes\",\"query_variants\":[\"mel | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes\",\"Independent Media Resilience and Civic Information Integrity Georgia MEL indicators baseline target verification frequency\",\"Independent Media Resilience and Civic Information Integrity Georgia monitoring evaluation learning results framework assumptions\"],\"query_variants_count\":3,\"rerank_pool_size\":12,\"top_k\":3,\"used_results\":3}}"
+      }
+    ],
+    "citations": [
+      {
+        "stage": "architect",
+        "citation_type": "rag_claim_support",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "source": "03_georgia_information_integrity_context_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "label": "03_georgia_information_integrity_context_seed.pdf",
+        "used_for": "toc_claim",
+        "statement_path": "toc.program_goal",
+        "statement": "Improve Independent Media Resilience and Civic Information Integrity outcomes in Georgia.",
+        "excerpt": "Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic information actors in Georgia operate in a contested information environment with\npersistent pressure from disinformation narrat",
+        "citation_confidence": 0.7064,
+        "raw_claim_confidence": 0.7064,
+        "evidence_score": 0.7064,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3397,
+        "confidence_threshold": 0.45,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "architect",
+        "citation_type": "rag_claim_support",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "source": "03_georgia_information_integrity_context_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "label": "03_georgia_information_integrity_context_seed.pdf",
+        "used_for": "toc_claim",
+        "statement_path": "toc.objectives[0].objective",
+        "statement": "Independent Media Resilience and Civic Information Integrity objective 1 aligned with state_department priorities.",
+        "excerpt": "Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic information actors in Georgia operate in a contested information environment with\npersistent pressure from disinformation narrat",
+        "citation_confidence": 0.6001,
+        "raw_claim_confidence": 0.6001,
+        "evidence_score": 0.6001,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3397,
+        "confidence_threshold": 0.45,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "architect",
+        "citation_type": "rag_claim_support",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "source": "03_georgia_information_integrity_context_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "label": "03_georgia_information_integrity_context_seed.pdf",
+        "used_for": "toc_claim",
+        "statement_path": "toc.objectives[0].line_of_effort",
+        "statement": "Governance and civic resilience",
+        "excerpt": "Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic information actors in Georgia operate in a contested information environment with\npersistent pressure from disinformation narrat",
+        "citation_confidence": 0.5604,
+        "raw_claim_confidence": 0.5604,
+        "evidence_score": 0.5604,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3397,
+        "confidence_threshold": 0.45,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "architect",
+        "citation_type": "rag_claim_support",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "source": "03_georgia_information_integrity_context_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "label": "03_georgia_information_integrity_context_seed.pdf",
+        "used_for": "toc_claim",
+        "statement_path": "toc.objectives[0].expected_change",
+        "statement": "Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed ",
+        "excerpt": "Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic information actors in Georgia operate in a contested information environment with\npersistent pressure from disinformation narrat",
+        "citation_confidence": 0.5734,
+        "raw_claim_confidence": 0.5734,
+        "evidence_score": 0.5734,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3397,
+        "confidence_threshold": 0.45,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "architect",
+        "citation_type": "rag_claim_support",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "source": "03_georgia_information_integrity_context_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "label": "03_georgia_information_integrity_context_seed.pdf",
+        "used_for": "toc_claim",
+        "statement_path": "toc.objectives[1].objective",
+        "statement": "Independent Media Resilience and Civic Information Integrity objective 2 aligned with state_department priorities.",
+        "excerpt": "Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic information actors in Georgia operate in a contested information environment with\npersistent pressure from disinformation narrat",
+        "citation_confidence": 0.6001,
+        "raw_claim_confidence": 0.6001,
+        "evidence_score": 0.6001,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3397,
+        "confidence_threshold": 0.45,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "architect",
+        "citation_type": "rag_claim_support",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "source": "03_georgia_information_integrity_context_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "label": "03_georgia_information_integrity_context_seed.pdf",
+        "used_for": "toc_claim",
+        "statement_path": "toc.objectives[1].line_of_effort",
+        "statement": "Governance and civic resilience",
+        "excerpt": "Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic information actors in Georgia operate in a contested information environment with\npersistent pressure from disinformation narrat",
+        "citation_confidence": 0.5604,
+        "raw_claim_confidence": 0.5604,
+        "evidence_score": 0.5604,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3397,
+        "confidence_threshold": 0.45,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "architect",
+        "citation_type": "rag_claim_support",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "source": "03_georgia_information_integrity_context_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_0nuaqgl__p1_c0",
+        "label": "03_georgia_information_integrity_context_seed.pdf",
+        "used_for": "toc_claim",
+        "statement_path": "toc.objectives[1].expected_change",
+        "statement": "Independent Media Resilience and Civic Information Integrity intervention delivers measurable change in Georgia through structured implementation and review cycles. Evidence hint: Georgia Information Integrity and Civic Space Context (Seed ",
+        "excerpt": "Georgia Information Integrity and Civic Space Context (Seed Brief)\nContext snapshot\nIndependent media and civic information actors in Georgia operate in a contested information environment with\npersistent pressure from disinformation narrat",
+        "citation_confidence": 0.5734,
+        "raw_claim_confidence": 0.5734,
+        "evidence_score": 0.5734,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3397,
+        "confidence_threshold": 0.45,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "mel",
+        "citation_type": "rag_result",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+        "source": "02_state_department_media_resilience_reference_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+        "label": "02_state_department_media_resilience_reference_seed.pdf",
+        "used_for": "IND_001",
+        "statement": "Indicator from us_state_department_guidance #1. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+        "excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet",
+        "citation_confidence": 0.3808,
+        "evidence_score": 0.3808,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3808,
+        "confidence_threshold": 0.3,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "mel",
+        "citation_type": "rag_result",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+        "source": "02_state_department_media_resilience_reference_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+        "label": "02_state_department_media_resilience_reference_seed.pdf",
+        "used_for": "IND_002",
+        "statement": "Indicator from us_state_department_guidance #2. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+        "excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet",
+        "citation_confidence": 0.3808,
+        "evidence_score": 0.3808,
+        "evidence_rank": 1,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3808,
+        "confidence_threshold": 0.3,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      },
+      {
+        "stage": "mel",
+        "citation_type": "rag_result",
+        "namespace": "us_state_department_guidance",
+        "doc_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+        "source": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+        "page": 1,
+        "page_start": 1,
+        "page_end": 1,
+        "chunk": 0,
+        "chunk_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+        "label": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+        "used_for": "IND_003",
+        "statement": "Indicator from us_state_department_guidance #3. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+        "excerpt": "State Department Risk Mitigation and Safeguards Guidance (Seed)\nRisk categories\n- Participant safety and retaliation risk.\n- Digital security and data exposure risk.\n- Reputational and political sensitivity risk.\nMitigation practices\n- Cond",
+        "citation_confidence": 0.3614,
+        "evidence_score": 0.3614,
+        "evidence_rank": 3,
+        "retrieval_rank": 1,
+        "retrieval_confidence": 0.3614,
+        "confidence_threshold": 0.3,
+        "traceability_status": "complete",
+        "traceability_complete": true
+      }
+    ],
+    "mel": {
+      "indicators": [
+        {
+          "indicator_id": "IND_001",
+          "name": "Indicator from us_state_department_guidance #1",
+          "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "citation": "02_state_department_media_resilience_reference_seed.pdf",
+          "baseline": "TBD",
+          "target": "TBD",
+          "evidence_excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet"
+        },
+        {
+          "indicator_id": "IND_002",
+          "name": "Indicator from us_state_department_guidance #2",
+          "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "citation": "02_state_department_media_resilience_reference_seed.pdf",
+          "baseline": "TBD",
+          "target": "TBD",
+          "evidence_excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet"
+        },
+        {
+          "indicator_id": "IND_003",
+          "name": "Indicator from us_state_department_guidance #3",
+          "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "citation": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+          "baseline": "TBD",
+          "target": "TBD",
+          "evidence_excerpt": "State Department Risk Mitigation and Safeguards Guidance (Seed)\nRisk categories\n- Participant safety and retaliation risk.\n- Digital security and data exposure risk.\n- Reputational and political sensitivity risk.\nMitigation practices\n- Cond"
+        }
+      ],
+      "rag_trace": {
+        "namespace": "us_state_department_guidance",
+        "query": "mel | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+        "query_variants": [
+          "mel | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+          "Independent Media Resilience and Civic Information Integrity Georgia MEL indicators baseline target verification frequency",
+          "Independent Media Resilience and Civic Information Integrity Georgia monitoring evaluation learning results framework assumptions"
+        ],
+        "query_variants_count": 3,
+        "top_k": 3,
+        "rerank_pool_size": 12,
+        "min_hit_confidence": 0.3,
+        "used_results": 3,
+        "candidate_hits_count": 20,
+        "filtered_out_low_confidence": 5,
+        "avg_rerank_score": 0.2236,
+        "hits": [
+          {
+            "retrieval_rank": 1,
+            "query_variant_index": 3,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+            "source": "02_state_department_media_resilience_reference_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+            "retrieval_confidence": 0.3808,
+            "rerank_score": 0.2448
+          },
+          {
+            "retrieval_rank": 2,
+            "query_variant_index": 3,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_tp7l2jjq_p1_c0",
+            "source": "02_state_department_media_resilience_reference_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_tp7l2jjq_p1_c0",
+            "retrieval_confidence": 0.3808,
+            "rerank_score": 0.2148
+          },
+          {
+            "retrieval_rank": 1,
+            "query_variant_index": 1,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+            "source": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+            "retrieval_confidence": 0.3614,
+            "rerank_score": 0.2112
+          }
+        ],
+        "avg_retrieval_confidence": 0.3743,
+        "citation_count": 3,
+        "indicator_count": 3,
+        "generation": {
+          "engine": "fallback:retrieval_template",
+          "llm_used": false,
+          "llm_requested": true,
+          "llm_available": true,
+          "llm_attempted": true,
+          "retrieval_used": true,
+          "fallback_used": true,
+          "fallback_class": "emergency",
+          "max_prompt_evidence_hits": 3,
+          "llm_fallback_reason": "Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+        }
+      },
+      "citations": [
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "us_state_department_guidance",
+          "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+          "source": "02_state_department_media_resilience_reference_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 0,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+          "label": "02_state_department_media_resilience_reference_seed.pdf",
+          "used_for": "IND_001",
+          "statement": "Indicator from us_state_department_guidance #1. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet",
+          "citation_confidence": 0.3808,
+          "evidence_score": 0.3808,
+          "evidence_rank": 1,
+          "retrieval_rank": 1,
+          "retrieval_confidence": 0.3808,
+          "confidence_threshold": 0.3,
+          "traceability_status": "complete",
+          "traceability_complete": true
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "us_state_department_guidance",
+          "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+          "source": "02_state_department_media_resilience_reference_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 0,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+          "label": "02_state_department_media_resilience_reference_seed.pdf",
+          "used_for": "IND_002",
+          "statement": "Indicator from us_state_department_guidance #2. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet",
+          "citation_confidence": 0.3808,
+          "evidence_score": 0.3808,
+          "evidence_rank": 1,
+          "retrieval_rank": 1,
+          "retrieval_confidence": 0.3808,
+          "confidence_threshold": 0.3,
+          "traceability_status": "complete",
+          "traceability_complete": true
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "us_state_department_guidance",
+          "doc_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+          "source": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 0,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+          "label": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+          "used_for": "IND_003",
+          "statement": "Indicator from us_state_department_guidance #3. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "excerpt": "State Department Risk Mitigation and Safeguards Guidance (Seed)\nRisk categories\n- Participant safety and retaliation risk.\n- Digital security and data exposure risk.\n- Reputational and political sensitivity risk.\nMitigation practices\n- Cond",
+          "citation_confidence": 0.3614,
+          "evidence_score": 0.3614,
+          "evidence_rank": 3,
+          "retrieval_rank": 1,
+          "retrieval_confidence": 0.3614,
+          "confidence_threshold": 0.3,
+          "traceability_status": "complete",
+          "traceability_complete": true
+        }
+      ]
+    },
+    "logframe_draft": {
+      "indicators": [
+        {
+          "indicator_id": "IND_001",
+          "name": "Indicator from us_state_department_guidance #1",
+          "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "citation": "02_state_department_media_resilience_reference_seed.pdf",
+          "baseline": "TBD",
+          "target": "TBD",
+          "evidence_excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet"
+        },
+        {
+          "indicator_id": "IND_002",
+          "name": "Indicator from us_state_department_guidance #2",
+          "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "citation": "02_state_department_media_resilience_reference_seed.pdf",
+          "baseline": "TBD",
+          "target": "TBD",
+          "evidence_excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet"
+        },
+        {
+          "indicator_id": "IND_003",
+          "name": "Indicator from us_state_department_guidance #3",
+          "justification": "Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "citation": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+          "baseline": "TBD",
+          "target": "TBD",
+          "evidence_excerpt": "State Department Risk Mitigation and Safeguards Guidance (Seed)\nRisk categories\n- Participant safety and retaliation risk.\n- Digital security and data exposure risk.\n- Reputational and political sensitivity risk.\nMitigation practices\n- Cond"
+        }
+      ],
+      "rag_trace": {
+        "namespace": "us_state_department_guidance",
+        "query": "mel | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+        "query_variants": [
+          "mel | Independent Media Resilience and Civic Information Integrity | Georgia | state_department | project: Independent Media Resilience and Civic Information Integrity | country: Georgia | target_population: Independent journalists, media editors, civic communicators, and local partner organizations. | strategic context | stakeholder map | risk mitigation | program outcomes",
+          "Independent Media Resilience and Civic Information Integrity Georgia MEL indicators baseline target verification frequency",
+          "Independent Media Resilience and Civic Information Integrity Georgia monitoring evaluation learning results framework assumptions"
+        ],
+        "query_variants_count": 3,
+        "top_k": 3,
+        "rerank_pool_size": 12,
+        "min_hit_confidence": 0.3,
+        "used_results": 3,
+        "candidate_hits_count": 20,
+        "filtered_out_low_confidence": 5,
+        "avg_rerank_score": 0.2236,
+        "hits": [
+          {
+            "retrieval_rank": 1,
+            "query_variant_index": 3,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+            "source": "02_state_department_media_resilience_reference_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+            "retrieval_confidence": 0.3808,
+            "rerank_score": 0.2448
+          },
+          {
+            "retrieval_rank": 2,
+            "query_variant_index": 3,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_tp7l2jjq_p1_c0",
+            "source": "02_state_department_media_resilience_reference_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_tp7l2jjq_p1_c0",
+            "retrieval_confidence": 0.3808,
+            "rerank_score": 0.2148
+          },
+          {
+            "retrieval_rank": 1,
+            "query_variant_index": 1,
+            "doc_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+            "source": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+            "page": 1,
+            "chunk_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+            "retrieval_confidence": 0.3614,
+            "rerank_score": 0.2112
+          }
+        ],
+        "avg_retrieval_confidence": 0.3743,
+        "citation_count": 3,
+        "indicator_count": 3,
+        "generation": {
+          "engine": "fallback:retrieval_template",
+          "llm_used": false,
+          "llm_requested": true,
+          "llm_available": true,
+          "llm_attempted": true,
+          "retrieval_used": true,
+          "fallback_used": true,
+          "fallback_class": "emergency",
+          "max_prompt_evidence_hits": 3,
+          "llm_fallback_reason": "Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+        }
+      },
+      "citations": [
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "us_state_department_guidance",
+          "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+          "source": "02_state_department_media_resilience_reference_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 0,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+          "label": "02_state_department_media_resilience_reference_seed.pdf",
+          "used_for": "IND_001",
+          "statement": "Indicator from us_state_department_guidance #1. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet",
+          "citation_confidence": 0.3808,
+          "evidence_score": 0.3808,
+          "evidence_rank": 1,
+          "retrieval_rank": 1,
+          "retrieval_confidence": 0.3808,
+          "confidence_threshold": 0.3,
+          "traceability_status": "complete",
+          "traceability_complete": true
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "us_state_department_guidance",
+          "doc_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+          "source": "02_state_department_media_resilience_reference_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 0,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_t2xtlsn1_p1_c0",
+          "label": "02_state_department_media_resilience_reference_seed.pdf",
+          "used_for": "IND_002",
+          "statement": "Indicator from us_state_department_guidance #2. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "excerpt": "State Department Media Resilience Implementation Reference (Seed)\nImplementation focus areas\n- Professional standards in editorial practice and verification.\n- Capacity for coordinated response to disinformation campaigns.\n- Practical safet",
+          "citation_confidence": 0.3808,
+          "evidence_score": 0.3808,
+          "evidence_rank": 1,
+          "retrieval_rank": 1,
+          "retrieval_confidence": 0.3808,
+          "confidence_threshold": 0.3,
+          "traceability_status": "complete",
+          "traceability_complete": true
+        },
+        {
+          "stage": "mel",
+          "citation_type": "rag_result",
+          "namespace": "us_state_department_guidance",
+          "doc_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+          "source": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+          "page": 1,
+          "page_start": 1,
+          "page_end": 1,
+          "chunk": 0,
+          "chunk_id": "us_state_department_guidance_grantflow_ingest_q7psrlwj_p1_c0",
+          "label": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+          "used_for": "IND_003",
+          "statement": "Indicator from us_state_department_guidance #3. Selected from donor-specific RAG collection 'us_state_department_guidance' based on project and ToC relevance.",
+          "excerpt": "State Department Risk Mitigation and Safeguards Guidance (Seed)\nRisk categories\n- Participant safety and retaliation risk.\n- Digital security and data exposure risk.\n- Reputational and political sensitivity risk.\nMitigation practices\n- Cond",
+          "citation_confidence": 0.3614,
+          "evidence_score": 0.3614,
+          "evidence_rank": 3,
+          "retrieval_rank": 1,
+          "retrieval_confidence": 0.3614,
+          "confidence_threshold": 0.3,
+          "traceability_status": "complete",
+          "traceability_complete": true
+        }
+      ]
+    },
+    "mel_generation_meta": {
+      "engine": "fallback:retrieval_template",
+      "llm_used": false,
+      "llm_requested": true,
+      "llm_available": true,
+      "llm_attempted": true,
+      "retrieval_used": true,
+      "fallback_used": true,
+      "fallback_class": "emergency",
+      "max_prompt_evidence_hits": 3,
+      "llm_fallback_reason": "Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}"
+    },
+    "critic_fatal_flaws": [],
+    "grounding_gate": {
+      "mode": "warn",
+      "passed": true,
+      "blocking": false,
+      "severity": "none",
+      "summary": "ok",
+      "reasons": [],
+      "citation_count": 10,
+      "low_confidence_citation_count": 0,
+      "rag_low_confidence_citation_count": 0,
+      "fallback_namespace_citation_count": 0,
+      "traceability_complete_citation_count": 10,
+      "traceability_partial_citation_count": 0,
+      "traceability_missing_citation_count": 0,
+      "traceability_gap_citation_count": 0,
+      "traceability_gap_ratio": 0.0,
+      "weak_rag_or_fallback_ratio": 0.0,
+      "low_confidence_ratio": 0.0,
+      "architect_retrieval_enabled": true,
+      "architect_retrieval_hits_count": 3,
+      "thresholds": {
+        "min_citations_for_calibration": 5,
+        "max_weak_rag_or_fallback_ratio": 0.6,
+        "max_low_confidence_ratio": 0.75,
+        "max_traceability_gap_ratio": 0.6
+      }
+    },
+    "next_step": "end",
+    "mel_grounding_policy": {
+      "mode": "warn",
+      "thresholds": {
+        "min_mel_citations": 2,
+        "min_claim_support_rate": 0.5
+      },
+      "mel_citation_count": 3,
+      "mel_claim_support_citation_count": 3,
+      "mel_fallback_namespace_citation_count": 0,
+      "mel_claim_support_rate": 1.0,
+      "risk_level": "low",
+      "passed": true,
+      "blocking": false,
+      "go_ahead": true,
+      "summary": "mel_grounding_signals_ok",
+      "reasons": []
+    }
+  },
+  "hitl_enabled": false,
+  "generate_preflight": {
+    "donor_id": "state_department",
+    "retrieval_namespace": "us_state_department_guidance",
+    "retrieval_query_terms": "strategic context | stakeholder map | risk mitigation | program outcomes",
+    "expected_doc_families": [
+      "donor_policy",
+      "country_context",
+      "risk_context",
+      "implementation_reference"
+    ],
+    "present_doc_families": [
+      "donor_policy",
+      "country_context",
+      "risk_context",
+      "implementation_reference"
+    ],
+    "missing_doc_families": [],
+    "expected_count": 4,
+    "loaded_count": 4,
+    "coverage_rate": 1.0,
+    "inventory_total_uploads": 4,
+    "inventory_family_count": 4,
+    "namespace_empty": false,
+    "warning_count": 0,
+    "warning_level": "none",
+    "risk_level": "none",
+    "grounding_risk_level": "low",
+    "grounding_policy": {
+      "mode": "warn",
+      "risk_level": "low",
+      "reasons": [
+        "sufficient_readiness_signals"
+      ],
+      "summary": "readiness_signals_ok",
+      "blocking": false,
+      "go_ahead": true,
+      "thresholds": {
+        "high_risk_coverage_threshold": 0.5,
+        "medium_risk_coverage_threshold": 0.8,
+        "min_uploads": 3
+      }
+    },
+    "go_ahead": true,
+    "warnings": []
+  },
+  "strict_preflight": false,
+  "webhook_configured": false
+}

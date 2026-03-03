@@ -1,0 +1,15 @@
+{
+  "job_id": "6d2e5c7c-4deb-4970-a63d-da295edca06f",
+  "status": "done",
+  "event_count": 4,
+  "status_change_count": 3,
+  "pause_count": 0,
+  "resume_count": 0,
+  "created_at": "2026-03-03T06:04:17.275700+00:00",
+  "started_at": "2026-03-03T06:04:17.276303+00:00",
+  "terminal_at": "2026-03-03T06:04:19.432200+00:00",
+  "terminal_status": "done",
+  "time_to_first_draft_seconds": 2.156,
+  "time_to_terminal_seconds": 2.156,
+  "time_in_pending_hitl_seconds": 0.0
+}

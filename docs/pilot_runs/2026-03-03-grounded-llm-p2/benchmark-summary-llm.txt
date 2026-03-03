@@ -1,0 +1,11 @@
+[run] donor=usaid llm_mode=True hitl_enabled=False
+[run] donor=state_department llm_mode=True hitl_enabled=False
+
+Grounded benchmark summary
+donor | status | q | critic | retr_hits | citations | fallback_ns | rag_low | low_conf | conf_avg | thr_hit | readiness
+--- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---
+usaid | done | 9.25 | 9.25 | 3 | 18 | 0 | 0 | 0 | 0.5571 | 1 | 4/4
+state_department | done | 9.25 | 9.25 | 3 | 10 | 0 | 0 | 0 | 0.5297 | 1 | 4/4
+
+- usaid job_id=6d2e5c7c-4deb-4970-a63d-da295edca06f citation_types={"rag_claim_support": 15, "rag_result": 3}
+- state_department job_id=91c5e14f-97ef-419c-8e89-6fa233b5416c citation_types={"rag_claim_support": 7, "rag_result": 3}

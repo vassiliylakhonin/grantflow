@@ -1,0 +1,43 @@
+{
+  "job_id": "518a6032-1966-480e-9527-b245d2b80ec9",
+  "status": "done",
+  "event_count": 4,
+  "events": [
+    {
+      "event_id": "53656e2d-f809-4171-93c4-e1d8e5f849bd",
+      "ts": "2026-03-03T06:04:16.167832+00:00",
+      "type": "status_changed",
+      "to_status": "accepted",
+      "status": "accepted"
+    },
+    {
+      "event_id": "3ac60da8-b69d-4168-aa03-47f3edb5caa7",
+      "ts": "2026-03-03T06:04:16.168035+00:00",
+      "type": "generate_preflight_evaluated",
+      "status": "accepted",
+      "risk_level": "none",
+      "grounding_risk_level": "low",
+      "warning_count": 0,
+      "retrieval_namespace": "us_state_department_guidance",
+      "namespace_empty": false,
+      "grounding_policy_mode": "warn",
+      "grounding_policy_blocking": false
+    },
+    {
+      "event_id": "82a703d7-2fdd-40e6-8724-52b900269ddd",
+      "ts": "2026-03-03T06:04:16.169033+00:00",
+      "type": "status_changed",
+      "from_status": "accepted",
+      "to_status": "running",
+      "status": "running"
+    },
+    {
+      "event_id": "497bf6a1-5375-4239-8fc6-cf7effdc3de7",
+      "ts": "2026-03-03T06:04:16.189902+00:00",
+      "type": "status_changed",
+      "from_status": "running",
+      "to_status": "done",
+      "status": "done"
+    }
+  ]
+}

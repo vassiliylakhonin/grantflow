@@ -1,0 +1,43 @@
+{
+  "job_id": "6d2e5c7c-4deb-4970-a63d-da295edca06f",
+  "status": "done",
+  "event_count": 4,
+  "events": [
+    {
+      "event_id": "a908b1cf-7e72-4bcf-b336-ed11d4a06268",
+      "ts": "2026-03-03T06:04:17.275700+00:00",
+      "type": "status_changed",
+      "to_status": "accepted",
+      "status": "accepted"
+    },
+    {
+      "event_id": "951465e2-d142-4bd1-8295-9e912b9f443f",
+      "ts": "2026-03-03T06:04:17.275802+00:00",
+      "type": "generate_preflight_evaluated",
+      "status": "accepted",
+      "risk_level": "none",
+      "grounding_risk_level": "low",
+      "warning_count": 0,
+      "retrieval_namespace": "usaid_ads201",
+      "namespace_empty": false,
+      "grounding_policy_mode": "warn",
+      "grounding_policy_blocking": false
+    },
+    {
+      "event_id": "96313354-d4bd-4493-b9cc-a8f192ce56cb",
+      "ts": "2026-03-03T06:04:17.276303+00:00",
+      "type": "status_changed",
+      "from_status": "accepted",
+      "to_status": "running",
+      "status": "running"
+    },
+    {
+      "event_id": "4eca46dc-7ca6-4ab1-836d-8f06c97edbc2",
+      "ts": "2026-03-03T06:04:19.432200+00:00",
+      "type": "status_changed",
+      "from_status": "running",
+      "to_status": "done",
+      "status": "done"
+    }
+  ]
+}

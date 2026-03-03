@@ -1,0 +1,202 @@
+{
+  "job_id": "518a6032-1966-480e-9527-b245d2b80ec9",
+  "status": "done",
+  "quality_score": 9.25,
+  "critic_score": 9.25,
+  "needs_revision": false,
+  "terminal_status": "done",
+  "time_to_first_draft_seconds": 0.022,
+  "time_to_terminal_seconds": 0.022,
+  "critic": {
+    "engine": "rules",
+    "rule_score": 9.25,
+    "fatal_flaw_count": 0,
+    "open_finding_count": 0,
+    "acknowledged_finding_count": 0,
+    "resolved_finding_count": 0,
+    "high_severity_fatal_flaw_count": 0,
+    "medium_severity_fatal_flaw_count": 0,
+    "low_severity_fatal_flaw_count": 0,
+    "version_bindable_finding_count": 0,
+    "version_bound_finding_count": 0,
+    "rule_check_count": 9,
+    "failed_rule_check_count": 0,
+    "warned_rule_check_count": 0,
+    "llm_finding_label_counts": {}
+  },
+  "citations": {
+    "citation_count": 10,
+    "architect_citation_count": 7,
+    "mel_citation_count": 3,
+    "citation_type_counts": {
+      "rag_claim_support": 7,
+      "rag_result": 3
+    },
+    "architect_citation_type_counts": {
+      "rag_claim_support": 7
+    },
+    "mel_citation_type_counts": {
+      "rag_result": 3
+    },
+    "high_confidence_citation_count": 1,
+    "low_confidence_citation_count": 0,
+    "architect_claim_support_citation_count": 7,
+    "architect_claim_support_rate": 1.0,
+    "architect_fallback_namespace_citation_count": 0,
+    "architect_fallback_namespace_citation_rate": 0.0,
+    "mel_claim_support_citation_count": 3,
+    "mel_claim_support_rate": 1.0,
+    "mel_fallback_namespace_citation_count": 0,
+    "mel_fallback_namespace_citation_rate": 0.0,
+    "architect_rag_low_confidence_citation_count": 0,
+    "mel_rag_low_confidence_citation_count": 0,
+    "rag_low_confidence_citation_count": 0,
+    "fallback_namespace_citation_count": 0,
+    "traceability_complete_citation_count": 10,
+    "traceability_partial_citation_count": 0,
+    "traceability_missing_citation_count": 0,
+    "traceability_gap_citation_count": 0,
+    "traceability_gap_citation_rate": 0.0,
+    "citation_confidence_avg": 0.5297,
+    "architect_threshold_hit_rate": 1.0,
+    "fallback_namespace_citation_rate": 0.0,
+    "grounding_risk_level": "low"
+  },
+  "architect": {
+    "engine": "deterministic:contract_synthesizer",
+    "llm_used": false,
+    "retrieval_used": true,
+    "retrieval_enabled": true,
+    "retrieval_hits_count": 3,
+    "retrieval_namespace": "us_state_department_guidance",
+    "toc_schema_name": "StateDeptTOC",
+    "toc_schema_valid": true,
+    "citation_policy": {
+      "default_high_confidence_threshold": 0.35,
+      "threshold_mode": "donor_section",
+      "donor_overrides": {
+        "eu": 0.34,
+        "giz": 0.32,
+        "state_department": 0.4,
+        "us_state_department": 0.4,
+        "usaid": 0.38,
+        "worldbank": 0.34
+      },
+      "low_confidence_type": "rag_low_confidence"
+    }
+  },
+  "mel": {
+    "engine": "deterministic:retrieval_template",
+    "llm_used": false,
+    "retrieval_used": true,
+    "retrieval_namespace": "us_state_department_guidance",
+    "retrieval_hits_count": 3,
+    "avg_retrieval_confidence": 0.3743,
+    "citation_policy": {
+      "claim_support_types": [
+        "rag_result",
+        "rag_support",
+        "rag_claim_support"
+      ],
+      "high_confidence_threshold": 0.35
+    }
+  },
+  "mel_grounding_policy": {
+    "mode": "warn",
+    "thresholds": {
+      "min_mel_citations": 2,
+      "min_claim_support_rate": 0.5
+    },
+    "mel_citation_count": 3,
+    "mel_claim_support_citation_count": 3,
+    "mel_fallback_namespace_citation_count": 0,
+    "mel_claim_support_rate": 1.0,
+    "risk_level": "low",
+    "passed": true,
+    "blocking": false,
+    "go_ahead": true,
+    "summary": "mel_grounding_signals_ok",
+    "reasons": []
+  },
+  "readiness": {
+    "donor_id": "state_department",
+    "expected_doc_families": [
+      "donor_policy",
+      "country_context",
+      "risk_context",
+      "implementation_reference"
+    ],
+    "present_doc_families": [
+      "donor_policy",
+      "country_context",
+      "risk_context",
+      "implementation_reference"
+    ],
+    "missing_doc_families": [],
+    "expected_count": 4,
+    "loaded_count": 4,
+    "coverage_rate": 1.0,
+    "inventory_total_uploads": 4,
+    "inventory_family_count": 4,
+    "doc_family_counts": {
+      "country_context": 1,
+      "donor_policy": 1,
+      "implementation_reference": 1,
+      "risk_context": 1
+    },
+    "namespace_empty": false,
+    "low_doc_coverage": false,
+    "architect_retrieval_enabled": true,
+    "architect_retrieval_hits_count": 3,
+    "retrieval_namespace": "us_state_department_guidance",
+    "warning_count": 0,
+    "warning_level": "none",
+    "warnings": []
+  },
+  "strict_preflight": false,
+  "preflight": {
+    "donor_id": "state_department",
+    "retrieval_namespace": "us_state_department_guidance",
+    "retrieval_query_terms": "strategic context | stakeholder map | risk mitigation | program outcomes",
+    "expected_doc_families": [
+      "donor_policy",
+      "country_context",
+      "risk_context",
+      "implementation_reference"
+    ],
+    "present_doc_families": [
+      "donor_policy",
+      "country_context",
+      "risk_context",
+      "implementation_reference"
+    ],
+    "missing_doc_families": [],
+    "expected_count": 4,
+    "loaded_count": 4,
+    "coverage_rate": 1.0,
+    "inventory_total_uploads": 4,
+    "inventory_family_count": 4,
+    "namespace_empty": false,
+    "warning_count": 0,
+    "warning_level": "none",
+    "risk_level": "none",
+    "grounding_risk_level": "low",
+    "grounding_policy": {
+      "mode": "warn",
+      "risk_level": "low",
+      "reasons": [
+        "sufficient_readiness_signals"
+      ],
+      "summary": "readiness_signals_ok",
+      "blocking": false,
+      "go_ahead": true,
+      "thresholds": {
+        "high_risk_coverage_threshold": 0.5,
+        "medium_risk_coverage_threshold": 0.8,
+        "min_uploads": 3
+      }
+    },
+    "go_ahead": true,
+    "warnings": []
+  }
+}

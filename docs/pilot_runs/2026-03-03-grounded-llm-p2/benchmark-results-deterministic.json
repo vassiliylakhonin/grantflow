@@ -1,0 +1,554 @@
+[
+  {
+    "citation_type_counts": {
+      "rag_claim_support": 15,
+      "rag_result": 3
+    },
+    "donor_id": "usaid",
+    "job_id": "2bd47a59-492a-4b20-8b75-8bd66d1ffec0",
+    "quality": {
+      "architect": {
+        "citation_policy": {
+          "default_high_confidence_threshold": 0.35,
+          "donor_overrides": {
+            "eu": 0.34,
+            "giz": 0.32,
+            "state_department": 0.4,
+            "us_state_department": 0.4,
+            "usaid": 0.38,
+            "worldbank": 0.34
+          },
+          "low_confidence_type": "rag_low_confidence",
+          "threshold_mode": "donor_section"
+        },
+        "engine": "deterministic:contract_synthesizer",
+        "llm_used": false,
+        "retrieval_enabled": true,
+        "retrieval_hits_count": 3,
+        "retrieval_namespace": "usaid_ads201",
+        "retrieval_used": true,
+        "toc_schema_name": "USAID_TOC",
+        "toc_schema_valid": true
+      },
+      "citations": {
+        "architect_citation_count": 15,
+        "architect_citation_type_counts": {
+          "rag_claim_support": 15
+        },
+        "architect_claim_support_citation_count": 15,
+        "architect_claim_support_rate": 1.0,
+        "architect_fallback_namespace_citation_count": 0,
+        "architect_fallback_namespace_citation_rate": 0.0,
+        "architect_rag_low_confidence_citation_count": 0,
+        "architect_threshold_hit_rate": 1.0,
+        "citation_confidence_avg": 0.5571,
+        "citation_count": 18,
+        "citation_type_counts": {
+          "rag_claim_support": 15,
+          "rag_result": 3
+        },
+        "fallback_namespace_citation_count": 0,
+        "fallback_namespace_citation_rate": 0.0,
+        "grounding_risk_level": "low",
+        "high_confidence_citation_count": 0,
+        "low_confidence_citation_count": 0,
+        "mel_citation_count": 3,
+        "mel_citation_type_counts": {
+          "rag_result": 3
+        },
+        "mel_claim_support_citation_count": 3,
+        "mel_claim_support_rate": 1.0,
+        "mel_fallback_namespace_citation_count": 0,
+        "mel_fallback_namespace_citation_rate": 0.0,
+        "mel_rag_low_confidence_citation_count": 0,
+        "rag_low_confidence_citation_count": 0,
+        "traceability_complete_citation_count": 18,
+        "traceability_gap_citation_count": 0,
+        "traceability_gap_citation_rate": 0.0,
+        "traceability_missing_citation_count": 0,
+        "traceability_partial_citation_count": 0
+      },
+      "critic": {
+        "acknowledged_finding_count": 0,
+        "engine": "rules",
+        "failed_rule_check_count": 0,
+        "fatal_flaw_count": 0,
+        "high_severity_fatal_flaw_count": 0,
+        "llm_finding_label_counts": {},
+        "low_severity_fatal_flaw_count": 0,
+        "medium_severity_fatal_flaw_count": 0,
+        "open_finding_count": 0,
+        "resolved_finding_count": 0,
+        "rule_check_count": 10,
+        "rule_score": 9.25,
+        "version_bindable_finding_count": 0,
+        "version_bound_finding_count": 0,
+        "warned_rule_check_count": 0
+      },
+      "critic_score": 9.25,
+      "job_id": "2bd47a59-492a-4b20-8b75-8bd66d1ffec0",
+      "mel": {
+        "avg_retrieval_confidence": 0.4184,
+        "citation_policy": {
+          "claim_support_types": [
+            "rag_result",
+            "rag_support",
+            "rag_claim_support"
+          ],
+          "high_confidence_threshold": 0.35
+        },
+        "engine": "deterministic:retrieval_template",
+        "llm_used": false,
+        "retrieval_hits_count": 3,
+        "retrieval_namespace": "usaid_ads201",
+        "retrieval_used": true
+      },
+      "mel_grounding_policy": {
+        "blocking": false,
+        "go_ahead": true,
+        "mel_citation_count": 3,
+        "mel_claim_support_citation_count": 3,
+        "mel_claim_support_rate": 1.0,
+        "mel_fallback_namespace_citation_count": 0,
+        "mode": "warn",
+        "passed": true,
+        "reasons": [],
+        "risk_level": "low",
+        "summary": "mel_grounding_signals_ok",
+        "thresholds": {
+          "min_claim_support_rate": 0.5,
+          "min_mel_citations": 2
+        }
+      },
+      "needs_revision": false,
+      "preflight": {
+        "coverage_rate": 1.0,
+        "donor_id": "usaid",
+        "expected_count": 4,
+        "expected_doc_families": [
+          "donor_policy",
+          "responsible_ai_guidance",
+          "country_context",
+          "competency_framework"
+        ],
+        "go_ahead": true,
+        "grounding_policy": {
+          "blocking": false,
+          "go_ahead": true,
+          "mode": "warn",
+          "reasons": [
+            "sufficient_readiness_signals"
+          ],
+          "risk_level": "low",
+          "summary": "readiness_signals_ok",
+          "thresholds": {
+            "high_risk_coverage_threshold": 0.5,
+            "medium_risk_coverage_threshold": 0.8,
+            "min_uploads": 3
+          }
+        },
+        "grounding_risk_level": "low",
+        "inventory_family_count": 4,
+        "inventory_total_uploads": 4,
+        "loaded_count": 4,
+        "missing_doc_families": [],
+        "namespace_empty": false,
+        "present_doc_families": [
+          "donor_policy",
+          "responsible_ai_guidance",
+          "country_context",
+          "competency_framework"
+        ],
+        "retrieval_namespace": "usaid_ads201",
+        "retrieval_query_terms": "development objectives | intermediate results | outputs | mel indicators | results framework",
+        "risk_level": "none",
+        "warning_count": 0,
+        "warning_level": "none",
+        "warnings": []
+      },
+      "quality_score": 9.25,
+      "readiness": {
+        "architect_retrieval_enabled": true,
+        "architect_retrieval_hits_count": 3,
+        "coverage_rate": 1.0,
+        "doc_family_counts": {
+          "competency_framework": 1,
+          "country_context": 1,
+          "donor_policy": 1,
+          "responsible_ai_guidance": 1
+        },
+        "donor_id": "usaid",
+        "expected_count": 4,
+        "expected_doc_families": [
+          "donor_policy",
+          "responsible_ai_guidance",
+          "country_context",
+          "competency_framework"
+        ],
+        "inventory_family_count": 4,
+        "inventory_total_uploads": 4,
+        "loaded_count": 4,
+        "low_doc_coverage": false,
+        "missing_doc_families": [],
+        "namespace_empty": false,
+        "present_doc_families": [
+          "donor_policy",
+          "responsible_ai_guidance",
+          "country_context",
+          "competency_framework"
+        ],
+        "retrieval_namespace": "usaid_ads201",
+        "warning_count": 0,
+        "warning_level": "none",
+        "warnings": []
+      },
+      "status": "done",
+      "strict_preflight": false,
+      "terminal_status": "done",
+      "time_to_first_draft_seconds": 0.029,
+      "time_to_terminal_seconds": 0.029
+    },
+    "readiness": {
+      "coverage_rate": 1.0,
+      "expected_doc_families": [
+        "donor_policy",
+        "responsible_ai_guidance",
+        "country_context",
+        "competency_framework"
+      ],
+      "inventory": {
+        "doc_families": [
+          {
+            "count": 1,
+            "doc_family": "competency_framework",
+            "donor_id": "usaid",
+            "latest_event_id": "59403d86-9aa9-457d-b006-695877722b78",
+            "latest_filename": "04_civil_service_ai_competency_framework_seed.pdf",
+            "latest_source_type": "training_framework",
+            "latest_ts": "2026-03-03T06:04:13.567111+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "country_context",
+            "donor_id": "usaid",
+            "latest_event_id": "1c8c1f8c-a9ed-4f38-90ca-a8a0274468f9",
+            "latest_filename": "03_kazakhstan_public_admin_digital_context_seed.pdf",
+            "latest_source_type": "country_context",
+            "latest_ts": "2026-03-03T06:04:13.466285+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "donor_policy",
+            "donor_id": "usaid",
+            "latest_event_id": "6e3df369-77a2-4265-99ec-6dfd0ba2f4d6",
+            "latest_filename": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "latest_source_type": "donor_guidance",
+            "latest_ts": "2026-03-03T06:04:13.241280+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "responsible_ai_guidance",
+            "donor_id": "usaid",
+            "latest_event_id": "f45f0919-5e47-4cd5-8539-827ad5b938d0",
+            "latest_filename": "02_usaid_responsible_ai_public_sector_seed.pdf",
+            "latest_source_type": "reference_guidance",
+            "latest_ts": "2026-03-03T06:04:13.366694+00:00"
+          }
+        ],
+        "doc_family_counts": {
+          "competency_framework": 1,
+          "country_context": 1,
+          "donor_policy": 1,
+          "responsible_ai_guidance": 1
+        },
+        "donor_id": "usaid",
+        "family_count": 4,
+        "total_uploads": 4
+      },
+      "missing_doc_families": [],
+      "present_doc_families": [
+        "competency_framework",
+        "country_context",
+        "donor_policy",
+        "responsible_ai_guidance"
+      ]
+    },
+    "status": "done"
+  },
+  {
+    "citation_type_counts": {
+      "rag_claim_support": 7,
+      "rag_result": 3
+    },
+    "donor_id": "state_department",
+    "job_id": "518a6032-1966-480e-9527-b245d2b80ec9",
+    "quality": {
+      "architect": {
+        "citation_policy": {
+          "default_high_confidence_threshold": 0.35,
+          "donor_overrides": {
+            "eu": 0.34,
+            "giz": 0.32,
+            "state_department": 0.4,
+            "us_state_department": 0.4,
+            "usaid": 0.38,
+            "worldbank": 0.34
+          },
+          "low_confidence_type": "rag_low_confidence",
+          "threshold_mode": "donor_section"
+        },
+        "engine": "deterministic:contract_synthesizer",
+        "llm_used": false,
+        "retrieval_enabled": true,
+        "retrieval_hits_count": 3,
+        "retrieval_namespace": "us_state_department_guidance",
+        "retrieval_used": true,
+        "toc_schema_name": "StateDeptTOC",
+        "toc_schema_valid": true
+      },
+      "citations": {
+        "architect_citation_count": 7,
+        "architect_citation_type_counts": {
+          "rag_claim_support": 7
+        },
+        "architect_claim_support_citation_count": 7,
+        "architect_claim_support_rate": 1.0,
+        "architect_fallback_namespace_citation_count": 0,
+        "architect_fallback_namespace_citation_rate": 0.0,
+        "architect_rag_low_confidence_citation_count": 0,
+        "architect_threshold_hit_rate": 1.0,
+        "citation_confidence_avg": 0.5297,
+        "citation_count": 10,
+        "citation_type_counts": {
+          "rag_claim_support": 7,
+          "rag_result": 3
+        },
+        "fallback_namespace_citation_count": 0,
+        "fallback_namespace_citation_rate": 0.0,
+        "grounding_risk_level": "low",
+        "high_confidence_citation_count": 1,
+        "low_confidence_citation_count": 0,
+        "mel_citation_count": 3,
+        "mel_citation_type_counts": {
+          "rag_result": 3
+        },
+        "mel_claim_support_citation_count": 3,
+        "mel_claim_support_rate": 1.0,
+        "mel_fallback_namespace_citation_count": 0,
+        "mel_fallback_namespace_citation_rate": 0.0,
+        "mel_rag_low_confidence_citation_count": 0,
+        "rag_low_confidence_citation_count": 0,
+        "traceability_complete_citation_count": 10,
+        "traceability_gap_citation_count": 0,
+        "traceability_gap_citation_rate": 0.0,
+        "traceability_missing_citation_count": 0,
+        "traceability_partial_citation_count": 0
+      },
+      "critic": {
+        "acknowledged_finding_count": 0,
+        "engine": "rules",
+        "failed_rule_check_count": 0,
+        "fatal_flaw_count": 0,
+        "high_severity_fatal_flaw_count": 0,
+        "llm_finding_label_counts": {},
+        "low_severity_fatal_flaw_count": 0,
+        "medium_severity_fatal_flaw_count": 0,
+        "open_finding_count": 0,
+        "resolved_finding_count": 0,
+        "rule_check_count": 9,
+        "rule_score": 9.25,
+        "version_bindable_finding_count": 0,
+        "version_bound_finding_count": 0,
+        "warned_rule_check_count": 0
+      },
+      "critic_score": 9.25,
+      "job_id": "518a6032-1966-480e-9527-b245d2b80ec9",
+      "mel": {
+        "avg_retrieval_confidence": 0.3743,
+        "citation_policy": {
+          "claim_support_types": [
+            "rag_result",
+            "rag_support",
+            "rag_claim_support"
+          ],
+          "high_confidence_threshold": 0.35
+        },
+        "engine": "deterministic:retrieval_template",
+        "llm_used": false,
+        "retrieval_hits_count": 3,
+        "retrieval_namespace": "us_state_department_guidance",
+        "retrieval_used": true
+      },
+      "mel_grounding_policy": {
+        "blocking": false,
+        "go_ahead": true,
+        "mel_citation_count": 3,
+        "mel_claim_support_citation_count": 3,
+        "mel_claim_support_rate": 1.0,
+        "mel_fallback_namespace_citation_count": 0,
+        "mode": "warn",
+        "passed": true,
+        "reasons": [],
+        "risk_level": "low",
+        "summary": "mel_grounding_signals_ok",
+        "thresholds": {
+          "min_claim_support_rate": 0.5,
+          "min_mel_citations": 2
+        }
+      },
+      "needs_revision": false,
+      "preflight": {
+        "coverage_rate": 1.0,
+        "donor_id": "state_department",
+        "expected_count": 4,
+        "expected_doc_families": [
+          "donor_policy",
+          "country_context",
+          "risk_context",
+          "implementation_reference"
+        ],
+        "go_ahead": true,
+        "grounding_policy": {
+          "blocking": false,
+          "go_ahead": true,
+          "mode": "warn",
+          "reasons": [
+            "sufficient_readiness_signals"
+          ],
+          "risk_level": "low",
+          "summary": "readiness_signals_ok",
+          "thresholds": {
+            "high_risk_coverage_threshold": 0.5,
+            "medium_risk_coverage_threshold": 0.8,
+            "min_uploads": 3
+          }
+        },
+        "grounding_risk_level": "low",
+        "inventory_family_count": 4,
+        "inventory_total_uploads": 4,
+        "loaded_count": 4,
+        "missing_doc_families": [],
+        "namespace_empty": false,
+        "present_doc_families": [
+          "donor_policy",
+          "country_context",
+          "risk_context",
+          "implementation_reference"
+        ],
+        "retrieval_namespace": "us_state_department_guidance",
+        "retrieval_query_terms": "strategic context | stakeholder map | risk mitigation | program outcomes",
+        "risk_level": "none",
+        "warning_count": 0,
+        "warning_level": "none",
+        "warnings": []
+      },
+      "quality_score": 9.25,
+      "readiness": {
+        "architect_retrieval_enabled": true,
+        "architect_retrieval_hits_count": 3,
+        "coverage_rate": 1.0,
+        "doc_family_counts": {
+          "country_context": 1,
+          "donor_policy": 1,
+          "implementation_reference": 1,
+          "risk_context": 1
+        },
+        "donor_id": "state_department",
+        "expected_count": 4,
+        "expected_doc_families": [
+          "donor_policy",
+          "country_context",
+          "risk_context",
+          "implementation_reference"
+        ],
+        "inventory_family_count": 4,
+        "inventory_total_uploads": 4,
+        "loaded_count": 4,
+        "low_doc_coverage": false,
+        "missing_doc_families": [],
+        "namespace_empty": false,
+        "present_doc_families": [
+          "donor_policy",
+          "country_context",
+          "risk_context",
+          "implementation_reference"
+        ],
+        "retrieval_namespace": "us_state_department_guidance",
+        "warning_count": 0,
+        "warning_level": "none",
+        "warnings": []
+      },
+      "status": "done",
+      "strict_preflight": false,
+      "terminal_status": "done",
+      "time_to_first_draft_seconds": 0.022,
+      "time_to_terminal_seconds": 0.022
+    },
+    "readiness": {
+      "coverage_rate": 1.0,
+      "expected_doc_families": [
+        "donor_policy",
+        "country_context",
+        "risk_context",
+        "implementation_reference"
+      ],
+      "inventory": {
+        "doc_families": [
+          {
+            "count": 1,
+            "doc_family": "country_context",
+            "donor_id": "state_department",
+            "latest_event_id": "a5113317-8531-4626-987c-32666a9c3212",
+            "latest_filename": "03_georgia_information_integrity_context_seed.pdf",
+            "latest_source_type": "country_context",
+            "latest_ts": "2026-03-03T06:04:15.001884+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "donor_policy",
+            "donor_id": "state_department",
+            "latest_event_id": "68a8d763-f2a6-49b9-9aa5-343ef20dc1d8",
+            "latest_filename": "01_state_department_program_design_policy_seed.pdf",
+            "latest_source_type": "donor_guidance",
+            "latest_ts": "2026-03-03T06:04:14.837077+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "implementation_reference",
+            "donor_id": "state_department",
+            "latest_event_id": "fa64a83e-b0ed-4523-8a61-b1b2d38dd3c1",
+            "latest_filename": "02_state_department_media_resilience_reference_seed.pdf",
+            "latest_source_type": "implementation_reference",
+            "latest_ts": "2026-03-03T06:04:14.920360+00:00"
+          },
+          {
+            "count": 1,
+            "doc_family": "risk_context",
+            "donor_id": "state_department",
+            "latest_event_id": "9a6f42b2-910c-4591-bf26-c73d546677c1",
+            "latest_filename": "04_state_department_risk_mitigation_and_safeguards_seed.pdf",
+            "latest_source_type": "risk_guidance",
+            "latest_ts": "2026-03-03T06:04:15.083555+00:00"
+          }
+        ],
+        "doc_family_counts": {
+          "country_context": 1,
+          "donor_policy": 1,
+          "implementation_reference": 1,
+          "risk_context": 1
+        },
+        "donor_id": "state_department",
+        "family_count": 4,
+        "total_uploads": 4
+      },
+      "missing_doc_families": [],
+      "present_doc_families": [
+        "country_context",
+        "donor_policy",
+        "implementation_reference",
+        "risk_context"
+      ]
+    },
+    "status": "done"
+  }
+]

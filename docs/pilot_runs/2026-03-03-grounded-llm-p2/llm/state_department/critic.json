@@ -1,0 +1,69 @@
+{
+  "job_id": "91c5e14f-97ef-419c-8e89-6fa233b5416c",
+  "status": "done",
+  "quality_score": 9.25,
+  "critic_score": 9.25,
+  "engine": "rules",
+  "rule_score": 9.25,
+  "needs_revision": false,
+  "revision_instructions": "Rule-based critic found no fatal issues. Tighten specificity and donor alignment where possible.\n\nLLM critic fallback reason: LLM unavailable: Error code: 402 - {'error': {'message': 'Insufficient credits. Add more using https://openrouter.ai/settings/credits', 'code': 402}}",
+  "fatal_flaw_count": 0,
+  "fatal_flaws": [],
+  "fatal_flaw_messages": [
+    "Minor improvements suggested"
+  ],
+  "rule_check_count": 9,
+  "rule_checks": [
+    {
+      "code": "INPUT_BRIEF_MINIMUM_CONTEXT",
+      "status": "pass",
+      "section": "general",
+      "detail": "8 non-empty input field(s)"
+    },
+    {
+      "code": "TOC_PRESENT",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "TOC_SCHEMA_VALID",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "STATE_STRATEGIC_CONTEXT_PRESENT",
+      "status": "pass",
+      "section": "toc"
+    },
+    {
+      "code": "STATE_STAKEHOLDER_MAP_PRESENT",
+      "status": "pass",
+      "section": "toc",
+      "detail": "2 stakeholder_map entries"
+    },
+    {
+      "code": "STATE_RISK_MITIGATION_PRESENT",
+      "status": "pass",
+      "section": "toc",
+      "detail": "2 risk_mitigation entries"
+    },
+    {
+      "code": "TOC_CLAIM_CITATIONS",
+      "status": "pass",
+      "section": "toc",
+      "detail": "7 claim-level architect citations"
+    },
+    {
+      "code": "LOGFRAME_INDICATORS_PRESENT",
+      "status": "pass",
+      "section": "logframe",
+      "detail": "3 indicators"
+    },
+    {
+      "code": "LOGFRAME_CITATIONS_PRESENT",
+      "status": "pass",
+      "section": "logframe",
+      "detail": "3 MEL citations"
+    }
+  ]
+}

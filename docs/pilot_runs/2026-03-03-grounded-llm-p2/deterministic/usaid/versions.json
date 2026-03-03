@@ -1,0 +1,440 @@
+{
+  "job_id": "2bd47a59-492a-4b20-8b75-8bd66d1ffec0",
+  "status": "done",
+  "version_count": 2,
+  "versions": [
+    {
+      "version_id": "toc_v1",
+      "sequence": 1,
+      "section": "toc",
+      "node": "architect",
+      "iteration": 1,
+      "content": {
+        "toc": {
+          "project_goal": "Improve Responsible AI Skills for Civil Service Modernization in Kazakhstan outcomes in Kazakhstan.",
+          "development_objectives": [
+            {
+              "do_id": "Do 1",
+              "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+              "intermediate_results": [
+                {
+                  "ir_id": "Ir 1",
+                  "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                  "outputs": [
+                    {
+                      "output_id": "Output 1",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output 2",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "ir_id": "Ir 2",
+                  "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                  "outputs": [
+                    {
+                      "output_id": "Output 1",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output 2",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "do_id": "Do 2",
+              "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+              "intermediate_results": [
+                {
+                  "ir_id": "Ir 1",
+                  "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                  "outputs": [
+                    {
+                      "output_id": "Output 1",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output 2",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "ir_id": "Ir 2",
+                  "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                  "outputs": [
+                    {
+                      "output_id": "Output 1",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    },
+                    {
+                      "output_id": "Output 2",
+                      "description": "Responsible AI Skills for Civil Service Modernization in Kazakhstan intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: - IR1: Civil servants improve practical competencies in responsible AI and digit\nal workflow design.                    ",
+                      "indicators": [
+                        {
+                          "indicator_code": "IND-001",
+                          "name": "Name for Responsible AI Skills for Civil Service Modernization in Kazakhstan 1",
+                          "target": "TBD target",
+                          "justification": "Selected for logical alignment to Responsible AI Skills for Civil Service Modernization in Kazakhstan and donor reporting needs.",
+                          "citation": "usaid"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "critical_assumptions": [
+            "Assumption 1: enabling conditions remain stable for implementation.",
+            "Assumption 2: enabling conditions remain stable for implementation."
+          ]
+        },
+        "citation": "Based on usaid_ads201",
+        "generation_meta": {
+          "engine": "deterministic:contract_synthesizer",
+          "llm_used": false,
+          "llm_requested": false,
+          "llm_available": true,
+          "llm_attempted": false,
+          "retrieval_used": true,
+          "fallback_used": false,
+          "fallback_class": "deterministic_mode",
+          "architect_mode": "deterministic",
+          "schema_name": "USAID_TOC",
+          "citation_policy": {
+            "default_high_confidence_threshold": 0.35,
+            "threshold_mode": "donor_section",
+            "donor_overrides": {
+              "eu": 0.34,
+              "giz": 0.32,
+              "state_department": 0.4,
+              "us_state_department": 0.4,
+              "usaid": 0.38,
+              "worldbank": 0.34
+            },
+            "low_confidence_type": "rag_low_confidence"
+          }
+        },
+        "validation": {
+          "valid": true,
+          "schema_name": "USAID_TOC",
+          "error_count": 0,
+          "errors": []
+        },
+        "architect_retrieval": {
+          "enabled": true,
+          "namespace": "usaid_ads201",
+          "query": "architect | Responsible AI Skills for Civil Service Modernization in Kazakhstan | Kazakhstan | usaid | project: Responsible AI Skills for Civil Service Modernization in Kazakhstan | country: Kazakhstan | target_population: Mid-level and senior civil servants in policy, service delivery, and digital transformation units. | development objectives | intermediate results | outputs | mel indicators | results framework",
+          "query_variants": [
+            "architect | Responsible AI Skills for Civil Service Modernization in Kazakhstan | Kazakhstan | usaid | project: Responsible AI Skills for Civil Service Modernization in Kazakhstan | country: Kazakhstan | target_population: Mid-level and senior civil servants in policy, service delivery, and digital transformation units. | development objectives | intermediate results | outputs | mel indicators | results framework",
+            "Responsible AI Skills for Civil Service Modernization in Kazakhstan Kazakhstan usaid theory of change objectives outcomes results chain assumptions",
+            "Responsible AI Skills for Civil Service Modernization in Kazakhstan Kazakhstan implementation pathways indicators donor compliance risks constraints"
+          ],
+          "query_variants_count": 3,
+          "top_k": 3,
+          "rerank_pool_size": 12,
+          "min_hit_confidence": 0.25,
+          "hits_count": 3,
+          "candidate_hits_count": 36,
+          "used_results": 3,
+          "filtered_out_low_confidence": 0,
+          "traceability_counts": {
+            "complete": 3,
+            "partial": 0,
+            "missing": 0
+          },
+          "hit_labels": [
+            "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "01_usaid_donor_policy_ads_program_cycle_seed.pdf"
+          ],
+          "avg_retrieval_confidence": 0.5357,
+          "avg_rerank_score": 0.3653,
+          "hits": [
+            {
+              "retrieval_rank": 1,
+              "query_variant_index": 3,
+              "doc_id": "usaid_ads201_grantflow_ingest_e1i3zyan_p1_c5",
+              "source": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+              "page": 1,
+              "chunk_id": "usaid_ads201_grantflow_ingest_e1i3zyan_p1_c5",
+              "retrieval_confidence": 0.5357,
+              "rerank_score": 0.3765,
+              "traceability_status": "complete",
+              "namespace": "usaid_ads201"
+            },
+            {
+              "retrieval_rank": 2,
+              "query_variant_index": 3,
+              "doc_id": "usaid_ads201_grantflow_ingest_rkw3y1h2_p1_c5",
+              "source": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+              "page": 1,
+              "chunk_id": "usaid_ads201_grantflow_ingest_rkw3y1h2_p1_c5",
+              "retrieval_confidence": 0.5357,
+              "rerank_score": 0.3653,
+              "traceability_status": "complete",
+              "namespace": "usaid_ads201"
+            },
+            {
+              "retrieval_rank": 3,
+              "query_variant_index": 3,
+              "doc_id": "usaid_ads201_grantflow_ingest_vh_uy7_q_p1_c5",
+              "source": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+              "page": 1,
+              "chunk_id": "usaid_ads201_grantflow_ingest_vh_uy7_q_p1_c5",
+              "retrieval_confidence": 0.5357,
+              "rerank_score": 0.354,
+              "traceability_status": "complete",
+              "namespace": "usaid_ads201"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "version_id": "logframe_v1",
+      "sequence": 2,
+      "section": "logframe",
+      "node": "mel_specialist",
+      "iteration": 0,
+      "content": {
+        "indicators": [
+          {
+            "indicator_id": "IND_001",
+            "name": "Indicator from usaid_ads201 #1",
+            "justification": "Selected from donor-specific RAG collection 'usaid_ads201' based on project and ToC relevance.",
+            "citation": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "am level.\n- Intermediate Result (IR): a measurable change that contributes to a DO.       \n- Output: tangible deliverables and immediate products supporting IR achievement\n.                                                                   "
+          },
+          {
+            "indicator_id": "IND_002",
+            "name": "Indicator from usaid_ads201 #2",
+            "justification": "Selected from donor-specific RAG collection 'usaid_ads201' based on project and ToC relevance.",
+            "citation": "04_civil_service_ai_competency_framework_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "                                       \n- Pre/post knowledge assessment                                                 \n- Applied assignments using agency workflow examples                            \n- Supervisor verification of pilot out"
+          },
+          {
+            "indicator_id": "IND_003",
+            "name": "Indicator from usaid_ads201 #3",
+            "justification": "Selected from donor-specific RAG collection 'usaid_ads201' based on project and ToC relevance.",
+            "citation": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "baseline": "TBD",
+            "target": "TBD",
+            "evidence_excerpt": "am level.\n- Intermediate Result (IR): a measurable change that contributes to a DO.       \n- Output: tangible deliverables and immediate products supporting IR achievement\n.                                                                   "
+          }
+        ],
+        "rag_trace": {
+          "namespace": "usaid_ads201",
+          "query": "mel | Responsible AI Skills for Civil Service Modernization in Kazakhstan | Kazakhstan | usaid | project: Responsible AI Skills for Civil Service Modernization in Kazakhstan | country: Kazakhstan | target_population: Mid-level and senior civil servants in policy, service delivery, and digital transformation units. | Improve Responsible AI Skills for Civil Service Modernization in Kazakhstan outcomes in Kazakhstan. | development objectives | intermediate results | outputs | mel indicators | results framework",
+          "query_variants": [
+            "mel | Responsible AI Skills for Civil Service Modernization in Kazakhstan | Kazakhstan | usaid | project: Responsible AI Skills for Civil Service Modernization in Kazakhstan | country: Kazakhstan | target_population: Mid-level and senior civil servants in policy, service delivery, and digital transformation units. | Improve Responsible AI Skills for Civil Service Modernization in Kazakhstan outcomes in Kazakhstan. | development objectives | intermediate results | outputs | mel indicators | results framework",
+            "Responsible AI Skills for Civil Service Modernization in Kazakhstan Kazakhstan MEL indicators baseline target verification frequency",
+            "Responsible AI Skills for Civil Service Modernization in Kazakhstan Kazakhstan monitoring evaluation learning results framework assumptions"
+          ],
+          "query_variants_count": 3,
+          "top_k": 3,
+          "rerank_pool_size": 12,
+          "min_hit_confidence": 0.3,
+          "used_results": 3,
+          "candidate_hits_count": 36,
+          "filtered_out_low_confidence": 0,
+          "avg_rerank_score": 0.1864,
+          "hits": [
+            {
+              "retrieval_rank": 1,
+              "query_variant_index": 3,
+              "doc_id": "usaid_ads201_grantflow_ingest_z7rr5kjg_p1_c1",
+              "source": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+              "page": 1,
+              "chunk_id": "usaid_ads201_grantflow_ingest_z7rr5kjg_p1_c1",
+              "retrieval_confidence": 0.4187,
+              "rerank_score": 0.2014
+            },
+            {
+              "retrieval_rank": 1,
+              "query_variant_index": 2,
+              "doc_id": "usaid_ads201_grantflow_ingest_hb3jtk17_p1_c4",
+              "source": "04_civil_service_ai_competency_framework_seed.pdf",
+              "page": 1,
+              "chunk_id": "usaid_ads201_grantflow_ingest_hb3jtk17_p1_c4",
+              "retrieval_confidence": 0.4178,
+              "rerank_score": 0.1864
+            },
+            {
+              "retrieval_rank": 2,
+              "query_variant_index": 3,
+              "doc_id": "usaid_ads201_grantflow_ingest_e1i3zyan_p1_c1",
+              "source": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+              "page": 1,
+              "chunk_id": "usaid_ads201_grantflow_ingest_e1i3zyan_p1_c1",
+              "retrieval_confidence": 0.4187,
+              "rerank_score": 0.1714
+            }
+          ],
+          "avg_retrieval_confidence": 0.4184,
+          "citation_count": 3,
+          "indicator_count": 3,
+          "generation": {
+            "engine": "deterministic:retrieval_template",
+            "llm_used": false,
+            "llm_requested": false,
+            "llm_available": true,
+            "llm_attempted": false,
+            "retrieval_used": true,
+            "fallback_used": false,
+            "fallback_class": "deterministic_mode",
+            "max_prompt_evidence_hits": 3
+          }
+        },
+        "citations": [
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "usaid_ads201",
+            "doc_id": "usaid_ads201_grantflow_ingest_z7rr5kjg_p1_c1",
+            "source": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 1,
+            "chunk_id": "usaid_ads201_grantflow_ingest_z7rr5kjg_p1_c1",
+            "label": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "used_for": "IND_001",
+            "statement": "Indicator from usaid_ads201 #1. Selected from donor-specific RAG collection 'usaid_ads201' based on project and ToC relevance.",
+            "excerpt": "am level.\n- Intermediate Result (IR): a measurable change that contributes to a DO.       \n- Output: tangible deliverables and immediate products supporting IR achievement\n.                                                                   ",
+            "citation_confidence": 0.4187,
+            "evidence_score": 0.4187,
+            "evidence_rank": 1,
+            "retrieval_rank": 1,
+            "retrieval_confidence": 0.4187,
+            "confidence_threshold": 0.33,
+            "traceability_status": "complete",
+            "traceability_complete": true
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "usaid_ads201",
+            "doc_id": "usaid_ads201_grantflow_ingest_hb3jtk17_p1_c4",
+            "source": "04_civil_service_ai_competency_framework_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 4,
+            "chunk_id": "usaid_ads201_grantflow_ingest_hb3jtk17_p1_c4",
+            "label": "04_civil_service_ai_competency_framework_seed.pdf",
+            "used_for": "IND_002",
+            "statement": "Indicator from usaid_ads201 #2. Selected from donor-specific RAG collection 'usaid_ads201' based on project and ToC relevance.",
+            "excerpt": "                                       \n- Pre/post knowledge assessment                                                 \n- Applied assignments using agency workflow examples                            \n- Supervisor verification of pilot out",
+            "citation_confidence": 0.4178,
+            "evidence_score": 0.4178,
+            "evidence_rank": 2,
+            "retrieval_rank": 1,
+            "retrieval_confidence": 0.4178,
+            "confidence_threshold": 0.33,
+            "traceability_status": "complete",
+            "traceability_complete": true
+          },
+          {
+            "stage": "mel",
+            "citation_type": "rag_result",
+            "namespace": "usaid_ads201",
+            "doc_id": "usaid_ads201_grantflow_ingest_z7rr5kjg_p1_c1",
+            "source": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "page": 1,
+            "page_start": 1,
+            "page_end": 1,
+            "chunk": 1,
+            "chunk_id": "usaid_ads201_grantflow_ingest_z7rr5kjg_p1_c1",
+            "label": "01_usaid_donor_policy_ads_program_cycle_seed.pdf",
+            "used_for": "IND_003",
+            "statement": "Indicator from usaid_ads201 #3. Selected from donor-specific RAG collection 'usaid_ads201' based on project and ToC relevance.",
+            "excerpt": "am level.\n- Intermediate Result (IR): a measurable change that contributes to a DO.       \n- Output: tangible deliverables and immediate products supporting IR achievement\n.                                                                   ",
+            "citation_confidence": 0.4187,
+            "evidence_score": 0.4187,
+            "evidence_rank": 1,
+            "retrieval_rank": 1,
+            "retrieval_confidence": 0.4187,
+            "confidence_threshold": 0.33,
+            "traceability_status": "complete",
+            "traceability_complete": true
+          }
+        ]
+      }
+    }
+  ]
+}
