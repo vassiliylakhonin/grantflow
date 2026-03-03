@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Iterable, Mapping, MutableMapping, Optional, TypedDict, cast
 
 
@@ -80,6 +81,18 @@ def normalize_input_context(value: Any) -> dict[str, Any]:
     return {}
 
 
+def normalize_rag_namespace(value: Any) -> str:
+    token = str(value or "").strip()
+    if not token:
+        return ""
+    token = token.replace("\\", "/")
+    token = re.sub(r"\s+", "_", token)
+    token = re.sub(r"/+", "/", token)
+    token = "/".join(part.strip("._-") for part in token.split("/") if part.strip("._-"))
+    token = token.strip("/")
+    return token.lower()
+
+
 def state_donor_id(state: Mapping[str, Any], default: str = "") -> str:
     donor = normalize_donor_token(state.get("donor_id") or state.get("donor"))
     return donor or default
@@ -112,7 +125,7 @@ def state_input_context(state: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def state_rag_namespace(state: Mapping[str, Any], default: str = "") -> str:
-    namespace = str(state.get("rag_namespace") or state.get("retrieval_namespace") or "").strip()
+    namespace = normalize_rag_namespace(state.get("rag_namespace") or state.get("retrieval_namespace"))
     return namespace or default
 
 
@@ -185,7 +198,7 @@ def build_graph_state(
     normalized_tenant = str(tenant_id or "").strip()
     if normalized_tenant:
         state["tenant_id"] = normalized_tenant
-    normalized_namespace = str(rag_namespace or "").strip()
+    normalized_namespace = normalize_rag_namespace(rag_namespace)
     if normalized_namespace:
         state["rag_namespace"] = normalized_namespace
     if isinstance(generate_preflight, Mapping):

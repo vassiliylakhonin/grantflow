@@ -245,7 +245,50 @@ def test_append_citations_deduplicates_and_preserves_traceability():
     ]
     append_citations(state, incoming)
     assert len(state["citations"]) == 1
+    assert state["citations"][0]["doc_id"] == "usaid_ads201_p12_c1"
     assert state["citations"][0]["chunk_id"] == "usaid_ads201_p12_c1"
+
+
+def test_append_citations_prefers_higher_quality_duplicate():
+    state = {}
+    append_citations(
+        state,
+        [
+            {
+                "stage": "architect",
+                "citation_type": "rag_low_confidence",
+                "namespace": "usaid_ads201",
+                "source": "ads.pdf",
+                "page": 12,
+                "chunk_id": "usaid_ads201_p12_c1",
+                "used_for": "toc.project_goal",
+                "statement_path": "toc.project_goal",
+                "label": "USAID ADS 201 p.12",
+                "citation_confidence": 0.2,
+                "retrieval_confidence": 0.25,
+                "retrieval_rank": 4,
+            },
+            {
+                "stage": "architect",
+                "citation_type": "rag_low_confidence",
+                "namespace": "usaid_ads201",
+                "source": "ads.pdf",
+                "page": 12,
+                "chunk_id": "usaid_ads201_p12_c1",
+                "used_for": "toc.project_goal",
+                "statement_path": "toc.project_goal",
+                "label": "USAID ADS 201 p.12",
+                "citation_confidence": 0.72,
+                "retrieval_confidence": 0.82,
+                "retrieval_rank": 1,
+            },
+        ],
+    )
+    assert len(state["citations"]) == 1
+    row = state["citations"][0]
+    assert row["citation_confidence"] == 0.72
+    assert row["retrieval_confidence"] == 0.82
+    assert row["retrieval_rank"] == 1
 
 
 def test_citations_and_versioning_match_golden_snapshot():

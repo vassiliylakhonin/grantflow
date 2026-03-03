@@ -6,6 +6,7 @@ from grantflow.swarm.state_contract import (
     normalize_state_contract,
     normalize_donor_token,
     normalize_input_context,
+    normalize_rag_namespace,
     normalized_state_copy,
     set_state_donor_strategy,
     set_state_iteration,
@@ -101,13 +102,19 @@ def test_normalize_state_contract_coerces_string_lists_and_max_iterations():
 
 
 def test_state_rag_namespace_prefers_canonical_field_and_normalizes_alias():
-    state = {"rag_namespace": "tenant_a/usaid_ads201", "retrieval_namespace": "legacy/value"}
+    state = {"rag_namespace": " Tenant_A / USAID ADS201 ", "retrieval_namespace": "legacy/value"}
     assert state_rag_namespace(state) == "tenant_a/usaid_ads201"
 
     alias_only = {"retrieval_namespace": "tenant_b/eu_intpa"}
     out = normalize_state_contract(alias_only)
     assert out["rag_namespace"] == "tenant_b/eu_intpa"
     assert out["retrieval_namespace"] == "tenant_b/eu_intpa"
+
+
+def test_normalize_rag_namespace_compacts_separators_and_spaces():
+    assert normalize_rag_namespace("  Tenant-A / USAID ADS 201  ") == "tenant-a/usaid_ads_201"
+    assert normalize_rag_namespace("tenant\\world bank") == "tenant/world_bank"
+    assert normalize_rag_namespace("///tenant///eu///") == "tenant/eu"
 
 
 def test_normalized_state_copy_keeps_original_mapping_unchanged():

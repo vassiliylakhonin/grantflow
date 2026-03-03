@@ -99,7 +99,13 @@ from grantflow.swarm.nodes.architect_generation import generate_toc_under_contra
 from grantflow.swarm.nodes.architect_retrieval import retrieve_architect_evidence
 from grantflow.swarm.retrieval_query import donor_query_preset_terms
 from grantflow.swarm.citations import citation_traceability_status
-from grantflow.swarm.state_contract import build_graph_state, normalize_state_contract, normalized_state_copy, state_donor_id
+from grantflow.swarm.state_contract import (
+    build_graph_state,
+    normalize_rag_namespace,
+    normalize_state_contract,
+    normalized_state_copy,
+    state_donor_id,
+)
 
 JOB_STORE = create_job_store_from_env()
 INGEST_AUDIT_STORE = create_ingest_audit_store_from_env()
@@ -547,11 +553,11 @@ def _resolve_tenant_id(
 
 
 def _tenant_rag_namespace(base_namespace: str, tenant_id: Optional[str]) -> str:
-    base = str(base_namespace or "").strip() or "default"
-    tenant = str(tenant_id or "").strip()
+    base = normalize_rag_namespace(base_namespace) or "default"
+    tenant = normalize_rag_namespace(tenant_id)
     if not tenant:
         return base
-    return f"{tenant}/{base}"
+    return normalize_rag_namespace(f"{tenant}/{base}") or f"{tenant}/{base}"
 
 
 def _list_ingest_events(
