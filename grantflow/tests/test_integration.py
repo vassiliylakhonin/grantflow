@@ -5705,6 +5705,84 @@ def test_generate_dispatches_webhook_events(monkeypatch):
     assert "webhook_secret" not in completed["job"]
 
 
+def test_generate_request_id_is_idempotent():
+    first = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Idempotent generation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+            "request_id": "rid-generate-1",
+        },
+    )
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["request_id"] == "rid-generate-1"
+    assert first_body.get("idempotent_replay") is not True
+
+    replay = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Idempotent generation", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+            "request_id": "rid-generate-1",
+        },
+    )
+    assert replay.status_code == 200
+    replay_body = replay.json()
+    assert replay_body["request_id"] == "rid-generate-1"
+    assert replay_body["idempotent_replay"] is True
+    assert replay_body["job_id"] == first_body["job_id"]
+
+    mismatch = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Different payload", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+            "request_id": "rid-generate-1",
+        },
+    )
+    assert mismatch.status_code == 409
+    mismatch_detail = mismatch.json().get("detail") or {}
+    assert mismatch_detail.get("reason") == "request_id_reused_with_different_payload"
+
+
+def test_cancel_request_id_is_idempotent():
+    job_id = "cancel-request-id-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "running",
+            "state": {"donor_id": "usaid", "input_context": {"project": "Cancel idem", "country": "Kenya"}},
+            "hitl_enabled": False,
+        },
+    )
+
+    first = client.post(f"/cancel/{job_id}", params={"request_id": "rid-cancel-1"})
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["status"] == "canceled"
+    assert first_body["request_id"] == "rid-cancel-1"
+    assert first_body.get("idempotent_replay") is not True
+
+    replay = client.post(f"/cancel/{job_id}", params={"request_id": "rid-cancel-1"})
+    assert replay.status_code == 200
+    replay_body = replay.json()
+    assert replay_body["status"] == "canceled"
+    assert replay_body["request_id"] == "rid-cancel-1"
+    assert replay_body["idempotent_replay"] is True
+
+    job = api_app_module.JOB_STORE.get(job_id) or {}
+    events = job.get("job_events") if isinstance(job.get("job_events"), list) else []
+    cancel_events = [row for row in events if isinstance(row, dict) and row.get("type") == "job_canceled"]
+    assert len(cancel_events) == 1
+
+
 def test_cancel_pending_hitl_job_and_cleanup_checkpoint(monkeypatch):
     events = []
 
@@ -5926,6 +6004,55 @@ def test_resume_clears_hitl_runtime_flags_before_relaunch(monkeypatch):
     assert job.get("checkpoint_stage") is None
 
 
+def test_resume_request_id_is_idempotent(monkeypatch):
+    checkpoint_id = api_app_module.hitl_manager.create_checkpoint(
+        stage="toc",
+        state={"donor_id": "usaid", "input_context": {"project": "Resume idem", "country": "Kenya"}},
+        donor_id="usaid",
+    )
+    api_app_module.hitl_manager.approve(checkpoint_id, "approved")
+
+    job_id = "resume-request-id-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "pending_hitl",
+            "state": {
+                "donor_id": "usaid",
+                "input_context": {"project": "Resume idem", "country": "Kenya"},
+                "hitl_pending": True,
+            },
+            "hitl_enabled": True,
+            "checkpoint_id": checkpoint_id,
+            "checkpoint_stage": "toc",
+            "resume_from": "mel",
+        },
+    )
+
+    monkeypatch.setattr(api_app_module, "_run_hitl_pipeline", lambda *_args, **_kwargs: None)
+
+    first = client.post(f"/resume/{job_id}", params={"request_id": "rid-resume-1"}, json={})
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["request_id"] == "rid-resume-1"
+    assert first_body["resuming_from"] == "mel"
+    assert first_body.get("idempotent_replay") is not True
+
+    api_app_module._update_job(job_id, status="done")
+
+    replay = client.post(f"/resume/{job_id}", params={"request_id": "rid-resume-1"}, json={})
+    assert replay.status_code == 200
+    replay_body = replay.json()
+    assert replay_body["request_id"] == "rid-resume-1"
+    assert replay_body["idempotent_replay"] is True
+    assert replay_body["resuming_from"] == "mel"
+
+    job = api_app_module.JOB_STORE.get(job_id) or {}
+    events = job.get("job_events") if isinstance(job.get("job_events"), list) else []
+    resume_events = [row for row in events if isinstance(row, dict) and row.get("type") == "resume_requested"]
+    assert len(resume_events) == 1
+
+
 def test_generate_uses_inmemory_queue_dispatch_when_enabled(monkeypatch):
     captured: dict = {}
 
@@ -6071,3 +6198,56 @@ def test_hitl_checkpoint_endpoints():
     )
     assert response.status_code == 200
     assert response.json()["status"] == "approved"
+
+
+def test_hitl_approve_request_id_is_idempotent():
+    from grantflow.swarm.hitl import hitl_manager
+
+    checkpoint_id = hitl_manager.create_checkpoint(
+        stage="toc",
+        state={"test": "data"},
+        donor_id="usaid",
+    )
+
+    first = client.post(
+        "/hitl/approve",
+        json={
+            "checkpoint_id": checkpoint_id,
+            "approved": True,
+            "feedback": "Looks good",
+            "request_id": "rid-hitl-approve-1",
+        },
+    )
+    assert first.status_code == 200
+    first_body = first.json()
+    assert first_body["status"] == "approved"
+    assert first_body["request_id"] == "rid-hitl-approve-1"
+    assert first_body.get("idempotent_replay") is not True
+
+    replay = client.post(
+        "/hitl/approve",
+        json={
+            "checkpoint_id": checkpoint_id,
+            "approved": True,
+            "feedback": "Looks good",
+            "request_id": "rid-hitl-approve-1",
+        },
+    )
+    assert replay.status_code == 200
+    replay_body = replay.json()
+    assert replay_body["request_id"] == "rid-hitl-approve-1"
+    assert replay_body["idempotent_replay"] is True
+    assert replay_body["status"] == "approved"
+
+    mismatch = client.post(
+        "/hitl/approve",
+        json={
+            "checkpoint_id": checkpoint_id,
+            "approved": False,
+            "feedback": "Rejected",
+            "request_id": "rid-hitl-approve-1",
+        },
+    )
+    assert mismatch.status_code == 409
+    mismatch_detail = mismatch.json().get("detail") or {}
+    assert mismatch_detail.get("reason") == "request_id_reused_with_different_payload"

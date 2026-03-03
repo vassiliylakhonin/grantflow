@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+import threading
 import uuid
 import zipfile
 from contextlib import asynccontextmanager
@@ -111,6 +112,7 @@ CRITIC_FINDING_SLA_HOURS = {"high": 24, "medium": 72, "low": 120}
 REVIEW_COMMENT_DEFAULT_SLA_HOURS = 72
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,120}$")
 MAX_IDEMPOTENCY_RECORDS = 300
+MAX_GLOBAL_IDEMPOTENCY_RECORDS = 1000
 JOB_RUNNER_MODES = {"background_tasks", "inmemory_queue"}
 STATUS_WEBHOOK_EVENTS = {
     "running": "job.started",
@@ -135,6 +137,8 @@ GENERATE_PREFLIGHT_DEFAULT_DOC_FAMILIES: dict[str, list[str]] = {
 }
 GROUNDING_POLICY_MODES = {"off", "warn", "strict"}
 TENANT_HEADER = "x-tenant-id"
+GLOBAL_IDEMPOTENCY_RECORDS: Dict[str, Dict[str, Any]] = {}
+GLOBAL_IDEMPOTENCY_LOCK = threading.Lock()
 
 
 def _job_runner_mode() -> str:
@@ -329,6 +333,75 @@ def _store_idempotency_response(
         oldest_key = next(iter(records))
         records.pop(oldest_key, None)
     _update_job(job_id, idempotency_records=records)
+
+
+def _global_idempotency_record_key(scope: str, request_id: str) -> str:
+    return f"{scope}:{request_id}"
+
+
+def _global_idempotency_replay_response(
+    *,
+    scope: str,
+    request_id: Optional[str],
+    fingerprint: str,
+) -> Optional[Dict[str, Any]]:
+    token = _normalize_request_id(request_id)
+    if not token:
+        return None
+    key = _global_idempotency_record_key(scope, token)
+    with GLOBAL_IDEMPOTENCY_LOCK:
+        record = dict(GLOBAL_IDEMPOTENCY_RECORDS.get(key) or {})
+    if not record:
+        return None
+    record_fingerprint = str(record.get("fingerprint") or "")
+    if record_fingerprint and record_fingerprint != fingerprint:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "request_id_reused_with_different_payload",
+                "message": "request_id is already used for a different action payload.",
+                "request_id": token,
+                "scope": scope,
+            },
+        )
+    response_payload = record.get("response")
+    if isinstance(response_payload, dict):
+        replay = dict(response_payload)
+    else:
+        replay = {}
+    replay["request_id"] = token
+    replay["idempotent_replay"] = True
+    replay["persisted"] = bool(record.get("persisted", True))
+    return replay
+
+
+def _store_global_idempotency_response(
+    *,
+    scope: str,
+    request_id: Optional[str],
+    fingerprint: str,
+    response: Dict[str, Any],
+    persisted: bool,
+) -> None:
+    token = _normalize_request_id(request_id)
+    if not token:
+        return
+    key = _global_idempotency_record_key(scope, token)
+    stored_response = dict(response)
+    stored_response.pop("idempotent_replay", None)
+    stored_response["request_id"] = token
+    with GLOBAL_IDEMPOTENCY_LOCK:
+        GLOBAL_IDEMPOTENCY_RECORDS[key] = {
+            "scope": scope,
+            "request_id": token,
+            "fingerprint": fingerprint,
+            "persisted": bool(persisted),
+            "ts": _utcnow_iso(),
+            "response": stored_response,
+        }
+        while len(GLOBAL_IDEMPOTENCY_RECORDS) > MAX_GLOBAL_IDEMPOTENCY_RECORDS:
+            oldest_key = next(iter(GLOBAL_IDEMPOTENCY_RECORDS))
+            GLOBAL_IDEMPOTENCY_RECORDS.pop(oldest_key, None)
 
 
 def _append_job_event_records(
@@ -1040,7 +1113,12 @@ def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
 
 def _update_job(job_id: str, **patch: Any) -> Dict[str, Any]:
     previous = JOB_STORE.get(job_id)
-    if previous and previous.get("status") == "canceled" and patch.get("status") != "canceled":
+    if (
+        previous
+        and previous.get("status") == "canceled"
+        and "status" in patch
+        and patch.get("status") != "canceled"
+    ):
         return previous
     next_patch = dict(patch)
     merged_preview = dict(previous or {})
@@ -1184,6 +1262,7 @@ class GenerateRequest(BaseModel):
     donor_id: str
     input_context: Dict[str, Any]
     tenant_id: Optional[str] = None
+    request_id: Optional[str] = None
     llm_mode: bool = False
     hitl_enabled: bool = False
     hitl_checkpoints: Optional[list[Literal["architect", "toc", "mel", "logframe"]]] = None
@@ -1208,6 +1287,7 @@ class HITLApprovalRequest(BaseModel):
     checkpoint_id: str
     approved: bool
     feedback: Optional[str] = None
+    request_id: Optional[str] = None
 
 
 class ExportRequest(BaseModel):
@@ -2944,8 +3024,14 @@ def generate_preflight(req: GeneratePreflightRequest, request: Request):
 
 
 @app.post("/generate")
-async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, request: Request):
+async def generate(
+    req: GenerateRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    request_id: Optional[str] = Query(default=None),
+):
     require_api_key_if_configured(request)
+    request_id_token = _resolve_request_id(request, request_id if request_id is not None else req.request_id)
     donor = req.donor_id.strip()
     if not donor:
         raise HTTPException(status_code=400, detail="Missing donor_id")
@@ -2956,6 +3042,29 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
         raise HTTPException(status_code=400, detail="webhook_secret requires webhook_url")
     if webhook_url and not (webhook_url.startswith("http://") or webhook_url.startswith("https://")):
         raise HTTPException(status_code=400, detail="webhook_url must start with http:// or https://")
+
+    generate_fingerprint = _idempotency_fingerprint(
+        {
+            "op": "generate",
+            "donor_id": donor,
+            "input_context": req.input_context or {},
+            "tenant_id": req.tenant_id,
+            "llm_mode": bool(req.llm_mode),
+            "hitl_enabled": bool(req.hitl_enabled),
+            "hitl_checkpoints": list(req.hitl_checkpoints or []),
+            "strict_preflight": bool(req.strict_preflight),
+            "webhook_url": webhook_url,
+            "webhook_secret": webhook_secret,
+            "client_metadata": req.client_metadata or {},
+        }
+    )
+    replay = _global_idempotency_replay_response(
+        scope="generate",
+        request_id=request_id_token,
+        fingerprint=generate_fingerprint,
+    )
+    if replay is not None:
+        return replay
 
     try:
         strategy = DonorFactory.get_strategy(donor)
@@ -3055,6 +3164,7 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
     _record_job_event(
         job_id,
         "generate_preflight_evaluated",
+        request_id=request_id_token,
         tenant_id=preflight_payload.get("tenant_id"),
         risk_level=str(preflight_payload.get("risk_level") or "none"),
         grounding_risk_level=str(preflight_payload.get("grounding_risk_level") or "none"),
@@ -3086,23 +3196,61 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
             backend=_job_runner_mode(),
             hitl_enabled=bool(req.hitl_enabled),
             reason=str(exc.detail),
+            request_id=request_id_token,
         )
         raise
-    _record_job_event(job_id, "job_dispatch_queued", backend=queue_backend, hitl_enabled=bool(req.hitl_enabled))
-    return {"status": "accepted", "job_id": job_id, "preflight": preflight_payload}
+    _record_job_event(
+        job_id,
+        "job_dispatch_queued",
+        backend=queue_backend,
+        hitl_enabled=bool(req.hitl_enabled),
+        request_id=request_id_token,
+    )
+    response = {"status": "accepted", "job_id": job_id, "preflight": preflight_payload}
+    if request_id_token:
+        response["request_id"] = request_id_token
+    _store_global_idempotency_response(
+        scope="generate",
+        request_id=request_id_token,
+        fingerprint=generate_fingerprint,
+        response=response,
+        persisted=True,
+    )
+    return response
 
 
 @app.post("/cancel/{job_id}")
-def cancel_job(job_id: str, request: Request):
+def cancel_job(job_id: str, request: Request, request_id: Optional[str] = Query(default=None)):
     require_api_key_if_configured(request)
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     _ensure_job_tenant_write_access(request, job)
+    request_id_token = _resolve_request_id(request, request_id)
+    idempotency_fingerprint = _idempotency_fingerprint({"op": "cancel_job", "job_id": str(job_id)})
+    replay = _idempotency_replay_response(
+        job,
+        scope="cancel_job",
+        request_id=request_id_token,
+        fingerprint=idempotency_fingerprint,
+    )
+    if replay is not None:
+        return replay
 
     status = str(job.get("status") or "")
     if status == "canceled":
-        return {"status": "canceled", "job_id": job_id, "already_canceled": True}
+        response = {"status": "canceled", "job_id": job_id, "already_canceled": True}
+        if request_id_token:
+            response["request_id"] = request_id_token
+        _store_idempotency_response(
+            job_id,
+            scope="cancel_job",
+            request_id=request_id_token,
+            fingerprint=idempotency_fingerprint,
+            response=response,
+            persisted=True,
+        )
+        return response
     if status in {"done", "error"}:
         raise HTTPException(status_code=409, detail=f"Job is already terminal: {status}")
 
@@ -3118,17 +3266,43 @@ def cancel_job(job_id: str, request: Request):
         cancellation_reason="Canceled by user",
         canceled=True,
     )
-    _record_job_event(job_id, "job_canceled", previous_status=status, reason="Canceled by user")
-    return {"status": "canceled", "job_id": job_id, "previous_status": status}
+    _record_job_event(job_id, "job_canceled", previous_status=status, reason="Canceled by user", request_id=request_id_token)
+    response = {"status": "canceled", "job_id": job_id, "previous_status": status}
+    if request_id_token:
+        response["request_id"] = request_id_token
+    _store_idempotency_response(
+        job_id,
+        scope="cancel_job",
+        request_id=request_id_token,
+        fingerprint=idempotency_fingerprint,
+        response=response,
+        persisted=True,
+    )
+    return response
 
 
 @app.post("/resume/{job_id}")
-async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Request):
+async def resume_job(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    request_id: Optional[str] = Query(default=None),
+):
     require_api_key_if_configured(request)
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     _ensure_job_tenant_write_access(request, job)
+    request_id_token = _resolve_request_id(request, request_id)
+    idempotency_fingerprint = _idempotency_fingerprint({"op": "resume_job", "job_id": str(job_id)})
+    replay = _idempotency_replay_response(
+        job,
+        scope="resume_job",
+        request_id=request_id_token,
+        fingerprint=idempotency_fingerprint,
+    )
+    if replay is not None:
+        return replay
     if job.get("status") != "pending_hitl":
         raise HTTPException(status_code=409, detail="Job is not waiting for HITL review")
 
@@ -3171,6 +3345,7 @@ async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Re
         checkpoint_id=str(checkpoint_id),
         checkpoint_status=getattr(checkpoint.get("status"), "value", checkpoint.get("status")),
         resuming_from=start_at,
+        request_id=request_id_token,
     )
     try:
         queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline, job_id, state, start_at)
@@ -3191,16 +3366,34 @@ async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Re
             checkpoint_id=str(checkpoint_id),
             resuming_from=start_at,
             reason=str(exc.detail),
+            request_id=request_id_token,
         )
         raise
-    _record_job_event(job_id, "resume_dispatch_queued", backend=queue_backend, resuming_from=start_at)
-    return {
+    _record_job_event(
+        job_id,
+        "resume_dispatch_queued",
+        backend=queue_backend,
+        resuming_from=start_at,
+        request_id=request_id_token,
+    )
+    response = {
         "status": "accepted",
         "job_id": job_id,
         "resuming_from": start_at,
         "checkpoint_id": checkpoint_id,
         "checkpoint_status": getattr(checkpoint.get("status"), "value", checkpoint.get("status")),
     }
+    if request_id_token:
+        response["request_id"] = request_id_token
+    _store_idempotency_response(
+        job_id,
+        scope="resume_job",
+        request_id=request_id_token,
+        fingerprint=idempotency_fingerprint,
+        response=response,
+        persisted=True,
+    )
+    return response
 
 
 @app.get("/status/{job_id}", response_model=JobStatusPublicResponse, response_model_exclude_none=True)
@@ -3844,19 +4037,51 @@ def reopen_status_comment(
 
 
 @app.post("/hitl/approve")
-def approve_checkpoint(req: HITLApprovalRequest, request: Request):
+def approve_checkpoint(
+    req: HITLApprovalRequest,
+    request: Request,
+    request_id: Optional[str] = Query(default=None),
+):
     require_api_key_if_configured(request)
+    request_id_token = _resolve_request_id(request, request_id if request_id is not None else req.request_id)
+    feedback = req.feedback if req.approved else (req.feedback or "Rejected")
+    idempotency_fingerprint = _idempotency_fingerprint(
+        {
+            "op": "hitl_approve",
+            "checkpoint_id": str(req.checkpoint_id),
+            "approved": bool(req.approved),
+            "feedback": str(feedback or ""),
+        }
+    )
+    replay = _global_idempotency_replay_response(
+        scope="hitl_approve",
+        request_id=request_id_token,
+        fingerprint=idempotency_fingerprint,
+    )
+    if replay is not None:
+        return replay
     checkpoint = hitl_manager.get_checkpoint(req.checkpoint_id)
     if not checkpoint:
         raise HTTPException(status_code=404, detail="Checkpoint not found")
     _ensure_checkpoint_tenant_write_access(request, checkpoint)
 
     if req.approved:
-        hitl_manager.approve(req.checkpoint_id, req.feedback)
-        return {"status": "approved", "checkpoint_id": req.checkpoint_id}
+        hitl_manager.approve(req.checkpoint_id, feedback)
+        response = {"status": "approved", "checkpoint_id": req.checkpoint_id}
+    else:
+        hitl_manager.reject(req.checkpoint_id, feedback)
+        response = {"status": "rejected", "checkpoint_id": req.checkpoint_id}
 
-    hitl_manager.reject(req.checkpoint_id, req.feedback or "Rejected")
-    return {"status": "rejected", "checkpoint_id": req.checkpoint_id}
+    if request_id_token:
+        response["request_id"] = request_id_token
+    _store_global_idempotency_response(
+        scope="hitl_approve",
+        request_id=request_id_token,
+        fingerprint=idempotency_fingerprint,
+        response=response,
+        persisted=True,
+    )
+    return response
 
 
 @app.get("/hitl/pending", response_model=HITLPendingListPublicResponse, response_model_exclude_none=True)

@@ -229,6 +229,7 @@ curl -s -X POST http://127.0.0.1:8000/export \
 - `GET /health`, `GET /ready`, `GET /donors`
 - `POST /generate/preflight`, `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
   - `tenant_id` supported on `generate/preflight` and `generate`
+  - lifecycle idempotency via `request_id` (query/body) or `X-Request-Id` is supported for `generate`, `cancel`, `resume`, and `hitl/approve`
 - `GET /status/{job_id}` plus:
   - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/sla`, `/review/workflow/export`
   - `GET /status/{job_id}/review/workflow/sla/profile`
