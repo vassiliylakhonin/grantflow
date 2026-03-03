@@ -110,6 +110,31 @@ def state_iteration(state: Mapping[str, Any], default: int = 0) -> int:
     return _as_int(state.get("iteration_count"), default=_as_int(state.get("iteration"), default=default))
 
 
+def set_state_iteration(state: MutableMapping[str, Any], iteration: Any) -> int:
+    value = max(0, _as_int(iteration, default=0))
+    state["iteration_count"] = value
+    # Legacy alias retained for compatibility with older payload consumers.
+    state["iteration"] = value
+    return value
+
+
+def state_llm_mode(state: Mapping[str, Any], default: bool = False) -> bool:
+    return _as_bool(state.get("llm_mode"), default=default)
+
+
+def state_max_iterations(state: Mapping[str, Any], default: int = 3) -> int:
+    return max(1, _as_int(state.get("max_iterations"), default=default))
+
+
+def state_revision_hint(state: Mapping[str, Any]) -> str:
+    critic_notes = state.get("critic_notes")
+    if isinstance(critic_notes, dict):
+        return str(critic_notes.get("revision_instructions") or "")
+    if isinstance(critic_notes, str):
+        return critic_notes
+    return ""
+
+
 def normalized_state_copy(state: Any) -> GrantFlowState:
     raw = dict(state) if isinstance(state, Mapping) else {}
     return normalize_state_contract(raw)
@@ -139,10 +164,7 @@ def normalize_state_contract(state: MutableMapping[str, Any]) -> GrantFlowState:
         # Legacy alias retained for compatibility with older payload consumers.
         state["retrieval_namespace"] = rag_namespace
 
-    iteration = state_iteration(state)
-    state["iteration_count"] = iteration
-    # Legacy alias retained for compatibility with older payload consumers.
-    state["iteration"] = iteration
+    set_state_iteration(state, state_iteration(state))
 
     critic_score = _as_float(
         state.get("critic_score"),
@@ -155,10 +177,10 @@ def normalize_state_contract(state: MutableMapping[str, Any]) -> GrantFlowState:
     state["critic_score"] = critic_score
     state["quality_score"] = quality_score
 
-    state["llm_mode"] = _as_bool(state.get("llm_mode"), default=False)
+    state["llm_mode"] = state_llm_mode(state, default=False)
     state["needs_revision"] = _as_bool(state.get("needs_revision"), default=False)
     state["hitl_pending"] = _as_bool(state.get("hitl_pending"), default=False)
-    state["max_iterations"] = max(1, _as_int(state.get("max_iterations"), default=3))
+    state["max_iterations"] = state_max_iterations(state, default=3)
     hitl_checkpoints = state.get("hitl_checkpoints")
     if isinstance(hitl_checkpoints, (list, tuple, set)):
         normalized_checkpoints: list[str] = []

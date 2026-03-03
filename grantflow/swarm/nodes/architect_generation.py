@@ -21,7 +21,14 @@ from grantflow.swarm.nodes.architect_policy import (
     sanitize_validation_error_hint,
 )
 from grantflow.swarm.nodes.architect_retrieval import pick_best_architect_evidence_hit
-from grantflow.swarm.state_contract import normalize_state_contract, state_donor_id, state_input_context, state_rag_namespace
+from grantflow.swarm.state_contract import (
+    normalize_state_contract,
+    state_donor_id,
+    state_input_context,
+    state_llm_mode,
+    state_rag_namespace,
+    state_revision_hint,
+)
 
 
 def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> BaseModel:
@@ -470,14 +477,8 @@ def generate_toc_under_contract(
     input_context = state_input_context(state)
     project = str(input_context.get("project") or "TBD project")
     country = str(input_context.get("country") or "TBD")
-    critic_notes = state.get("critic_notes")
-    revision_hint = ""
-    if isinstance(critic_notes, dict):
-        revision_hint = str(critic_notes.get("revision_instructions") or "")
-    elif isinstance(critic_notes, str):
-        revision_hint = critic_notes
-
-    llm_mode = bool(state.get("llm_mode", False))
+    revision_hint = state_revision_hint(state)
+    llm_mode = state_llm_mode(state, default=False)
     llm_available = openai_compatible_llm_available()
     llm_error: Optional[str] = None
     raw_payload: Optional[Dict[str, Any]] = None

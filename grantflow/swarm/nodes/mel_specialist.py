@@ -24,7 +24,9 @@ from grantflow.swarm.state_contract import (
     state_donor_strategy,
     state_input_context,
     state_iteration,
+    state_llm_mode,
     state_rag_namespace,
+    state_revision_hint,
 )
 from grantflow.swarm.versioning import append_draft_version
 
@@ -581,12 +583,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
     country = str(input_context.get("country") or "TBD")
     toc = state.get("toc_draft", {}) or {}
     toc_payload = (toc.get("toc") or {}) if isinstance(toc, dict) else {}
-    critic_notes = state.get("critic_notes")
-    revision_hint = ""
-    if isinstance(critic_notes, dict):
-        revision_hint = str(critic_notes.get("revision_instructions") or "")
-    elif isinstance(critic_notes, str):
-        revision_hint = critic_notes
+    revision_hint = state_revision_hint(state)
 
     retrieval_hits: list[Dict[str, Any]] = []
     rag_trace: Dict[str, Any] = {
@@ -601,7 +598,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
         "min_hit_confidence": round(min_hit_confidence, 3),
         "used_results": 0,
     }
-    llm_mode = bool(state.get("llm_mode", False))
+    llm_mode = state_llm_mode(state, default=False)
     llm_available = openai_compatible_llm_available()
     llm_attempted = False
     llm_repair_attempted = False

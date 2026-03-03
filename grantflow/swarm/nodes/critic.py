@@ -21,9 +21,12 @@ from grantflow.swarm.llm_provider import (
 )
 from grantflow.swarm.state_contract import (
     normalize_state_contract,
+    set_state_iteration,
     state_donor_id,
     state_donor_strategy,
     state_iteration,
+    state_llm_mode,
+    state_max_iterations,
 )
 
 WEAK_GROUNDING_LLM_SCORE_MAX_PENALTY = 1.5
@@ -398,7 +401,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Critical Error: DonorStrategy not found in state.")
 
     evaluation: Optional[RedTeamEvaluation] = None
-    llm_mode = bool(state.get("llm_mode", False))
+    llm_mode = state_llm_mode(state, default=False)
     critic_engine = "rules"
     llm_reason: Optional[str] = None
     rule_report = evaluate_rule_based_critic(state)
@@ -432,7 +435,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
         llm_reason = "llm_mode=false" if not llm_mode else openai_compatible_missing_reason()
 
     iteration = state_iteration(state) + 1
-    max_iters = int(state.get("max_iterations", 3) or 3)
+    max_iters = state_max_iterations(state, default=3)
     llm_score = float(evaluation.score) if evaluation is not None else None
     llm_fatal_flaw_items: List[Dict[str, Any]] = []
     if evaluation is not None:
@@ -573,8 +576,7 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     )
     state["critic_feedback_history"] = history
 
-    state["iteration"] = iteration
-    state["iteration_count"] = iteration
+    set_state_iteration(state, iteration)
     state["needs_revision"] = score < threshold and iteration < max_iters
     state["next_step"] = "architect" if state["needs_revision"] else "end"
     return state

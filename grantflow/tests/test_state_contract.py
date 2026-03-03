@@ -5,11 +5,15 @@ from grantflow.swarm.state_contract import (
     normalize_state_contract,
     normalized_state_copy,
     set_state_donor_strategy,
+    set_state_iteration,
     state_donor_id,
     state_donor_strategy,
     state_input_context,
     state_iteration,
+    state_llm_mode,
+    state_max_iterations,
     state_rag_namespace,
+    state_revision_hint,
 )
 
 
@@ -115,3 +119,27 @@ def test_normalized_state_copy_keeps_original_mapping_unchanged():
     assert out["llm_mode"] is True
     assert "donor_id" not in source
     assert "input_context" not in source
+
+
+def test_state_helpers_coerce_llm_mode_max_iterations_and_revision_hint():
+    state = {
+        "llm_mode": "yes",
+        "max_iterations": "0",
+        "critic_notes": {"revision_instructions": "Tighten assumptions"},
+    }
+    assert state_llm_mode(state) is True
+    assert state_max_iterations(state) == 1
+    assert state_revision_hint(state) == "Tighten assumptions"
+
+    legacy_state = {"llm_mode": 0, "max_iterations": "7", "critic_notes": "Rewrite indicators"}
+    assert state_llm_mode(legacy_state, default=True) is False
+    assert state_max_iterations(legacy_state) == 7
+    assert state_revision_hint(legacy_state) == "Rewrite indicators"
+
+
+def test_set_state_iteration_updates_canonical_and_legacy_aliases():
+    state: dict[str, object] = {}
+    value = set_state_iteration(state, "4")
+    assert value == 4
+    assert state["iteration_count"] == 4
+    assert state["iteration"] == 4

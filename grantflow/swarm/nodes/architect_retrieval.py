@@ -8,7 +8,7 @@ from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
 from grantflow.swarm.retrieval_query import build_stage_query_text
-from grantflow.swarm.state_contract import state_donor_id, state_input_context
+from grantflow.swarm.state_contract import state_donor_id, state_input_context, state_revision_hint
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
 _GENERIC_EXCERPT_TOKENS = {
@@ -56,12 +56,7 @@ def build_architect_query_text(state: Dict[str, Any]) -> str:
     project = str(input_context.get("project") or "project").strip()
     country = str(input_context.get("country") or "").strip()
 
-    critic_notes = state.get("critic_notes") or {}
-    revision_hint = ""
-    if isinstance(critic_notes, dict):
-        revision_hint = str(critic_notes.get("revision_instructions") or "").strip()
-    elif isinstance(critic_notes, str):
-        revision_hint = critic_notes.strip()
+    revision_hint = state_revision_hint(state).strip()
 
     return build_stage_query_text(
         state=state,

@@ -15,6 +15,7 @@ from grantflow.swarm.state_contract import (
     state_input_context,
     state_iteration,
     state_rag_namespace,
+    state_revision_hint,
 )
 from grantflow.swarm.versioning import append_draft_version
 
@@ -28,17 +29,12 @@ def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
     iteration = state_iteration(state)
     donor_id = state_donor_id(state)
     input_context = state_input_context(state)
-    critic_notes = state.get("critic_notes")
 
     if not strategy:
         state.setdefault("errors", []).append("Architect cannot run without donor_strategy")
         return state
 
-    revision_hint = ""
-    if isinstance(critic_notes, dict):
-        revision_hint = str(critic_notes.get("revision_instructions", ""))
-    elif isinstance(critic_notes, str):
-        revision_hint = critic_notes
+    revision_hint = state_revision_hint(state)
 
     namespace = state_rag_namespace(state, default=strategy.get_rag_collection())
     retrieval_summary, retrieval_hits = retrieve_architect_evidence(state, namespace)
