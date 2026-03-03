@@ -9,6 +9,20 @@ from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.state_contract import state_input_context
 from grantflow.swarm.versioning import filter_versions
 
+BASELINE_TARGET_PLACEHOLDER_VALUES = {
+    "",
+    "tbd",
+    "to be determined",
+    "placeholder",
+    "n/a",
+    "na",
+    "unknown",
+    "-",
+    "--",
+    "none",
+    "null",
+}
+
 
 class CriticFatalFlaw(BaseModel):
     id: Optional[str] = Field(default=None, description="Canonical finding identifier within a job")
@@ -137,6 +151,17 @@ def _safe_ratio(numerator: float, denominator: float) -> float:
     if denominator <= 0:
         return 0.0
     return round(float(numerator) / float(denominator), 4)
+
+
+def _is_placeholder_baseline_target(value: Any) -> bool:
+    text = str(value or "").strip().lower()
+    if text in BASELINE_TARGET_PLACEHOLDER_VALUES:
+        return True
+    if "tbd" in text:
+        return True
+    if "to be determined" in text:
+        return True
+    return False
 
 
 def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
@@ -515,6 +540,72 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                 detail=f"{len(indicators)} indicators",
             )
         )
+        placeholder_rows = []
+        for idx, indicator in enumerate(indicators):
+            if not isinstance(indicator, dict):
+                continue
+            baseline = indicator.get("baseline")
+            target = indicator.get("target")
+            if _is_placeholder_baseline_target(baseline) or _is_placeholder_baseline_target(target):
+                placeholder_rows.append(
+                    {
+                        "indicator_id": str(indicator.get("indicator_id") or f"IND_{idx + 1:03d}"),
+                        "baseline": str(baseline or "").strip(),
+                        "target": str(target or "").strip(),
+                    }
+                )
+
+        if placeholder_rows:
+            placeholder_ratio = _safe_ratio(len(placeholder_rows), len(indicators))
+            detail = (
+                f"{len(placeholder_rows)}/{len(indicators)} indicators with placeholder baseline/target "
+                f"(ratio={placeholder_ratio:.0%})"
+            )
+            if placeholder_ratio > 0.5:
+                checks.append(
+                    RuleCheckResult(
+                        code="LOGFRAME_BASELINE_TARGET_COMPLETENESS",
+                        status="fail",
+                        section="logframe",
+                        detail=detail,
+                    )
+                )
+                _add_flaw(
+                    flaws,
+                    code="LOGFRAME_BASELINE_TARGET_PLACEHOLDERS_CRITICAL",
+                    severity="high",
+                    section="logframe",
+                    state=state,
+                    message="Most indicators still use placeholder baseline/target values.",
+                    fix_hint="Replace placeholder baseline/target values with concrete measurable values before finalization/export.",
+                )
+            else:
+                checks.append(
+                    RuleCheckResult(
+                        code="LOGFRAME_BASELINE_TARGET_COMPLETENESS",
+                        status="warn",
+                        section="logframe",
+                        detail=detail,
+                    )
+                )
+                _add_flaw(
+                    flaws,
+                    code="LOGFRAME_BASELINE_TARGET_PLACEHOLDERS",
+                    severity="medium",
+                    section="logframe",
+                    state=state,
+                    message="Some indicators still use placeholder baseline/target values.",
+                    fix_hint="Fill baseline/target with concrete measurable values for all indicators.",
+                )
+        else:
+            checks.append(
+                RuleCheckResult(
+                    code="LOGFRAME_BASELINE_TARGET_COMPLETENESS",
+                    status="pass",
+                    section="logframe",
+                    detail="All indicators have non-placeholder baseline/target values",
+                )
+            )
     else:
         checks.append(
             RuleCheckResult(

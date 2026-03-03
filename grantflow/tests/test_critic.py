@@ -193,6 +193,65 @@ def test_rule_based_critic_flags_fallback_dominant_architect_grounding_when_rag_
     assert any(f["code"] == "TOC_CLAIM_CONFIDENCE_HIT_RATE_CRITICAL" for f in flaws)
 
 
+def test_rule_based_critic_warns_when_some_logframe_baseline_target_are_placeholders():
+    state = {
+        "input_context": {"project": "AI governance training", "country": "Kazakhstan"},
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "GenericTOC"},
+        "toc_draft": {"toc": {"project_goal": "Improve services", "objectives": [{"title": "Obj", "description": "X"}]}},
+        "logframe_draft": {
+            "indicators": [
+                {"indicator_id": "IND_001", "baseline": "0", "target": "120"},
+                {"indicator_id": "IND_002", "baseline": "TBD", "target": "250"},
+            ]
+        },
+        "citations": [
+            {"stage": "architect", "used_for": "toc_claim", "statement_path": "toc.project_goal", "label": "doc"},
+            {"stage": "mel", "used_for": "IND_001", "label": "doc"},
+        ],
+    }
+
+    report = evaluate_rule_based_critic(state)
+    checks = [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in report.checks]
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+
+    assert any(c["code"] == "LOGFRAME_BASELINE_TARGET_COMPLETENESS" and c["status"] == "warn" for c in checks)
+    assert any(f["code"] == "LOGFRAME_BASELINE_TARGET_PLACEHOLDERS" for f in flaws)
+
+
+def test_rule_based_critic_fails_when_most_logframe_baseline_target_are_placeholders():
+    state = {
+        "input_context": {"project": "AI governance training", "country": "Kazakhstan"},
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "GenericTOC"},
+        "toc_draft": {"toc": {"project_goal": "Improve services", "objectives": [{"title": "Obj", "description": "X"}]}},
+        "logframe_draft": {
+            "indicators": [
+                {"indicator_id": "IND_001", "baseline": "TBD", "target": "TBD"},
+                {"indicator_id": "IND_002", "baseline": "N/A", "target": ""},
+                {"indicator_id": "IND_003", "baseline": "0", "target": "60"},
+            ]
+        },
+        "citations": [
+            {"stage": "architect", "used_for": "toc_claim", "statement_path": "toc.project_goal", "label": "doc"},
+            {"stage": "mel", "used_for": "IND_001", "label": "doc"},
+        ],
+    }
+
+    report = evaluate_rule_based_critic(state)
+    checks = [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in report.checks]
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+
+    assert any(c["code"] == "LOGFRAME_BASELINE_TARGET_COMPLETENESS" and c["status"] == "fail" for c in checks)
+    assert any(f["code"] == "LOGFRAME_BASELINE_TARGET_PLACEHOLDERS_CRITICAL" for f in flaws)
+
+
 def test_red_team_critic_marks_sparse_input_brief_for_revision():
     state = {
         "donor_strategy": object(),
