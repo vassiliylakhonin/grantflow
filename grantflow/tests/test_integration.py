@@ -355,6 +355,8 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_review_workflow_state" in body
     assert "grantflow_demo_review_workflow_overdue_hours" in body
     assert "grantflow_demo_review_workflow_sla_use_saved_profile" in body
+    assert 'params.set("finding_code",' in body
+    assert 'params.set("finding_section",' in body
     assert 'params.set("workflow_state",' in body
     assert 'params.set("overdue_after_hours",' in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
@@ -3543,6 +3545,8 @@ def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeli
     assert body["status"] == "done"
     assert body.get("filters", {}).get("event_type") is None
     assert body.get("filters", {}).get("finding_id") is None
+    assert body.get("filters", {}).get("finding_code") is None
+    assert body.get("filters", {}).get("finding_section") is None
     assert body.get("filters", {}).get("comment_status") is None
     assert body.get("filters", {}).get("workflow_state") is None
     assert body.get("filters", {}).get("overdue_after_hours") == 48
@@ -3590,6 +3594,45 @@ def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeli
     assert len(finding_filtered_body["findings"]) == 1
     assert all((row.get("finding_id") or row.get("id")) == "finding-1" for row in finding_filtered_body["findings"])
     assert all(str(row.get("linked_finding_id") or "") == "finding-1" for row in finding_filtered_body["comments"])
+
+    finding_code_filtered = client.get(
+        f"/status/{job_id}/review/workflow",
+        params={"finding_code": "mel_baseline_missing"},
+    )
+    assert finding_code_filtered.status_code == 200
+    finding_code_filtered_body = finding_code_filtered.json()
+    assert finding_code_filtered_body["filters"]["finding_code"] == "MEL_BASELINE_MISSING"
+    assert {row["finding_id"] for row in finding_code_filtered_body["findings"]} == {"finding-2"}
+    assert finding_code_filtered_body["comments"] == []
+    assert finding_code_filtered_body["timeline"] == []
+
+    finding_section_filtered = client.get(
+        f"/status/{job_id}/review/workflow",
+        params={"finding_section": "toc"},
+    )
+    assert finding_section_filtered.status_code == 200
+    finding_section_filtered_body = finding_section_filtered.json()
+    assert finding_section_filtered_body["filters"]["finding_section"] == "toc"
+    assert {row["finding_id"] for row in finding_section_filtered_body["findings"]} == {"finding-1"}
+    assert {row["comment_id"] for row in finding_section_filtered_body["comments"]} == {"comment-1"}
+    assert finding_section_filtered_body["timeline"]
+    assert all(
+        str(row.get("section") or "").lower() == "toc"
+        or str(row.get("finding_id") or "") == "finding-1"
+        or str(row.get("comment_id") or "") == "comment-1"
+        for row in finding_section_filtered_body["timeline"]
+    )
+
+    comment_section_only = client.get(
+        f"/status/{job_id}/review/workflow",
+        params={"finding_section": "general"},
+    )
+    assert comment_section_only.status_code == 200
+    comment_section_only_body = comment_section_only.json()
+    assert comment_section_only_body["filters"]["finding_section"] == "general"
+    assert comment_section_only_body["findings"] == []
+    assert {row["comment_id"] for row in comment_section_only_body["comments"]} == {"comment-2"}
+    assert comment_section_only_body["timeline"] == []
 
     event_type_filtered = client.get(
         f"/status/{job_id}/review/workflow",
@@ -3725,6 +3768,8 @@ def test_status_review_workflow_supports_pending_overdue_filters_and_validation(
 
     invalid_filter = client.get(f"/status/{job_id}/review/workflow", params={"workflow_state": "inbox"})
     assert invalid_filter.status_code == 400
+    invalid_section_filter = client.get(f"/status/{job_id}/review/workflow", params={"finding_section": "budget"})
+    assert invalid_section_filter.status_code == 400
 
     all_items = client.get(f"/status/{job_id}/review/workflow", params={"overdue_after_hours": 2})
     assert all_items.status_code == 200
@@ -4157,7 +4202,15 @@ def test_status_review_workflow_export_supports_csv_json_and_gzip():
                             "section": "toc",
                             "status": "open",
                             "message": "ToC schema mismatch.",
-                        }
+                        },
+                        {
+                            "finding_id": "finding-export-2",
+                            "code": "MEL_BASELINE_MISSING",
+                            "severity": "medium",
+                            "section": "logframe",
+                            "status": "open",
+                            "message": "MEL baseline is missing.",
+                        },
                     ]
                 }
             },
@@ -4169,7 +4222,15 @@ def test_status_review_workflow_export_supports_csv_json_and_gzip():
                     "status": "open",
                     "message": "Need update before submission.",
                     "linked_finding_id": "finding-export-1",
-                }
+                },
+                {
+                    "comment_id": "comment-export-2",
+                    "ts": "2026-02-27T11:02:00+00:00",
+                    "section": "logframe",
+                    "status": "resolved",
+                    "message": "Baseline evidence added.",
+                    "linked_finding_id": "finding-export-2",
+                },
             ],
             "job_events": [
                 {
@@ -4188,13 +4249,35 @@ def test_status_review_workflow_export_supports_csv_json_and_gzip():
                     "section": "toc",
                     "severity": "high",
                 },
+                {
+                    "event_id": "rwf-exp-3",
+                    "ts": "2026-02-27T11:02:00+00:00",
+                    "type": "review_comment_added",
+                    "comment_id": "comment-export-2",
+                    "section": "logframe",
+                },
+                {
+                    "event_id": "rwf-exp-4",
+                    "ts": "2026-02-27T11:03:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-export-2",
+                    "status": "open",
+                    "section": "logframe",
+                    "severity": "medium",
+                },
             ],
         },
     )
 
     csv_resp = client.get(
         f"/status/{job_id}/review/workflow/export",
-        params={"finding_id": "finding-export-1", "comment_status": "open", "format": "csv"},
+        params={
+            "finding_id": "finding-export-1",
+            "finding_code": "toc_schema_invalid",
+            "finding_section": "toc",
+            "comment_status": "open",
+            "format": "csv",
+        },
     )
     assert csv_resp.status_code == 200
     assert csv_resp.headers["content-type"].startswith("text/csv")
@@ -4203,30 +4286,40 @@ def test_status_review_workflow_export_supports_csv_json_and_gzip():
     csv_text = csv_resp.text
     assert csv_text.startswith("field,value\n")
     assert "filters.finding_id,finding-export-1" in csv_text
+    assert "filters.finding_code,TOC_SCHEMA_INVALID" in csv_text
+    assert "filters.finding_section,toc" in csv_text
     assert "filters.comment_status,open" in csv_text
     assert "summary.finding_count,1" in csv_text
 
     json_resp = client.get(
         f"/status/{job_id}/review/workflow/export",
-        params={"event_type": "critic_finding_status_changed", "format": "json"},
+        params={"finding_section": "logframe", "format": "json"},
     )
     assert json_resp.status_code == 200
     assert json_resp.headers["content-type"].startswith("application/json")
     json_payload = json_resp.json()
-    assert json_payload["filters"]["event_type"] == "critic_finding_status_changed"
+    assert json_payload["filters"]["finding_section"] == "logframe"
+    assert {row["finding_id"] for row in json_payload["findings"]} == {"finding-export-2"}
+    assert {row["comment_id"] for row in json_payload["comments"]} == {"comment-export-2"}
     assert json_payload["timeline"]
-    assert all(row["type"] == "critic_finding_status_changed" for row in json_payload["timeline"])
+    assert all(
+        str(row.get("section") or "").lower() == "logframe"
+        or str(row.get("finding_id") or "") == "finding-export-2"
+        or str(row.get("comment_id") or "") == "comment-export-2"
+        for row in json_payload["timeline"]
+    )
 
     gzip_resp = client.get(
         f"/status/{job_id}/review/workflow/export",
-        params={"finding_id": "finding-export-1", "format": "json", "gzip": "true"},
+        params={"finding_code": "MEL_BASELINE_MISSING", "format": "json", "gzip": "true"},
     )
     assert gzip_resp.status_code == 200
     assert gzip_resp.headers["content-type"].startswith("application/gzip")
     gzip_disposition = gzip_resp.headers.get("content-disposition", "")
     assert f"grantflow_review_workflow_{job_id}.json.gz" in gzip_disposition
     gzip_payload = json.loads(gzip.decompress(gzip_resp.content).decode("utf-8"))
-    assert gzip_payload["filters"]["finding_id"] == "finding-export-1"
+    assert gzip_payload["filters"]["finding_code"] == "MEL_BASELINE_MISSING"
+    assert {row["finding_id"] for row in gzip_payload["findings"]} == {"finding-export-2"}
 
 
 def test_metrics_endpoint_derives_timeline_metrics_from_events():

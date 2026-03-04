@@ -213,6 +213,8 @@ class JobReviewWorkflowSummaryPublicResponse(BaseModel):
 class JobReviewWorkflowFiltersPublicResponse(BaseModel):
     event_type: Optional[str] = None
     finding_id: Optional[str] = None
+    finding_code: Optional[str] = None
+    finding_section: Optional[str] = None
     comment_status: Optional[str] = None
     workflow_state: Optional[str] = None
     overdue_after_hours: Optional[int] = None

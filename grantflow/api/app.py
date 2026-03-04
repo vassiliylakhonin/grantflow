@@ -5001,6 +5001,8 @@ def get_status_review_workflow(
     request: Request,
     event_type: Optional[str] = None,
     finding_id: Optional[str] = None,
+    finding_code: Optional[str] = Query(default=None, alias="finding_code"),
+    finding_section: Optional[str] = Query(default=None, alias="finding_section"),
     comment_status: Optional[str] = Query(default=None, alias="comment_status"),
     workflow_state: Optional[str] = Query(default=None, alias="workflow_state"),
     overdue_after_hours: int = Query(
@@ -5014,6 +5016,11 @@ def get_status_review_workflow(
     workflow_state_filter = str(workflow_state or "").strip().lower() or None
     if workflow_state_filter and workflow_state_filter not in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
         raise HTTPException(status_code=400, detail="Unsupported workflow_state filter")
+    finding_section_filter = _validated_filter_token(
+        finding_section,
+        allowed={"toc", "logframe", "general"},
+        detail="Unsupported finding_section filter",
+    )
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -5025,6 +5032,8 @@ def get_status_review_workflow(
         job,
         event_type=(event_type or None),
         finding_id=(finding_id or None),
+        finding_code=(str(finding_code or "").strip() or None),
+        finding_section=finding_section_filter,
         comment_status=(comment_status or None),
         workflow_state=workflow_state_filter,
         overdue_after_hours=overdue_after_hours,
@@ -5107,6 +5116,8 @@ def export_status_review_workflow(
     request: Request,
     event_type: Optional[str] = None,
     finding_id: Optional[str] = None,
+    finding_code: Optional[str] = Query(default=None, alias="finding_code"),
+    finding_section: Optional[str] = Query(default=None, alias="finding_section"),
     comment_status: Optional[str] = Query(default=None, alias="comment_status"),
     workflow_state: Optional[str] = Query(default=None, alias="workflow_state"),
     overdue_after_hours: int = Query(
@@ -5122,6 +5133,11 @@ def export_status_review_workflow(
     workflow_state_filter = str(workflow_state or "").strip().lower() or None
     if workflow_state_filter and workflow_state_filter not in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
         raise HTTPException(status_code=400, detail="Unsupported workflow_state filter")
+    finding_section_filter = _validated_filter_token(
+        finding_section,
+        allowed={"toc", "logframe", "general"},
+        detail="Unsupported finding_section filter",
+    )
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -5133,6 +5149,8 @@ def export_status_review_workflow(
         job,
         event_type=(event_type or None),
         finding_id=(finding_id or None),
+        finding_code=(str(finding_code or "").strip() or None),
+        finding_section=finding_section_filter,
         comment_status=(comment_status or None),
         workflow_state=workflow_state_filter,
         overdue_after_hours=overdue_after_hours,

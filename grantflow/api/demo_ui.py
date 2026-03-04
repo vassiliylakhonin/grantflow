@@ -1127,11 +1127,11 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row3" style="margin-top:10px;">
               <div>
-                <label for="reviewWorkflowFindingCodeFilter">Workflow Filter: Finding Code (client)</label>
+                <label for="reviewWorkflowFindingCodeFilter">Workflow Filter: Finding Code</label>
                 <input id="reviewWorkflowFindingCodeFilter" placeholder="RUNTIME_GROUNDED_QUALITY_GATE_BLOCK" />
               </div>
               <div>
-                <label for="reviewWorkflowFindingSectionFilter">Workflow Filter: Finding Section (client)</label>
+                <label for="reviewWorkflowFindingSectionFilter">Workflow Filter: Finding Section</label>
                 <select id="reviewWorkflowFindingSectionFilter">
                   <option value="">all</option>
                   <option value="toc">toc</option>
@@ -3972,31 +3972,6 @@ def render_demo_ui_html() -> str:
         return byId;
       }
 
-      function timelineItemMatchesReviewWorkflowClientFilters(item, findingMetaById) {
-        const findingCodeFilter = String(els.reviewWorkflowFindingCodeFilter?.value || "").trim().toUpperCase();
-        const findingSectionFilter = String(els.reviewWorkflowFindingSectionFilter?.value || "").trim().toLowerCase();
-        if (!findingCodeFilter && !findingSectionFilter) return true;
-
-        const findingId = String(item?.finding_id || "").trim();
-        const findingMeta = findingId ? findingMetaById[findingId] : null;
-        const itemSection = String(item?.section || "").trim().toLowerCase();
-        const metaSection = findingMeta ? String(findingMeta.section || "").trim().toLowerCase() : "";
-        const relatedSections = Array.isArray(findingMeta?.relatedSections) ? findingMeta.relatedSections : [];
-
-        if (findingCodeFilter) {
-          const codeToken = findingMeta ? String(findingMeta.code || "").trim().toUpperCase() : "";
-          if (codeToken !== findingCodeFilter) return false;
-        }
-        if (findingSectionFilter) {
-          const sectionMatched =
-            itemSection === findingSectionFilter ||
-            metaSection === findingSectionFilter ||
-            relatedSections.includes(findingSectionFilter);
-          if (!sectionMatched) return false;
-        }
-        return true;
-      }
-
       async function applyRuntimeGroundedGateReviewWorkflowDrilldown({ section = "", reasonCode = "" } = {}) {
         const jobId = currentJobId();
         if (!jobId) throw new Error("Set or generate a job_id first");
@@ -4042,11 +4017,8 @@ def render_demo_ui_html() -> str:
       }
 
       function renderReviewWorkflowTimeline(body) {
-        const timelineAll = Array.isArray(body?.timeline) ? body.timeline : [];
+        const timeline = Array.isArray(body?.timeline) ? body.timeline : [];
         const findingMetaById = buildCriticFindingMetaById();
-        const timeline = timelineAll.filter((item) =>
-          timelineItemMatchesReviewWorkflowClientFilters(item, findingMetaById)
-        );
         els.reviewWorkflowTimelineList.innerHTML = "";
         if (!timeline.length) {
           els.reviewWorkflowTimelineList.innerHTML = `<div class="item"><div class="sub">No review workflow events for current filters.</div></div>`;
@@ -4091,18 +4063,9 @@ def render_demo_ui_html() -> str:
         const overdueCommentCount = Number(summary.overdue_comment_count || 0);
         const orphanLinkedCount = Number(summary.orphan_linked_comment_count || 0);
         const lastActivity = String(summary.last_activity_at || "-");
-        const findingCodeFilter = String(els.reviewWorkflowFindingCodeFilter?.value || "").trim();
-        const findingSectionFilter = String(els.reviewWorkflowFindingSectionFilter?.value || "").trim();
-        const clientFilterMarker =
-          findingCodeFilter || findingSectionFilter
-            ? ` · client_filters=${findingCodeFilter || "-"}:${findingSectionFilter || "-"} · visible=${timeline.length}/${timelineAll.length}`
-            : "";
         if (els.reviewWorkflowSummaryLine) {
           els.reviewWorkflowSummaryLine.textContent =
             `workflow: timeline=${timelineCount} · findings=${findingCount} (pending=${pendingFindingCount}, overdue=${overdueFindingCount}) · comments=${commentCount} (pending=${pendingCommentCount}, overdue=${overdueCommentCount}) · orphan_links=${orphanLinkedCount} · last=${lastActivity}`;
-          if (clientFilterMarker) {
-            els.reviewWorkflowSummaryLine.textContent += clientFilterMarker;
-          }
         }
       }
 
@@ -4727,13 +4690,6 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) return;
         persistUiState();
-        const needsCriticForClientFilter =
-          !state.lastCritic &&
-          (String(els.reviewWorkflowFindingCodeFilter?.value || "").trim() ||
-            String(els.reviewWorkflowFindingSectionFilter?.value || "").trim());
-        if (needsCriticForClientFilter) {
-          await refreshCritic();
-        }
         const q = buildReviewWorkflowFilterQueryString();
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/review/workflow${q}`);
         renderReviewWorkflowTimeline(body);
@@ -4915,6 +4871,12 @@ def render_demo_ui_html() -> str:
         if (els.reviewWorkflowEventTypeFilter.value) params.set("event_type", els.reviewWorkflowEventTypeFilter.value);
         if (els.reviewWorkflowFindingIdFilter.value.trim()) {
           params.set("finding_id", els.reviewWorkflowFindingIdFilter.value.trim());
+        }
+        if (els.reviewWorkflowFindingCodeFilter.value.trim()) {
+          params.set("finding_code", els.reviewWorkflowFindingCodeFilter.value.trim());
+        }
+        if (els.reviewWorkflowFindingSectionFilter.value) {
+          params.set("finding_section", els.reviewWorkflowFindingSectionFilter.value);
         }
         if (els.reviewWorkflowCommentStatusFilter.value) {
           params.set("comment_status", els.reviewWorkflowCommentStatusFilter.value);

@@ -441,12 +441,16 @@ def public_job_review_workflow_payload(
     *,
     event_type: Optional[str] = None,
     finding_id: Optional[str] = None,
+    finding_code: Optional[str] = None,
+    finding_section: Optional[str] = None,
     comment_status: Optional[str] = None,
     workflow_state: Optional[str] = None,
     overdue_after_hours: int = REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
 ) -> Dict[str, Any]:
     event_type_filter = str(event_type or "").strip() or None
     finding_id_filter = str(finding_id or "").strip() or None
+    finding_code_filter = str(finding_code or "").strip().upper() or None
+    finding_section_filter = str(finding_section or "").strip().lower() or None
     comment_status_filter = str(comment_status or "").strip().lower() or None
     workflow_state_filter = _normalize_review_workflow_state_filter(workflow_state)
     overdue_after_hours_value = (
@@ -460,6 +464,26 @@ def public_job_review_workflow_payload(
     findings_list = [item for item in findings if isinstance(item, dict)] if isinstance(findings, list) else []
     if finding_id_filter:
         findings_list = [item for item in findings_list if finding_primary_id(item) == finding_id_filter]
+    if finding_code_filter:
+        findings_list = [
+            item for item in findings_list if str(item.get("code") or "").strip().upper() == finding_code_filter
+        ]
+    if finding_section_filter:
+        findings_list = [
+            item
+            for item in findings_list
+            if str(item.get("section") or "").strip().lower() == finding_section_filter
+            or (
+                isinstance(item.get("related_sections"), list)
+                and finding_section_filter
+                in {
+                    str(section or "").strip().lower()
+                    for section in cast(list[Any], item.get("related_sections"))
+                    if str(section or "").strip()
+                }
+            )
+        ]
+    filtered_finding_ids = {finding_primary_id(item) for item in findings_list if finding_primary_id(item)}
 
     comments_payload = public_job_comments_payload(job_id, job)
     comments = comments_payload.get("comments") if isinstance(comments_payload, dict) else []
@@ -467,6 +491,17 @@ def public_job_review_workflow_payload(
     if finding_id_filter:
         comments_list = [
             item for item in comments_list if str(item.get("linked_finding_id") or "") == finding_id_filter
+        ]
+    if finding_code_filter:
+        comments_list = [
+            item for item in comments_list if str(item.get("linked_finding_id") or "").strip() in filtered_finding_ids
+        ]
+    if finding_section_filter:
+        comments_list = [
+            item
+            for item in comments_list
+            if str(item.get("section") or "").strip().lower() == finding_section_filter
+            or str(item.get("linked_finding_id") or "").strip() in filtered_finding_ids
         ]
 
     raw_events = job.get("job_events")
@@ -717,6 +752,21 @@ def public_job_review_workflow_payload(
             if str(row.get("finding_id") or "").strip() == finding_id_filter
             or str(row.get("comment_id") or "").strip() in comment_ids
         ]
+    if finding_code_filter:
+        timeline = [
+            row
+            for row in timeline
+            if str(row.get("finding_id") or "").strip() in finding_ids
+            or str(row.get("comment_id") or "").strip() in comment_ids
+        ]
+    if finding_section_filter:
+        timeline = [
+            row
+            for row in timeline
+            if str(row.get("section") or "").strip().lower() == finding_section_filter
+            or str(row.get("finding_id") or "").strip() in finding_ids
+            or str(row.get("comment_id") or "").strip() in comment_ids
+        ]
     if comment_status_filter:
         timeline = [
             row
@@ -777,6 +827,8 @@ def public_job_review_workflow_payload(
         "filters": {
             "event_type": event_type_filter,
             "finding_id": finding_id_filter,
+            "finding_code": finding_code_filter,
+            "finding_section": finding_section_filter,
             "comment_status": comment_status_filter,
             "workflow_state": workflow_state_filter,
             "overdue_after_hours": overdue_after_hours_value,
