@@ -180,6 +180,9 @@ jobs:
       - name: Run grounded smoke benchmark (deterministic)
         run: |
           mkdir -p grounded-smoke-artifacts
+          GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MODE=strict \
+          GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MIN_CITATIONS=0 \
+          GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MIN_RETRIEVAL_GROUNDED_CITATIONS=9999 \
           python -m uvicorn grantflow.api.app:app --host 127.0.0.1 --port 8000 > grounded-smoke-artifacts/api.log 2>&1 &
           API_PID=$!
           cleanup() {
@@ -203,6 +206,12 @@ jobs:
             --donors usaid,state_department \
             --json-out grounded-smoke-artifacts/benchmark-results.json \
             | tee grounded-smoke-artifacts/benchmark-summary.txt
+
+          python scripts/runtime_grounded_gate_smoke.py \
+            --api-base http://127.0.0.1:8000 \
+            --donor-id usaid \
+            --json-out grounded-smoke-artifacts/runtime-grounded-gate-smoke.json \
+            | tee grounded-smoke-artifacts/runtime-grounded-gate-smoke.log
 
           python - <<'PY'
           import json

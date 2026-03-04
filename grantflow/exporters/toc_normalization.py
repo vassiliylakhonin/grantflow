@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable
 
 
 def unwrap_toc_payload(toc_payload: Any) -> Dict[str, Any]:
@@ -81,7 +81,9 @@ def _normalize_usaid_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
 
         for ir_idx, raw_ir in enumerate(ir_rows, start=1):
             ir_row = raw_ir if isinstance(raw_ir, dict) else {"description": _clean_text(raw_ir)}
-            ir_id = _pick_first_text(ir_row, ("ir_id", "result_id", "objective_id", "id", "code")) or f"{do_id}.IR{ir_idx}"
+            ir_id = (
+                _pick_first_text(ir_row, ("ir_id", "result_id", "objective_id", "id", "code")) or f"{do_id}.IR{ir_idx}"
+            )
             ir_description = _pick_first_text(ir_row, ("description", "title", "objective", "name"))
             output_rows = _pick_first_list(ir_row, ("outputs", "deliverables", "activities"))
             outputs: list[dict[str, Any]] = []

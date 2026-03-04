@@ -634,6 +634,16 @@ class JobQualitySummaryPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobGroundingGatePublicResponse(BaseModel):
+    job_id: str
+    status: str
+    grounded_gate: Optional[Dict[str, Any]] = None
+    preflight_grounding_policy: Optional[Dict[str, Any]] = None
+    mel_grounding_policy: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioMetricsFiltersPublicResponse(BaseModel):
     donor_id: Optional[str] = None
     status: Optional[str] = None

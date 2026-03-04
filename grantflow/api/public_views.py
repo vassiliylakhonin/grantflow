@@ -2193,6 +2193,30 @@ def public_job_quality_payload(
     return payload
 
 
+def public_job_grounding_gate_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    state_dict = _job_state_dict(job)
+    preflight_payload = _public_job_preflight_payload(job)
+    raw_runtime_gate = state_dict.get("grounded_quality_gate")
+    runtime_gate: Dict[str, Any] = cast(Dict[str, Any], raw_runtime_gate) if isinstance(raw_runtime_gate, dict) else {}
+    raw_mel_policy = state_dict.get("mel_grounding_policy")
+    mel_policy: Dict[str, Any] = cast(Dict[str, Any], raw_mel_policy) if isinstance(raw_mel_policy, dict) else {}
+
+    payload: Dict[str, Any] = {
+        "job_id": job_id,
+        "status": str(job.get("status") or "unknown"),
+    }
+    if runtime_gate:
+        payload["grounded_gate"] = sanitize_for_public_response(runtime_gate)
+    preflight_grounding_policy = (
+        preflight_payload.get("grounding_policy") if isinstance(preflight_payload, dict) else None
+    )
+    if isinstance(preflight_grounding_policy, dict):
+        payload["preflight_grounding_policy"] = sanitize_for_public_response(preflight_grounding_policy)
+    if mel_policy:
+        payload["mel_grounding_policy"] = sanitize_for_public_response(mel_policy)
+    return payload
+
+
 def public_portfolio_metrics_payload(
     jobs_by_id: Dict[str, Dict[str, Any]],
     *,

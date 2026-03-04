@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from grantflow.swarm.citations import (
     citation_traceability_status,
@@ -83,7 +83,9 @@ def evaluate_grounding_gate(
     weak_rag_or_fallback_ratio = (
         round(weak_rag_or_fallback_count / citation_count, 4) if citation_count and weak_rag_or_fallback_count else 0.0
     )
-    non_retrieval_ratio = round(non_retrieval_count / citation_count, 4) if citation_count and non_retrieval_count else 0.0
+    non_retrieval_ratio = (
+        round(non_retrieval_count / citation_count, 4) if citation_count and non_retrieval_count else 0.0
+    )
     retrieval_grounded_ratio = (
         round(retrieval_grounded_count / citation_count, 4) if citation_count and retrieval_grounded_count else 0.0
     )

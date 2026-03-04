@@ -31,6 +31,7 @@ from grantflow.api.public_views import (
     public_job_diff_payload,
     public_job_events_payload,
     public_job_export_payload,
+    public_job_grounding_gate_payload,
     public_job_metrics_payload,
     public_job_payload,
     public_job_quality_payload,
@@ -58,6 +59,7 @@ from grantflow.api.schemas import (
     JobDiffPublicResponse,
     JobEventsPublicResponse,
     JobExportPayloadPublicResponse,
+    JobGroundingGatePublicResponse,
     JobHITLHistoryPublicResponse,
     JobMetricsPublicResponse,
     JobQualitySummaryPublicResponse,
@@ -4487,6 +4489,20 @@ def get_status_quality(job_id: str, request: Request):
     donor = _job_donor_id(job)
     inventory_rows = _ingest_inventory(donor_id=donor or None, tenant_id=job_tenant_id)
     return public_job_quality_payload(job_id, job, ingest_inventory_rows=inventory_rows)
+
+
+@app.get(
+    "/status/{job_id}/grounding-gate",
+    response_model=JobGroundingGatePublicResponse,
+    response_model_exclude_none=True,
+)
+def get_status_grounding_gate(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    _ensure_job_tenant_read_access(request, job)
+    return public_job_grounding_gate_payload(job_id, job)
 
 
 @app.get(

@@ -4381,6 +4381,64 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["readiness"]["inventory_family_count"] == 2
 
 
+def test_status_grounding_gate_endpoint_returns_runtime_and_preflight_policies():
+    job_id = "grounding-gate-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "error",
+            "generate_preflight": {
+                "risk_level": "high",
+                "grounding_policy": {
+                    "mode": "strict",
+                    "blocking": True,
+                    "go_ahead": False,
+                    "summary": "preflight_blocked",
+                    "reasons": ["namespace_empty"],
+                },
+            },
+            "state": {
+                "donor_id": "usaid",
+                "grounded_quality_gate": {
+                    "mode": "strict",
+                    "applicable": True,
+                    "passed": False,
+                    "blocking": True,
+                    "go_ahead": False,
+                    "summary": "non_retrieval_citation_rate_above_max",
+                    "reasons": ["non_retrieval_citation_rate_above_max"],
+                    "citation_count": 8,
+                },
+                "mel_grounding_policy": {
+                    "mode": "warn",
+                    "blocking": False,
+                    "passed": True,
+                    "summary": "mel_grounding_signals_ok",
+                },
+            },
+        },
+    )
+
+    response = client.get(f"/status/{job_id}/grounding-gate")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "error"
+    runtime_gate = body.get("grounded_gate") or {}
+    assert runtime_gate["mode"] == "strict"
+    assert runtime_gate["blocking"] is True
+    assert runtime_gate["passed"] is False
+    assert runtime_gate["citation_count"] == 8
+    assert runtime_gate["reasons"] == ["non_retrieval_citation_rate_above_max"]
+    preflight_gate = body.get("preflight_grounding_policy") or {}
+    assert preflight_gate["mode"] == "strict"
+    assert preflight_gate["blocking"] is True
+    assert preflight_gate["summary"] == "preflight_blocked"
+    mel_policy = body.get("mel_grounding_policy") or {}
+    assert mel_policy["mode"] == "warn"
+    assert mel_policy["passed"] is True
+
+
 def test_quality_summary_readiness_emits_namespace_empty_and_low_coverage_warnings():
     job_id = "quality-job-readiness-warn"
     api_app_module.INGEST_AUDIT_STORE.clear()
@@ -5575,6 +5633,12 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     quality_auth = client.get(f"/status/{job_id}/quality", headers={"X-API-Key": "test-secret"})
     assert quality_auth.status_code == 200
 
+    grounding_gate_unauth = client.get(f"/status/{job_id}/grounding-gate")
+    assert grounding_gate_unauth.status_code == 401
+
+    grounding_gate_auth = client.get(f"/status/{job_id}/grounding-gate", headers={"X-API-Key": "test-secret"})
+    assert grounding_gate_auth.status_code == 200
+
     critic_unauth = client.get(f"/status/{job_id}/critic")
     assert critic_unauth.status_code == 401
 
@@ -5813,6 +5877,9 @@ def test_openapi_declares_api_key_security_scheme():
     status_quality_security = (((spec.get("paths") or {}).get("/status/{job_id}/quality") or {}).get("get") or {}).get(
         "security"
     )
+    status_grounding_gate_security = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/grounding-gate") or {}).get("get") or {}
+    ).get("security")
     status_critic_security = (((spec.get("paths") or {}).get("/status/{job_id}/critic") or {}).get("get") or {}).get(
         "security"
     )
@@ -5944,6 +6011,16 @@ def test_openapi_declares_api_key_security_scheme():
     )
     status_quality_response_schema = (
         ((((spec.get("paths") or {}).get("/status/{job_id}/quality") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    status_grounding_gate_response_schema = (
+        (
+            (((spec.get("paths") or {}).get("/status/{job_id}/grounding-gate") or {}).get("get") or {}).get("responses")
+            or {}
+        )
         .get("200", {})
         .get("content", {})
         .get("application/json", {})
@@ -6162,6 +6239,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_events_security == [{"ApiKeyAuth": []}]
     assert status_metrics_security == [{"ApiKeyAuth": []}]
     assert status_quality_security == [{"ApiKeyAuth": []}]
+    assert status_grounding_gate_security == [{"ApiKeyAuth": []}]
     assert status_critic_security == [{"ApiKeyAuth": []}]
     assert status_critic_findings_security == [{"ApiKeyAuth": []}]
     assert status_critic_finding_detail_security == [{"ApiKeyAuth": []}]
@@ -6192,6 +6270,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_events_response_schema == {"$ref": "#/components/schemas/JobEventsPublicResponse"}
     assert status_metrics_response_schema == {"$ref": "#/components/schemas/JobMetricsPublicResponse"}
     assert status_quality_response_schema == {"$ref": "#/components/schemas/JobQualitySummaryPublicResponse"}
+    assert status_grounding_gate_response_schema == {"$ref": "#/components/schemas/JobGroundingGatePublicResponse"}
     assert status_critic_response_schema == {"$ref": "#/components/schemas/JobCriticPublicResponse"}
     assert status_critic_findings_response_schema == {"$ref": "#/components/schemas/CriticFindingsListPublicResponse"}
     assert status_critic_finding_detail_response_schema == {
