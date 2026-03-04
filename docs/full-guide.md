@@ -110,9 +110,14 @@ curl -s http://127.0.0.1:8000/status/<JOB_ID>
 ### Export
 
 ```bash
+# 1) Fetch server-generated export payload (safe JSON)
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/export-payload \
+  -o export_payload.json
+
+# 2) Submit payload to export endpoint
 curl -s -X POST http://127.0.0.1:8000/export \
   -H 'Content-Type: application/json' \
-  -d '{"payload": {"state": {/* status.state */}}, "format": "both"}' \
+  --data-binary @export_payload.json \
   -o grantflow_export.zip
 ```
 
