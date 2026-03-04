@@ -253,6 +253,9 @@ def test_demo_console_page_loads():
     assert "portfolioQualityFindingSeverityList" in body
     assert "portfolioQualityToCTextRiskList" in body
     assert "portfolioQualityGroundingRiskList" in body
+    assert "portfolioQualityGroundedGateSectionsList" in body
+    assert "portfolioQualityGroundedGateReasonsList" in body
+    assert "portfolioQualityGroundedGateDonorsList" in body
     assert "portfolioQualityPrioritySignalsList" in body
     assert "portfolioQualityWeightedDonorsList" in body
     assert "% High-warning Jobs" in body
@@ -264,6 +267,9 @@ def test_demo_console_page_loads():
     assert "High-Risk Donors" in body
     assert "% High ToC-text Risk" in body
     assert "ToC Text Issues" in body
+    assert "% Grounded Gate Block" in body
+    assert "Grounded Gate Blocks" in body
+    assert "% Grounded Gate Pass (present)" in body
     assert "ToC Text Risk Levels" in body
     assert "Clear ToC Risk Filter" in body
     assert "portfolioWarningMetaLine" in body

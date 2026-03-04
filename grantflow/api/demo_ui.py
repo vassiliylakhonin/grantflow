@@ -632,6 +632,9 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">High-Risk Donors</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">% High ToC-text Risk</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">ToC Text Issues</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">% Grounded Gate Block</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Grounded Gate Blocks</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">% Grounded Gate Pass (present)</div><div class="value mono">-</div></div>
             </div>
             <div id="portfolioWarningMetaLine" class="footer-note mono">high=- · medium=- · low=- · none=- · total=-</div>
             <div class="row" style="margin-top:8px;">
@@ -734,6 +737,20 @@ def render_demo_ui_html() -> str:
                 <div class="list" id="portfolioQualityGroundingRiskList"></div>
               </div>
               <div></div>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <div>
+                <label>Grounded Gate Failed Sections</label>
+                <div class="list" id="portfolioQualityGroundedGateSectionsList"></div>
+              </div>
+              <div>
+                <label>Grounded Gate Reason Codes</label>
+                <div class="list" id="portfolioQualityGroundedGateReasonsList"></div>
+              </div>
+              <div>
+                <label>Top Donors (Grounded Gate Blocks)</label>
+                <div class="list" id="portfolioQualityGroundedGateDonorsList"></div>
+              </div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -1519,6 +1536,9 @@ def render_demo_ui_html() -> str:
         portfolioQualityFindingSeverityList: $("portfolioQualityFindingSeverityList"),
         portfolioQualityToCTextRiskList: $("portfolioQualityToCTextRiskList"),
         portfolioQualityGroundingRiskList: $("portfolioQualityGroundingRiskList"),
+        portfolioQualityGroundedGateSectionsList: $("portfolioQualityGroundedGateSectionsList"),
+        portfolioQualityGroundedGateReasonsList: $("portfolioQualityGroundedGateReasonsList"),
+        portfolioQualityGroundedGateDonorsList: $("portfolioQualityGroundedGateDonorsList"),
         portfolioQualityCitationTypeCountsList: $("portfolioQualityCitationTypeCountsList"),
         portfolioQualityArchitectCitationTypeCountsList: $("portfolioQualityArchitectCitationTypeCountsList"),
         portfolioQualityMelCitationTypeCountsList: $("portfolioQualityMelCitationTypeCountsList"),
@@ -3334,6 +3354,31 @@ def render_demo_ui_html() -> str:
             : (typeof tocTextQuality?.risk_job_rates?.high === "number" ? Number(tocTextQuality.risk_job_rates.high) : NaN);
         const tocHighRiskRateLabel = Number.isFinite(tocHighRiskRate) ? `${(tocHighRiskRate * 100).toFixed(1)}%` : "-";
         const tocTextIssuesTotal = Number(tocTextQuality?.issues_total ?? 0);
+        const groundedGatePresentCount = Number(summary?.grounded_gate_present_job_count ?? 0);
+        const groundedGateBlockedCount = Number(summary?.grounded_gate_blocked_job_count ?? 0);
+        const groundedGatePassedCount = Number(summary?.grounded_gate_passed_job_count ?? 0);
+        const groundedGateBlockRateRaw =
+          typeof summary?.grounded_gate_block_rate === "number"
+            ? Number(summary.grounded_gate_block_rate)
+            : (
+              portfolioJobCount > 0
+                ? (groundedGateBlockedCount / portfolioJobCount)
+                : NaN
+            );
+        const groundedGateBlockRateLabel = Number.isFinite(groundedGateBlockRateRaw)
+          ? `${(groundedGateBlockRateRaw * 100).toFixed(1)}%`
+          : "-";
+        const groundedGatePassRatePresentRaw =
+          typeof summary?.grounded_gate_pass_rate_among_present === "number"
+            ? Number(summary.grounded_gate_pass_rate_among_present)
+            : (
+              groundedGatePresentCount > 0
+                ? (groundedGatePassedCount / groundedGatePresentCount)
+                : NaN
+            );
+        const groundedGatePassRatePresentLabel = Number.isFinite(groundedGatePassRatePresentRaw)
+          ? `${(groundedGatePassRatePresentRaw * 100).toFixed(1)}%`
+          : "-";
         const values = [
           typeof summary?.avg_quality_score === "number" ? Number(summary.avg_quality_score).toFixed(2) : "-",
           needsRevisionRate,
@@ -3352,6 +3397,9 @@ def render_demo_ui_html() -> str:
           String(highGroundingRiskDonorCount),
           tocHighRiskRateLabel,
           String(tocTextIssuesTotal),
+          groundedGateBlockRateLabel,
+          `${groundedGateBlockedCount}/${portfolioJobCount}`,
+          groundedGatePassRatePresentLabel,
         ];
         const portfolioQualityValueNodes = [...els.portfolioQualityCards.querySelectorAll(".kpi .value")];
         portfolioQualityValueNodes.forEach((node, i) => {
@@ -3446,6 +3494,43 @@ def render_demo_ui_html() -> str:
           const repetitionCount = Number(tocTextQuality?.repetition_finding_count ?? 0);
           tocIssuesNode.title = `placeholder=${placeholderCount} · repetition=${repetitionCount}`;
         }
+        const groundedGateBlockRateNode = portfolioQualityValueNodes[17];
+        if (groundedGateBlockRateNode) {
+          groundedGateBlockRateNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(groundedGateBlockRateRaw)) {
+            if (groundedGateBlockRateRaw >= 0.5) groundedGateBlockRateNode.classList.add("risk-high");
+            else if (groundedGateBlockRateRaw > 0.0) groundedGateBlockRateNode.classList.add("risk-medium");
+            else groundedGateBlockRateNode.classList.add("risk-low");
+          } else {
+            groundedGateBlockRateNode.classList.add("risk-none");
+          }
+          groundedGateBlockRateNode.title =
+            portfolioJobCount > 0
+              ? `${groundedGateBlockedCount} blocked jobs out of ${portfolioJobCount}`
+              : "No portfolio jobs in current filter";
+        }
+        const groundedGateBlockedCountNode = portfolioQualityValueNodes[18];
+        if (groundedGateBlockedCountNode) {
+          groundedGateBlockedCountNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (groundedGateBlockedCount > 0) groundedGateBlockedCountNode.classList.add("risk-high");
+          else groundedGateBlockedCountNode.classList.add("risk-none");
+          groundedGateBlockedCountNode.title = `present gate jobs: ${groundedGatePresentCount}`;
+        }
+        const groundedGatePassRateNode = portfolioQualityValueNodes[19];
+        if (groundedGatePassRateNode) {
+          groundedGatePassRateNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(groundedGatePassRatePresentRaw)) {
+            if (groundedGatePassRatePresentRaw < 0.5) groundedGatePassRateNode.classList.add("risk-high");
+            else if (groundedGatePassRatePresentRaw < 0.8) groundedGatePassRateNode.classList.add("risk-medium");
+            else groundedGatePassRateNode.classList.add("risk-low");
+          } else {
+            groundedGatePassRateNode.classList.add("risk-none");
+          }
+          groundedGatePassRateNode.title =
+            groundedGatePresentCount > 0
+              ? `${groundedGatePassedCount}/${groundedGatePresentCount} grounded gate pass`
+              : "No runtime grounded gate records in current filter";
+        }
         if (els.portfolioWarningMetaLine) {
           els.portfolioWarningMetaLine.textContent =
             `high=${highWarningCount} · medium=${mediumWarningCount} · low=${lowWarningCount} · none=${noneWarningCount} · total=${portfolioJobCount}`;
@@ -3467,6 +3552,25 @@ def render_demo_ui_html() -> str:
           citations.mel_citation_type_counts_total,
           "No portfolio MEL citation type breakdown yet.",
           8
+        );
+        renderKeyValueList(
+          els.portfolioQualityGroundedGateSectionsList,
+          summary?.grounded_gate_section_fail_counts,
+          "No grounded-gate failed sections yet.",
+          8
+        );
+        renderKeyValueList(
+          els.portfolioQualityGroundedGateReasonsList,
+          summary?.grounded_gate_reason_counts,
+          "No grounded-gate reason codes yet.",
+          8
+        );
+        renderDonorGroundedGateList(
+          els.portfolioQualityGroundedGateDonorsList,
+          summary?.donor_grounded_gate_breakdown,
+          "No donor grounded-gate block data yet.",
+          8,
+          (donorKey) => applyPortfolioDonorFilter(donorKey)
         );
         renderPortfolioQualityLlmLabelDrilldown(summary);
         renderPortfolioQualityAdvisoryDrilldown(summary);
@@ -3582,6 +3686,48 @@ def render_demo_ui_html() -> str:
           div.innerHTML = `
             <div class="title mono">${escapeHtml(donorId)} · level=${escapeHtml(level)}</div>
             <div class="sub">fallback: ${escapeHtml(String(fallbackCount))}/${escapeHtml(String(citationCount))} · rate: ${escapeHtml(rateLabel)}</div>
+          `;
+          if (typeof onSelect === "function") {
+            div.style.cursor = "pointer";
+            div.title = "Click to filter donor";
+            div.addEventListener("click", () => onSelect(donorId));
+          }
+          container.appendChild(div);
+        }
+      }
+
+      function renderDonorGroundedGateList(container, mapping, emptyLabel, topN = 8, onSelect = null) {
+        container.innerHTML = "";
+        if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        const entries = Object.entries(mapping)
+          .map(([donorId, row]) => {
+            const rec = row && typeof row === "object" && !Array.isArray(row) ? row : {};
+            const blocked = Number(rec.blocked_job_count || 0);
+            const present = Number(rec.present_job_count || 0);
+            const blockRate = typeof rec.block_rate === "number" ? Number(rec.block_rate) : -1;
+            return [String(donorId), rec, blocked, present, blockRate];
+          })
+          .sort((a, b) => b[2] - a[2] || b[4] - a[4] || a[0].localeCompare(b[0]))
+          .slice(0, topN);
+        if (!entries.length) {
+          container.innerHTML = `<div class="item"><div class="sub">${escapeHtml(emptyLabel)}</div></div>`;
+          return;
+        }
+        for (const [donorId, row, blocked, present, blockRate] of entries) {
+          const cls = blocked > 0 ? "severity-high" : "severity-low";
+          const passRateLabel =
+            typeof row.pass_rate_among_present === "number"
+              ? `${(Number(row.pass_rate_among_present) * 100).toFixed(1)}%`
+              : "-";
+          const blockRateLabel = blockRate >= 0 ? `${(blockRate * 100).toFixed(1)}%` : "-";
+          const div = document.createElement("div");
+          div.className = `item ${cls}`;
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(donorId)} · blocks=${escapeHtml(String(blocked))}</div>
+            <div class="sub">present: ${escapeHtml(String(present))} · block_rate: ${escapeHtml(blockRateLabel)} · pass_rate: ${escapeHtml(passRateLabel)}</div>
           `;
           if (typeof onSelect === "function") {
             div.style.cursor = "pointer";
