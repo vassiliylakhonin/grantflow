@@ -2158,6 +2158,22 @@ def public_portfolio_quality_payload(
     citation_type_counts_total: Dict[str, int] = {}
     architect_citation_type_counts_total: Dict[str, int] = {}
     mel_citation_type_counts_total: Dict[str, int] = {}
+    toc_text_quality_risk_counts: Dict[str, int] = {"high": 0, "medium": 0, "low": 0, "unknown": 0}
+    toc_text_quality_placeholder_check_status_counts: Dict[str, int] = {
+        "pass": 0,
+        "warn": 0,
+        "fail": 0,
+        "unknown": 0,
+    }
+    toc_text_quality_repetition_check_status_counts: Dict[str, int] = {
+        "pass": 0,
+        "warn": 0,
+        "fail": 0,
+        "unknown": 0,
+    }
+    toc_text_quality_issues_total = 0
+    toc_text_quality_placeholder_finding_count = 0
+    toc_text_quality_repetition_finding_count = 0
 
     for row in quality_rows:
         row_critic: Dict[str, Any] = (
@@ -2165,6 +2181,9 @@ def public_portfolio_quality_payload(
         )
         row_citations: Dict[str, Any] = (
             cast(Dict[str, Any], row.get("citations")) if isinstance(row.get("citations"), dict) else {}
+        )
+        row_toc_text_quality: Dict[str, Any] = (
+            cast(Dict[str, Any], row.get("toc_text_quality")) if isinstance(row.get("toc_text_quality"), dict) else {}
         )
         if bool(row.get("needs_revision")):
             needs_revision_job_count += 1
@@ -2250,6 +2269,25 @@ def public_portfolio_quality_payload(
         for ctype, count in row_mel_citation_type_counts.items():
             key = str(ctype).strip().lower() or "unknown"
             mel_citation_type_counts_total[key] = int(mel_citation_type_counts_total.get(key, 0)) + int(count or 0)
+        row_toc_risk_level = str(row_toc_text_quality.get("risk_level") or "unknown").strip().lower()
+        if row_toc_risk_level not in toc_text_quality_risk_counts:
+            row_toc_risk_level = "unknown"
+        toc_text_quality_risk_counts[row_toc_risk_level] = int(toc_text_quality_risk_counts.get(row_toc_risk_level, 0)) + 1
+        toc_text_quality_issues_total += int(row_toc_text_quality.get("issues_total") or 0)
+        toc_text_quality_placeholder_finding_count += int(row_toc_text_quality.get("placeholder_finding_count") or 0)
+        toc_text_quality_repetition_finding_count += int(row_toc_text_quality.get("repetition_finding_count") or 0)
+        placeholder_check_status = str(row_toc_text_quality.get("placeholder_check_status") or "unknown").strip().lower()
+        if placeholder_check_status not in toc_text_quality_placeholder_check_status_counts:
+            placeholder_check_status = "unknown"
+        toc_text_quality_placeholder_check_status_counts[placeholder_check_status] = int(
+            toc_text_quality_placeholder_check_status_counts.get(placeholder_check_status, 0)
+        ) + 1
+        repetition_check_status = str(row_toc_text_quality.get("repetition_check_status") or "unknown").strip().lower()
+        if repetition_check_status not in toc_text_quality_repetition_check_status_counts:
+            repetition_check_status = "unknown"
+        toc_text_quality_repetition_check_status_counts[repetition_check_status] = int(
+            toc_text_quality_repetition_check_status_counts.get(repetition_check_status, 0)
+        ) + 1
 
         donor_for_row = str(row.get("_donor_id") or "unknown")
         donor_row = donor_weighted_risk_breakdown.setdefault(
@@ -2534,6 +2572,10 @@ def public_portfolio_quality_payload(
     job_count = len(filtered)
     warning_level_job_counts, warning_level_job_rates = _warning_level_breakdown(warning_level_counts, job_count)
     grounding_risk_job_counts, grounding_risk_job_rates = _grounding_risk_breakdown(grounding_risk_counts, job_count)
+    toc_text_quality_risk_job_rates: Dict[str, Optional[float]] = {
+        level: (round(int(count) / job_count, 4) if job_count else None)
+        for level, count in toc_text_quality_risk_counts.items()
+    }
     quality_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("quality_score"), (int, float)))
     critic_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("critic_score"), (int, float)))
 
@@ -2609,6 +2651,20 @@ def public_portfolio_quality_payload(
         "medium_grounding_risk_donor_count": int(donor_grounding_risk_counts.get("medium") or 0),
         "low_grounding_risk_donor_count": int(donor_grounding_risk_counts.get("low") or 0),
         "unknown_grounding_risk_donor_count": int(donor_grounding_risk_counts.get("unknown") or 0),
+        "toc_text_quality": {
+            "issues_total": toc_text_quality_issues_total,
+            "placeholder_finding_count": toc_text_quality_placeholder_finding_count,
+            "repetition_finding_count": toc_text_quality_repetition_finding_count,
+            "risk_counts": toc_text_quality_risk_counts,
+            "risk_job_rates": toc_text_quality_risk_job_rates,
+            "high_risk_job_count": int(toc_text_quality_risk_counts.get("high") or 0),
+            "medium_risk_job_count": int(toc_text_quality_risk_counts.get("medium") or 0),
+            "low_risk_job_count": int(toc_text_quality_risk_counts.get("low") or 0),
+            "unknown_risk_job_count": int(toc_text_quality_risk_counts.get("unknown") or 0),
+            "high_risk_job_rate": toc_text_quality_risk_job_rates.get("high"),
+            "placeholder_check_status_counts": toc_text_quality_placeholder_check_status_counts,
+            "repetition_check_status_counts": toc_text_quality_repetition_check_status_counts,
+        },
         "terminal_job_count": len(terminal_rows),
         "quality_score_job_count": quality_score_job_count,
         "critic_score_job_count": critic_score_job_count,

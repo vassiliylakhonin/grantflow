@@ -208,6 +208,7 @@ def test_demo_console_page_loads():
     assert "portfolioQualityMelCitationTypeCountsList" in body
     assert "portfolioQualityFindingStatusList" in body
     assert "portfolioQualityFindingSeverityList" in body
+    assert "portfolioQualityToCTextRiskList" in body
     assert "portfolioQualityGroundingRiskList" in body
     assert "portfolioQualityPrioritySignalsList" in body
     assert "portfolioQualityWeightedDonorsList" in body
@@ -218,6 +219,9 @@ def test_demo_console_page_loads():
     assert "Fallback Dominance" in body
     assert "Claim-support Avg" in body
     assert "High-Risk Donors" in body
+    assert "% High ToC-text Risk" in body
+    assert "ToC Text Issues" in body
+    assert "ToC Text Risk Levels" in body
     assert "portfolioWarningMetaLine" in body
     assert "qualityLlmFindingLabelsList" in body
     assert "qualityAdvisoryBadgeList" in body
@@ -4751,6 +4755,20 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["finding_severity_counts"]["high"] >= 1
     assert body["finding_severity_counts"]["medium"] >= 1
     assert body["finding_severity_counts"]["low"] >= 0
+    assert "toc_text_quality" in body
+    assert body["toc_text_quality"]["issues_total"] >= 0
+    assert body["toc_text_quality"]["placeholder_finding_count"] >= 0
+    assert body["toc_text_quality"]["repetition_finding_count"] >= 0
+    assert sum(int(v or 0) for v in body["toc_text_quality"]["risk_counts"].values()) == body["job_count"]
+    assert body["toc_text_quality"]["high_risk_job_count"] == int(body["toc_text_quality"]["risk_counts"]["high"])
+    assert body["toc_text_quality"]["medium_risk_job_count"] == int(body["toc_text_quality"]["risk_counts"]["medium"])
+    assert body["toc_text_quality"]["low_risk_job_count"] == int(body["toc_text_quality"]["risk_counts"]["low"])
+    assert body["toc_text_quality"]["unknown_risk_job_count"] == int(body["toc_text_quality"]["risk_counts"]["unknown"])
+    assert "high_risk_job_rate" in body["toc_text_quality"]
+    assert "placeholder_check_status_counts" in body["toc_text_quality"]
+    assert "repetition_check_status_counts" in body["toc_text_quality"]
+    assert body["toc_text_quality"]["placeholder_check_status_counts"]["unknown"] >= 0
+    assert body["toc_text_quality"]["repetition_check_status_counts"]["unknown"] >= 0
     assert "eu" not in body["donor_counts"]
 
     warning_filtered = client.get("/portfolio/quality", params={"warning_level": "high"})
@@ -5840,6 +5858,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert "PortfolioQualityDonorWeightedRiskPublicResponse" in schemas
     assert "PortfolioQualityCriticSummaryPublicResponse" in schemas
     assert "PortfolioQualityCitationSummaryPublicResponse" in schemas
+    assert "PortfolioQualityToCTextQualitySummaryPublicResponse" in schemas
     assert "PortfolioMetricsFiltersPublicResponse" in schemas
     assert "HITLPendingListPublicResponse" in schemas
     assert "IngestRecentListPublicResponse" in schemas

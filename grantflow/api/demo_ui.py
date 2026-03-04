@@ -608,6 +608,8 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">% No-warning Jobs</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Fallback Dominance</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">High-Risk Donors</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">% High ToC-text Risk</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">ToC Text Issues</div><div class="value mono">-</div></div>
             </div>
             <div id="portfolioWarningMetaLine" class="footer-note mono">high=- · medium=- · low=- · none=- · total=-</div>
             <div class="row" style="margin-top:10px;">
@@ -692,6 +694,13 @@ def render_demo_ui_html() -> str:
                 <label>Finding Severity</label>
                 <div class="list" id="portfolioQualityFindingSeverityList"></div>
               </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>ToC Text Risk Levels</label>
+                <div class="list" id="portfolioQualityToCTextRiskList"></div>
+              </div>
+              <div></div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -1475,6 +1484,7 @@ def render_demo_ui_html() -> str:
         portfolioQualityGroundingRiskLevelsList: $("portfolioQualityGroundingRiskLevelsList"),
         portfolioQualityFindingStatusList: $("portfolioQualityFindingStatusList"),
         portfolioQualityFindingSeverityList: $("portfolioQualityFindingSeverityList"),
+        portfolioQualityToCTextRiskList: $("portfolioQualityToCTextRiskList"),
         portfolioQualityGroundingRiskList: $("portfolioQualityGroundingRiskList"),
         portfolioQualityCitationTypeCountsList: $("portfolioQualityCitationTypeCountsList"),
         portfolioQualityArchitectCitationTypeCountsList: $("portfolioQualityArchitectCitationTypeCountsList"),
@@ -3032,6 +3042,7 @@ def render_demo_ui_html() -> str:
       function renderPortfolioQualityCards(summary) {
         const critic = summary?.critic || {};
         const citations = summary?.citations || {};
+        const tocTextQuality = summary?.toc_text_quality || {};
         const portfolioJobCount = Number(summary?.job_count ?? 0);
         const warningCounts =
           summary?.warning_level_job_counts && typeof summary.warning_level_job_counts === "object"
@@ -3079,6 +3090,12 @@ def render_demo_ui_html() -> str:
           summary?.donor_grounding_risk_counts?.high ??
           0
         );
+        const tocHighRiskRate =
+          typeof tocTextQuality?.high_risk_job_rate === "number"
+            ? Number(tocTextQuality.high_risk_job_rate)
+            : (typeof tocTextQuality?.risk_job_rates?.high === "number" ? Number(tocTextQuality.risk_job_rates.high) : NaN);
+        const tocHighRiskRateLabel = Number.isFinite(tocHighRiskRate) ? `${(tocHighRiskRate * 100).toFixed(1)}%` : "-";
+        const tocTextIssuesTotal = Number(tocTextQuality?.issues_total ?? 0);
         const values = [
           typeof summary?.avg_quality_score === "number" ? Number(summary.avg_quality_score).toFixed(2) : "-",
           needsRevisionRate,
@@ -3095,6 +3112,8 @@ def render_demo_ui_html() -> str:
           noneWarningRate,
           fallbackDominanceRate,
           String(highGroundingRiskDonorCount),
+          tocHighRiskRateLabel,
+          String(tocTextIssuesTotal),
         ];
         const portfolioQualityValueNodes = [...els.portfolioQualityCards.querySelectorAll(".kpi .value")];
         portfolioQualityValueNodes.forEach((node, i) => {
@@ -3161,6 +3180,31 @@ def render_demo_ui_html() -> str:
             donorCount > 0
               ? `${highGroundingRiskDonorCount} of ${donorCount} donors are high grounding-risk`
               : "No donors in current filter";
+        }
+        const tocHighRiskNode = portfolioQualityValueNodes[15];
+        if (tocHighRiskNode) {
+          tocHighRiskNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (Number.isFinite(tocHighRiskRate)) {
+            if (tocHighRiskRate >= 0.5) tocHighRiskNode.classList.add("risk-high");
+            else if (tocHighRiskRate >= 0.2) tocHighRiskNode.classList.add("risk-medium");
+            else tocHighRiskNode.classList.add("risk-low");
+          } else {
+            tocHighRiskNode.classList.add("risk-none");
+          }
+          const highRiskCount = Number(tocTextQuality?.high_risk_job_count ?? tocTextQuality?.risk_counts?.high ?? 0);
+          tocHighRiskNode.title =
+            portfolioJobCount > 0
+              ? `${highRiskCount} jobs with high ToC text risk out of ${portfolioJobCount}`
+              : "No portfolio jobs in current filter";
+        }
+        const tocIssuesNode = portfolioQualityValueNodes[16];
+        if (tocIssuesNode) {
+          tocIssuesNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (tocTextIssuesTotal > 0) tocIssuesNode.classList.add("risk-medium");
+          else tocIssuesNode.classList.add("risk-none");
+          const placeholderCount = Number(tocTextQuality?.placeholder_finding_count ?? 0);
+          const repetitionCount = Number(tocTextQuality?.repetition_finding_count ?? 0);
+          tocIssuesNode.title = `placeholder=${placeholderCount} · repetition=${repetitionCount}`;
         }
         if (els.portfolioWarningMetaLine) {
           els.portfolioWarningMetaLine.textContent =
@@ -4452,6 +4496,12 @@ def render_demo_ui_html() -> str:
           "No finding-severity data yet.",
           8,
           (severityKey) => applyPortfolioFindingSeverityFilter(severityKey)
+        );
+        renderKeyValueList(
+          els.portfolioQualityToCTextRiskList,
+          body.toc_text_quality?.risk_counts,
+          "No ToC text-risk data yet.",
+          8
         );
         renderDonorGroundingRiskList(
           els.portfolioQualityGroundingRiskList,

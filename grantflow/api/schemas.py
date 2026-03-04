@@ -696,6 +696,23 @@ class PortfolioQualityWeightedSignalPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class PortfolioQualityToCTextQualitySummaryPublicResponse(BaseModel):
+    issues_total: int
+    placeholder_finding_count: int
+    repetition_finding_count: int
+    risk_counts: Dict[str, int]
+    risk_job_rates: Dict[str, Optional[float]]
+    high_risk_job_count: int
+    medium_risk_job_count: int
+    low_risk_job_count: int
+    unknown_risk_job_count: int
+    high_risk_job_rate: Optional[float] = None
+    placeholder_check_status_counts: Dict[str, int]
+    repetition_check_status_counts: Dict[str, int]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioQualityDonorWeightedRiskPublicResponse(BaseModel):
     weighted_score: int
     high_priority_signal_count: int
@@ -745,6 +762,7 @@ class PortfolioQualityPublicResponse(BaseModel):
     citations: PortfolioQualityCitationSummaryPublicResponse
     priority_signal_breakdown: Dict[str, PortfolioQualityWeightedSignalPublicResponse]
     donor_weighted_risk_breakdown: Dict[str, PortfolioQualityDonorWeightedRiskPublicResponse]
+    toc_text_quality: PortfolioQualityToCTextQualitySummaryPublicResponse
     donor_needs_revision_counts: Dict[str, int]
     donor_open_findings_counts: Dict[str, int]
 
