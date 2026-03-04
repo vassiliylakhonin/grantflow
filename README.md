@@ -349,7 +349,6 @@ python -m grantflow.eval.harness \
   --cases-file grantflow/eval/cases/grounded_cases.json \
   --seed-rag-manifest docs/rag_seed_corpus/ingest_manifest.jsonl \
   --suite-label grounded-eval \
-  --skip-expectations \
   --text-out eval-artifacts/grounded-eval-report.txt \
   --json-out eval-artifacts/grounded-eval-report.json
 
@@ -376,6 +375,8 @@ python scripts/eval_ab_diff.py \
   --b-json eval-artifacts/grounded-ab-b-report.json \
   --a-label architect_rag_on \
   --b-label architect_rag_off \
+  --guard-donors usaid,eu,worldbank,state_department \
+  --max-a-non-retrieval-rate 0.35 \
   --text-out eval-artifacts/grounded-ab-diff.txt \
   --json-out eval-artifacts/grounded-ab-diff.json
 ```
