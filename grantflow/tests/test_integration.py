@@ -1,5 +1,6 @@
 # grantflow/tests/test_integration.py
 
+import asyncio
 import gzip
 import io
 import json
@@ -125,6 +126,24 @@ def test_store_backend_alignment_validation_allows_matching_backends(monkeypatch
     monkeypatch.setattr(api_app_module, "JOB_STORE", FakeJobStore())
     monkeypatch.setattr(api_app_module, "hitl_manager", FakeHitlManager())
     api_app_module._validate_store_backend_alignment()
+
+
+def test_store_backend_alignment_validation_runs_at_startup(monkeypatch):
+    class FakeJobStore:
+        db_path = "/tmp/grantflow_state.db"
+
+    class FakeHitlManager:
+        _use_sqlite = False
+
+    monkeypatch.setattr(api_app_module, "JOB_STORE", FakeJobStore())
+    monkeypatch.setattr(api_app_module, "hitl_manager", FakeHitlManager())
+
+    async def _start_lifespan():
+        async with api_app_module._app_lifespan(api_app_module.app):
+            return None
+
+    with pytest.raises(RuntimeError, match="GRANTFLOW_HITL_STORE"):
+        asyncio.run(_start_lifespan())
 
 
 def test_demo_console_page_loads():

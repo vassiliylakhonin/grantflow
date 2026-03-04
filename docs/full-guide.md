@@ -132,6 +132,8 @@ curl -s -X POST http://127.0.0.1:8000/export \
   -o grantflow_export.zip
 ```
 
+Avoid inline shell interpolation for export payloads; use `GET /status/{job_id}/export-payload` + `--data-binary @file`.
+
 ## 6) HITL Workflow
 
 ### Step 1: Run with HITL enabled
@@ -246,6 +248,10 @@ Common env vars:
 - `GRANTFLOW_REQUIRE_AUTH_FOR_READS`
 - `GRANTFLOW_JOB_STORE`, `GRANTFLOW_HITL_STORE`, `GRANTFLOW_INGEST_STORE`
 - `GRANTFLOW_SQLITE_PATH`
+
+Store alignment rule:
+- `GRANTFLOW_JOB_STORE` and `GRANTFLOW_HITL_STORE` must match (`inmem` or `sqlite`).
+- App startup fails fast on mismatch to prevent divergent job/HITL state after restart.
 
 ## 11) Deployment
 

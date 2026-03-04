@@ -160,6 +160,19 @@ Dedicated worker process (for `redis_queue`):
 python -m grantflow.worker
 ```
 
+### 4.3) (Optional) Configure persistent stores
+
+```bash
+export GRANTFLOW_JOB_STORE=sqlite
+export GRANTFLOW_HITL_STORE=sqlite
+export GRANTFLOW_INGEST_STORE=sqlite
+export GRANTFLOW_SQLITE_PATH=./.data/grantflow_state.db
+```
+
+Notes:
+- Keep `GRANTFLOW_JOB_STORE` and `GRANTFLOW_HITL_STORE` aligned (`inmem` with `inmem`, or `sqlite` with `sqlite`).
+- On startup, GrantFlow fails fast when these two backends differ to prevent orphaned HITL/job state.
+
 ### 5) (Optional) Run preflight readiness check
 
 ```bash
@@ -280,6 +293,8 @@ curl -s -X POST http://127.0.0.1:8000/export \
   --data-binary @export_payload.json \
   -o grantflow_export.zip
 ```
+
+Do not build export JSON via shell substitution; use `GET /status/{job_id}/export-payload` and pass the file directly.
 
 If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIRE_GROUNDED_GATE_PASS=true`), blocked exports return:
 
