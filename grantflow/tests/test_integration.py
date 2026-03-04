@@ -362,6 +362,8 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowSlaBtn" in body
     assert "reviewWorkflowSlaProfileBtn" in body
     assert "reviewWorkflowSlaRecomputeBtn" in body
+    assert "reviewWorkflowSlaExportJsonBtn" in body
+    assert "reviewWorkflowSlaExportCsvBtn" in body
     assert "reviewWorkflowSlaHighHours" in body
     assert "reviewWorkflowSlaMediumHours" in body
     assert "reviewWorkflowSlaLowHours" in body
@@ -387,6 +389,7 @@ def test_demo_console_page_loads():
     assert "buildReviewWorkflowSlaFilterQueryString" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla" in body
+    assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/export" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/profile" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/recompute" in body
     assert "finding_sla_hours" in body
@@ -4014,6 +4017,131 @@ def test_status_review_workflow_sla_endpoint_aggregates_overdue_hotspots():
     assert invalid_section.status_code == 400
 
 
+def test_status_review_workflow_sla_export_supports_csv_json_and_gzip():
+    job_id = "review-workflow-sla-export-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "finding-sla-exp-1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "message": "ToC mismatch.",
+                            "updated_at": "2026-02-27T07:00:00+00:00",
+                            "due_at": "2026-02-27T08:00:00+00:00",
+                            "sla_hours": 24,
+                        },
+                        {
+                            "finding_id": "finding-sla-exp-2",
+                            "code": "MEL_BASELINE_MISSING",
+                            "severity": "medium",
+                            "section": "logframe",
+                            "status": "acknowledged",
+                            "message": "Baseline missing.",
+                            "acknowledged_at": "2026-02-27T09:30:00+00:00",
+                            "due_at": "2026-02-27T12:00:00+00:00",
+                            "sla_hours": 72,
+                        },
+                    ]
+                }
+            },
+            "review_comments": [
+                {
+                    "comment_id": "comment-sla-exp-1",
+                    "ts": "2026-02-27T06:30:00+00:00",
+                    "section": "toc",
+                    "status": "open",
+                    "message": "Need stronger assumptions.",
+                    "linked_finding_id": "finding-sla-exp-1",
+                    "due_at": "2026-02-27T09:00:00+00:00",
+                    "sla_hours": 24,
+                },
+                {
+                    "comment_id": "comment-sla-exp-2",
+                    "ts": "2026-02-27T10:20:00+00:00",
+                    "section": "logframe",
+                    "status": "resolved",
+                    "message": "Resolved in reviewer pass.",
+                    "linked_finding_id": "finding-sla-exp-2",
+                    "due_at": "2026-02-27T12:30:00+00:00",
+                    "sla_hours": 72,
+                },
+            ],
+            "job_events": [
+                {
+                    "event_id": "rwf-sla-exp-1",
+                    "ts": "2026-02-27T07:00:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-sla-exp-1",
+                    "status": "open",
+                    "section": "toc",
+                    "severity": "high",
+                },
+                {
+                    "event_id": "rwf-sla-exp-2",
+                    "ts": "2026-02-27T09:30:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "finding-sla-exp-2",
+                    "status": "acknowledged",
+                    "section": "logframe",
+                    "severity": "medium",
+                },
+            ],
+        },
+    )
+
+    csv_resp = client.get(
+        f"/status/{job_id}/review/workflow/sla/export",
+        params={
+            "finding_section": "toc",
+            "finding_code": "toc_schema_invalid",
+            "overdue_after_hours": 2,
+            "format": "csv",
+        },
+    )
+    assert csv_resp.status_code == 200
+    assert csv_resp.headers["content-type"].startswith("text/csv")
+    csv_disposition = csv_resp.headers.get("content-disposition", "")
+    assert f"grantflow_review_workflow_sla_{job_id}.csv" in csv_disposition
+    csv_text = csv_resp.text
+    assert csv_text.startswith("field,value\n")
+    assert "filters.finding_section,toc" in csv_text
+    assert "filters.finding_code,TOC_SCHEMA_INVALID" in csv_text
+    assert "filters.overdue_after_hours,2" in csv_text
+    assert "overdue_total,2" in csv_text
+
+    json_resp = client.get(
+        f"/status/{job_id}/review/workflow/sla/export",
+        params={"finding_section": "logframe", "overdue_after_hours": 2, "format": "json"},
+    )
+    assert json_resp.status_code == 200
+    assert json_resp.headers["content-type"].startswith("application/json")
+    json_payload = json_resp.json()
+    assert json_payload["filters"]["finding_section"] == "logframe"
+    assert json_payload["filters"]["overdue_after_hours"] == 2
+    assert json_payload["finding_total"] == 1
+    assert json_payload["comment_total"] == 1
+    assert json_payload["overdue_total"] == 0
+
+    gzip_resp = client.get(
+        f"/status/{job_id}/review/workflow/sla/export",
+        params={"finding_code": "MEL_BASELINE_MISSING", "overdue_after_hours": 2, "format": "json", "gzip": "true"},
+    )
+    assert gzip_resp.status_code == 200
+    assert gzip_resp.headers["content-type"].startswith("application/gzip")
+    gzip_disposition = gzip_resp.headers.get("content-disposition", "")
+    assert f"grantflow_review_workflow_sla_{job_id}.json.gz" in gzip_disposition
+    gzip_payload = json.loads(gzip.decompress(gzip_resp.content).decode("utf-8"))
+    assert gzip_payload["filters"]["finding_code"] == "MEL_BASELINE_MISSING"
+    assert gzip_payload["finding_total"] == 1
+
+
 def test_status_review_workflow_sla_profile_endpoint_returns_saved_or_default_profile():
     saved_job_id = "review-workflow-sla-profile-saved-job-1"
     api_app_module.JOB_STORE.set(
@@ -6250,6 +6378,15 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     )
     assert review_workflow_sla_auth.status_code == 200
 
+    review_workflow_sla_export_unauth = client.get(f"/status/{job_id}/review/workflow/sla/export")
+    assert review_workflow_sla_export_unauth.status_code == 401
+
+    review_workflow_sla_export_auth = client.get(
+        f"/status/{job_id}/review/workflow/sla/export",
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert review_workflow_sla_export_auth.status_code == 200
+
     review_workflow_sla_profile_unauth = client.get(f"/status/{job_id}/review/workflow/sla/profile")
     assert review_workflow_sla_profile_unauth.status_code == 401
 
@@ -6452,6 +6589,9 @@ def test_openapi_declares_api_key_security_scheme():
     ).get("security")
     status_review_workflow_sla_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla") or {}).get("get") or {}
+    ).get("security")
+    status_review_workflow_sla_export_security = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla/export") or {}).get("get") or {}
     ).get("security")
     status_review_workflow_sla_profile_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla/profile") or {}).get("get") or {}
@@ -6790,6 +6930,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_comments_get_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_sla_security == [{"ApiKeyAuth": []}]
+    assert status_review_workflow_sla_export_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_sla_profile_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_sla_recompute_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_export_security == [{"ApiKeyAuth": []}]
@@ -6916,6 +7057,9 @@ def test_openapi_declares_api_key_security_scheme():
     review_workflow_sla_params = (
         ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla") or {}).get("get") or {}
     ).get("parameters") or []
+    review_workflow_sla_export_params = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla/export") or {}).get("get") or {}
+    ).get("parameters") or []
     assert "toc_text_risk_level" in [str(p.get("name") or "") for p in portfolio_metrics_params if isinstance(p, dict)]
     assert "toc_text_risk_level" in [
         str(p.get("name") or "") for p in portfolio_metrics_export_params if isinstance(p, dict)
@@ -6928,6 +7072,9 @@ def test_openapi_declares_api_key_security_scheme():
     review_workflow_sla_param_names = [
         str(p.get("name") or "") for p in review_workflow_sla_params if isinstance(p, dict)
     ]
+    review_workflow_sla_export_param_names = [
+        str(p.get("name") or "") for p in review_workflow_sla_export_params if isinstance(p, dict)
+    ]
     for name in (
         "finding_id",
         "finding_code",
@@ -6938,6 +7085,9 @@ def test_openapi_declares_api_key_security_scheme():
     ):
         assert name in review_workflow_param_names
         assert name in review_workflow_sla_param_names
+        assert name in review_workflow_sla_export_param_names
+    assert "format" in review_workflow_sla_export_param_names
+    assert "gzip" in review_workflow_sla_export_param_names
     portfolio_filters_schema_props = (
         ((schemas.get("PortfolioMetricsFiltersPublicResponse") or {}).get("properties") or {})
         if isinstance(schemas.get("PortfolioMetricsFiltersPublicResponse"), dict)

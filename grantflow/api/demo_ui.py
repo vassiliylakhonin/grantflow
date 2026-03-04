@@ -1140,7 +1140,7 @@ def render_demo_ui_html() -> str:
                 </select>
               </div>
               <div class="sub" style="align-self:end;">
-                Client-side filters on top of server workflow response.
+                Server-side filters shared by workflow, SLA, and exports.
               </div>
             </div>
             <div class="row3" style="margin-top:10px;">
@@ -1175,6 +1175,11 @@ def render_demo_ui_html() -> str:
               <div id="reviewWorkflowSlaSummaryLine" class="footer-note mono" style="align-self:center;">
                 sla: overdue=- · breach_rate=- · oldest=-
               </div>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="reviewWorkflowSlaExportJsonBtn" class="ghost">Export SLA JSON</button>
+              <button id="reviewWorkflowSlaExportCsvBtn" class="secondary">Export SLA CSV</button>
+              <div class="sub" style="align-self:center;">SLA export uses current workflow filters.</div>
             </div>
             <div class="row4" style="margin-top:10px;">
               <div>
@@ -1536,6 +1541,8 @@ def render_demo_ui_html() -> str:
         reviewWorkflowSlaBtn: $("reviewWorkflowSlaBtn"),
         reviewWorkflowSlaProfileBtn: $("reviewWorkflowSlaProfileBtn"),
         reviewWorkflowSlaRecomputeBtn: $("reviewWorkflowSlaRecomputeBtn"),
+        reviewWorkflowSlaExportJsonBtn: $("reviewWorkflowSlaExportJsonBtn"),
+        reviewWorkflowSlaExportCsvBtn: $("reviewWorkflowSlaExportCsvBtn"),
         reviewWorkflowSlaSummaryLine: $("reviewWorkflowSlaSummaryLine"),
         reviewWorkflowSlaHotspotsList: $("reviewWorkflowSlaHotspotsList"),
         reviewWorkflowSlaJson: $("reviewWorkflowSlaJson"),
@@ -5189,6 +5196,37 @@ def render_demo_ui_html() -> str:
         downloadBlob(blob, filename);
       }
 
+      async function exportReviewWorkflowSlaAggregate(format) {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        persistUiState();
+        persistBasics();
+        const q = buildReviewWorkflowSlaFilterQueryString();
+        const params = new URLSearchParams(q.startsWith("?") ? q.slice(1) : "");
+        params.set("format", format);
+        if (exportGzipEnabled()) params.set("gzip", "true");
+        const query = params.toString();
+        const endpointPath = `/status/${encodeURIComponent(jobId)}/review/workflow/sla/export`;
+        const res = await fetch(`${apiBase()}${endpointPath}?${query}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          const ct = res.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const body = await res.json();
+            throw new Error(JSON.stringify(body, null, 2));
+          }
+          throw new Error(await res.text());
+        }
+        const fallbackFilename = `grantflow_review_workflow_sla_${jobId}.${format}${exportGzipEnabled() ? ".gz" : ""}`;
+        const filename = parseDownloadFilenameFromDisposition(
+          res.headers.get("content-disposition"),
+          fallbackFilename
+        );
+        const blob = await res.blob();
+        downloadBlob(blob, filename);
+      }
+
       async function copyPortfolioMetricsJson() {
         const text = await ensurePortfolioMetricsLoaded();
         if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
@@ -5293,6 +5331,16 @@ def render_demo_ui_html() -> str:
       async function downloadReviewWorkflowCsv() {
         await refreshReviewWorkflow();
         await exportReviewWorkflowAggregate("csv");
+      }
+
+      async function downloadReviewWorkflowSlaJson() {
+        await refreshReviewWorkflowSla();
+        await exportReviewWorkflowSlaAggregate("json");
+      }
+
+      async function downloadReviewWorkflowSlaCsv() {
+        await refreshReviewWorkflowSla();
+        await exportReviewWorkflowSlaAggregate("csv");
       }
 
       function formatExportPolicyError(statusCode, detail, rawBody) {
@@ -5686,6 +5734,12 @@ def render_demo_ui_html() -> str:
         els.reviewWorkflowSlaBtn.addEventListener("click", () => refreshReviewWorkflowSla().catch(showError));
         els.reviewWorkflowSlaProfileBtn.addEventListener("click", () => refreshReviewWorkflowSlaProfile().catch(showError));
         els.reviewWorkflowSlaRecomputeBtn.addEventListener("click", () => recomputeReviewWorkflowSla().catch(showError));
+        els.reviewWorkflowSlaExportJsonBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaJson().catch((err) => showError(err))
+        );
+        els.reviewWorkflowSlaExportCsvBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaCsv().catch((err) => showError(err))
+        );
         els.reviewWorkflowClearFiltersBtn.addEventListener("click", () => {
           clearReviewWorkflowFilters();
           Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla(), refreshReviewWorkflowSlaProfile()]).catch(showError);
@@ -5743,12 +5797,12 @@ def render_demo_ui_html() -> str:
         ].forEach((el) =>
           el.addEventListener("change", () => {
             persistUiState();
-            refreshReviewWorkflow().catch(showError);
+            Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
           })
         );
         [els.reviewWorkflowFindingIdFilter].forEach((el) => el.addEventListener("change", () => {
           persistUiState();
-          refreshReviewWorkflow().catch(showError);
+          Promise.allSettled([refreshReviewWorkflow(), refreshReviewWorkflowSla()]).catch(showError);
         }));
         els.reviewWorkflowOverdueHoursFilter.addEventListener("change", () => {
           persistUiState();
