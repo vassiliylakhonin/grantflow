@@ -10,6 +10,8 @@ GROUNDED_MIN_RETRIEVAL_GROUNDED ?= 0.75
 GROUNDED_MAX_TRACEABILITY_GAP ?= 0.10
 GROUNDED_MIN_NON_RETRIEVAL_IMPROVEMENT ?= 0.25
 GROUNDED_MIN_RETRIEVAL_GROUNDED_IMPROVEMENT ?= 0.25
+GROUNDED_EXPECTED_DONORS ?= usaid,eu,worldbank,state_department
+GROUNDED_MIN_SEEDED_TOTAL ?= 1
 
 eval-grounded-ab:
 	mkdir -p $(EVAL_ARTIFACTS_DIR)
@@ -20,6 +22,11 @@ eval-grounded-ab:
 		--skip-expectations \
 		--text-out $(EVAL_ARTIFACTS_DIR)/grounded-ab-a-report.txt \
 		--json-out $(EVAL_ARTIFACTS_DIR)/grounded-ab-a-report.json
+	$(PYTHON) scripts/check_seeded_corpus.py \
+		--json $(EVAL_ARTIFACTS_DIR)/grounded-ab-a-report.json \
+		--label grounded-ab-a-seed \
+		--expected-donors $(GROUNDED_EXPECTED_DONORS) \
+		--min-seeded-total $(GROUNDED_MIN_SEEDED_TOTAL)
 	$(PYTHON) -m grantflow.eval.harness \
 		--cases-file $(GROUNDED_CASES_FILE) \
 		--seed-rag-manifest $(GROUNDED_SEED_MANIFEST) \
@@ -28,6 +35,11 @@ eval-grounded-ab:
 		--force-no-architect-rag \
 		--text-out $(EVAL_ARTIFACTS_DIR)/grounded-ab-b-report.txt \
 		--json-out $(EVAL_ARTIFACTS_DIR)/grounded-ab-b-report.json
+	$(PYTHON) scripts/check_seeded_corpus.py \
+		--json $(EVAL_ARTIFACTS_DIR)/grounded-ab-b-report.json \
+		--label grounded-ab-b-seed \
+		--expected-donors $(GROUNDED_EXPECTED_DONORS) \
+		--min-seeded-total $(GROUNDED_MIN_SEEDED_TOTAL)
 	$(PYTHON) scripts/eval_ab_diff.py \
 		--a-json $(EVAL_ARTIFACTS_DIR)/grounded-ab-a-report.json \
 		--b-json $(EVAL_ARTIFACTS_DIR)/grounded-ab-b-report.json \

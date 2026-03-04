@@ -392,6 +392,14 @@ make eval-grounded-ab
 ```
 
 `--seed-rag-manifest` resolves each manifest `donor_id` via `DonorFactory` and ingests into the donor strategy RAG namespace (for example, `usaid -> usaid_ads201`, `state_department -> us_state_department_guidance`).
+Use `scripts/check_seeded_corpus.py` to fail fast when seeded artifacts are missing:
+
+```bash
+python scripts/check_seeded_corpus.py \
+  --json eval-artifacts/grounded-eval-report.json \
+  --expected-donors usaid,eu,worldbank,state_department \
+  --min-seeded-total 1
+```
 
 Tune guard via environment variables if needed:
 

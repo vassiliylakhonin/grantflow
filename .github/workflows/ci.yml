@@ -120,6 +120,14 @@ jobs:
             --text-out eval-artifacts/grounded-eval-report.txt \
             --json-out eval-artifacts/grounded-eval-report.json
 
+      - name: Validate seeded corpus (grounded deterministic suite)
+        run: |
+          python scripts/check_seeded_corpus.py \
+            --json eval-artifacts/grounded-eval-report.json \
+            --label grounded-eval-seed \
+            --expected-donors usaid,eu,worldbank,state_department \
+            --min-seeded-total 1
+
       - name: Run grounded A/B eval (architect RAG on)
         run: |
           python -m grantflow.eval.harness \
@@ -129,6 +137,14 @@ jobs:
             --skip-expectations \
             --text-out eval-artifacts/grounded-ab-a-report.txt \
             --json-out eval-artifacts/grounded-ab-a-report.json
+
+      - name: Validate seeded corpus (grounded A)
+        run: |
+          python scripts/check_seeded_corpus.py \
+            --json eval-artifacts/grounded-ab-a-report.json \
+            --label grounded-ab-a-seed \
+            --expected-donors usaid,eu,worldbank,state_department \
+            --min-seeded-total 1
 
       - name: Run grounded A/B eval (architect RAG off)
         run: |
@@ -140,6 +156,14 @@ jobs:
             --force-no-architect-rag \
             --text-out eval-artifacts/grounded-ab-b-report.txt \
             --json-out eval-artifacts/grounded-ab-b-report.json
+
+      - name: Validate seeded corpus (grounded B)
+        run: |
+          python scripts/check_seeded_corpus.py \
+            --json eval-artifacts/grounded-ab-b-report.json \
+            --label grounded-ab-b-seed \
+            --expected-donors usaid,eu,worldbank,state_department \
+            --min-seeded-total 1
 
       - name: Build grounded A/B diff report
         run: |
