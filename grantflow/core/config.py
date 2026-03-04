@@ -47,6 +47,7 @@ class GraphConfig(BaseModel):
     export_grounding_min_traceability_complete_rate: float = 0.5
     export_grounding_max_traceability_gap_rate: float = 0.5
     export_contract_policy_mode: str = "warn"
+    export_require_grounded_gate_pass: bool = False
     preflight_grounding_high_risk_coverage_threshold: float = 0.5
     preflight_grounding_medium_risk_coverage_threshold: float = 0.8
     preflight_grounding_high_risk_depth_coverage_threshold: float = 0.2
@@ -157,6 +158,8 @@ class GrantFlowConfig(BaseModel):
                     _env("GRANTFLOW_EXPORT_GROUNDING_MAX_TRACEABILITY_GAP_RATE", "0.5")
                 ),
                 export_contract_policy_mode=export_contract_policy_mode,
+                export_require_grounded_gate_pass=_env("GRANTFLOW_EXPORT_REQUIRE_GROUNDED_GATE_PASS", "false").lower()
+                == "true",
                 preflight_grounding_high_risk_coverage_threshold=float(
                     _env("GRANTFLOW_PREFLIGHT_GROUNDING_HIGH_RISK_COVERAGE_THRESHOLD", "0.5")
                 ),

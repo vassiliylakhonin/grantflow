@@ -1226,6 +1226,10 @@ def _configured_export_grounding_policy_mode() -> str:
     return _configured_preflight_grounding_policy_mode()
 
 
+def _configured_export_require_grounded_gate_pass() -> bool:
+    return bool(getattr(config.graph, "export_require_grounded_gate_pass", False))
+
+
 def _export_grounding_policy_thresholds() -> Dict[str, Any]:
     min_architect_citations_raw = getattr(config.graph, "export_grounding_min_architect_citations", 3)
     min_claim_support_rate_raw = getattr(config.graph, "export_grounding_min_claim_support_rate", 0.5)
@@ -2259,6 +2263,33 @@ def _extract_export_grounding_gate(req: ExportRequest) -> Dict[str, Any]:
         return {}
     gate = state_payload.get("grounding_gate")
     return gate if isinstance(gate, dict) else {}
+
+
+def _extract_export_runtime_grounded_quality_gate(req: ExportRequest) -> Dict[str, Any]:
+    payload = req.payload if isinstance(req.payload, dict) else {}
+    if not payload:
+        return {}
+    payload_root = payload if isinstance(payload, dict) else {}
+    state_payload = payload_root.get("state") if isinstance(payload_root.get("state"), dict) else payload_root
+    if not isinstance(state_payload, dict):
+        return {}
+
+    runtime_gate = state_payload.get("grounded_quality_gate")
+    if isinstance(runtime_gate, dict):
+        return runtime_gate
+
+    public_runtime_gate = state_payload.get("grounded_gate")
+    if isinstance(public_runtime_gate, dict):
+        return public_runtime_gate
+
+    root_runtime_gate = payload_root.get("grounded_quality_gate")
+    if isinstance(root_runtime_gate, dict):
+        return root_runtime_gate
+
+    root_public_runtime_gate = payload_root.get("grounded_gate")
+    if isinstance(root_public_runtime_gate, dict):
+        return root_public_runtime_gate
+    return {}
 
 
 def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> None:
@@ -3753,6 +3784,9 @@ def _health_diagnostics() -> dict[str, Any]:
         "export_contract_policy": {
             "mode": _configured_export_contract_policy_mode(),
         },
+        "export_runtime_grounded_gate_policy": {
+            "require_pass": _configured_export_require_grounded_gate_pass(),
+        },
     }
     if sqlite_path and (job_store_mode == "sqlite" or hitl_store_mode == "sqlite" or ingest_store_mode == "sqlite"):
         diagnostics["sqlite"] = {"path": str(sqlite_path)}
@@ -3873,6 +3907,9 @@ def readiness_check():
             },
             "export_contract_policy": {
                 "mode": _configured_export_contract_policy_mode(),
+            },
+            "export_runtime_grounded_gate_policy": {
+                "require_pass": _configured_export_require_grounded_gate_pass(),
             },
         },
     }
@@ -5444,6 +5481,23 @@ async def ingest_pdf(
 def export_artifacts(req: ExportRequest, request: Request):
     require_api_key_if_configured(request)
     grounding_gate = _extract_export_grounding_gate(req)
+    runtime_grounded_gate = _extract_export_runtime_grounded_quality_gate(req)
+    if (
+        _configured_export_require_grounded_gate_pass()
+        and not req.allow_unsafe_export
+        and (bool(runtime_grounded_gate.get("blocking")) or runtime_grounded_gate.get("passed") is False)
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "runtime_grounded_quality_gate_block",
+                "message": (
+                    "Export blocked by runtime grounded quality gate pass policy. "
+                    "Set allow_unsafe_export=true to override."
+                ),
+                "grounded_gate": runtime_grounded_gate,
+            },
+        )
     if (
         not req.allow_unsafe_export
         and bool(grounding_gate.get("blocking"))

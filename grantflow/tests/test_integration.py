@@ -72,6 +72,8 @@ def test_health_endpoint():
     assert 0.0 <= float(export_thresholds["max_traceability_gap_rate"]) <= 1.0
     export_contract_policy = diagnostics["export_contract_policy"]
     assert export_contract_policy["mode"] in {"warn", "strict", "off"}
+    export_runtime_gate_policy = diagnostics["export_runtime_grounded_gate_policy"]
+    assert isinstance(export_runtime_gate_policy["require_pass"], bool)
 
 
 def test_store_backend_alignment_validation_detects_job_hitl_mismatch(monkeypatch):
@@ -393,6 +395,8 @@ def test_ready_endpoint():
     assert 0.0 <= float(export_thresholds["max_traceability_gap_rate"]) <= 1.0
     export_contract_policy = checks["export_contract_policy"]
     assert export_contract_policy["mode"] in {"warn", "strict", "off"}
+    export_runtime_gate_policy = checks["export_runtime_grounded_gate_policy"]
+    assert isinstance(export_runtime_gate_policy["require_pass"], bool)
 
 
 def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
@@ -419,6 +423,8 @@ def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
     assert export_policy["mode"] in {"warn", "strict", "off"}
     export_contract_policy = body["detail"]["checks"]["export_contract_policy"]
     assert export_contract_policy["mode"] in {"warn", "strict", "off"}
+    export_runtime_gate_policy = body["detail"]["checks"]["export_runtime_grounded_gate_policy"]
+    assert isinstance(export_runtime_gate_policy["require_pass"], bool)
 
 
 def test_ready_endpoint_reflects_preflight_grounding_threshold_overrides(monkeypatch):
@@ -528,6 +534,16 @@ def test_ready_endpoint_reflects_export_contract_policy_override(monkeypatch):
     body = response.json()
     contract_policy = body["checks"]["export_contract_policy"]
     assert contract_policy["mode"] == "strict"
+
+
+def test_ready_endpoint_reflects_export_runtime_grounded_gate_policy_override(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "export_require_grounded_gate_pass", True)
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    policy = body["checks"]["export_runtime_grounded_gate_policy"]
+    assert policy["require_pass"] is True
 
 
 def test_list_donors():
@@ -1782,6 +1798,39 @@ def test_export_endpoint_blocks_when_strict_grounding_gate_failed_unless_overrid
     assert blocked.status_code == 409
     detail = blocked.json()["detail"]
     assert detail["reason"] == "grounding_gate_strict_block"
+
+    allowed = client.post("/export", json={"payload": payload, "format": "docx", "allow_unsafe_export": True})
+    assert allowed.status_code == 200
+    assert allowed.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+
+def test_export_endpoint_blocks_when_runtime_grounded_gate_policy_requires_pass(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "export_require_grounded_gate_pass", True)
+    payload = {
+        "state": {
+            "donor_id": "usaid",
+            "toc_draft": {"toc": {"brief": "Sample ToC"}},
+            "logframe_draft": {"indicators": []},
+            "grounded_quality_gate": {
+                "mode": "strict",
+                "passed": False,
+                "blocking": True,
+                "summary": "runtime_non_retrieval_signals_high",
+                "reasons": ["non_retrieval_rate_above_max"],
+                "failed_sections": ["toc"],
+            },
+        }
+    }
+
+    blocked = client.post("/export", json={"payload": payload, "format": "docx"})
+    assert blocked.status_code == 409
+    detail = blocked.json()["detail"]
+    assert detail["reason"] == "runtime_grounded_quality_gate_block"
+    grounded_gate = detail["grounded_gate"]
+    assert grounded_gate["blocking"] is True
+    assert grounded_gate["passed"] is False
 
     allowed = client.post("/export", json={"payload": payload, "format": "docx", "allow_unsafe_export": True})
     assert allowed.status_code == 200
@@ -5434,6 +5483,98 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert toc_text_risk_filtered_body["toc_text_quality"]["risk_counts"]["medium"] == 0
     assert toc_text_risk_filtered_body["toc_text_quality"]["risk_counts"]["low"] == 0
     assert toc_text_risk_filtered_body["toc_text_quality"]["risk_counts"]["unknown"] == 0
+
+
+def test_portfolio_quality_endpoint_includes_grounded_gate_block_metrics():
+    donor = "grounded_gate_metrics_test_donor"
+    api_app_module.JOB_STORE.set(
+        "portfolio-grounded-gate-job-1",
+        {
+            "status": "done",
+            "hitl_enabled": False,
+            "state": {
+                "donor_id": donor,
+                "quality_score": 7.0,
+                "critic_score": 7.0,
+                "grounded_quality_gate": {
+                    "mode": "strict",
+                    "passed": False,
+                    "blocking": True,
+                    "failed_sections": ["toc"],
+                    "reason_details": [
+                        {"code": "non_retrieval_rate_above_max", "section": "toc"},
+                    ],
+                },
+            },
+        },
+    )
+    api_app_module.JOB_STORE.set(
+        "portfolio-grounded-gate-job-2",
+        {
+            "status": "done",
+            "hitl_enabled": False,
+            "state": {
+                "donor_id": donor,
+                "quality_score": 7.5,
+                "critic_score": 7.5,
+                "grounded_quality_gate": {
+                    "mode": "strict",
+                    "passed": False,
+                    "blocking": True,
+                    "reason_details": [
+                        {"code": "retrieval_grounded_count_below_min", "section": "logframe"},
+                    ],
+                },
+            },
+        },
+    )
+    api_app_module.JOB_STORE.set(
+        "portfolio-grounded-gate-job-3",
+        {
+            "status": "done",
+            "hitl_enabled": False,
+            "state": {
+                "donor_id": donor,
+                "quality_score": 8.0,
+                "critic_score": 8.0,
+                "grounded_quality_gate": {
+                    "mode": "strict",
+                    "passed": True,
+                    "blocking": False,
+                    "summary": "runtime_grounded_signals_ok",
+                },
+            },
+        },
+    )
+
+    response = client.get("/portfolio/quality", params={"donor_id": donor, "status": "done"})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert body["filters"]["donor_id"] == donor
+    assert body["grounded_gate_present_job_count"] == 3
+    assert body["grounded_gate_blocked_job_count"] == 2
+    assert body["grounded_gate_passed_job_count"] == 1
+    assert body["grounded_gate_block_rate"] == 0.6667
+    assert body["grounded_gate_block_rate_among_present"] == 0.6667
+    assert body["grounded_gate_pass_rate_among_present"] == 0.3333
+    assert body["grounded_gate_section_fail_counts"]["toc"] >= 1
+    assert body["grounded_gate_section_fail_counts"]["logframe"] >= 1
+    assert body["grounded_gate_reason_counts"]["non_retrieval_rate_above_max"] >= 1
+    assert body["grounded_gate_reason_counts"]["retrieval_grounded_count_below_min"] >= 1
+
+    donor_breakdown = body["donor_grounded_gate_breakdown"][donor]
+    assert donor_breakdown["job_count"] == 3
+    assert donor_breakdown["present_job_count"] == 3
+    assert donor_breakdown["blocked_job_count"] == 2
+    assert donor_breakdown["passed_job_count"] == 1
+    assert donor_breakdown["block_rate"] == 0.6667
+    assert donor_breakdown["block_rate_among_present"] == 0.6667
+    assert donor_breakdown["pass_rate_among_present"] == 0.3333
+    assert donor_breakdown["section_fail_counts"]["toc"] >= 1
+    assert donor_breakdown["section_fail_counts"]["logframe"] >= 1
+    assert donor_breakdown["reason_counts"]["non_retrieval_rate_above_max"] >= 1
+    assert donor_breakdown["reason_counts"]["retrieval_grounded_count_below_min"] >= 1
 
 
 def test_portfolio_filters_accept_legacy_state_donor_alias():

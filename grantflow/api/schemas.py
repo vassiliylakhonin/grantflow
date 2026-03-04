@@ -839,6 +839,20 @@ class PortfolioQualityDonorWeightedRiskPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class PortfolioQualityDonorGroundedGatePublicResponse(BaseModel):
+    job_count: int
+    present_job_count: int
+    blocked_job_count: int
+    passed_job_count: int
+    block_rate: Optional[float] = None
+    block_rate_among_present: Optional[float] = None
+    pass_rate_among_present: Optional[float] = None
+    section_fail_counts: Dict[str, int]
+    reason_counts: Dict[str, int]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioQualityPublicResponse(BaseModel):
     job_count: int
     filters: PortfolioMetricsFiltersPublicResponse
@@ -855,6 +869,15 @@ class PortfolioQualityPublicResponse(BaseModel):
     citations: PortfolioQualityCitationSummaryPublicResponse
     priority_signal_breakdown: Dict[str, PortfolioQualityWeightedSignalPublicResponse]
     donor_weighted_risk_breakdown: Dict[str, PortfolioQualityDonorWeightedRiskPublicResponse]
+    grounded_gate_present_job_count: int
+    grounded_gate_blocked_job_count: int
+    grounded_gate_passed_job_count: int
+    grounded_gate_block_rate: Optional[float] = None
+    grounded_gate_block_rate_among_present: Optional[float] = None
+    grounded_gate_pass_rate_among_present: Optional[float] = None
+    grounded_gate_section_fail_counts: Dict[str, int]
+    grounded_gate_reason_counts: Dict[str, int]
+    donor_grounded_gate_breakdown: Dict[str, PortfolioQualityDonorGroundedGatePublicResponse]
     toc_text_quality: PortfolioQualityToCTextQualitySummaryPublicResponse
     donor_needs_revision_counts: Dict[str, int]
     donor_open_findings_counts: Dict[str, int]

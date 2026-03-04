@@ -59,6 +59,7 @@ GROUNDING_FALLBACK_HIGH_THRESHOLD = 0.8
 GROUNDING_FALLBACK_MEDIUM_THRESHOLD = 0.5
 GROUNDING_NON_RETRIEVAL_HIGH_THRESHOLD = 0.8
 GROUNDING_NON_RETRIEVAL_MEDIUM_THRESHOLD = 0.5
+GROUNDED_GATE_SECTION_ORDER = ("toc", "logframe", "general")
 
 
 def _job_state_dict(job: Dict[str, Any]) -> Dict[str, Any]:
@@ -2320,6 +2321,48 @@ def public_portfolio_metrics_payload(
     }
 
 
+def _grounded_gate_section_counts_template() -> Dict[str, int]:
+    return {section: 0 for section in GROUNDED_GATE_SECTION_ORDER}
+
+
+def _normalized_grounded_gate_sections(gate: Dict[str, Any]) -> set[str]:
+    sections: set[str] = set()
+    failed_sections = gate.get("failed_sections")
+    if isinstance(failed_sections, list):
+        for section in failed_sections:
+            token = str(section or "").strip().lower()
+            if token in GROUNDED_GATE_SECTION_ORDER:
+                sections.add(token)
+
+    reason_details = gate.get("reason_details")
+    if isinstance(reason_details, list):
+        for row in reason_details:
+            if not isinstance(row, dict):
+                continue
+            token = str(row.get("section") or "").strip().lower()
+            if token in GROUNDED_GATE_SECTION_ORDER:
+                sections.add(token)
+    return sections
+
+
+def _grounded_gate_reason_codes(gate: Dict[str, Any]) -> list[str]:
+    codes: list[str] = []
+    reason_details = gate.get("reason_details")
+    if isinstance(reason_details, list):
+        for row in reason_details:
+            if not isinstance(row, dict):
+                continue
+            token = str(row.get("code") or "").strip()
+            if token:
+                codes.append(token)
+    if codes:
+        return codes
+    reasons = gate.get("reasons")
+    if isinstance(reasons, list):
+        return [str(reason).strip() for reason in reasons if str(reason).strip()]
+    return []
+
+
 def public_portfolio_quality_payload(
     jobs_by_id: Dict[str, Dict[str, Any]],
     *,
@@ -2374,6 +2417,12 @@ def public_portfolio_quality_payload(
     donor_needs_revision_counts: Dict[str, int] = {}
     donor_open_findings_counts: Dict[str, int] = {}
     donor_weighted_risk_breakdown: Dict[str, Dict[str, Any]] = {}
+    donor_grounded_gate_breakdown: Dict[str, Dict[str, Any]] = {}
+    grounded_gate_section_fail_counts = _grounded_gate_section_counts_template()
+    grounded_gate_reason_counts: Dict[str, int] = {}
+    grounded_gate_present_job_count = 0
+    grounded_gate_blocked_job_count = 0
+    grounded_gate_passed_job_count = 0
     quality_rows: list[Dict[str, Any]] = []
 
     for job_id, job in filtered:
@@ -2634,6 +2683,58 @@ def public_portfolio_quality_payload(
         )
 
         donor_for_row = str(row.get("_donor_id") or "unknown")
+        row_grounded_gate: Dict[str, Any] = (
+            cast(Dict[str, Any], row.get("grounded_gate")) if isinstance(row.get("grounded_gate"), dict) else {}
+        )
+        donor_grounded_gate_row = donor_grounded_gate_breakdown.setdefault(
+            donor_for_row,
+            {
+                "job_count": 0,
+                "present_job_count": 0,
+                "blocked_job_count": 0,
+                "passed_job_count": 0,
+                "section_fail_counts": _grounded_gate_section_counts_template(),
+                "reason_counts": {},
+            },
+        )
+        donor_grounded_gate_row["job_count"] = int(donor_grounded_gate_row.get("job_count") or 0) + 1
+        if row_grounded_gate:
+            grounded_gate_present_job_count += 1
+            donor_grounded_gate_row["present_job_count"] = (
+                int(donor_grounded_gate_row.get("present_job_count") or 0) + 1
+            )
+            if bool(row_grounded_gate.get("blocking")):
+                grounded_gate_blocked_job_count += 1
+                donor_grounded_gate_row["blocked_job_count"] = (
+                    int(donor_grounded_gate_row.get("blocked_job_count") or 0) + 1
+                )
+            if row_grounded_gate.get("passed") is True:
+                grounded_gate_passed_job_count += 1
+                donor_grounded_gate_row["passed_job_count"] = (
+                    int(donor_grounded_gate_row.get("passed_job_count") or 0) + 1
+                )
+
+            row_failed_sections = _normalized_grounded_gate_sections(row_grounded_gate)
+            donor_section_fail_counts = (
+                cast(Dict[str, Any], donor_grounded_gate_row.get("section_fail_counts"))
+                if isinstance(donor_grounded_gate_row.get("section_fail_counts"), dict)
+                else {}
+            )
+            for section in row_failed_sections:
+                grounded_gate_section_fail_counts[section] = int(grounded_gate_section_fail_counts.get(section, 0)) + 1
+                donor_section_fail_counts[section] = int(donor_section_fail_counts.get(section, 0)) + 1
+            donor_grounded_gate_row["section_fail_counts"] = donor_section_fail_counts
+
+            donor_reason_counts = (
+                cast(Dict[str, Any], donor_grounded_gate_row.get("reason_counts"))
+                if isinstance(donor_grounded_gate_row.get("reason_counts"), dict)
+                else {}
+            )
+            for code in _grounded_gate_reason_codes(row_grounded_gate):
+                grounded_gate_reason_counts[code] = int(grounded_gate_reason_counts.get(code, 0)) + 1
+                donor_reason_counts[code] = int(donor_reason_counts.get(code, 0)) + 1
+            donor_grounded_gate_row["reason_counts"] = donor_reason_counts
+
         donor_row = donor_weighted_risk_breakdown.setdefault(
             donor_for_row,
             {
@@ -3176,6 +3277,46 @@ def public_portfolio_quality_payload(
         citation_count=citation_count_total,
         retrieval_expected=retrieval_expected,
     )
+    grounded_gate_block_rate = round(grounded_gate_blocked_job_count / job_count, 4) if job_count else None
+    grounded_gate_block_rate_among_present = (
+        round(grounded_gate_blocked_job_count / grounded_gate_present_job_count, 4)
+        if grounded_gate_present_job_count
+        else None
+    )
+    grounded_gate_pass_rate_among_present = (
+        round(grounded_gate_passed_job_count / grounded_gate_present_job_count, 4)
+        if grounded_gate_present_job_count
+        else None
+    )
+    for donor_token, donor_gate_row in donor_grounded_gate_breakdown.items():
+        donor_job_count = int(donor_gate_row.get("job_count") or 0)
+        donor_present_job_count = int(donor_gate_row.get("present_job_count") or 0)
+        donor_blocked_job_count = int(donor_gate_row.get("blocked_job_count") or 0)
+        donor_passed_job_count = int(donor_gate_row.get("passed_job_count") or 0)
+        donor_section_counts = (
+            cast(Dict[str, Any], donor_gate_row.get("section_fail_counts"))
+            if isinstance(donor_gate_row.get("section_fail_counts"), dict)
+            else {}
+        )
+        donor_gate_row["section_fail_counts"] = {
+            section: int(donor_section_counts.get(section) or 0) for section in GROUNDED_GATE_SECTION_ORDER
+        }
+        donor_reason_counts = (
+            cast(Dict[str, Any], donor_gate_row.get("reason_counts"))
+            if isinstance(donor_gate_row.get("reason_counts"), dict)
+            else {}
+        )
+        donor_gate_row["reason_counts"] = dict(
+            sorted((str(code), int(count or 0)) for code, count in donor_reason_counts.items())
+        )
+        donor_gate_row["block_rate"] = round(donor_blocked_job_count / donor_job_count, 4) if donor_job_count else None
+        donor_gate_row["block_rate_among_present"] = (
+            round(donor_blocked_job_count / donor_present_job_count, 4) if donor_present_job_count else None
+        )
+        donor_gate_row["pass_rate_among_present"] = (
+            round(donor_passed_job_count / donor_present_job_count, 4) if donor_present_job_count else None
+        )
+        donor_grounded_gate_breakdown[donor_token] = donor_gate_row
 
     return {
         "job_count": job_count,
@@ -3203,6 +3344,15 @@ def public_portfolio_quality_payload(
         "grounding_risk_medium_job_count": int(grounding_risk_job_counts.get("medium") or 0),
         "grounding_risk_low_job_count": int(grounding_risk_job_counts.get("low") or 0),
         "grounding_risk_unknown_job_count": int(grounding_risk_job_counts.get("unknown") or 0),
+        "grounded_gate_present_job_count": grounded_gate_present_job_count,
+        "grounded_gate_blocked_job_count": grounded_gate_blocked_job_count,
+        "grounded_gate_passed_job_count": grounded_gate_passed_job_count,
+        "grounded_gate_block_rate": grounded_gate_block_rate,
+        "grounded_gate_block_rate_among_present": grounded_gate_block_rate_among_present,
+        "grounded_gate_pass_rate_among_present": grounded_gate_pass_rate_among_present,
+        "grounded_gate_section_fail_counts": grounded_gate_section_fail_counts,
+        "grounded_gate_reason_counts": dict(sorted(grounded_gate_reason_counts.items())),
+        "donor_grounded_gate_breakdown": donor_grounded_gate_breakdown,
         "warning_level_high_job_count": int(warning_level_job_counts.get("high") or 0),
         "warning_level_medium_job_count": int(warning_level_job_counts.get("medium") or 0),
         "warning_level_low_job_count": int(warning_level_job_counts.get("low") or 0),

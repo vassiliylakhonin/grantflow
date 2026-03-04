@@ -113,6 +113,7 @@ export GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MODE=strict
 export GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MIN_CITATIONS=5
 export GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MAX_NON_RETRIEVAL_CITATION_RATE=0.35
 export GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MIN_RETRIEVAL_GROUNDED_CITATIONS=2
+export GRANTFLOW_EXPORT_REQUIRE_GROUNDED_GATE_PASS=false
 ```
 
 Notes:
@@ -120,6 +121,7 @@ Notes:
 - In `strict` mode, job finalization is blocked when grounded signals are below threshold.
 - Gate outcome is exposed in `GET /status/{job_id}/quality` as `grounded_gate`.
 - `GET /status/{job_id}/grounding-gate` returns runtime/preflight/mel grounding policies with structured `reason_details`, `failed_sections`, and sample evidence rows for triage.
+- If `GRANTFLOW_EXPORT_REQUIRE_GROUNDED_GATE_PASS=true`, `/export` returns `409` when runtime grounded gate did not pass (unless `allow_unsafe_export=true`).
 
 ### 4.2) (Optional) Configure pipeline runner mode
 
@@ -252,6 +254,16 @@ curl -s -X POST http://127.0.0.1:8000/export \
   -H 'Content-Type: application/json' \
   --data-binary @export_payload.json \
   -o grantflow_export.zip
+```
+
+If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIRE_GROUNDED_GATE_PASS=true`), blocked exports return:
+
+```json
+{
+  "detail": {
+    "reason": "runtime_grounded_quality_gate_block"
+  }
+}
 ```
 
 ## Core API
