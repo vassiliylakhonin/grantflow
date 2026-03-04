@@ -396,9 +396,9 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Avg citation conf</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Threshold hit-rate</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Claim-support</div><div class="value mono">-</div></div>
-              <div class="kpi"><div class="label">Architect non-retrieval</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Architect fallback</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">MEL claim-support</div><div class="value mono">-</div></div>
-              <div class="kpi"><div class="label">MEL non-retrieval</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">MEL fallback</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Preflight risk</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Strict preflight</div><div class="value mono">-</div></div>
             </div>
@@ -456,13 +456,13 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Policy mode</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Policy blocking</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Citation count</div><div class="value mono">-</div></div>
-              <div class="kpi"><div class="label">Non-retrieval rate</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Fallback rate</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Traceability complete</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Traceability gap</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Architect claim-support</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Architect threshold hit</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">MEL claim-support</div><div class="value mono">-</div></div>
-              <div class="kpi"><div class="label">MEL non-retrieval</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">MEL fallback</div><div class="value mono">-</div></div>
             </div>
             <div id="groundingKpiMetaLine" class="footer-note mono">citation_count=- · non_retrieval=- · retrieval_grounded=- · traceability_gap=-</div>
             <div class="row" style="margin-top:10px;">
@@ -1832,6 +1832,43 @@ def render_demo_ui_html() -> str:
         return { presetKey, total: items.length, completed, missingIds, missingLabels };
       }
 
+      function buildPresetReadinessMetadata(presetKey, donorId) {
+        const key = String(presetKey || "").trim();
+        if (!key) return null;
+        const ingestPreset = INGEST_PRESETS[key];
+        const checklistItems = Array.isArray(ingestPreset?.checklist_items) ? ingestPreset.checklist_items : [];
+        const expectedDocFamilies = checklistItems
+          .map((item) => String(item?.id || "").trim())
+          .filter((itemId, idx, arr) => itemId && arr.indexOf(itemId) === idx);
+        return {
+          demo_generate_preset_key: key,
+          donor_id: String(donorId || "").trim() || null,
+          rag_readiness: {
+            expected_doc_families: expectedDocFamilies,
+            donor_id: String(ingestPreset?.donor_id || donorId || "").trim() || null,
+          },
+        };
+      }
+
+      function parseExtraInputContext() {
+        let extraContext = {};
+        const extraJsonText = String(els.inputContextJson.value || "").trim();
+        if (!extraJsonText) return extraContext;
+        let parsed;
+        try {
+          parsed = JSON.parse(extraJsonText);
+        } catch (err) {
+          throw new Error(
+            `Invalid Extra Input Context JSON: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("Extra Input Context JSON must be a JSON object");
+        }
+        extraContext = parsed;
+        return extraContext;
+      }
+
       function isZeroReadinessWarningSkippedForPreset(presetKey) {
         const key = String(presetKey || "").trim();
         if (!key) return false;
@@ -2101,7 +2138,34 @@ def render_demo_ui_html() -> str:
           els.ingestDonorId.value = String(els.donorId.value || "").trim();
         }
         persistUiState();
-        return syncIngestChecklistFromServer();
+        await syncIngestChecklistFromServer();
+
+        const donorId = String(els.donorId.value || els.ingestDonorId.value || "").trim();
+        if (!donorId) throw new Error("Missing donor_id for readiness sync");
+
+        const extraContext = parseExtraInputContext();
+        const inputContext = {
+          ...extraContext,
+          project: String(els.project.value || "").trim(),
+          country: String(els.country.value || "").trim(),
+        };
+        const metadata = buildPresetReadinessMetadata(generatePresetKey, donorId);
+        const expectedDocFamilies = Array.isArray(metadata?.rag_readiness?.expected_doc_families)
+          ? metadata.rag_readiness.expected_doc_families
+          : [];
+
+        const readiness = await apiFetch("/ingest/readiness", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            donor_id: donorId,
+            input_context: inputContext,
+            expected_doc_families: expectedDocFamilies,
+            client_metadata: metadata || null,
+          }),
+        });
+        renderGeneratePreflightAlert(readiness);
+        return readiness;
       }
 
       async function ingestPdfUpload() {
@@ -3919,22 +3983,7 @@ def render_demo_ui_html() -> str:
           );
           if (!ok) return;
         }
-        let extraContext = {};
-        const extraJsonText = String(els.inputContextJson.value || "").trim();
-        if (extraJsonText) {
-          let parsed;
-          try {
-            parsed = JSON.parse(extraJsonText);
-          } catch (err) {
-            throw new Error(
-              `Invalid Extra Input Context JSON: ${err instanceof Error ? err.message : String(err)}`
-            );
-          }
-          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-            throw new Error("Extra Input Context JSON must be a JSON object");
-          }
-          extraContext = parsed;
-        }
+        const extraContext = parseExtraInputContext();
         const payload = {
           donor_id: els.donorId.value.trim(),
           input_context: {
@@ -3947,19 +3996,7 @@ def render_demo_ui_html() -> str:
           strict_preflight: els.strictPreflight.value === "true",
         };
         if (readiness.presetKey) {
-          const ingestPreset = INGEST_PRESETS[readiness.presetKey];
-          const checklistItems = Array.isArray(ingestPreset?.checklist_items) ? ingestPreset.checklist_items : [];
-          const expectedDocFamilies = checklistItems
-            .map((item) => String(item?.id || "").trim())
-            .filter((itemId, idx, arr) => itemId && arr.indexOf(itemId) === idx);
-          payload.client_metadata = {
-            demo_generate_preset_key: readiness.presetKey,
-            donor_id: String(els.donorId.value || "").trim() || null,
-            rag_readiness: {
-              expected_doc_families: expectedDocFamilies,
-              donor_id: String(ingestPreset?.donor_id || els.donorId.value || "").trim() || null,
-            },
-          };
+          payload.client_metadata = buildPresetReadinessMetadata(readiness.presetKey, String(els.donorId.value || "").trim());
         }
         if (els.webhookUrl.value.trim()) payload.webhook_url = els.webhookUrl.value.trim();
         if (els.webhookSecret.value.trim()) payload.webhook_secret = els.webhookSecret.value.trim();
