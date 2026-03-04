@@ -764,6 +764,59 @@ class PortfolioReviewWorkflowPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class PortfolioReviewWorkflowSLAItemPublicResponse(JobReviewWorkflowSLAItemPublicResponse):
+    job_id: Optional[str] = None
+    donor_id: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PortfolioReviewWorkflowSLAFiltersPublicResponse(BaseModel):
+    donor_id: Optional[str] = None
+    status: Optional[str] = None
+    hitl_enabled: Optional[bool] = None
+    warning_level: Optional[str] = None
+    grounding_risk_level: Optional[str] = None
+    toc_text_risk_level: Optional[str] = None
+    finding_id: Optional[str] = None
+    finding_code: Optional[str] = None
+    finding_section: Optional[str] = None
+    comment_status: Optional[str] = None
+    workflow_state: Optional[str] = None
+    overdue_after_hours: Optional[int] = None
+    top_limit: Optional[int] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PortfolioReviewWorkflowSLAPublicResponse(BaseModel):
+    job_count: int
+    jobs_with_overdue: int
+    jobs_without_overdue: int
+    generated_at: str
+    filters: PortfolioReviewWorkflowSLAFiltersPublicResponse
+    overdue_after_hours: int
+    finding_total: int
+    comment_total: int
+    unresolved_finding_count: int
+    unresolved_comment_count: int
+    unresolved_total: int
+    overdue_finding_count: int
+    overdue_comment_count: int
+    overdue_total: int
+    breach_rate: Optional[float] = None
+    overdue_by_severity: Dict[str, int]
+    overdue_by_section: Dict[str, int]
+    oldest_overdue: Optional[PortfolioReviewWorkflowSLAItemPublicResponse] = None
+    top_overdue: list[PortfolioReviewWorkflowSLAItemPublicResponse]
+    top_donor_id: Optional[str] = None
+    top_donor_overdue_count: Optional[int] = None
+    donor_overdue_counts: Dict[str, int]
+    job_overdue_counts: Dict[str, int]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioReviewWorkflowTrendsFiltersPublicResponse(BaseModel):
     donor_id: Optional[str] = None
     status: Optional[str] = None

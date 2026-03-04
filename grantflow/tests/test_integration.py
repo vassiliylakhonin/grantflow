@@ -265,6 +265,8 @@ def test_demo_console_page_loads():
     assert "/portfolio/quality/export" in body
     assert "/portfolio/review-workflow" in body
     assert "/portfolio/review-workflow/export" in body
+    assert "/portfolio/review-workflow/sla" in body
+    assert "/portfolio/review-workflow/sla/export" in body
     assert "/portfolio/review-workflow/trends" in body
     assert "/portfolio/review-workflow/trends/export" in body
     assert "/portfolio/review-workflow/sla/trends" in body
@@ -280,6 +282,15 @@ def test_demo_console_page_loads():
     assert "downloadPortfolioReviewWorkflowCsvBtn" in body
     assert "exportPortfolioReviewWorkflowJsonBtn" in body
     assert "exportPortfolioReviewWorkflowCsvBtn" in body
+    assert "portfolioReviewWorkflowSlaBtn" in body
+    assert "portfolioReviewWorkflowSlaSummaryLine" in body
+    assert "portfolioReviewWorkflowSlaList" in body
+    assert "portfolioReviewWorkflowSlaJson" in body
+    assert "copyPortfolioReviewWorkflowSlaJsonBtn" in body
+    assert "downloadPortfolioReviewWorkflowSlaJsonBtn" in body
+    assert "downloadPortfolioReviewWorkflowSlaCsvBtn" in body
+    assert "exportPortfolioReviewWorkflowSlaJsonBtn" in body
+    assert "exportPortfolioReviewWorkflowSlaCsvBtn" in body
     assert "portfolioReviewWorkflowTrendsBtn" in body
     assert "portfolioReviewWorkflowTrendsSummaryLine" in body
     assert "portfolioReviewWorkflowTrendSparkline" in body
@@ -7199,6 +7210,248 @@ def test_portfolio_review_workflow_export_supports_csv_json_and_gzip():
     assert gzip_payload["summary"]["timeline_event_count"] == 2
 
 
+def test_portfolio_review_workflow_sla_endpoint_aggregates_jobs_and_filters():
+    donor = "portfolio_review_workflow_sla_test_donor"
+    api_app_module.JOB_STORE.set(
+        "portfolio-review-workflow-sla-job-1",
+        {
+            "status": "done",
+            "hitl_enabled": True,
+            "generate_preflight": {"warning_level": "medium", "risk_level": "medium"},
+            "state": {
+                "donor_id": donor,
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "prw-sla-1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "updated_at": "2026-02-27T10:00:00+00:00",
+                            "due_at": "2026-02-25T10:00:00+00:00",
+                            "sla_hours": 24,
+                        }
+                    ]
+                },
+            },
+            "review_comments": [
+                {
+                    "comment_id": "prw-sla-comment-1",
+                    "ts": "2026-02-27T10:05:00+00:00",
+                    "section": "toc",
+                    "status": "open",
+                    "message": "Need stronger assumptions.",
+                    "linked_finding_id": "prw-sla-1",
+                    "due_at": "2026-02-25T11:00:00+00:00",
+                    "sla_hours": 24,
+                }
+            ],
+            "job_events": [
+                {
+                    "event_id": "prw-sla-evt-1",
+                    "ts": "2026-02-27T10:00:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "prw-sla-1",
+                    "status": "open",
+                    "section": "toc",
+                    "severity": "high",
+                },
+                {
+                    "event_id": "prw-sla-evt-2",
+                    "ts": "2026-02-27T10:05:00+00:00",
+                    "type": "review_comment_added",
+                    "comment_id": "prw-sla-comment-1",
+                    "section": "toc",
+                },
+            ],
+        },
+    )
+    api_app_module.JOB_STORE.set(
+        "portfolio-review-workflow-sla-job-2",
+        {
+            "status": "done",
+            "hitl_enabled": True,
+            "generate_preflight": {"warning_level": "low", "risk_level": "low"},
+            "state": {
+                "donor_id": donor,
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "prw-sla-2",
+                            "code": "MEL_BASELINE_MISSING",
+                            "severity": "medium",
+                            "section": "toc",
+                            "status": "acknowledged",
+                            "acknowledged_at": "2026-02-27T11:00:00+00:00",
+                            "due_at": "2026-02-26T10:00:00+00:00",
+                            "sla_hours": 72,
+                        }
+                    ]
+                },
+            },
+            "review_comments": [
+                {
+                    "comment_id": "prw-sla-comment-2",
+                    "ts": "2026-02-27T11:05:00+00:00",
+                    "section": "toc",
+                    "status": "open",
+                    "message": "Need indicator source.",
+                    "linked_finding_id": "prw-sla-2",
+                    "due_at": "2026-02-26T12:00:00+00:00",
+                    "sla_hours": 72,
+                }
+            ],
+            "job_events": [
+                {
+                    "event_id": "prw-sla-evt-3",
+                    "ts": "2026-02-27T11:00:00+00:00",
+                    "type": "critic_finding_status_changed",
+                    "finding_id": "prw-sla-2",
+                    "status": "acknowledged",
+                    "section": "toc",
+                    "severity": "medium",
+                },
+                {
+                    "event_id": "prw-sla-evt-4",
+                    "ts": "2026-02-27T11:05:00+00:00",
+                    "type": "review_comment_added",
+                    "comment_id": "prw-sla-comment-2",
+                    "section": "toc",
+                },
+            ],
+        },
+    )
+    api_app_module.JOB_STORE.set(
+        "portfolio-review-workflow-sla-job-3",
+        {
+            "status": "error",
+            "hitl_enabled": False,
+            "state": {"donor_id": donor, "critic_notes": {"fatal_flaws": []}},
+            "job_events": [],
+        },
+    )
+
+    response = client.get(
+        "/portfolio/review-workflow/sla",
+        params={
+            "donor_id": donor,
+            "status": "done",
+            "hitl_enabled": "true",
+            "finding_section": "toc",
+            "overdue_after_hours": 12,
+            "top_limit": 3,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["filters"]["donor_id"] == donor
+    assert body["filters"]["status"] == "done"
+    assert body["filters"]["hitl_enabled"] is True
+    assert body["filters"]["finding_section"] == "toc"
+    assert body["filters"]["overdue_after_hours"] == 12
+    assert body["filters"]["top_limit"] == 3
+    assert body["job_count"] == 2
+    assert body["jobs_with_overdue"] == 2
+    assert body["jobs_without_overdue"] == 0
+    assert body["overdue_comment_count"] == 2
+    assert body["overdue_total"] == 2
+    assert body["top_donor_id"] == donor
+    assert body["top_donor_overdue_count"] == 2
+    assert body["donor_overdue_counts"][donor] == 2
+    assert body["job_overdue_counts"]["portfolio-review-workflow-sla-job-1"] == 1
+    assert body["job_overdue_counts"]["portfolio-review-workflow-sla-job-2"] == 1
+    assert len(body["top_overdue"]) == 2
+    assert body["top_overdue"][0]["job_id"] in {
+        "portfolio-review-workflow-sla-job-1",
+        "portfolio-review-workflow-sla-job-2",
+    }
+    assert body["top_overdue"][0]["donor_id"] == donor
+    assert isinstance(body.get("oldest_overdue"), dict)
+
+
+def test_portfolio_review_workflow_sla_export_supports_csv_json_and_gzip():
+    donor = "portfolio_review_workflow_sla_export_test_donor"
+    api_app_module.JOB_STORE.set(
+        "portfolio-review-workflow-sla-export-job-1",
+        {
+            "status": "done",
+            "hitl_enabled": True,
+            "state": {
+                "donor_id": donor,
+                "critic_notes": {"fatal_flaws": []},
+            },
+            "review_comments": [
+                {
+                    "comment_id": "prw-sla-exp-comment-1",
+                    "ts": "2026-02-27T10:05:00+00:00",
+                    "section": "toc",
+                    "status": "open",
+                    "message": "Review needed.",
+                    "due_at": "2026-02-25T11:00:00+00:00",
+                    "sla_hours": 24,
+                }
+            ],
+            "job_events": [
+                {
+                    "event_id": "prw-sla-exp-evt-1",
+                    "ts": "2026-02-27T10:05:00+00:00",
+                    "type": "review_comment_added",
+                    "comment_id": "prw-sla-exp-comment-1",
+                    "section": "toc",
+                },
+            ],
+        },
+    )
+
+    csv_resp = client.get(
+        "/portfolio/review-workflow/sla/export",
+        params={
+            "donor_id": donor,
+            "status": "done",
+            "hitl_enabled": "true",
+            "finding_section": "toc",
+            "top_limit": 2,
+            "format": "csv",
+        },
+    )
+    assert csv_resp.status_code == 200
+    assert csv_resp.headers["content-type"].startswith("text/csv")
+    csv_disposition = csv_resp.headers.get("content-disposition", "")
+    assert f"grantflow_portfolio_review_workflow_sla_{donor}_done_hitl_true.csv" in csv_disposition
+    csv_text = csv_resp.text
+    assert csv_text.startswith("field,value\n")
+    assert f"filters.donor_id,{donor}" in csv_text
+    assert "filters.status,done" in csv_text
+    assert "filters.hitl_enabled,True" in csv_text
+    assert "filters.finding_section,toc" in csv_text
+    assert "filters.top_limit,2" in csv_text
+
+    json_resp = client.get(
+        "/portfolio/review-workflow/sla/export",
+        params={"donor_id": donor, "finding_section": "toc", "top_limit": 2, "format": "json"},
+    )
+    assert json_resp.status_code == 200
+    assert json_resp.headers["content-type"].startswith("application/json")
+    json_payload = json_resp.json()
+    assert json_payload["filters"]["donor_id"] == donor
+    assert json_payload["filters"]["finding_section"] == "toc"
+    assert json_payload["filters"]["top_limit"] == 2
+    assert json_payload["overdue_total"] == 1
+
+    gzip_resp = client.get(
+        "/portfolio/review-workflow/sla/export",
+        params={"donor_id": donor, "format": "json", "gzip": "true"},
+    )
+    assert gzip_resp.status_code == 200
+    assert gzip_resp.headers["content-type"].startswith("application/gzip")
+    gzip_disposition = gzip_resp.headers.get("content-disposition", "")
+    assert f"grantflow_portfolio_review_workflow_sla_{donor}.json.gz" in gzip_disposition
+    gzip_payload = json.loads(gzip.decompress(gzip_resp.content).decode("utf-8"))
+    assert gzip_payload["filters"]["donor_id"] == donor
+    assert gzip_payload["overdue_total"] == 1
+
+
 def test_portfolio_review_workflow_sla_trends_endpoint_aggregates_jobs_and_filters():
     donor = "portfolio_review_workflow_sla_trends_test_donor"
     api_app_module.JOB_STORE.set(
@@ -7868,6 +8121,24 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     )
     assert portfolio_review_workflow_export_auth.status_code == 200
 
+    portfolio_review_workflow_sla_unauth = client.get("/portfolio/review-workflow/sla")
+    assert portfolio_review_workflow_sla_unauth.status_code == 401
+
+    portfolio_review_workflow_sla_auth = client.get(
+        "/portfolio/review-workflow/sla",
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert portfolio_review_workflow_sla_auth.status_code == 200
+
+    portfolio_review_workflow_sla_export_unauth = client.get("/portfolio/review-workflow/sla/export")
+    assert portfolio_review_workflow_sla_export_unauth.status_code == 401
+
+    portfolio_review_workflow_sla_export_auth = client.get(
+        "/portfolio/review-workflow/sla/export",
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert portfolio_review_workflow_sla_export_auth.status_code == 200
+
     portfolio_review_workflow_trends_unauth = client.get("/portfolio/review-workflow/trends")
     assert portfolio_review_workflow_trends_unauth.status_code == 401
 
@@ -8074,6 +8345,12 @@ def test_openapi_declares_api_key_security_scheme():
     ).get("security")
     portfolio_review_workflow_export_security = (
         ((spec.get("paths") or {}).get("/portfolio/review-workflow/export") or {}).get("get") or {}
+    ).get("security")
+    portfolio_review_workflow_sla_security = (
+        ((spec.get("paths") or {}).get("/portfolio/review-workflow/sla") or {}).get("get") or {}
+    ).get("security")
+    portfolio_review_workflow_sla_export_security = (
+        ((spec.get("paths") or {}).get("/portfolio/review-workflow/sla/export") or {}).get("get") or {}
     ).get("security")
     portfolio_review_workflow_trends_security = (
         ((spec.get("paths") or {}).get("/portfolio/review-workflow/trends") or {}).get("get") or {}
@@ -8369,6 +8646,16 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    portfolio_review_workflow_sla_response_schema = (
+        (
+            (((spec.get("paths") or {}).get("/portfolio/review-workflow/sla") or {}).get("get") or {}).get("responses")
+            or {}
+        )
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     portfolio_review_workflow_trends_response_schema = (
         (
             (((spec.get("paths") or {}).get("/portfolio/review-workflow/trends") or {}).get("get") or {}).get(
@@ -8458,6 +8745,8 @@ def test_openapi_declares_api_key_security_scheme():
     assert portfolio_quality_export_security == [{"ApiKeyAuth": []}]
     assert portfolio_review_workflow_security == [{"ApiKeyAuth": []}]
     assert portfolio_review_workflow_export_security == [{"ApiKeyAuth": []}]
+    assert portfolio_review_workflow_sla_security == [{"ApiKeyAuth": []}]
+    assert portfolio_review_workflow_sla_export_security == [{"ApiKeyAuth": []}]
     assert portfolio_review_workflow_trends_security == [{"ApiKeyAuth": []}]
     assert portfolio_review_workflow_trends_export_security == [{"ApiKeyAuth": []}]
     assert portfolio_review_workflow_sla_trends_security == [{"ApiKeyAuth": []}]
@@ -8515,6 +8804,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert portfolio_review_workflow_response_schema == {
         "$ref": "#/components/schemas/PortfolioReviewWorkflowPublicResponse"
     }
+    assert portfolio_review_workflow_sla_response_schema == {
+        "$ref": "#/components/schemas/PortfolioReviewWorkflowSLAPublicResponse"
+    }
     assert portfolio_review_workflow_trends_response_schema == {
         "$ref": "#/components/schemas/PortfolioReviewWorkflowTrendsPublicResponse"
     }
@@ -8567,6 +8859,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert "PortfolioReviewWorkflowPublicResponse" in schemas
     assert "PortfolioReviewWorkflowFiltersPublicResponse" in schemas
     assert "PortfolioReviewWorkflowTimelineEventPublicResponse" in schemas
+    assert "PortfolioReviewWorkflowSLAPublicResponse" in schemas
+    assert "PortfolioReviewWorkflowSLAFiltersPublicResponse" in schemas
+    assert "PortfolioReviewWorkflowSLAItemPublicResponse" in schemas
     assert "PortfolioReviewWorkflowTrendsPublicResponse" in schemas
     assert "PortfolioReviewWorkflowTrendsFiltersPublicResponse" in schemas
     assert "PortfolioReviewWorkflowSLATrendsPublicResponse" in schemas
@@ -8603,6 +8898,12 @@ def test_openapi_declares_api_key_security_scheme():
     ).get("parameters") or []
     portfolio_review_workflow_export_params = (
         ((spec.get("paths") or {}).get("/portfolio/review-workflow/export") or {}).get("get") or {}
+    ).get("parameters") or []
+    portfolio_review_workflow_sla_params = (
+        ((spec.get("paths") or {}).get("/portfolio/review-workflow/sla") or {}).get("get") or {}
+    ).get("parameters") or []
+    portfolio_review_workflow_sla_export_params = (
+        ((spec.get("paths") or {}).get("/portfolio/review-workflow/sla/export") or {}).get("get") or {}
     ).get("parameters") or []
     portfolio_review_workflow_trends_params = (
         ((spec.get("paths") or {}).get("/portfolio/review-workflow/trends") or {}).get("get") or {}
@@ -8652,6 +8953,12 @@ def test_openapi_declares_api_key_security_scheme():
         str(p.get("name") or "") for p in portfolio_review_workflow_export_params if isinstance(p, dict)
     ]
     assert "toc_text_risk_level" in [
+        str(p.get("name") or "") for p in portfolio_review_workflow_sla_params if isinstance(p, dict)
+    ]
+    assert "toc_text_risk_level" in [
+        str(p.get("name") or "") for p in portfolio_review_workflow_sla_export_params if isinstance(p, dict)
+    ]
+    assert "toc_text_risk_level" in [
         str(p.get("name") or "") for p in portfolio_review_workflow_trends_params if isinstance(p, dict)
     ]
     assert "toc_text_risk_level" in [
@@ -8694,6 +9001,12 @@ def test_openapi_declares_api_key_security_scheme():
     portfolio_review_workflow_export_param_names = [
         str(p.get("name") or "") for p in portfolio_review_workflow_export_params if isinstance(p, dict)
     ]
+    portfolio_review_workflow_sla_param_names = [
+        str(p.get("name") or "") for p in portfolio_review_workflow_sla_params if isinstance(p, dict)
+    ]
+    portfolio_review_workflow_sla_export_param_names = [
+        str(p.get("name") or "") for p in portfolio_review_workflow_sla_export_params if isinstance(p, dict)
+    ]
     assert "event_type" in review_workflow_param_names
     assert "event_type" in review_workflow_trends_param_names
     assert "event_type" in review_workflow_trends_export_param_names
@@ -8718,6 +9031,8 @@ def test_openapi_declares_api_key_security_scheme():
         "grounding_risk_level",
         "toc_text_risk_level",
     ):
+        assert name in portfolio_review_workflow_sla_param_names
+        assert name in portfolio_review_workflow_sla_export_param_names
         assert name in portfolio_review_workflow_sla_trends_param_names
         assert name in portfolio_review_workflow_sla_trends_export_param_names
     for name in (
@@ -8730,6 +9045,8 @@ def test_openapi_declares_api_key_security_scheme():
     ):
         assert name in portfolio_review_workflow_param_names
         assert name in portfolio_review_workflow_export_param_names
+        assert name in portfolio_review_workflow_sla_param_names
+        assert name in portfolio_review_workflow_sla_export_param_names
         assert name in portfolio_review_workflow_trends_param_names
         assert name in portfolio_review_workflow_trends_export_param_names
         assert name in review_workflow_param_names
@@ -8741,10 +9058,14 @@ def test_openapi_declares_api_key_security_scheme():
         assert name in review_workflow_sla_export_param_names
         assert name in portfolio_review_workflow_sla_trends_param_names
         assert name in portfolio_review_workflow_sla_trends_export_param_names
+    assert "top_limit" in portfolio_review_workflow_sla_param_names
+    assert "top_limit" in portfolio_review_workflow_sla_export_param_names
     assert "format" in portfolio_review_workflow_trends_export_param_names
     assert "gzip" in portfolio_review_workflow_trends_export_param_names
     assert "format" in portfolio_review_workflow_export_param_names
     assert "gzip" in portfolio_review_workflow_export_param_names
+    assert "format" in portfolio_review_workflow_sla_export_param_names
+    assert "gzip" in portfolio_review_workflow_sla_export_param_names
     assert "format" in portfolio_review_workflow_sla_trends_export_param_names
     assert "gzip" in portfolio_review_workflow_sla_trends_export_param_names
     assert "format" in review_workflow_trends_export_param_names
@@ -8766,6 +9087,11 @@ def test_openapi_declares_api_key_security_scheme():
     portfolio_review_workflow_filters_schema_props = (
         ((schemas.get("PortfolioReviewWorkflowFiltersPublicResponse") or {}).get("properties") or {})
         if isinstance(schemas.get("PortfolioReviewWorkflowFiltersPublicResponse"), dict)
+        else {}
+    )
+    portfolio_review_workflow_sla_filters_schema_props = (
+        ((schemas.get("PortfolioReviewWorkflowSLAFiltersPublicResponse") or {}).get("properties") or {})
+        if isinstance(schemas.get("PortfolioReviewWorkflowSLAFiltersPublicResponse"), dict)
         else {}
     )
     portfolio_review_workflow_sla_trends_filters_schema_props = (
@@ -8825,7 +9151,9 @@ def test_openapi_declares_api_key_security_scheme():
         "workflow_state",
         "overdue_after_hours",
     ):
+        assert name in portfolio_review_workflow_sla_filters_schema_props
         assert name in portfolio_review_workflow_sla_trends_filters_schema_props
+    assert "top_limit" in portfolio_review_workflow_sla_filters_schema_props
     for name in (
         "finding_id",
         "finding_code",

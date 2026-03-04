@@ -273,7 +273,9 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
   - `tenant_id` supported on `generate/preflight` and `generate`
   - lifecycle idempotency via `request_id` (query/body) or `X-Request-Id` is supported for `generate`, `cancel`, `resume`, and `hitl/approve`
 - `GET /status/{job_id}` plus:
-  - `/citations`, `/versions`, `/diff`, `/events`, `/hitl/history`, `/metrics`, `/quality`, `/grounding-gate`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/sla`, `/review/workflow/export`
+  - `/citations`, `/versions`, `/diff`, `/events`, `/hitl/history`, `/metrics`, `/quality`, `/grounding-gate`, `/critic`, `/comments`
+  - `/review/workflow`, `/review/workflow/export`, `/review/workflow/trends`, `/review/workflow/trends/export`
+  - `/review/workflow/sla`, `/review/workflow/sla/export`, `/review/workflow/sla/trends`, `/review/workflow/sla/trends/export`
   - `GET /status/{job_id}/review/workflow/sla/profile`
   - `POST /status/{job_id}/review/workflow/sla/recompute`
     - optional body: `finding_sla_hours` (`high|medium|low`), `default_comment_sla_hours`, `use_saved_profile`
@@ -287,6 +289,10 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
   - `donor_id`, `tenant_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `finding_status`, `finding_severity`
 - `GET /portfolio/review-workflow` and `/portfolio/review-workflow/export` support filters:
   - `donor_id`, `tenant_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `toc_text_risk_level`, `event_type`, `finding_id`, `finding_code`, `finding_section`, `comment_status`, `workflow_state`, `overdue_after_hours`
+- `GET /portfolio/review-workflow/sla` and `/portfolio/review-workflow/sla/export` support filters:
+  - `donor_id`, `tenant_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `toc_text_risk_level`, `finding_id`, `finding_code`, `finding_section`, `comment_status`, `workflow_state`, `overdue_after_hours`, `top_limit`
+- `GET /portfolio/review-workflow/trends`, `/portfolio/review-workflow/trends/export`, `/portfolio/review-workflow/sla/trends`, `/portfolio/review-workflow/sla/trends/export` support filters:
+  - `donor_id`, `tenant_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `toc_text_risk_level`, `finding_id`, `finding_code`, `finding_section`, `comment_status`, `workflow_state`, `overdue_after_hours` (`event_type` is available on review-workflow trends)
 - `POST /hitl/approve`, `GET /hitl/pending` (`tenant_id` supported)
 - `POST /ingest`, `GET /ingest/recent`, `GET /ingest/inventory`, `GET /ingest/inventory/export`
   - `tenant_id` supported on ingest and ingest read endpoints

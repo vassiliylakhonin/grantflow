@@ -4048,6 +4048,190 @@ def public_portfolio_review_workflow_payload(
     }
 
 
+def public_portfolio_review_workflow_sla_payload(
+    jobs_by_id: Dict[str, Dict[str, Any]],
+    *,
+    donor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    hitl_enabled: Optional[bool] = None,
+    warning_level: Optional[str] = None,
+    grounding_risk_level: Optional[str] = None,
+    toc_text_risk_level: Optional[str] = None,
+    finding_id: Optional[str] = None,
+    finding_code: Optional[str] = None,
+    finding_section: Optional[str] = None,
+    comment_status: Optional[str] = None,
+    workflow_state: Optional[str] = None,
+    overdue_after_hours: int = REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+    top_limit: int = 10,
+) -> Dict[str, Any]:
+    warning_level_filter = _normalize_warning_level_filter(warning_level)
+    grounding_risk_filter = _normalize_grounding_risk_filter(grounding_risk_level)
+    toc_text_risk_filter = _normalize_toc_text_risk_filter(toc_text_risk_level)
+    workflow_state_filter = _normalize_review_workflow_state_filter(workflow_state)
+    finding_id_filter = str(finding_id or "").strip() or None
+    finding_code_filter = str(finding_code or "").strip() or None
+    finding_section_filter = str(finding_section or "").strip().lower() or None
+    comment_status_filter = str(comment_status or "").strip().lower() or None
+    overdue_after_hours_value = (
+        int(overdue_after_hours)
+        if isinstance(overdue_after_hours, int) and overdue_after_hours > 0
+        else REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS
+    )
+    top_n = 1
+    if isinstance(top_limit, int):
+        top_n = max(1, top_limit)
+
+    filtered: list[tuple[str, Dict[str, Any]]] = []
+    for job_id, job in jobs_by_id.items():
+        if not isinstance(job, dict):
+            continue
+        job_status = str(job.get("status") or "")
+        job_donor = _job_donor_id(job)
+        job_hitl = bool(job.get("hitl_enabled"))
+        if donor_id and job_donor != donor_id:
+            continue
+        if status and job_status != status:
+            continue
+        if hitl_enabled is not None and job_hitl != hitl_enabled:
+            continue
+        if warning_level_filter is not None and _job_warning_level(job) != warning_level_filter:
+            continue
+        if grounding_risk_filter is not None and _job_grounding_risk_level(job) != grounding_risk_filter:
+            continue
+        if toc_text_risk_filter is not None and _job_toc_text_risk_level(job) != toc_text_risk_filter:
+            continue
+        filtered.append((str(job_id), job))
+
+    finding_total = 0
+    comment_total = 0
+    unresolved_finding_count = 0
+    unresolved_comment_count = 0
+    unresolved_total = 0
+    overdue_finding_count = 0
+    overdue_comment_count = 0
+    overdue_total = 0
+    jobs_with_overdue = 0
+    overdue_by_severity: Dict[str, int] = {}
+    overdue_by_section: Dict[str, int] = {}
+    donor_overdue_counts: Dict[str, int] = {}
+    job_overdue_counts: Dict[str, int] = {}
+    overdue_rows_all: list[Dict[str, Any]] = []
+
+    def _merge_counts(target: Dict[str, int], source: Any) -> None:
+        if not isinstance(source, dict):
+            return
+        for key, count in source.items():
+            token = str(key or "").strip().lower() or "unknown"
+            target[token] = int(target.get(token) or 0) + _coerce_int(count, default=0)
+
+    for job_id, job in filtered:
+        snapshot = _review_workflow_sla_snapshot(
+            job_id,
+            job,
+            finding_id=finding_id_filter,
+            finding_code=finding_code_filter,
+            finding_section=finding_section_filter,
+            comment_status=comment_status_filter,
+            workflow_state=workflow_state_filter,
+            overdue_after_hours=overdue_after_hours_value,
+        )
+        job_overdue_total = _coerce_int(snapshot.get("overdue_total"))
+        job_overdue_counts[str(job_id)] = job_overdue_total
+        if job_overdue_total > 0:
+            jobs_with_overdue += 1
+
+        donor_token = _job_donor_id(job, default="unknown")
+        donor_overdue_counts[donor_token] = int(donor_overdue_counts.get(donor_token) or 0) + job_overdue_total
+
+        finding_total += _coerce_int(snapshot.get("finding_total"))
+        comment_total += _coerce_int(snapshot.get("comment_total"))
+        unresolved_finding_count += _coerce_int(snapshot.get("unresolved_finding_count"))
+        unresolved_comment_count += _coerce_int(snapshot.get("unresolved_comment_count"))
+        unresolved_total += _coerce_int(snapshot.get("unresolved_total"))
+        overdue_finding_count += _coerce_int(snapshot.get("overdue_finding_count"))
+        overdue_comment_count += _coerce_int(snapshot.get("overdue_comment_count"))
+        overdue_total += job_overdue_total
+
+        _merge_counts(overdue_by_severity, snapshot.get("overdue_by_severity"))
+        _merge_counts(overdue_by_section, snapshot.get("overdue_by_section"))
+
+        overdue_rows = snapshot.get("overdue_rows")
+        overdue_rows_list = (
+            [item for item in overdue_rows if isinstance(item, dict)] if isinstance(overdue_rows, list) else []
+        )
+        for row in overdue_rows_list:
+            current = dict(row)
+            current["job_id"] = str(job_id)
+            current["donor_id"] = donor_token
+            overdue_rows_all.append(current)
+
+    def _sort_key(item: Dict[str, Any]) -> tuple[float, str]:
+        overdue_hours = item.get("overdue_hours")
+        overdue_hours_value = -1.0
+        if isinstance(overdue_hours, (int, float, str)):
+            try:
+                overdue_hours_value = float(overdue_hours)
+            except (TypeError, ValueError):
+                overdue_hours_value = -1.0
+        due_at = str(item.get("due_at") or "")
+        return overdue_hours_value, due_at
+
+    overdue_rows_all.sort(key=_sort_key, reverse=True)
+    top_overdue = overdue_rows_all[:top_n]
+    oldest_overdue = top_overdue[0] if top_overdue else None
+    breach_rate = (overdue_total / unresolved_total) if unresolved_total else None
+    job_count = len(filtered)
+    jobs_without_overdue = max(0, job_count - jobs_with_overdue)
+
+    top_donor_id = None
+    top_donor_overdue_count = -1
+    for key, total in donor_overdue_counts.items():
+        if int(total) > top_donor_overdue_count:
+            top_donor_id = key
+            top_donor_overdue_count = int(total)
+
+    return {
+        "job_count": job_count,
+        "jobs_with_overdue": jobs_with_overdue,
+        "jobs_without_overdue": jobs_without_overdue,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "filters": {
+            "donor_id": donor_id,
+            "status": status,
+            "hitl_enabled": hitl_enabled,
+            "warning_level": warning_level_filter,
+            "grounding_risk_level": grounding_risk_filter,
+            "toc_text_risk_level": toc_text_risk_filter,
+            "finding_id": finding_id_filter,
+            "finding_code": finding_code_filter,
+            "finding_section": finding_section_filter,
+            "comment_status": comment_status_filter,
+            "workflow_state": workflow_state_filter,
+            "overdue_after_hours": overdue_after_hours_value,
+            "top_limit": top_n,
+        },
+        "overdue_after_hours": overdue_after_hours_value,
+        "finding_total": finding_total,
+        "comment_total": comment_total,
+        "unresolved_finding_count": unresolved_finding_count,
+        "unresolved_comment_count": unresolved_comment_count,
+        "unresolved_total": unresolved_total,
+        "overdue_finding_count": overdue_finding_count,
+        "overdue_comment_count": overdue_comment_count,
+        "overdue_total": overdue_total,
+        "breach_rate": round(breach_rate, 4) if breach_rate is not None else None,
+        "overdue_by_severity": dict(sorted(overdue_by_severity.items())),
+        "overdue_by_section": dict(sorted(overdue_by_section.items())),
+        "oldest_overdue": oldest_overdue,
+        "top_overdue": top_overdue,
+        "top_donor_id": top_donor_id,
+        "top_donor_overdue_count": top_donor_overdue_count if top_donor_id is not None else None,
+        "donor_overdue_counts": dict(sorted(donor_overdue_counts.items())),
+        "job_overdue_counts": dict(sorted(job_overdue_counts.items())),
+    }
+
+
 def public_portfolio_review_workflow_trends_payload(
     jobs_by_id: Dict[str, Dict[str, Any]],
     *,
@@ -4485,6 +4669,10 @@ def public_portfolio_metrics_csv_text(payload: Dict[str, Any]) -> str:
 
 
 def public_portfolio_review_workflow_csv_text(payload: Dict[str, Any]) -> str:
+    return csv_text_from_mapping(payload)
+
+
+def public_portfolio_review_workflow_sla_csv_text(payload: Dict[str, Any]) -> str:
     return csv_text_from_mapping(payload)
 
 
