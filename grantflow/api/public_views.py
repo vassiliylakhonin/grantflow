@@ -3705,6 +3705,10 @@ def public_job_review_workflow_sla_csv_text(payload: Dict[str, Any]) -> str:
     return csv_text_from_mapping(payload)
 
 
+def public_job_review_workflow_sla_trends_csv_text(payload: Dict[str, Any]) -> str:
+    return csv_text_from_mapping(payload)
+
+
 def public_checkpoint_payload(checkpoint: Dict[str, Any]) -> Dict[str, Any]:
     public_checkpoint: Dict[str, Any] = {}
     for key, value in checkpoint.items():

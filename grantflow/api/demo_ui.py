@@ -1188,6 +1188,11 @@ def render_demo_ui_html() -> str:
               <button id="reviewWorkflowSlaExportCsvBtn" class="secondary">Export SLA CSV</button>
               <div class="sub" style="align-self:center;">SLA export uses current workflow filters.</div>
             </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="reviewWorkflowSlaTrendsExportJsonBtn" class="ghost">Export SLA Trends JSON</button>
+              <button id="reviewWorkflowSlaTrendsExportCsvBtn" class="secondary">Export SLA Trends CSV</button>
+              <div class="sub" style="align-self:center;">SLA trends export uses current workflow filters.</div>
+            </div>
             <div class="row4" style="margin-top:10px;">
               <div>
                 <label for="reviewWorkflowSlaHighHours">SLA High (h)</label>
@@ -1222,6 +1227,7 @@ def render_demo_ui_html() -> str:
             </div>
             <div style="margin-top:10px;">
               <label>SLA Overdue Trends</label>
+              <div id="reviewWorkflowSlaTrendSparkline" class="footer-note mono">trend: -</div>
               <div class="list" id="reviewWorkflowSlaTrendsList"></div>
             </div>
             <div style="margin-top:10px;">
@@ -1558,9 +1564,12 @@ def render_demo_ui_html() -> str:
         reviewWorkflowSlaRecomputeBtn: $("reviewWorkflowSlaRecomputeBtn"),
         reviewWorkflowSlaExportJsonBtn: $("reviewWorkflowSlaExportJsonBtn"),
         reviewWorkflowSlaExportCsvBtn: $("reviewWorkflowSlaExportCsvBtn"),
+        reviewWorkflowSlaTrendsExportJsonBtn: $("reviewWorkflowSlaTrendsExportJsonBtn"),
+        reviewWorkflowSlaTrendsExportCsvBtn: $("reviewWorkflowSlaTrendsExportCsvBtn"),
         reviewWorkflowSlaSummaryLine: $("reviewWorkflowSlaSummaryLine"),
         reviewWorkflowSlaTrendsSummaryLine: $("reviewWorkflowSlaTrendsSummaryLine"),
         reviewWorkflowSlaHotspotsList: $("reviewWorkflowSlaHotspotsList"),
+        reviewWorkflowSlaTrendSparkline: $("reviewWorkflowSlaTrendSparkline"),
         reviewWorkflowSlaTrendsList: $("reviewWorkflowSlaTrendsList"),
         reviewWorkflowSlaJson: $("reviewWorkflowSlaJson"),
         reviewWorkflowSlaTrendsJson: $("reviewWorkflowSlaTrendsJson"),
@@ -4171,6 +4180,24 @@ def render_demo_ui_html() -> str:
           els.reviewWorkflowSlaTrendsSummaryLine.textContent =
             `trends: buckets=${bucketCount} · window=${windowStart}..${windowEnd} · overdue=${overdueTotal}`;
         }
+        const sparklinePalette = " .:-=+*#%@";
+        const seriesCounts = totalSeries.map((point) => Number(point?.count || 0));
+        const maxCount = seriesCounts.length ? Math.max(...seriesCounts) : 0;
+        const sparkline = seriesCounts.length
+          ? seriesCounts
+              .map((count) => {
+                if (maxCount <= 0) return ".";
+                const idx = Math.min(
+                  sparklinePalette.length - 1,
+                  Math.max(0, Math.round((count / maxCount) * (sparklinePalette.length - 1)))
+                );
+                return sparklinePalette.charAt(idx);
+              })
+              .join("")
+          : "-";
+        if (els.reviewWorkflowSlaTrendSparkline) {
+          els.reviewWorkflowSlaTrendSparkline.textContent = `trend: ${sparkline} (max=${maxCount})`;
+        }
 
         els.reviewWorkflowSlaTrendsList.innerHTML = "";
         if (!totalSeries.length) {
@@ -5333,6 +5360,37 @@ def render_demo_ui_html() -> str:
         downloadBlob(blob, filename);
       }
 
+      async function exportReviewWorkflowSlaTrendsAggregate(format) {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        persistUiState();
+        persistBasics();
+        const q = buildReviewWorkflowSlaFilterQueryString();
+        const params = new URLSearchParams(q.startsWith("?") ? q.slice(1) : "");
+        params.set("format", format);
+        if (exportGzipEnabled()) params.set("gzip", "true");
+        const query = params.toString();
+        const endpointPath = `/status/${encodeURIComponent(jobId)}/review/workflow/sla/trends/export`;
+        const res = await fetch(`${apiBase()}${endpointPath}?${query}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          const ct = res.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const body = await res.json();
+            throw new Error(JSON.stringify(body, null, 2));
+          }
+          throw new Error(await res.text());
+        }
+        const fallbackFilename = `grantflow_review_workflow_sla_trends_${jobId}.${format}${exportGzipEnabled() ? ".gz" : ""}`;
+        const filename = parseDownloadFilenameFromDisposition(
+          res.headers.get("content-disposition"),
+          fallbackFilename
+        );
+        const blob = await res.blob();
+        downloadBlob(blob, filename);
+      }
+
       async function copyPortfolioMetricsJson() {
         const text = await ensurePortfolioMetricsLoaded();
         if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
@@ -5447,6 +5505,16 @@ def render_demo_ui_html() -> str:
       async function downloadReviewWorkflowSlaCsv() {
         await refreshReviewWorkflowSla();
         await exportReviewWorkflowSlaAggregate("csv");
+      }
+
+      async function downloadReviewWorkflowSlaTrendsJson() {
+        await refreshReviewWorkflowSlaTrends();
+        await exportReviewWorkflowSlaTrendsAggregate("json");
+      }
+
+      async function downloadReviewWorkflowSlaTrendsCsv() {
+        await refreshReviewWorkflowSlaTrends();
+        await exportReviewWorkflowSlaTrendsAggregate("csv");
       }
 
       function formatExportPolicyError(statusCode, detail, rawBody) {
@@ -5851,6 +5919,12 @@ def render_demo_ui_html() -> str:
         );
         els.reviewWorkflowSlaExportCsvBtn.addEventListener("click", () =>
           downloadReviewWorkflowSlaCsv().catch((err) => showError(err))
+        );
+        els.reviewWorkflowSlaTrendsExportJsonBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaTrendsJson().catch((err) => showError(err))
+        );
+        els.reviewWorkflowSlaTrendsExportCsvBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaTrendsCsv().catch((err) => showError(err))
         );
         els.reviewWorkflowClearFiltersBtn.addEventListener("click", () => {
           clearReviewWorkflowFilters();
