@@ -18,7 +18,7 @@ from grantflow.swarm.citations import (
     is_retrieval_grounded_citation_type,
     is_strategy_reference_citation_type,
 )
-from grantflow.swarm.findings import canonicalize_findings, finding_messages
+from grantflow.swarm.findings import canonicalize_findings, finding_messages, write_state_critic_findings
 from grantflow.swarm.grounding_gate import evaluate_grounding_gate
 from grantflow.swarm.llm_provider import (
     chat_openai_init_kwargs,
@@ -599,7 +599,12 @@ def red_team_critic(state: Dict[str, Any]) -> Dict[str, Any]:
     state["quality_score"] = score
     state["critic_score"] = score
     state["critic_notes"] = notes
-    state["critic_fatal_flaws"] = fatal_flaw_items
+    write_state_critic_findings(
+        state,
+        fatal_flaw_items,
+        previous_items=previous_fatal_flaws,
+        default_source="rules",
+    )
     state["grounding_gate"] = grounding_gate
 
     history = list(state.get("critic_feedback_history") or [])

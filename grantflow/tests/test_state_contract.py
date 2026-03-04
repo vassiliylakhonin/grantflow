@@ -41,7 +41,7 @@ def test_normalize_state_contract_unifies_aliases_and_defaults():
     assert out["quality_score"] == 4.5
     assert out["llm_mode"] is True
     assert out["needs_revision"] is False
-    assert out["critic_notes"] == {}
+    assert out["critic_notes"] == {"fatal_flaws": []}
     assert out["errors"] == []
 
 
@@ -212,3 +212,32 @@ def test_state_model_accepts_normalized_contract_with_runtime_extras():
     assert dumped["donor_id"] == "usaid"
     assert dumped["input_context"]["project"] == "Water"
     assert dumped["runtime_only_key"] == {"x": 1}
+
+
+def test_normalize_state_contract_canonicalizes_legacy_critic_findings_aliases():
+    state = normalize_state_contract(
+        {
+            "donor": "USAID",
+            "input": {"project": "Water"},
+            "critic_fatal_flaws": [
+                "Missing baseline and target for key indicator.",
+                {
+                    "code": "TOC_CHAIN_GAP",
+                    "severity": "high",
+                    "section": "toc",
+                    "message": "Causal link between outcome and impact is underspecified.",
+                },
+            ],
+        }
+    )
+    notes = state.get("critic_notes")
+    assert isinstance(notes, dict)
+    flaws = notes.get("fatal_flaws")
+    assert isinstance(flaws, list)
+    assert len(flaws) == 2
+    assert all(isinstance(item, dict) for item in flaws)
+    assert all(str(item.get("finding_id") or "").strip() for item in flaws)
+    assert all(str(item.get("status") or "") == "open" for item in flaws)
+    assert state.get("critic_fatal_flaws") == flaws
+    assert flaws[0]["code"] == "LEGACY_UNSTRUCTURED_FINDING"
+    assert flaws[1]["code"] == "TOC_CHAIN_GAP"

@@ -24,6 +24,7 @@ class GrantFlowState(TypedDict, total=False):
     critic_score: float
     needs_revision: bool
     critic_notes: dict[str, Any]
+    critic_fatal_flaws: list[dict[str, Any]]
     critic_feedback_history: list[str]
     hitl_pending: bool
     hitl_checkpoints: list[str]
@@ -52,6 +53,7 @@ class GrantFlowStateModel(BaseModel):
     critic_score: float = 0.0
     needs_revision: bool = False
     critic_notes: dict[str, Any] = Field(default_factory=dict)
+    critic_fatal_flaws: list[dict[str, Any]] = Field(default_factory=list)
     critic_feedback_history: list[str] = Field(default_factory=list)
     hitl_pending: bool = False
     hitl_checkpoints: list[str] = Field(default_factory=list)
@@ -295,6 +297,7 @@ def normalize_state_contract(state: MutableMapping[str, Any]) -> GrantFlowState:
 
     critic_notes = state.get("critic_notes")
     state["critic_notes"] = critic_notes if isinstance(critic_notes, dict) else {}
+    _normalize_state_findings_aliases(state)
 
     state["critic_feedback_history"] = _as_str_list(state.get("critic_feedback_history"))
     state["errors"] = _as_str_list(state.get("errors"))
@@ -302,3 +305,31 @@ def normalize_state_contract(state: MutableMapping[str, Any]) -> GrantFlowState:
     GrantFlowStateModel.model_validate(state)
 
     return cast(GrantFlowState, state)
+
+
+def _normalize_state_findings_aliases(state: MutableMapping[str, Any]) -> None:
+    notes = state.get("critic_notes")
+    notes_dict = notes if isinstance(notes, dict) else {}
+    notes_flaws = notes_dict.get("fatal_flaws")
+    alias_flaws = state.get("critic_fatal_flaws")
+    raw_findings: list[Any] = []
+    if isinstance(notes_flaws, list):
+        raw_findings = list(notes_flaws)
+    elif isinstance(alias_flaws, list):
+        raw_findings = list(alias_flaws)
+
+    if not raw_findings:
+        notes_dict["fatal_flaws"] = []
+        state["critic_notes"] = notes_dict
+        state["critic_fatal_flaws"] = []
+        return
+
+    # Local import prevents broad module-level coupling for state-only helpers.
+    from grantflow.swarm.findings import write_state_critic_findings
+
+    write_state_critic_findings(
+        state,
+        raw_findings,
+        previous_items=raw_findings,
+        default_source="rules",
+    )

@@ -96,6 +96,39 @@ def test_red_team_critic_uses_rules_without_llm_and_stores_structured_notes():
     assert out.get("next_step") in {"architect", "end"}
 
 
+def test_red_team_critic_syncs_findings_aliases_as_entities():
+    state = {
+        "donor_strategy": object(),
+        "strategy": object(),
+        "llm_mode": False,
+        "max_iterations": 3,
+        "iteration_count": 0,
+        "toc_draft": {"toc": {"project_goal": "Improve access"}},
+        "logframe_draft": {"indicators": []},
+        "citations": [],
+        "draft_versions": [{"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}}],
+        "toc_validation": {"valid": False, "errors": ["missing field"], "schema_name": "GenericTOC"},
+        "critic_feedback_history": [],
+    }
+    out = red_team_critic(state)
+    notes = out.get("critic_notes")
+    assert isinstance(notes, dict)
+    notes_flaws = notes.get("fatal_flaws")
+    assert isinstance(notes_flaws, list)
+    alias_flaws = out.get("critic_fatal_flaws")
+    assert isinstance(alias_flaws, list)
+    assert notes_flaws == alias_flaws
+    assert notes_flaws
+    for flaw in notes_flaws:
+        assert isinstance(flaw, dict)
+        assert flaw.get("finding_id")
+        assert flaw.get("id") == flaw.get("finding_id")
+        assert flaw.get("status") in {"open", "acknowledged", "resolved"}
+        assert flaw.get("code")
+        assert flaw.get("section") in {"toc", "logframe", "general"}
+        assert flaw.get("message")
+
+
 def test_rule_based_critic_applies_usaid_donor_specific_checks():
     state = {
         "donor_id": "usaid",
@@ -366,7 +399,9 @@ def test_rule_based_critic_warns_when_some_logframe_baseline_target_are_placehol
             {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
         ],
         "toc_validation": {"valid": True, "errors": [], "schema_name": "GenericTOC"},
-        "toc_draft": {"toc": {"project_goal": "Improve services", "objectives": [{"title": "Obj", "description": "X"}]}},
+        "toc_draft": {
+            "toc": {"project_goal": "Improve services", "objectives": [{"title": "Obj", "description": "X"}]}
+        },
         "logframe_draft": {
             "indicators": [
                 {"indicator_id": "IND_001", "baseline": "0", "target": "120"},
@@ -395,7 +430,9 @@ def test_rule_based_critic_fails_when_most_logframe_baseline_target_are_placehol
             {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
         ],
         "toc_validation": {"valid": True, "errors": [], "schema_name": "GenericTOC"},
-        "toc_draft": {"toc": {"project_goal": "Improve services", "objectives": [{"title": "Obj", "description": "X"}]}},
+        "toc_draft": {
+            "toc": {"project_goal": "Improve services", "objectives": [{"title": "Obj", "description": "X"}]}
+        },
         "logframe_draft": {
             "indicators": [
                 {"indicator_id": "IND_001", "baseline": "TBD", "target": "TBD"},
