@@ -81,6 +81,32 @@ TRACEABILITY_GAP_WARN_RATIO = 0.4
 TRACEABILITY_GAP_HIGH_RATIO = 0.7
 
 
+def _dict_from(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, dict) else {}
+
+
+def _list_from(value: Any) -> list[Any]:
+    return list(value) if isinstance(value, list) else []
+
+
+def _to_int(value: Any, default: int = 0) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_float(value: Any, default: float = 0.0) -> float:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _fallback_dominance_label(*, fallback_count: int, citation_count: int) -> tuple[str | None, float | None]:
     if citation_count < GROUNDING_RISK_MIN_CITATIONS or citation_count <= 0:
         return None, None
@@ -225,18 +251,14 @@ def _count_stage_citations(citations: list[Any], stage: str) -> int:
 
 
 def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
-    citations = state.get("citations") if isinstance(state.get("citations"), list) else []
-    draft_versions = state.get("draft_versions") if isinstance(state.get("draft_versions"), list) else []
-    errors = state.get("errors") if isinstance(state.get("errors"), list) else []
-    critic_notes = state.get("critic_notes") if isinstance(state.get("critic_notes"), dict) else {}
+    citations = _list_from(state.get("citations"))
+    draft_versions = _list_from(state.get("draft_versions"))
+    errors = _list_from(state.get("errors"))
+    critic_notes = _dict_from(state.get("critic_notes"))
     fatal_flaws = state_critic_findings(state, default_source="rules")
-    toc_validation = state.get("toc_validation") if isinstance(state.get("toc_validation"), dict) else {}
-    toc_generation_meta = (
-        state.get("toc_generation_meta") if isinstance(state.get("toc_generation_meta"), dict) else {}
-    )
-    claim_coverage_meta = (
-        toc_generation_meta.get("claim_coverage") if isinstance(toc_generation_meta.get("claim_coverage"), dict) else {}
-    )
+    toc_validation = _dict_from(state.get("toc_validation"))
+    toc_generation_meta = _dict_from(state.get("toc_generation_meta"))
+    claim_coverage_meta = _dict_from(toc_generation_meta.get("claim_coverage"))
 
     high_flaws = sum(
         1 for flaw in fatal_flaws if isinstance(flaw, dict) and str(flaw.get("severity") or "").lower() == "high"
@@ -251,17 +273,9 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
             continue
         label = str(flaw.get("label") or "").strip() or "GENERIC_LLM_REVIEW_FLAG"
         llm_finding_label_counts[label] = int(llm_finding_label_counts.get(label, 0)) + 1
-    llm_advisory_diagnostics = (
-        critic_notes.get("llm_advisory_diagnostics")
-        if isinstance(critic_notes.get("llm_advisory_diagnostics"), dict)
-        else {}
-    )
-    if isinstance(llm_advisory_diagnostics, dict):
-        candidate_label_counts = (
-            llm_advisory_diagnostics.get("candidate_label_counts")
-            if isinstance(llm_advisory_diagnostics.get("candidate_label_counts"), dict)
-            else {}
-        )
+    llm_advisory_diagnostics = _dict_from(critic_notes.get("llm_advisory_diagnostics"))
+    if llm_advisory_diagnostics:
+        candidate_label_counts = _dict_from(llm_advisory_diagnostics.get("candidate_label_counts"))
         target_map = (
             llm_advisory_applied_label_counts
             if bool(llm_advisory_diagnostics.get("advisory_applies"))
@@ -346,32 +360,27 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
             low_confidence_count += 1
         if conf_value >= 0.7:
             high_confidence_count += 1
-    try:
-        key_claim_coverage_ratio = float(claim_coverage_meta.get("key_claim_coverage_ratio"))
-    except (TypeError, ValueError):
-        key_claim_coverage_ratio = 0.0
+    key_claim_coverage_ratio = _to_float(claim_coverage_meta.get("key_claim_coverage_ratio"), default=0.0)
     if key_claim_coverage_ratio <= 0.0 and architect_claim_paths:
-        try:
-            key_claim_total = int(claim_coverage_meta.get("key_claims_total") or 0)
-        except (TypeError, ValueError):
-            key_claim_total = 0
+        key_claim_total = _to_int(claim_coverage_meta.get("key_claims_total"), default=0)
         if key_claim_total <= 0:
             key_claim_total = len(architect_claim_paths)
         if key_claim_total > 0:
             key_claim_coverage_ratio = round(len(architect_claim_paths) / key_claim_total, 4)
-    try:
-        architect_fallback_claim_ratio = float(claim_coverage_meta.get("fallback_claim_ratio"))
-    except (TypeError, ValueError):
+    raw_architect_fallback_claim_ratio = claim_coverage_meta.get("fallback_claim_ratio")
+    if raw_architect_fallback_claim_ratio is None:
         architect_fallback_claim_ratio = (
             round(architect_claim_fallback_count / architect_claim_citation_count, 4) if architect_claim_citation_count else 0.0
         )
+    else:
+        architect_fallback_claim_ratio = _to_float(raw_architect_fallback_claim_ratio, default=0.0)
     return {
         "toc_schema_valid": bool(toc_validation.get("valid")),
         "toc_schema_name": toc_validation.get("schema_name"),
         "has_toc_draft": bool(state.get("toc_draft")),
         "has_logframe_draft": bool(state.get("logframe_draft")),
-        "quality_score": float(state.get("quality_score") or 0.0),
-        "critic_score": float(state.get("critic_score") or 0.0),
+        "quality_score": _to_float(state.get("quality_score"), default=0.0),
+        "critic_score": _to_float(state.get("critic_score"), default=0.0),
         "needs_revision": bool(state.get("needs_revision")),
         "fatal_flaw_count": len(fatal_flaws),
         "high_severity_fatal_flaw_count": high_flaws,
@@ -490,9 +499,10 @@ def run_eval_case(case: dict[str, Any], *, skip_expectations: bool = False) -> d
     donor_id = str(case.get("donor_id") or "")
     final_state = grantflow_graph.invoke(build_initial_state(case))
     metrics = compute_state_metrics(final_state)
-    expectations = case.get("expectations") if isinstance(case.get("expectations"), dict) else {}
+    expectations: dict[str, Any] = _dict_from(case.get("expectations"))
     if skip_expectations:
-        passed, checks = True, []
+        passed = True
+        checks: list[dict[str, Any]] = []
     else:
         passed, checks = evaluate_expectations(metrics, expectations)
     failed_checks = [c for c in checks if not c.get("passed")]
@@ -537,16 +547,19 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
     ]
     if bool(suite.get("expectations_skipped")):
         lines.append("Expectations: skipped (exploratory metrics-only mode)")
-    for case in suite.get("cases") or []:
+    for case_raw in suite.get("cases") or []:
+        if not isinstance(case_raw, dict):
+            continue
+        case = case_raw
         prefix = "PASS" if case.get("passed") else "FAIL"
-        metrics = case.get("metrics") or {}
+        metrics = _dict_from(case.get("metrics"))
         citation_count = int(metrics.get("citations_total") or 0)
         fallback_count = int(metrics.get("fallback_namespace_citation_count") or 0)
-        non_retrieval_count = int(
-            metrics.get("non_retrieval_citation_count")
-            if metrics.get("non_retrieval_citation_count") is not None
-            else fallback_count + int(metrics.get("strategy_reference_citation_count") or 0)
-        )
+        raw_non_retrieval_count = metrics.get("non_retrieval_citation_count")
+        if raw_non_retrieval_count is None:
+            non_retrieval_count = fallback_count + int(metrics.get("strategy_reference_citation_count") or 0)
+        else:
+            non_retrieval_count = _to_int(raw_non_retrieval_count, default=0)
         grounding_risk_label, fallback_ratio = _fallback_dominance_label(
             fallback_count=fallback_count,
             citation_count=citation_count,
@@ -589,7 +602,9 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                 f"{non_retrieval_suffix}{traceability_suffix}"
             )
         )
-        for check in case.get("failed_checks") or []:
+        for check in _list_from(case.get("failed_checks")):
+            if not isinstance(check, dict):
+                continue
             lines.append(f"    * {check.get('name')}: expected {check.get('expected')} got {check.get('actual')}")
 
     donor_rows: dict[str, dict[str, Any]] = {}
@@ -600,7 +615,7 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         if not isinstance(case, dict):
             continue
         donor_id = str(case.get("donor_id") or "unknown")
-        metrics = case.get("metrics") if isinstance(case.get("metrics"), dict) else {}
+        metrics = _dict_from(case.get("metrics"))
         row = donor_rows.setdefault(
             donor_id,
             {
@@ -626,7 +641,7 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         if isinstance(metrics.get("quality_score"), (int, float)):
             cast_scores = row.get("quality_scores")
             if isinstance(cast_scores, list):
-                cast_scores.append(float(metrics["quality_score"]))
+                cast_scores.append(float(metrics.get("quality_score") or 0.0))
         if bool(metrics.get("needs_revision")):
             row["needs_revision_count"] = int(row["needs_revision_count"]) + 1
         row["high_flaw_total"] = int(row["high_flaw_total"]) + int(metrics.get("high_severity_fatal_flaw_count") or 0)
@@ -637,11 +652,11 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         )
         strategy_reference_total = int(metrics.get("strategy_reference_citation_count") or 0)
         row["strategy_reference_total"] = int(row["strategy_reference_total"]) + strategy_reference_total
-        non_retrieval_total = (
-            int(metrics.get("non_retrieval_citation_count"))
-            if metrics.get("non_retrieval_citation_count") is not None
-            else int(metrics.get("fallback_namespace_citation_count") or 0) + strategy_reference_total
-        )
+        raw_non_retrieval_total = metrics.get("non_retrieval_citation_count")
+        if raw_non_retrieval_total is None:
+            non_retrieval_total = int(metrics.get("fallback_namespace_citation_count") or 0) + strategy_reference_total
+        else:
+            non_retrieval_total = _to_int(raw_non_retrieval_total, default=0)
         row["non_retrieval_total"] = int(row["non_retrieval_total"]) + non_retrieval_total
         row["traceability_gap_total"] = int(row["traceability_gap_total"]) + int(
             metrics.get("traceability_gap_citation_count") or 0
@@ -854,7 +869,7 @@ def build_regression_baseline_snapshot(suite: dict[str, Any]) -> dict[str, Any]:
 def compare_suite_to_baseline(
     suite: dict[str, Any], baseline: dict[str, Any], *, tolerance: float = REGRESSION_TOLERANCE
 ) -> dict[str, Any]:
-    baseline_cases = (baseline.get("cases") or {}) if isinstance(baseline, dict) else {}
+    baseline_cases = _dict_from(baseline.get("cases")) if isinstance(baseline, dict) else {}
     current_cases = {
         str(case.get("case_id") or ""): case
         for case in (suite.get("cases") or [])
@@ -873,7 +888,7 @@ def compare_suite_to_baseline(
 
     for case_id, current_case in current_cases.items():
         current_donor_id = _case_donor_id(current_case)
-        current_metrics = current_case.get("metrics") if isinstance(current_case.get("metrics"), dict) else {}
+        current_metrics = _dict_from(current_case.get("metrics"))
         baseline_case = baseline_cases.get(case_id)
         if not isinstance(baseline_case, dict):
             warnings.append(
@@ -886,7 +901,7 @@ def compare_suite_to_baseline(
             )
             continue
 
-        baseline_metrics = baseline_case.get("metrics") if isinstance(baseline_case.get("metrics"), dict) else {}
+        baseline_metrics = _dict_from(baseline_case.get("metrics"))
 
         for metric in HIGHER_IS_BETTER_METRICS:
             if metric not in baseline_metrics or metric not in current_metrics:
@@ -1078,7 +1093,7 @@ def format_eval_comparison_report(comparison: dict[str, Any]) -> str:
         )
         for donor_id, row in ordered:
             row_dict = row if isinstance(row, dict) else {}
-            metrics_map = row_dict.get("metrics") if isinstance(row_dict.get("metrics"), dict) else {}
+            metrics_map = _dict_from(row_dict.get("metrics"))
             top_metrics = sorted(
                 ((str(k), int(v or 0)) for k, v in metrics_map.items()),
                 key=lambda kv: (-kv[1], kv[0]),

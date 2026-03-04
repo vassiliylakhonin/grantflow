@@ -80,12 +80,13 @@ def _add_critic_findings_section(doc: Document, critic_findings: list[Dict[str, 
             p = doc.add_paragraph()
             p.add_run(f"Fix hint: {fix_hint}").italic = True
         finding_id = finding.get("id") or finding.get("finding_id")
-        meta_bits = [
-            f"version={finding.get('version_id')}" if finding.get("version_id") else None,
-            f"finding_id={finding_id}" if finding_id else None,
-            f"source={finding.get('source')}" if finding.get("source") else None,
-        ]
-        meta_bits = [m for m in meta_bits if m]
+        meta_bits: list[str] = []
+        if finding.get("version_id"):
+            meta_bits.append(f"version={finding.get('version_id')}")
+        if finding_id:
+            meta_bits.append(f"finding_id={finding_id}")
+        if finding.get("source"):
+            meta_bits.append(f"source={finding.get('source')}")
         if meta_bits:
             doc.add_paragraph(" · ".join(meta_bits))
 
@@ -105,12 +106,13 @@ def _add_review_comments_section(doc: Document, review_comments: list[Dict[str, 
         message = str(comment.get("message") or "").strip()
         if message:
             doc.add_paragraph(message)
-        meta_bits = [
-            f"version={comment.get('version_id')}" if comment.get("version_id") else None,
-            f"linked_finding_id={comment.get('linked_finding_id')}" if comment.get("linked_finding_id") else None,
-            str(comment.get("ts")) if comment.get("ts") else None,
-        ]
-        meta_bits = [m for m in meta_bits if m]
+        meta_bits: list[str] = []
+        if comment.get("version_id"):
+            meta_bits.append(f"version={comment.get('version_id')}")
+        if comment.get("linked_finding_id"):
+            meta_bits.append(f"linked_finding_id={comment.get('linked_finding_id')}")
+        if comment.get("ts"):
+            meta_bits.append(str(comment.get("ts")))
         if meta_bits:
             doc.add_paragraph(" · ".join(meta_bits))
 
@@ -435,9 +437,12 @@ def _add_template_profile_section(doc: Document, profile: Dict[str, Any]) -> Non
     doc.add_paragraph(f"Template: {profile.get('template_display_name')} ({profile.get('template_key')})")
     doc.add_paragraph(f"Coverage rate: {float(profile.get('coverage_rate') or 0.0):.0%}")
 
-    required = profile.get("required_sections") if isinstance(profile.get("required_sections"), list) else []
-    present = profile.get("present_sections") if isinstance(profile.get("present_sections"), list) else []
-    missing = profile.get("missing_sections") if isinstance(profile.get("missing_sections"), list) else []
+    raw_required = profile.get("required_sections")
+    required = list(raw_required) if isinstance(raw_required, list) else []
+    raw_present = profile.get("present_sections")
+    present = list(raw_present) if isinstance(raw_present, list) else []
+    raw_missing = profile.get("missing_sections")
+    missing = list(raw_missing) if isinstance(raw_missing, list) else []
     if required:
         doc.add_paragraph(f"Required sections: {', '.join(str(x) for x in required)}")
         doc.add_paragraph(f"Present sections: {', '.join(str(x) for x in present) or '-'}")

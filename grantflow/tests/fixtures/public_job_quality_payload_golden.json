@@ -237,6 +237,14 @@
   },
   "status": "done",
   "strict_preflight": true,
+  "toc_text_quality": {
+    "issues_total": 0,
+    "placeholder_check_status": "unknown",
+    "placeholder_finding_count": 0,
+    "repetition_check_status": "unknown",
+    "repetition_finding_count": 0,
+    "risk_level": "unknown"
+  },
   "terminal_status": "done",
   "time_to_first_draft_seconds": 60.0,
   "time_to_terminal_seconds": 240.0

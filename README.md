@@ -75,6 +75,13 @@ uvicorn grantflow.api.app:app --reload
 OpenAPI:
 - `http://127.0.0.1:8000/docs`
 
+If you use remote Chroma via `CHROMA_HOST`, keep `CHROMA_PORT` separate from API port (`8000`), for example:
+
+```bash
+export CHROMA_HOST=127.0.0.1
+export CHROMA_PORT=8001
+```
+
 ### 3) Health / readiness
 
 ```bash

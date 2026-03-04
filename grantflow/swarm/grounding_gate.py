@@ -70,12 +70,14 @@ def evaluate_grounding_gate(
     raw_architect_retrieval = state.get("architect_retrieval")
     architect_retrieval = raw_architect_retrieval if isinstance(raw_architect_retrieval, dict) else {}
     architect_retrieval_enabled = bool(architect_retrieval.get("enabled")) if architect_retrieval else False
-    try:
-        architect_retrieval_hits_count: Optional[int] = (
-            int(architect_retrieval.get("hits_count")) if architect_retrieval.get("hits_count") is not None else None
-        )
-    except (TypeError, ValueError):
+    raw_hits_count = architect_retrieval.get("hits_count")
+    if raw_hits_count is None:
         architect_retrieval_hits_count = None
+    else:
+        try:
+            architect_retrieval_hits_count = int(raw_hits_count)
+        except (TypeError, ValueError):
+            architect_retrieval_hits_count = None
 
     weak_rag_or_fallback_count = rag_low_confidence_count + fallback_namespace_count
     weak_rag_or_fallback_ratio = (

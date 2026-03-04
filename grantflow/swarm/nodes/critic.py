@@ -80,7 +80,7 @@ def _dump_model(model: BaseModel) -> Dict[str, Any]:
     dumper = getattr(model, "model_dump", None)
     if callable(dumper):
         return dumper()
-    return model.dict()  # type: ignore[attr-defined]
+    return model.dict()
 
 
 def _llm_flaws_to_structured(flaws: List[Dict[str, Any]], *, state: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -262,7 +262,8 @@ def _normalize_fatal_flaw_items(
 
 
 def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:
-    citations = state.get("citations") if isinstance(state.get("citations"), list) else []
+    raw_citations = state.get("citations")
+    citations = list(raw_citations) if isinstance(raw_citations, list) else []
     citation_count = 0
     low_confidence_count = 0
     rag_low_confidence_count = 0
@@ -314,12 +315,14 @@ def _citation_grounding_context(state: Dict[str, Any]) -> Dict[str, Any]:
     raw_architect_retrieval = state.get("architect_retrieval")
     architect_retrieval = raw_architect_retrieval if isinstance(raw_architect_retrieval, dict) else {}
     retrieval_enabled = bool(architect_retrieval.get("enabled")) if architect_retrieval else False
-    try:
-        retrieval_hits_count = (
-            int(architect_retrieval.get("hits_count")) if architect_retrieval.get("hits_count") is not None else None
-        )
-    except (TypeError, ValueError):
+    raw_hits_count = architect_retrieval.get("hits_count")
+    if raw_hits_count is None:
         retrieval_hits_count = None
+    else:
+        try:
+            retrieval_hits_count = int(raw_hits_count)
+        except (TypeError, ValueError):
+            retrieval_hits_count = None
 
     low_confidence_ratio = round(low_confidence_count / citation_count, 4) if citation_count else None
     weak_rag_or_fallback_count = rag_low_confidence_count + fallback_namespace_count

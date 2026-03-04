@@ -73,14 +73,14 @@ def _model_validate(schema_cls: type[BaseModel], payload: Dict[str, Any]) -> Bas
     validator = getattr(schema_cls, "model_validate", None)
     if callable(validator):
         return validator(payload)
-    return schema_cls.parse_obj(payload)  # type: ignore[attr-defined]
+    return schema_cls.parse_obj(payload)
 
 
 def _model_dump(model: BaseModel) -> Dict[str, Any]:
     dumper = getattr(model, "model_dump", None)
     if callable(dumper):
         return dumper()
-    return model.dict()  # type: ignore[attr-defined]
+    return model.dict()
 
 
 def _safe_json(value: Any, *, max_chars: int = 1600) -> str:
@@ -154,7 +154,7 @@ def _field_required(field: Any) -> bool:
 def _schema_contract_hint(schema_cls: Type[BaseModel], *, max_fields: int = 24) -> str:
     fields = getattr(schema_cls, "model_fields", None)
     if not isinstance(fields, dict):  # pydantic v1 fallback
-        fields = getattr(schema_cls, "__fields__", {})  # type: ignore[assignment]
+        fields = getattr(schema_cls, "__fields__", {})
     if not isinstance(fields, dict) or not fields:
         return ""
 

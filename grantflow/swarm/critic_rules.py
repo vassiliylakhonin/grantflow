@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, cast
 
 from pydantic import BaseModel, Field
 
@@ -442,12 +442,14 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                 )
             )
 
-    toc_validation = state.get("toc_validation") if isinstance(state.get("toc_validation"), dict) else {}
+    raw_toc_validation = state.get("toc_validation")
+    toc_validation: Dict[str, Any] = cast(Dict[str, Any], raw_toc_validation) if isinstance(raw_toc_validation, dict) else {}
     if toc_validation:
         if toc_validation.get("valid") is True:
             checks.append(RuleCheckResult(code="TOC_SCHEMA_VALID", status="pass", section="toc"))
         else:
-            errors = toc_validation.get("errors") if isinstance(toc_validation.get("errors"), list) else []
+            raw_errors = toc_validation.get("errors")
+            errors: List[Any] = list(raw_errors) if isinstance(raw_errors, list) else []
             checks.append(
                 RuleCheckResult(
                     code="TOC_SCHEMA_VALID",
@@ -535,23 +537,36 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
     }
     expected_key_claims = _estimate_key_toc_claim_count(toc_payload)
     observed_claim_coverage_ratio = _safe_ratio(len(architect_claim_paths), expected_key_claims)
-    toc_generation_meta = state.get("toc_generation_meta") if isinstance(state.get("toc_generation_meta"), dict) else {}
-    claim_coverage_meta = (
-        toc_generation_meta.get("claim_coverage")
-        if isinstance(toc_generation_meta.get("claim_coverage"), dict)
-        else {}
+    raw_toc_generation_meta = state.get("toc_generation_meta")
+    toc_generation_meta: Dict[str, Any] = (
+        cast(Dict[str, Any], raw_toc_generation_meta) if isinstance(raw_toc_generation_meta, dict) else {}
     )
-    try:
-        key_claim_coverage_ratio = float(claim_coverage_meta.get("key_claim_coverage_ratio"))
-    except (TypeError, ValueError):
+    raw_claim_coverage_meta = toc_generation_meta.get("claim_coverage")
+    claim_coverage_meta: Dict[str, Any] = (
+        cast(Dict[str, Any], raw_claim_coverage_meta) if isinstance(raw_claim_coverage_meta, dict) else {}
+    )
+    raw_key_claim_coverage_ratio = claim_coverage_meta.get("key_claim_coverage_ratio")
+    if raw_key_claim_coverage_ratio is None:
         key_claim_coverage_ratio = observed_claim_coverage_ratio
-    try:
-        fallback_claim_ratio = float(claim_coverage_meta.get("fallback_claim_ratio"))
-    except (TypeError, ValueError):
+    else:
+        try:
+            key_claim_coverage_ratio = float(raw_key_claim_coverage_ratio)
+        except (TypeError, ValueError):
+            key_claim_coverage_ratio = observed_claim_coverage_ratio
+    raw_fallback_claim_ratio = claim_coverage_meta.get("fallback_claim_ratio")
+    if raw_fallback_claim_ratio is None:
         fallback_claim_ratio = _safe_ratio(
             sum(1 for c in architect_claim_citations if str(c.get("citation_type") or "") == "fallback_namespace"),
             len(architect_claim_citations),
         )
+    else:
+        try:
+            fallback_claim_ratio = float(raw_fallback_claim_ratio)
+        except (TypeError, ValueError):
+            fallback_claim_ratio = _safe_ratio(
+                sum(1 for c in architect_claim_citations if str(c.get("citation_type") or "") == "fallback_namespace"),
+                len(architect_claim_citations),
+            )
     architect_rag_enabled = bool(state.get("architect_rag_enabled", True))
 
     if architect_claim_citations:

@@ -36,14 +36,14 @@ def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> Bas
     validator = getattr(schema_cls, "model_validate", None)
     if callable(validator):
         return validator(payload)
-    return schema_cls.parse_obj(payload)  # type: ignore[attr-defined]
+    return schema_cls.parse_obj(payload)
 
 
 def _model_dump(model: BaseModel) -> Dict[str, Any]:
     dumper = getattr(model, "model_dump", None)
     if callable(dumper):
         return dumper()
-    return model.dict()  # type: ignore[attr-defined]
+    return model.dict()
 
 
 def _is_basemodel_subclass(tp: Any) -> bool:
@@ -127,7 +127,7 @@ def _field_required(field: Any) -> bool:
 def _schema_contract_hint(schema_cls: Type[BaseModel], *, max_fields: int = 24) -> str:
     fields = getattr(schema_cls, "model_fields", None)
     if not isinstance(fields, dict):  # pydantic v1 fallback
-        fields = getattr(schema_cls, "__fields__", {})  # type: ignore[assignment]
+        fields = getattr(schema_cls, "__fields__", {})
     if not isinstance(fields, dict) or not fields:
         return ""
 
@@ -203,7 +203,7 @@ def _synthesize_value(
     *,
     field_name: str,
     path: str,
-    ctx: Dict[str, str],
+    ctx: Dict[str, Any],
     evidence_hint: str,
     depth: int,
 ) -> Any:
@@ -219,7 +219,7 @@ def _synthesize_value(
             country=ctx["country"],
             revision_hint=ctx["revision_hint"],
             evidence_hint=evidence_hint,
-            index=max(0, ctx.get("index", 0)),  # type: ignore[arg-type]
+            index=max(0, int(ctx.get("index", 0) or 0)),
         )
     if annotation in (int,):
         return 1
@@ -264,7 +264,7 @@ def _synthesize_value(
         country=ctx["country"],
         revision_hint=ctx["revision_hint"],
         evidence_hint=evidence_hint,
-        index=max(0, ctx.get("index", 0)),  # type: ignore[arg-type]
+        index=max(0, int(ctx.get("index", 0) or 0)),
     )
 
 
@@ -279,7 +279,7 @@ def _synthesize_model(
     data: Dict[str, Any] = {}
     fields = getattr(schema_cls, "model_fields", None)
     if not isinstance(fields, dict):  # pydantic v1 fallback
-        fields = getattr(schema_cls, "__fields__", {})  # type: ignore[assignment]
+        fields = getattr(schema_cls, "__fields__", {})
     for field_name, field in fields.items():
         annotation = getattr(field, "annotation", None) or getattr(field, "outer_type_", None) or str
         data[field_name] = _synthesize_value(
@@ -858,7 +858,7 @@ def generate_toc_under_contract(
         citations=claim_citations,
     )
 
-    validation = {
+    validation: Dict[str, Any] = {
         "valid": True,
         "schema_name": getattr(schema_cls, "__name__", "TOCSchema"),
         "error_count": 0,

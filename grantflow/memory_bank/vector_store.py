@@ -21,7 +21,8 @@ class VectorStore:
         self._client_init_error: Optional[str] = None
 
         self._chroma_host = os.getenv("CHROMA_HOST")
-        self._chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
+        # Keep a non-API default to avoid common localhost conflict with uvicorn (8000).
+        self._chroma_port = int(os.getenv("CHROMA_PORT", "8001"))
         self._persist_dir = (
             os.getenv("CHROMA_PERSIST_DIRECTORY")
             or os.getenv("GRANTFLOW_CHROMA_DIR")
@@ -151,7 +152,10 @@ class VectorStore:
             n_results = top_k
 
         single_query = isinstance(query_texts, str)
-        query_list = [query_texts] if single_query else list(query_texts)
+        if single_query:
+            query_list: list[str] = [str(query_texts)]
+        else:
+            query_list = [str(item or "") for item in query_texts]
 
         if self.client is None:
             ns = self._ensure_memory_namespace(namespace)

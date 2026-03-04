@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional, TypedDict
+from typing import Any, Dict, Iterable, Mapping, MutableMapping, Optional, TypedDict, cast
 
 from grantflow.swarm.versioning import filter_versions
 
@@ -38,7 +38,7 @@ class FindingEntity(TypedDict, total=False):
     time_to_due_hours: Optional[float]
 
 
-def finding_primary_id(item: Dict[str, Any]) -> str:
+def finding_primary_id(item: Mapping[str, Any]) -> str:
     return str(item.get("finding_id") or item.get("id") or "").strip()
 
 
@@ -64,7 +64,7 @@ def _coerce_status(value: Any) -> str:
     return status if status in _VALID_STATUSES else "open"
 
 
-def finding_identity_key(item: Dict[str, Any]) -> tuple[str, str, str, str, str]:
+def finding_identity_key(item: Mapping[str, Any]) -> tuple[str, str, str, str, str]:
     return (
         str(item.get("code") or ""),
         str(item.get("section") or ""),
@@ -144,31 +144,31 @@ def normalize_finding_item(
     rationale = str(current.get("rationale") or "").strip() or None
     fix_suggestion = str(current.get("fix_suggestion") or current.get("fix_hint") or "").strip() or None
 
-    normalized: FindingEntity = dict(current)
-    normalized["id"] = canonical_id
-    normalized["finding_id"] = canonical_id
-    normalized["code"] = code
-    normalized["severity"] = severity
-    normalized["section"] = section
-    normalized["status"] = status
-    normalized["message"] = message
-    normalized["source"] = source
-    normalized["rationale"] = rationale
-    normalized["fix_suggestion"] = fix_suggestion
-    normalized["fix_hint"] = fix_suggestion
-    normalized["version_id"] = version_id
+    normalized_item: Dict[str, Any] = dict(current)
+    normalized_item["id"] = canonical_id
+    normalized_item["finding_id"] = canonical_id
+    normalized_item["code"] = code
+    normalized_item["severity"] = severity
+    normalized_item["section"] = section
+    normalized_item["status"] = status
+    normalized_item["message"] = message
+    normalized_item["source"] = source
+    normalized_item["rationale"] = rationale
+    normalized_item["fix_suggestion"] = fix_suggestion
+    normalized_item["fix_hint"] = fix_suggestion
+    normalized_item["version_id"] = version_id
 
     if status == "open":
-        normalized.pop("acknowledged_at", None)
-        normalized.pop("acknowledged_by", None)
-        normalized.pop("resolved_at", None)
-        normalized.pop("resolved_by", None)
+        normalized_item.pop("acknowledged_at", None)
+        normalized_item.pop("acknowledged_by", None)
+        normalized_item.pop("resolved_at", None)
+        normalized_item.pop("resolved_by", None)
     elif status == "acknowledged":
-        normalized.pop("resolved_at", None)
-        normalized.pop("resolved_by", None)
+        normalized_item.pop("resolved_at", None)
+        normalized_item.pop("resolved_by", None)
     elif status == "resolved":
         pass
-    return normalized
+    return cast(FindingEntity, normalized_item)
 
 
 def normalize_findings(
@@ -189,8 +189,9 @@ def normalize_findings(
         normalized = normalize_finding_item(item, default_source=default_source)
         if normalized is None:
             continue
+        normalized_dict: Dict[str, Any] = dict(normalized)
 
-        prior = previous_by_key.get(finding_identity_key(normalized))
+        prior = previous_by_key.get(finding_identity_key(normalized_dict))
         if prior:
             raw = item if isinstance(item, dict) else {}
             for key in (
@@ -212,13 +213,13 @@ def normalize_findings(
             ):
                 raw_has_value = isinstance(raw, dict) and raw.get(key) not in (None, "")
                 if not raw_has_value and prior.get(key) is not None:
-                    normalized[key] = prior.get(key)
-            canonical_id = finding_primary_id(normalized)
+                    normalized_dict[key] = prior.get(key)
+            canonical_id = finding_primary_id(normalized_dict)
             if canonical_id:
-                normalized["id"] = canonical_id
-                normalized["finding_id"] = canonical_id
+                normalized_dict["id"] = canonical_id
+                normalized_dict["finding_id"] = canonical_id
 
-        normalized_items.append(normalized)
+        normalized_items.append(cast(FindingEntity, normalized_dict))
     return normalized_items
 
 
@@ -244,15 +245,15 @@ def canonicalize_findings(
         current = dict(row)
         fid = finding_primary_id(current)
         if not fid:
-            deduped.append(current)
+            deduped.append(cast(FindingEntity, current))
             continue
         current["id"] = fid
         current["finding_id"] = fid
         if fid in by_id:
-            deduped[by_id[fid]] = current
+            deduped[by_id[fid]] = cast(FindingEntity, current)
             continue
         by_id[fid] = len(deduped)
-        deduped.append(current)
+        deduped.append(cast(FindingEntity, current))
     return deduped
 
 
@@ -282,7 +283,8 @@ def state_critic_findings(
 ) -> list[FindingEntity]:
     if not isinstance(state, Mapping):
         return []
-    critic_notes = state.get("critic_notes") if isinstance(state.get("critic_notes"), dict) else {}
+    raw_critic_notes = state.get("critic_notes")
+    critic_notes = raw_critic_notes if isinstance(raw_critic_notes, dict) else {}
     raw = critic_notes.get("fatal_flaws")
     if not isinstance(raw, list):
         raw = state.get("critic_fatal_flaws")
@@ -351,5 +353,5 @@ def bind_findings_to_latest_versions(
         section = str(current.get("section") or "").strip().lower()
         if section in section_versions and not str(current.get("version_id") or "").strip():
             current["version_id"] = section_versions[section]
-        out.append(current)
+        out.append(cast(FindingEntity, current))
     return out

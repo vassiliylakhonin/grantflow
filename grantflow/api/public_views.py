@@ -62,6 +62,15 @@ def _job_state_dict(job: Dict[str, Any]) -> Dict[str, Any]:
     return dict(normalized_state_copy(state))
 
 
+def _coerce_int(value: Any, default: int = 0) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _state_export_contract_gate(state_dict: Dict[str, Any]) -> Dict[str, Any]:
     raw_gate = state_dict.get("export_contract_gate")
     if isinstance(raw_gate, dict):
@@ -1708,18 +1717,25 @@ def public_job_quality_payload(
 
     def _claim_meta_int(key: str, fallback: int) -> int:
         raw = claim_coverage_meta.get(key)
-        try:
-            value = int(raw)
-        except (TypeError, ValueError):
+        if raw is None:
             value = fallback
+        else:
+            try:
+                value = int(raw)
+            except (TypeError, ValueError):
+                value = fallback
         return max(0, value)
 
     def _claim_meta_rate(key: str, fallback: Optional[float]) -> Optional[float]:
         raw = claim_coverage_meta.get(key)
-        try:
-            value = float(raw)
-        except (TypeError, ValueError):
+        value: Optional[float]
+        if raw is None:
             value = fallback
+        else:
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                value = fallback
         if value is None:
             return None
         return round(max(0.0, min(1.0, value)), 4)
@@ -2264,12 +2280,14 @@ def public_portfolio_quality_payload(
         fallback_namespace_citation_count += int(row_citations.get("fallback_namespace_citation_count") or 0)
         strategy_reference_citation_count += int(row_citations.get("strategy_reference_citation_count") or 0)
         retrieval_grounded_citation_count += int(row_citations.get("retrieval_grounded_citation_count") or 0)
-        non_retrieval_citation_count += int(
-            row_citations.get("non_retrieval_citation_count")
-            if row_citations.get("non_retrieval_citation_count") is not None
-            else int(row_citations.get("fallback_namespace_citation_count") or 0)
-            + int(row_citations.get("strategy_reference_citation_count") or 0)
-        )
+        row_non_retrieval_raw = row_citations.get("non_retrieval_citation_count")
+        if row_non_retrieval_raw is None:
+            row_non_retrieval_count = _coerce_int(row_citations.get("fallback_namespace_citation_count")) + _coerce_int(
+                row_citations.get("strategy_reference_citation_count")
+            )
+        else:
+            row_non_retrieval_count = _coerce_int(row_non_retrieval_raw)
+        non_retrieval_citation_count += row_non_retrieval_count
         traceability_complete_citation_count += int(row_citations.get("traceability_complete_citation_count") or 0)
         traceability_partial_citation_count += int(row_citations.get("traceability_partial_citation_count") or 0)
         traceability_missing_citation_count += int(row_citations.get("traceability_missing_citation_count") or 0)
@@ -2385,12 +2403,14 @@ def public_portfolio_quality_payload(
         )
         donor_row["strategy_reference_citation_count"] += int(row_citations.get("strategy_reference_citation_count") or 0)
         donor_row["retrieval_grounded_citation_count"] += int(row_citations.get("retrieval_grounded_citation_count") or 0)
-        donor_row["non_retrieval_citation_count"] += int(
-            row_citations.get("non_retrieval_citation_count")
-            if row_citations.get("non_retrieval_citation_count") is not None
-            else int(row_citations.get("fallback_namespace_citation_count") or 0)
-            + int(row_citations.get("strategy_reference_citation_count") or 0)
-        )
+        donor_row_non_retrieval_raw = row_citations.get("non_retrieval_citation_count")
+        if donor_row_non_retrieval_raw is None:
+            donor_row_non_retrieval_count = _coerce_int(row_citations.get("fallback_namespace_citation_count")) + _coerce_int(
+                row_citations.get("strategy_reference_citation_count")
+            )
+        else:
+            donor_row_non_retrieval_count = _coerce_int(donor_row_non_retrieval_raw)
+        donor_row["non_retrieval_citation_count"] += donor_row_non_retrieval_count
         donor_row["traceability_complete_citation_count"] += int(
             row_citations.get("traceability_complete_citation_count") or 0
         )
@@ -2542,11 +2562,11 @@ def public_portfolio_quality_payload(
         donor_fallback_total = int(donor_row.get("fallback_namespace_citation_count") or 0)
         donor_strategy_reference_total = int(donor_row.get("strategy_reference_citation_count") or 0)
         donor_retrieval_grounded_total = int(donor_row.get("retrieval_grounded_citation_count") or 0)
-        donor_non_retrieval_total = int(
-            donor_row.get("non_retrieval_citation_count")
-            if donor_row.get("non_retrieval_citation_count") is not None
-            else donor_fallback_total + donor_strategy_reference_total
-        )
+        donor_non_retrieval_raw = donor_row.get("non_retrieval_citation_count")
+        if donor_non_retrieval_raw is None:
+            donor_non_retrieval_total = donor_fallback_total + donor_strategy_reference_total
+        else:
+            donor_non_retrieval_total = _coerce_int(donor_non_retrieval_raw)
         donor_retrieval_expected_true = int(donor_row.get("retrieval_expected_true_job_count") or 0)
         donor_retrieval_expected_false = int(donor_row.get("retrieval_expected_false_job_count") or 0)
         donor_retrieval_expected = donor_retrieval_expected_true >= donor_retrieval_expected_false

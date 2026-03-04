@@ -84,3 +84,24 @@ def test_vector_store_falls_back_to_memory_when_chroma_init_fails(monkeypatch):
     assert stats["backend"] == "memory"
     assert stats["document_count"] == 1
     assert "client_init_error" in stats
+
+
+def test_vector_store_uses_non_api_default_chroma_port_when_host_set(monkeypatch):
+    monkeypatch.setenv("CHROMA_HOST", "127.0.0.1")
+    monkeypatch.delenv("CHROMA_PORT", raising=False)
+    captured = {}
+
+    class _DummyClient:
+        pass
+
+    def _http_client(*, host, port):
+        captured["host"] = host
+        captured["port"] = port
+        return _DummyClient()
+
+    monkeypatch.setattr(vector_store_module.chromadb, "HttpClient", _http_client)
+
+    store = VectorStore()
+    assert store.client is not None
+    assert captured["host"] == "127.0.0.1"
+    assert captured["port"] == 8001
