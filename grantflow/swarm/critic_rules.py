@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, Iterable, List, Optional
 
 from pydantic import BaseModel, Field
@@ -21,6 +22,47 @@ BASELINE_TARGET_PLACEHOLDER_VALUES = {
     "--",
     "none",
     "null",
+}
+
+TOC_TEXT_PLACEHOLDER_VALUES = {
+    "",
+    "tbd",
+    "to be determined",
+    "placeholder",
+    "lorem ipsum",
+    "todo",
+    "n/a",
+    "na",
+    "unknown",
+    "-",
+    "--",
+    "none",
+    "null",
+}
+TOC_TEXT_PLACEHOLDER_SNIPPETS = (
+    "tbd",
+    "to be determined",
+    "placeholder",
+    "lorem ipsum",
+    "todo",
+    "[insert",
+    "(insert",
+    "fill in",
+)
+TOC_CLAIM_TEXT_KEYS = {
+    "project_goal",
+    "project_development_objective",
+    "program_goal",
+    "programme_objective",
+    "overall_objective",
+    "brief",
+    "summary",
+    "problem_statement",
+    "description",
+    "title",
+    "assumption",
+    "assumptions",
+    "critical_assumptions",
 }
 
 
@@ -164,6 +206,45 @@ def _is_placeholder_baseline_target(value: Any) -> bool:
     return False
 
 
+def _is_placeholder_toc_text(value: Any) -> bool:
+    text = str(value or "").strip().lower()
+    if text in TOC_TEXT_PLACEHOLDER_VALUES:
+        return True
+    if any(snippet in text for snippet in TOC_TEXT_PLACEHOLDER_SNIPPETS):
+        return True
+    if re.search(r"\b(tbd|todo)\b", text):
+        return True
+    return False
+
+
+def _collect_toc_claim_text_scalars(payload: Any, *, max_items: int = 240) -> list[str]:
+    out: list[str] = []
+
+    def walk(node: Any, parent_key: Optional[str] = None) -> None:
+        if len(out) >= max_items:
+            return
+        if isinstance(node, str):
+            text = node.strip()
+            key = str(parent_key or "").strip().lower()
+            if text and key in TOC_CLAIM_TEXT_KEYS:
+                out.append(text)
+            return
+        if isinstance(node, dict):
+            for key, value in node.items():
+                walk(value, str(key or "").strip().lower())
+                if len(out) >= max_items:
+                    return
+            return
+        if isinstance(node, list):
+            for item in node:
+                walk(item, parent_key)
+                if len(out) >= max_items:
+                    return
+
+    walk(payload)
+    return out
+
+
 def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
     checks: List[RuleCheckResult] = []
     flaws: List[CriticFatalFlaw] = []
@@ -229,6 +310,59 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
         )
     else:
         checks.append(RuleCheckResult(code="TOC_PRESENT", status="pass", section="toc"))
+        toc_text_values = _collect_toc_claim_text_scalars(toc_payload)
+        placeholder_text_values = [value for value in toc_text_values if _is_placeholder_toc_text(value)]
+        if placeholder_text_values:
+            placeholder_ratio = _safe_ratio(len(placeholder_text_values), len(toc_text_values))
+            detail = (
+                f"{len(placeholder_text_values)}/{len(toc_text_values)} ToC text fields look like placeholders "
+                f"(ratio={placeholder_ratio:.0%})"
+            )
+            if placeholder_ratio >= 0.4 or len(placeholder_text_values) >= 3:
+                checks.append(
+                    RuleCheckResult(
+                        code="TOC_TEXT_COMPLETENESS",
+                        status="fail",
+                        section="toc",
+                        detail=detail,
+                    )
+                )
+                _add_flaw(
+                    flaws,
+                    code="TOC_PLACEHOLDER_CONTENT_CRITICAL",
+                    severity="high",
+                    section="toc",
+                    state=state,
+                    message="Theory of Change text is dominated by placeholders.",
+                    fix_hint="Replace placeholder text (TBD/TODO/placeholder) with concrete objective, outcome, and assumption statements.",
+                )
+            else:
+                checks.append(
+                    RuleCheckResult(
+                        code="TOC_TEXT_COMPLETENESS",
+                        status="warn",
+                        section="toc",
+                        detail=detail,
+                    )
+                )
+                _add_flaw(
+                    flaws,
+                    code="TOC_PLACEHOLDER_CONTENT",
+                    severity="low",
+                    section="toc",
+                    state=state,
+                    message="Theory of Change still contains placeholder text.",
+                    fix_hint="Replace placeholder text (TBD/TODO/placeholder) with concrete statements before finalization.",
+                )
+        else:
+            checks.append(
+                RuleCheckResult(
+                    code="TOC_TEXT_COMPLETENESS",
+                    status="pass",
+                    section="toc",
+                    detail="No placeholder text detected in ToC fields",
+                )
+            )
 
     toc_validation = state.get("toc_validation") if isinstance(state.get("toc_validation"), dict) else {}
     if toc_validation:

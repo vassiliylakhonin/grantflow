@@ -193,6 +193,92 @@ def test_rule_based_critic_flags_fallback_dominant_architect_grounding_when_rag_
     assert any(f["code"] == "TOC_CLAIM_CONFIDENCE_HIT_RATE_CRITICAL" for f in flaws)
 
 
+def test_rule_based_critic_warns_when_some_toc_text_is_placeholder():
+    state = {
+        "input_context": {"project": "AI governance training", "country": "Kazakhstan"},
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "GenericTOC"},
+        "toc_draft": {
+            "toc": {
+                "project_goal": "Improve AI service delivery in civil service.",
+                "objectives": [
+                    {"title": "Objective 1", "description": "TBD"},
+                    {"title": "Objective 2", "description": "Adopt risk-based deployment process."},
+                ],
+            }
+        },
+        "logframe_draft": {"indicators": [{"indicator_id": "IND_001", "baseline": "0", "target": "60"}]},
+        "citations": [
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.project_goal",
+                "citation_type": "rag_claim_support",
+                "citation_confidence": 0.8,
+                "confidence_threshold": 0.4,
+                "doc_id": "doc-1",
+                "source": "policy.pdf",
+                "page": 1,
+                "chunk": 0,
+            },
+            {"stage": "mel", "used_for": "IND_001", "label": "doc"},
+        ],
+    }
+
+    report = evaluate_rule_based_critic(state)
+    checks = [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in report.checks]
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+
+    assert any(c["code"] == "TOC_TEXT_COMPLETENESS" and c["status"] == "warn" for c in checks)
+    assert any(f["code"] == "TOC_PLACEHOLDER_CONTENT" for f in flaws)
+
+
+def test_rule_based_critic_fails_when_toc_text_is_placeholder_dominant():
+    state = {
+        "input_context": {"project": "AI governance training", "country": "Kazakhstan"},
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "GenericTOC"},
+        "toc_draft": {
+            "toc": {
+                "project_goal": "TBD",
+                "objectives": [
+                    {"title": "TODO", "description": "placeholder"},
+                    {"title": "Objective 2", "description": "to be determined"},
+                ],
+            }
+        },
+        "logframe_draft": {"indicators": [{"indicator_id": "IND_001", "baseline": "0", "target": "60"}]},
+        "citations": [
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.project_goal",
+                "citation_type": "rag_claim_support",
+                "citation_confidence": 0.8,
+                "confidence_threshold": 0.4,
+                "doc_id": "doc-1",
+                "source": "policy.pdf",
+                "page": 1,
+                "chunk": 0,
+            },
+            {"stage": "mel", "used_for": "IND_001", "label": "doc"},
+        ],
+    }
+
+    report = evaluate_rule_based_critic(state)
+    checks = [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in report.checks]
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+
+    assert any(c["code"] == "TOC_TEXT_COMPLETENESS" and c["status"] == "fail" for c in checks)
+    assert any(f["code"] == "TOC_PLACEHOLDER_CONTENT_CRITICAL" for f in flaws)
+
+
 def test_rule_based_critic_warns_when_some_logframe_baseline_target_are_placeholders():
     state = {
         "input_context": {"project": "AI governance training", "country": "Kazakhstan"},
