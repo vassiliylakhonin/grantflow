@@ -87,6 +87,8 @@ class JobRunnerConfig(BaseModel):
     redis_url: str = "redis://127.0.0.1:6379/0"
     redis_queue_name: str = "grantflow:jobs"
     redis_pop_timeout_seconds: float = 1.0
+    redis_max_attempts: int = 3
+    redis_dead_letter_queue_name: str = ""
 
 
 class GrantFlowConfig(BaseModel):
@@ -213,6 +215,8 @@ class GrantFlowConfig(BaseModel):
                 redis_url=_env("GRANTFLOW_JOB_RUNNER_REDIS_URL", "redis://127.0.0.1:6379/0"),
                 redis_queue_name=_env("GRANTFLOW_JOB_RUNNER_REDIS_QUEUE_NAME", "grantflow:jobs"),
                 redis_pop_timeout_seconds=float(_env("GRANTFLOW_JOB_RUNNER_REDIS_POP_TIMEOUT_SECONDS", "1.0")),
+                redis_max_attempts=int(_env("GRANTFLOW_JOB_RUNNER_REDIS_MAX_ATTEMPTS", "3")),
+                redis_dead_letter_queue_name=_env("GRANTFLOW_JOB_RUNNER_REDIS_DEAD_LETTER_QUEUE_NAME", ""),
             ),
             api_host=_env("GRANTFLOW_API_HOST", "0.0.0.0"),
             api_port=int(_env("GRANTFLOW_API_PORT", "8000")),

@@ -14,6 +14,8 @@ def _build_redis_worker_runner() -> RedisJobRunner:
         redis_url=str(getattr(config.job_runner, "redis_url", "redis://127.0.0.1:6379/0") or ""),
         queue_name=str(getattr(config.job_runner, "redis_queue_name", "grantflow:jobs") or ""),
         pop_timeout_seconds=float(getattr(config.job_runner, "redis_pop_timeout_seconds", 1.0) or 1.0),
+        max_attempts=int(getattr(config.job_runner, "redis_max_attempts", 3) or 3),
+        dead_letter_queue_name=str(getattr(config.job_runner, "redis_dead_letter_queue_name", "") or ""),
         consumer_enabled=True,
     )
 

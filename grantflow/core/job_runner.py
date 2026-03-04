@@ -71,6 +71,13 @@ def _mask_redis_url(url: str) -> str:
     return urlunparse((parsed.scheme, netloc, path, "", "", ""))
 
 
+def _coerce_int(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return int(default)
+
+
 @dataclass
 class JobRunnerTask:
     fn: TaskCallable
@@ -189,6 +196,8 @@ class RedisJobRunner:
         queue_name: str = "grantflow:jobs",
         pop_timeout_seconds: float = 1.0,
         reconnect_sleep_seconds: float = 0.25,
+        max_attempts: int = 3,
+        dead_letter_queue_name: str = "",
         allowed_import_prefixes: tuple[str, ...] = ("grantflow.",),
         redis_client_factory: Optional[Callable[[str], Any]] = None,
         consumer_enabled: bool = True,
@@ -197,6 +206,11 @@ class RedisJobRunner:
         self.queue_maxsize = max(1, int(queue_maxsize))
         self.redis_url = str(redis_url or "redis://127.0.0.1:6379/0")
         self.queue_name = str(queue_name or "grantflow:jobs")
+        self.max_attempts = max(1, _coerce_int(max_attempts, 3))
+        dead_letter_token = str(dead_letter_queue_name or "").strip()
+        self.dead_letter_queue_name = dead_letter_token if dead_letter_token else f"{self.queue_name}:dead"
+        if self.dead_letter_queue_name == self.queue_name:
+            self.dead_letter_queue_name = f"{self.queue_name}:dead"
         self.pop_timeout_seconds = max(0.1, float(pop_timeout_seconds))
         self.reconnect_sleep_seconds = max(0.05, float(reconnect_sleep_seconds))
         self.allowed_import_prefixes = tuple(
@@ -211,6 +225,8 @@ class RedisJobRunner:
         self._submitted = 0
         self._completed = 0
         self._failed = 0
+        self._retried = 0
+        self._dead_lettered = 0
         self._last_error: Optional[str] = None
         self._task_registry: dict[str, TaskCallable] = {}
 
@@ -251,6 +267,8 @@ class RedisJobRunner:
             "task_name": task_name,
             "args": list(args),
             "kwargs": dict(kwargs),
+            "attempt": 0,
+            "max_attempts": self.max_attempts,
         }
         try:
             encoded = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
@@ -284,13 +302,18 @@ class RedisJobRunner:
             submitted = int(self._submitted)
             completed = int(self._completed)
             failed = int(self._failed)
+            retried = int(self._retried)
+            dead_lettered = int(self._dead_lettered)
             running = bool(self._started)
             active_workers = sum(1 for t in self._threads if t.is_alive())
             last_error = self._last_error
         redis_available, availability_error = self._redis_available()
-        queue_size = self._redis_queue_size()
+        queue_size = self._redis_queue_size(self.queue_name)
+        dead_letter_queue_size = self._redis_queue_size(self.dead_letter_queue_name)
         if queue_size is None:
             queue_size = -1
+        if dead_letter_queue_size is None:
+            dead_letter_queue_size = -1
         if availability_error:
             last_error = availability_error
         return {
@@ -304,8 +327,13 @@ class RedisJobRunner:
             "submitted_count": submitted,
             "completed_count": completed,
             "failed_count": failed,
+            "retry_count": retried,
+            "dead_lettered_count": dead_lettered,
             "redis_url": _mask_redis_url(self.redis_url),
             "queue_name": self.queue_name,
+            "max_attempts": self.max_attempts,
+            "dead_letter_queue_name": self.dead_letter_queue_name,
+            "dead_letter_queue_size": dead_letter_queue_size,
             "redis_available": redis_available,
             "last_error": last_error,
         }
@@ -345,12 +373,12 @@ class RedisJobRunner:
             self._record_error(exc)
             return False, str(exc)
 
-    def _redis_queue_size(self) -> Optional[int]:
+    def _redis_queue_size(self, queue_name: str) -> Optional[int]:
         client = self._ensure_client()
         if client is None:
             return None
         try:
-            return int(client.llen(self.queue_name))
+            return int(client.llen(str(queue_name or self.queue_name)))
         except Exception as exc:
             self._record_error(exc)
             return None
@@ -375,6 +403,72 @@ class RedisJobRunner:
                 self._task_registry[task_name] = resolved
             return resolved
         return None
+
+    def _retry_or_dead_letter(
+        self,
+        *,
+        client: Any,
+        payload: Optional[dict[str, Any]],
+        raw_payload: str,
+        task_name: str,
+        reason: str,
+        error: Optional[Exception] = None,
+    ) -> None:
+        retry_payload = payload if isinstance(payload, dict) else None
+        current_attempt = _coerce_int((retry_payload or {}).get("attempt"), 0)
+        configured_max = _coerce_int((retry_payload or {}).get("max_attempts"), self.max_attempts)
+        max_attempts = max(1, configured_max)
+        next_attempt = current_attempt + 1
+        non_retry_reasons = {
+            "invalid_payload_json",
+            "invalid_payload_shape",
+            "invalid_task_envelope",
+            "task_not_resolved",
+        }
+        retry_allowed = reason not in non_retry_reasons
+
+        if retry_payload is not None and retry_allowed and next_attempt < max_attempts:
+            retried_payload = dict(retry_payload)
+            retried_payload["attempt"] = next_attempt
+            retried_payload["max_attempts"] = max_attempts
+            if error is not None:
+                retried_payload["last_error"] = str(error)
+                retried_payload["last_error_at"] = time.time()
+            try:
+                encoded = json.dumps(retried_payload, ensure_ascii=True, separators=(",", ":"))
+                client.rpush(self.queue_name, encoded)
+                with self._lock:
+                    self._retried += 1
+                return
+            except Exception as exc:
+                self._record_error(exc)
+                reason = f"retry_enqueue_failed:{reason}"
+
+        dead_letter_payload: dict[str, Any] = {
+            "source_queue": self.queue_name,
+            "task_name": task_name or str((retry_payload or {}).get("task_name") or "").strip(),
+            "reason": reason,
+            "attempt": next_attempt,
+            "max_attempts": max_attempts,
+            "failed_at": time.time(),
+        }
+        if retry_payload is not None:
+            dead_letter_payload["payload"] = retry_payload
+        else:
+            dead_letter_payload["raw_payload"] = raw_payload
+        if error is not None:
+            dead_letter_payload["error"] = str(error)
+
+        try:
+            encoded_dead_letter = json.dumps(dead_letter_payload, ensure_ascii=True, separators=(",", ":"))
+            client.rpush(self.dead_letter_queue_name, encoded_dead_letter)
+            with self._lock:
+                self._dead_lettered += 1
+        except Exception as exc:
+            self._record_error(exc)
+
+        with self._lock:
+            self._failed += 1
 
     def _worker_loop(self) -> None:
         while True:
@@ -402,27 +496,61 @@ class RedisJobRunner:
                 decoded_payload = str(raw_payload)
             try:
                 payload = json.loads(decoded_payload)
-            except Exception:
-                with self._lock:
-                    self._failed += 1
+            except Exception as exc:
+                self._retry_or_dead_letter(
+                    client=client,
+                    payload=None,
+                    raw_payload=decoded_payload,
+                    task_name="",
+                    reason="invalid_payload_json",
+                    error=exc,
+                )
+                continue
+            if not isinstance(payload, dict):
+                self._retry_or_dead_letter(
+                    client=client,
+                    payload=None,
+                    raw_payload=decoded_payload,
+                    task_name="",
+                    reason="invalid_payload_shape",
+                    error=None,
+                )
                 continue
             task_name = str(payload.get("task_name") or "").strip()
             args = payload.get("args", [])
             kwargs = payload.get("kwargs", {})
             if not task_name or not isinstance(args, list) or not isinstance(kwargs, dict):
-                with self._lock:
-                    self._failed += 1
+                self._retry_or_dead_letter(
+                    client=client,
+                    payload=payload,
+                    raw_payload=decoded_payload,
+                    task_name=task_name,
+                    reason="invalid_task_envelope",
+                    error=None,
+                )
                 continue
             fn = self._resolve_task_callable(task_name)
             if fn is None:
-                with self._lock:
-                    self._failed += 1
+                self._retry_or_dead_letter(
+                    client=client,
+                    payload=payload,
+                    raw_payload=decoded_payload,
+                    task_name=task_name,
+                    reason="task_not_resolved",
+                    error=None,
+                )
                 continue
             try:
                 fn(*tuple(args), **kwargs)
-            except Exception:
-                with self._lock:
-                    self._failed += 1
+            except Exception as exc:
+                self._retry_or_dead_letter(
+                    client=client,
+                    payload=payload,
+                    raw_payload=decoded_payload,
+                    task_name=task_name,
+                    reason="task_execution_error",
+                    error=exc,
+                )
             else:
                 with self._lock:
                     self._completed += 1

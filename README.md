@@ -133,12 +133,15 @@ export GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=true
 export GRANTFLOW_JOB_RUNNER_REDIS_URL=redis://127.0.0.1:6379/0
 export GRANTFLOW_JOB_RUNNER_REDIS_QUEUE_NAME=grantflow:jobs
 export GRANTFLOW_JOB_RUNNER_REDIS_POP_TIMEOUT_SECONDS=1.0
+export GRANTFLOW_JOB_RUNNER_REDIS_MAX_ATTEMPTS=3
+export GRANTFLOW_JOB_RUNNER_REDIS_DEAD_LETTER_QUEUE_NAME=grantflow:jobs:dead
 ```
 
 Notes:
 - `background_tasks` keeps existing FastAPI per-request scheduling behavior.
 - `inmemory_queue` runs pipeline jobs on internal worker threads and can return `503` when queue is full.
 - `redis_queue` uses Redis LIST/BLPOP for queue persistence and worker coordination; requires a reachable Redis instance.
+- `redis_queue` retries transient task failures up to `GRANTFLOW_JOB_RUNNER_REDIS_MAX_ATTEMPTS`; exhausted jobs are moved to dead-letter queue.
 - Use `GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=false` on API when running a dedicated worker process.
 
 Dedicated worker process (for `redis_queue`):

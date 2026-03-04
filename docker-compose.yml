@@ -17,6 +17,8 @@ services:
       - GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=false
       - GRANTFLOW_JOB_RUNNER_REDIS_URL=redis://redis:6379/0
       - GRANTFLOW_JOB_RUNNER_REDIS_QUEUE_NAME=grantflow:jobs
+      - GRANTFLOW_JOB_RUNNER_REDIS_MAX_ATTEMPTS=3
+      - GRANTFLOW_JOB_RUNNER_REDIS_DEAD_LETTER_QUEUE_NAME=grantflow:jobs:dead
       - ENV=prod
     depends_on:
       - chroma
@@ -41,6 +43,8 @@ services:
       - GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=true
       - GRANTFLOW_JOB_RUNNER_REDIS_URL=redis://redis:6379/0
       - GRANTFLOW_JOB_RUNNER_REDIS_QUEUE_NAME=grantflow:jobs
+      - GRANTFLOW_JOB_RUNNER_REDIS_MAX_ATTEMPTS=3
+      - GRANTFLOW_JOB_RUNNER_REDIS_DEAD_LETTER_QUEUE_NAME=grantflow:jobs:dead
       - ENV=prod
     depends_on:
       - chroma

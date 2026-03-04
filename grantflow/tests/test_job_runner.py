@@ -43,6 +43,11 @@ class _FakeRedisClient:
                 return None
             time.sleep(0.01)
 
+    def queue_snapshot(self, queue_name: str) -> list[str]:
+        with self._lock:
+            raw = list(self._queues.get(queue_name, []))
+        return [item.decode("utf-8", errors="replace") for item in raw]
+
 
 class _AlwaysFullRedisClient(_FakeRedisClient):
     def llen(self, queue_name: str) -> int:
@@ -131,6 +136,8 @@ def test_redis_job_runner_executes_tasks_with_fake_client():
     assert diag["redis_available"] is True
     assert diag["completed_count"] >= 1
     assert diag["failed_count"] == 0
+    assert diag["retry_count"] == 0
+    assert diag["dead_lettered_count"] == 0
     runner.stop()
 
 
@@ -166,3 +173,65 @@ def test_redis_job_runner_rejects_submit_when_queue_is_full():
     )
     assert runner.submit(_redis_test_task, 1) is False
     runner.stop()
+
+
+def test_redis_job_runner_retries_then_succeeds():
+    fake_client = _FakeRedisClient()
+    seen = {"calls": 0}
+
+    def _flaky(value: int) -> None:
+        seen["calls"] += 1
+        if seen["calls"] == 1:
+            raise RuntimeError("transient")
+        _redis_test_task(value)
+
+    with _REDIS_OBSERVED_LOCK:
+        _REDIS_TEST_OBSERVED.clear()
+    runner = RedisJobRunner(
+        worker_count=1,
+        queue_maxsize=8,
+        redis_url="redis://local-test/0",
+        queue_name="grantflow:test:jobs:retry-success",
+        pop_timeout_seconds=0.1,
+        max_attempts=3,
+        redis_client_factory=lambda _url: fake_client,
+    )
+    try:
+        assert runner.submit(_flaky, 9) is True
+        assert _wait_until(lambda: _REDIS_TEST_OBSERVED == [9], timeout_s=2.0)
+        diag = runner.diagnostics()
+        assert diag["completed_count"] >= 1
+        assert diag["failed_count"] == 0
+        assert diag["retry_count"] >= 1
+        assert diag["dead_lettered_count"] == 0
+        assert fake_client.queue_snapshot(diag["dead_letter_queue_name"]) == []
+    finally:
+        runner.stop()
+
+
+def test_redis_job_runner_dead_letters_after_max_attempts():
+    fake_client = _FakeRedisClient()
+
+    def _always_fail(_value: int) -> None:
+        raise RuntimeError("always bad")
+
+    runner = RedisJobRunner(
+        worker_count=1,
+        queue_maxsize=8,
+        redis_url="redis://local-test/0",
+        queue_name="grantflow:test:jobs:retry-fail",
+        pop_timeout_seconds=0.1,
+        max_attempts=2,
+        redis_client_factory=lambda _url: fake_client,
+    )
+    try:
+        assert runner.submit(_always_fail, 5) is True
+        assert _wait_until(lambda: runner.diagnostics()["dead_lettered_count"] >= 1, timeout_s=2.0)
+        diag = runner.diagnostics()
+        assert diag["failed_count"] >= 1
+        assert diag["retry_count"] >= 1
+        assert diag["dead_lettered_count"] >= 1
+        dlq_payloads = fake_client.queue_snapshot(diag["dead_letter_queue_name"])
+        assert len(dlq_payloads) >= 1
+    finally:
+        runner.stop()
