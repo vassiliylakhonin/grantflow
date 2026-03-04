@@ -150,6 +150,7 @@ class InMemoryJobRunner:
             active_workers = sum(1 for t in self._threads if t.is_alive())
         return {
             "backend": "inmemory",
+            "consumer_enabled": True,
             "running": running,
             "worker_count": self.worker_count,
             "active_workers": active_workers,
@@ -190,6 +191,7 @@ class RedisJobRunner:
         reconnect_sleep_seconds: float = 0.25,
         allowed_import_prefixes: tuple[str, ...] = ("grantflow.",),
         redis_client_factory: Optional[Callable[[str], Any]] = None,
+        consumer_enabled: bool = True,
     ) -> None:
         self.worker_count = max(1, int(worker_count))
         self.queue_maxsize = max(1, int(queue_maxsize))
@@ -201,6 +203,7 @@ class RedisJobRunner:
             str(p or "").strip() for p in allowed_import_prefixes if str(p or "").strip()
         )
         self._redis_client_factory = redis_client_factory
+        self.consumer_enabled = bool(consumer_enabled)
         self._client: Any = None
         self._threads: list[threading.Thread] = []
         self._lock = threading.Lock()
@@ -217,6 +220,8 @@ class RedisJobRunner:
                 return
             self._started = True
             self._threads = []
+            if not self.consumer_enabled:
+                return
             for idx in range(self.worker_count):
                 worker = threading.Thread(
                     target=self._worker_loop,
@@ -290,6 +295,7 @@ class RedisJobRunner:
             last_error = availability_error
         return {
             "backend": "redis",
+            "consumer_enabled": self.consumer_enabled,
             "running": running,
             "worker_count": self.worker_count,
             "active_workers": active_workers,

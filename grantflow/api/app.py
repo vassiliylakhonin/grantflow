@@ -218,6 +218,7 @@ def _uses_queue_runner() -> bool:
 def _build_job_runner():
     worker_count = int(getattr(config.job_runner, "worker_count", 2) or 2)
     queue_maxsize = int(getattr(config.job_runner, "queue_maxsize", 200) or 200)
+    consumer_enabled = bool(getattr(config.job_runner, "consumer_enabled", True))
     if _uses_redis_queue_runner():
         return RedisJobRunner(
             worker_count=worker_count,
@@ -225,6 +226,7 @@ def _build_job_runner():
             redis_url=str(getattr(config.job_runner, "redis_url", "redis://127.0.0.1:6379/0") or ""),
             queue_name=str(getattr(config.job_runner, "redis_queue_name", "grantflow:jobs") or ""),
             pop_timeout_seconds=float(getattr(config.job_runner, "redis_pop_timeout_seconds", 1.0) or 1.0),
+            consumer_enabled=consumer_enabled,
         )
     return InMemoryJobRunner(worker_count=worker_count, queue_maxsize=queue_maxsize)
 
@@ -3935,7 +3937,9 @@ def readiness_check():
     if _uses_inmemory_queue_runner():
         job_runner_ready = bool(job_runner_diag.get("running"))
     elif _uses_redis_queue_runner():
-        job_runner_ready = bool(job_runner_diag.get("running")) and bool(job_runner_diag.get("redis_available"))
+        consumer_enabled = bool(job_runner_diag.get("consumer_enabled", True))
+        running_ok = bool(job_runner_diag.get("running")) if consumer_enabled else True
+        job_runner_ready = running_ok and bool(job_runner_diag.get("redis_available"))
     ready = bool(vector_ready.get("ready")) and job_runner_ready
     preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
     runtime_grounded_quality_gate_thresholds = _runtime_grounded_quality_gate_thresholds()

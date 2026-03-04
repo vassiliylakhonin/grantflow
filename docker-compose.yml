@@ -11,12 +11,42 @@ services:
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8000
       - CHROMA_COLLECTION_PREFIX=grantflow
-      - JOB_STORE=sqlite
-      - HITL_STORE=sqlite
+      - GRANTFLOW_JOB_STORE=sqlite
+      - GRANTFLOW_HITL_STORE=sqlite
+      - GRANTFLOW_INGEST_STORE=sqlite
       - GRANTFLOW_SQLITE_PATH=/data/grantflow_state.db
+      - GRANTFLOW_JOB_RUNNER_MODE=redis_queue
+      - GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=false
+      - GRANTFLOW_JOB_RUNNER_REDIS_URL=redis://redis:6379/0
+      - GRANTFLOW_JOB_RUNNER_REDIS_QUEUE_NAME=grantflow:jobs
       - ENV=prod
     depends_on:
       - chroma
+      - redis
+    volumes:
+      - grantflow_state:/data
+
+  worker:
+    build: .
+    container_name: grantflow_worker
+    command: ["python", "-m", "grantflow.worker"]
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - CHROMA_COLLECTION_PREFIX=grantflow
+      - GRANTFLOW_JOB_STORE=sqlite
+      - GRANTFLOW_HITL_STORE=sqlite
+      - GRANTFLOW_INGEST_STORE=sqlite
+      - GRANTFLOW_SQLITE_PATH=/data/grantflow_state.db
+      - GRANTFLOW_JOB_RUNNER_MODE=redis_queue
+      - GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=true
+      - GRANTFLOW_JOB_RUNNER_REDIS_URL=redis://redis:6379/0
+      - GRANTFLOW_JOB_RUNNER_REDIS_QUEUE_NAME=grantflow:jobs
+      - ENV=prod
+    depends_on:
+      - chroma
+      - redis
     volumes:
       - grantflow_state:/data
 
@@ -28,11 +58,11 @@ services:
     volumes:
       - chroma_data:/chroma/chroma
 
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: grantflow_redis
-  #   ports:
-  #     - "6379:6379"
+  redis:
+    image: redis:7-alpine
+    container_name: grantflow_redis
+    ports:
+      - "6379:6379"
 
 volumes:
   chroma_data:

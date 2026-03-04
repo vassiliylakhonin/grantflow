@@ -78,6 +78,17 @@ pip install ".[dev]"
 uvicorn grantflow.api.app:app --reload
 ```
 
+Optional queue mode (`redis_queue`):
+
+```bash
+export GRANTFLOW_JOB_RUNNER_MODE=redis_queue
+export GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=false
+export GRANTFLOW_JOB_RUNNER_REDIS_URL=redis://127.0.0.1:6379/0
+python -m grantflow.worker
+```
+
+This runs API as dispatcher-only and executes pipeline tasks in a dedicated worker process.
+
 ### Health/readiness
 
 ```bash
@@ -248,6 +259,7 @@ docker-compose up --build
 
 Open:
 - `http://localhost:8000/docs`
+- Compose starts `api + worker + redis + chroma` by default.
 
 ## 12) Development
 

@@ -129,6 +129,7 @@ Notes:
 export GRANTFLOW_JOB_RUNNER_MODE=background_tasks   # or inmemory_queue / redis_queue
 export GRANTFLOW_JOB_RUNNER_WORKER_COUNT=2
 export GRANTFLOW_JOB_RUNNER_QUEUE_MAXSIZE=200
+export GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=true
 export GRANTFLOW_JOB_RUNNER_REDIS_URL=redis://127.0.0.1:6379/0
 export GRANTFLOW_JOB_RUNNER_REDIS_QUEUE_NAME=grantflow:jobs
 export GRANTFLOW_JOB_RUNNER_REDIS_POP_TIMEOUT_SECONDS=1.0
@@ -138,6 +139,13 @@ Notes:
 - `background_tasks` keeps existing FastAPI per-request scheduling behavior.
 - `inmemory_queue` runs pipeline jobs on internal worker threads and can return `503` when queue is full.
 - `redis_queue` uses Redis LIST/BLPOP for queue persistence and worker coordination; requires a reachable Redis instance.
+- Use `GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=false` on API when running a dedicated worker process.
+
+Dedicated worker process (for `redis_queue`):
+
+```bash
+python -m grantflow.worker
+```
 
 ### 5) (Optional) Run preflight readiness check
 
@@ -378,6 +386,8 @@ git clone https://github.com/vassiliylakhonin/grantflow.git
 cd grantflow
 docker-compose up --build
 ```
+
+By default, compose starts `api + worker + redis + chroma`.
 
 ## Reality Check
 

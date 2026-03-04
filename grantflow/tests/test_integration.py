@@ -565,6 +565,38 @@ def test_ready_endpoint():
     assert isinstance(export_runtime_gate_policy["require_pass"], bool)
 
 
+def test_ready_endpoint_redis_dispatcher_mode_without_local_consumer(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.job_runner, "mode", "redis_queue")
+    monkeypatch.setattr(
+        api_app_module,
+        "JOB_RUNNER",
+        type(
+            "_Runner",
+            (),
+            {
+                "diagnostics": staticmethod(
+                    lambda: {
+                        "backend": "redis",
+                        "consumer_enabled": False,
+                        "running": False,
+                        "redis_available": True,
+                        "queue_size": 0,
+                    }
+                )
+            },
+        )(),
+    )
+    monkeypatch.setattr(api_app_module, "_vector_store_readiness", lambda: {"ready": True, "backend": "memory"})
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ready"
+    checks = body["checks"]
+    assert checks["job_runner"]["mode"] == "redis_queue"
+    assert checks["job_runner"]["ready"] is True
+
+
 def test_ready_endpoint_returns_503_when_vector_store_unavailable(monkeypatch):
     class BrokenClient:
         def heartbeat(self):
