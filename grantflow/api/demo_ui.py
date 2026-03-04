@@ -4701,14 +4701,9 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) return;
         persistUiState();
-        const params = new URLSearchParams();
-        const overdueHours = Number.parseInt(String(els.reviewWorkflowOverdueHoursFilter.value || "").trim(), 10);
-        if (Number.isFinite(overdueHours) && overdueHours > 0) {
-          params.set("overdue_after_hours", String(overdueHours));
-        }
-        const q = params.toString();
+        const q = buildReviewWorkflowSlaFilterQueryString();
         const body = await apiFetch(
-          `/status/${encodeURIComponent(jobId)}/review/workflow/sla${q ? `?${q}` : ""}`
+          `/status/${encodeURIComponent(jobId)}/review/workflow/sla${q}`
         );
         renderReviewWorkflowSla(body);
         setJson(els.reviewWorkflowSlaJson, body);
@@ -4869,6 +4864,31 @@ def render_demo_ui_html() -> str:
       function buildReviewWorkflowFilterQueryString() {
         const params = new URLSearchParams();
         if (els.reviewWorkflowEventTypeFilter.value) params.set("event_type", els.reviewWorkflowEventTypeFilter.value);
+        if (els.reviewWorkflowFindingIdFilter.value.trim()) {
+          params.set("finding_id", els.reviewWorkflowFindingIdFilter.value.trim());
+        }
+        if (els.reviewWorkflowFindingCodeFilter.value.trim()) {
+          params.set("finding_code", els.reviewWorkflowFindingCodeFilter.value.trim());
+        }
+        if (els.reviewWorkflowFindingSectionFilter.value) {
+          params.set("finding_section", els.reviewWorkflowFindingSectionFilter.value);
+        }
+        if (els.reviewWorkflowCommentStatusFilter.value) {
+          params.set("comment_status", els.reviewWorkflowCommentStatusFilter.value);
+        }
+        if (els.reviewWorkflowStateFilter.value) {
+          params.set("workflow_state", els.reviewWorkflowStateFilter.value);
+        }
+        const overdueHours = Number.parseInt(String(els.reviewWorkflowOverdueHoursFilter.value || "").trim(), 10);
+        if (Number.isFinite(overdueHours) && overdueHours > 0) {
+          params.set("overdue_after_hours", String(overdueHours));
+        }
+        const q = params.toString();
+        return q ? `?${q}` : "";
+      }
+
+      function buildReviewWorkflowSlaFilterQueryString() {
+        const params = new URLSearchParams();
         if (els.reviewWorkflowFindingIdFilter.value.trim()) {
           params.set("finding_id", els.reviewWorkflowFindingIdFilter.value.trim());
         }

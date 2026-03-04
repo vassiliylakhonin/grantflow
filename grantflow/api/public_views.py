@@ -844,12 +844,22 @@ def public_job_review_workflow_sla_payload(
     job_id: str,
     job: Dict[str, Any],
     *,
+    finding_id: Optional[str] = None,
+    finding_code: Optional[str] = None,
+    finding_section: Optional[str] = None,
+    comment_status: Optional[str] = None,
+    workflow_state: Optional[str] = None,
     overdue_after_hours: int = REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
     top_limit: int = 5,
 ) -> Dict[str, Any]:
     workflow_payload = public_job_review_workflow_payload(
         job_id,
         job,
+        finding_id=finding_id,
+        finding_code=finding_code,
+        finding_section=finding_section,
+        comment_status=comment_status,
+        workflow_state=workflow_state,
         overdue_after_hours=overdue_after_hours,
     )
     findings = workflow_payload.get("findings")

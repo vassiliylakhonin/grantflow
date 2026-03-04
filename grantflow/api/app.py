@@ -5048,6 +5048,11 @@ def get_status_review_workflow(
 def get_status_review_workflow_sla(
     job_id: str,
     request: Request,
+    finding_id: Optional[str] = None,
+    finding_code: Optional[str] = Query(default=None, alias="finding_code"),
+    finding_section: Optional[str] = Query(default=None, alias="finding_section"),
+    comment_status: Optional[str] = Query(default=None, alias="comment_status"),
+    workflow_state: Optional[str] = Query(default=None, alias="workflow_state"),
     overdue_after_hours: int = Query(
         default=REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
         ge=1,
@@ -5056,6 +5061,14 @@ def get_status_review_workflow_sla(
     ),
 ):
     require_api_key_if_configured(request, for_read=True)
+    workflow_state_filter = str(workflow_state or "").strip().lower() or None
+    if workflow_state_filter and workflow_state_filter not in REVIEW_WORKFLOW_STATE_FILTER_VALUES:
+        raise HTTPException(status_code=400, detail="Unsupported workflow_state filter")
+    finding_section_filter = _validated_filter_token(
+        finding_section,
+        allowed={"toc", "logframe", "general"},
+        detail="Unsupported finding_section filter",
+    )
     job = _get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -5065,6 +5078,11 @@ def get_status_review_workflow_sla(
     return public_job_review_workflow_sla_payload(
         job_id,
         job,
+        finding_id=(finding_id or None),
+        finding_code=(str(finding_code or "").strip() or None),
+        finding_section=finding_section_filter,
+        comment_status=(comment_status or None),
+        workflow_state=workflow_state_filter,
         overdue_after_hours=overdue_after_hours,
     )
 

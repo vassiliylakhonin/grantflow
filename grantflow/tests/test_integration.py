@@ -359,6 +359,7 @@ def test_demo_console_page_loads():
     assert 'params.set("finding_section",' in body
     assert 'params.set("workflow_state",' in body
     assert 'params.set("overdue_after_hours",' in body
+    assert "buildReviewWorkflowSlaFilterQueryString" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/profile" in body
@@ -3937,6 +3938,49 @@ def test_status_review_workflow_sla_endpoint_aggregates_overdue_hotspots():
     assert body["top_overdue"][0]["id"] == "finding-a"
     assert body["top_overdue"][1]["id"] == "comment-a"
 
+    section_filtered = client.get(
+        f"/status/{job_id}/review/workflow/sla",
+        params={"finding_section": "logframe", "overdue_after_hours": 2},
+    )
+    assert section_filtered.status_code == 200
+    section_payload = section_filtered.json()
+    assert section_payload["finding_total"] == 1
+    assert section_payload["comment_total"] == 1
+    assert section_payload["overdue_total"] == 0
+    assert section_payload["top_overdue"] == []
+
+    code_filtered = client.get(
+        f"/status/{job_id}/review/workflow/sla",
+        params={"finding_code": "TOC_SCHEMA_INVALID", "overdue_after_hours": 2},
+    )
+    assert code_filtered.status_code == 200
+    code_payload = code_filtered.json()
+    assert code_payload["finding_total"] == 1
+    assert code_payload["comment_total"] == 1
+    assert code_payload["overdue_total"] == 2
+    assert {row["id"] for row in code_payload["top_overdue"]} == {"finding-a", "comment-a"}
+
+    workflow_filtered = client.get(
+        f"/status/{job_id}/review/workflow/sla",
+        params={"workflow_state": "pending", "overdue_after_hours": 2},
+    )
+    assert workflow_filtered.status_code == 200
+    workflow_payload = workflow_filtered.json()
+    assert workflow_payload["overdue_total"] == 0
+    assert workflow_payload["finding_total"] == 1
+    assert workflow_payload["comment_total"] == 1
+
+    invalid_state = client.get(
+        f"/status/{job_id}/review/workflow/sla",
+        params={"workflow_state": "inbox", "overdue_after_hours": 2},
+    )
+    assert invalid_state.status_code == 400
+    invalid_section = client.get(
+        f"/status/{job_id}/review/workflow/sla",
+        params={"finding_section": "budget", "overdue_after_hours": 2},
+    )
+    assert invalid_section.status_code == 400
+
 
 def test_status_review_workflow_sla_profile_endpoint_returns_saved_or_default_profile():
     saved_job_id = "review-workflow-sla-profile-saved-job-1"
@@ -6833,6 +6877,12 @@ def test_openapi_declares_api_key_security_scheme():
     portfolio_quality_export_params = (
         ((spec.get("paths") or {}).get("/portfolio/quality/export") or {}).get("get") or {}
     ).get("parameters") or []
+    review_workflow_params = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow") or {}).get("get") or {}
+    ).get("parameters") or []
+    review_workflow_sla_params = (
+        ((spec.get("paths") or {}).get("/status/{job_id}/review/workflow/sla") or {}).get("get") or {}
+    ).get("parameters") or []
     assert "toc_text_risk_level" in [str(p.get("name") or "") for p in portfolio_metrics_params if isinstance(p, dict)]
     assert "toc_text_risk_level" in [
         str(p.get("name") or "") for p in portfolio_metrics_export_params if isinstance(p, dict)
@@ -6841,6 +6891,20 @@ def test_openapi_declares_api_key_security_scheme():
     assert "toc_text_risk_level" in [
         str(p.get("name") or "") for p in portfolio_quality_export_params if isinstance(p, dict)
     ]
+    review_workflow_param_names = [str(p.get("name") or "") for p in review_workflow_params if isinstance(p, dict)]
+    review_workflow_sla_param_names = [
+        str(p.get("name") or "") for p in review_workflow_sla_params if isinstance(p, dict)
+    ]
+    for name in (
+        "finding_id",
+        "finding_code",
+        "finding_section",
+        "comment_status",
+        "workflow_state",
+        "overdue_after_hours",
+    ):
+        assert name in review_workflow_param_names
+        assert name in review_workflow_sla_param_names
     portfolio_filters_schema_props = (
         ((schemas.get("PortfolioMetricsFiltersPublicResponse") or {}).get("properties") or {})
         if isinstance(schemas.get("PortfolioMetricsFiltersPublicResponse"), dict)
