@@ -860,6 +860,61 @@ class PortfolioReviewWorkflowSLAHotspotsPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class PortfolioReviewWorkflowSLAHotspotsTrendsFiltersPublicResponse(BaseModel):
+    donor_id: Optional[str] = None
+    status: Optional[str] = None
+    hitl_enabled: Optional[bool] = None
+    warning_level: Optional[str] = None
+    grounding_risk_level: Optional[str] = None
+    toc_text_risk_level: Optional[str] = None
+    finding_id: Optional[str] = None
+    finding_code: Optional[str] = None
+    finding_section: Optional[str] = None
+    comment_status: Optional[str] = None
+    workflow_state: Optional[str] = None
+    overdue_after_hours: Optional[int] = None
+    top_limit: Optional[int] = None
+    hotspot_kind: Optional[str] = None
+    hotspot_severity: Optional[str] = None
+    min_overdue_hours: Optional[float] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class PortfolioReviewWorkflowSLAHotspotsTrendsPublicResponse(BaseModel):
+    job_count: int
+    jobs_with_overdue: int
+    jobs_without_overdue: int
+    generated_at: str
+    filters: PortfolioReviewWorkflowSLAHotspotsTrendsFiltersPublicResponse
+    bucket_granularity: str = "day"
+    bucket_count: int = 0
+    time_window_start: Optional[str] = None
+    time_window_end: Optional[str] = None
+    hotspot_count_total: int = 0
+    avg_hotspots_per_job: Optional[float] = None
+    avg_hotspots_per_active_job: Optional[float] = None
+    top_kind: Optional[str] = None
+    top_kind_count: Optional[int] = None
+    top_severity: Optional[str] = None
+    top_severity_count: Optional[int] = None
+    top_section: Optional[str] = None
+    top_section_count: Optional[int] = None
+    top_donor_id: Optional[str] = None
+    top_donor_hotspot_count: Optional[int] = None
+    donor_hotspot_counts: Dict[str, int]
+    job_hotspot_counts: Dict[str, int]
+    oldest_overdue: Optional[PortfolioReviewWorkflowSLAItemPublicResponse] = None
+    top_overdue: list[PortfolioReviewWorkflowSLAItemPublicResponse]
+    total_series: list[JobReviewWorkflowSLATrendPointPublicResponse]
+    severity_series: Dict[str, list[JobReviewWorkflowSLATrendPointPublicResponse]]
+    section_series: Dict[str, list[JobReviewWorkflowSLATrendPointPublicResponse]]
+    kind_series: Dict[str, list[JobReviewWorkflowSLATrendPointPublicResponse]]
+    donor_series: Dict[str, list[JobReviewWorkflowSLATrendPointPublicResponse]]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioReviewWorkflowTrendsFiltersPublicResponse(BaseModel):
     donor_id: Optional[str] = None
     status: Optional[str] = None

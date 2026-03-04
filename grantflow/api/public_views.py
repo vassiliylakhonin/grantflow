@@ -4421,6 +4421,270 @@ def public_portfolio_review_workflow_sla_hotspots_payload(
     }
 
 
+def public_portfolio_review_workflow_sla_hotspots_trends_payload(
+    jobs_by_id: Dict[str, Dict[str, Any]],
+    *,
+    donor_id: Optional[str] = None,
+    status: Optional[str] = None,
+    hitl_enabled: Optional[bool] = None,
+    warning_level: Optional[str] = None,
+    grounding_risk_level: Optional[str] = None,
+    toc_text_risk_level: Optional[str] = None,
+    finding_id: Optional[str] = None,
+    finding_code: Optional[str] = None,
+    finding_section: Optional[str] = None,
+    comment_status: Optional[str] = None,
+    workflow_state: Optional[str] = None,
+    overdue_after_hours: int = REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+    top_limit: int = 10,
+    hotspot_kind: Optional[str] = None,
+    hotspot_severity: Optional[str] = None,
+    min_overdue_hours: Optional[float] = None,
+) -> Dict[str, Any]:
+    warning_level_filter = _normalize_warning_level_filter(warning_level)
+    grounding_risk_filter = _normalize_grounding_risk_filter(grounding_risk_level)
+    toc_text_risk_filter = _normalize_toc_text_risk_filter(toc_text_risk_level)
+    workflow_state_filter = _normalize_review_workflow_state_filter(workflow_state)
+    finding_id_filter = str(finding_id or "").strip() or None
+    finding_code_filter = str(finding_code or "").strip() or None
+    finding_section_filter = str(finding_section or "").strip().lower() or None
+    comment_status_filter = str(comment_status or "").strip().lower() or None
+    overdue_after_hours_value = (
+        int(overdue_after_hours)
+        if isinstance(overdue_after_hours, int) and overdue_after_hours > 0
+        else REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS
+    )
+    top_n = max(1, int(top_limit or 1))
+    hotspot_kind_filter = str(hotspot_kind or "").strip().lower() or None
+    if hotspot_kind_filter not in {None, "finding", "comment"}:
+        hotspot_kind_filter = None
+    hotspot_severity_filter = str(hotspot_severity or "").strip().lower() or None
+    if hotspot_severity_filter not in {None, "high", "medium", "low", "unknown"}:
+        hotspot_severity_filter = None
+    min_overdue_hours_value: Optional[float] = None
+    if isinstance(min_overdue_hours, (int, float)):
+        min_overdue_hours_value = max(0.0, float(min_overdue_hours))
+
+    filtered: list[tuple[str, Dict[str, Any]]] = []
+    for job_id, job in jobs_by_id.items():
+        if not isinstance(job, dict):
+            continue
+        job_status = str(job.get("status") or "")
+        job_donor = _job_donor_id(job)
+        job_hitl = bool(job.get("hitl_enabled"))
+        if donor_id and job_donor != donor_id:
+            continue
+        if status and job_status != status:
+            continue
+        if hitl_enabled is not None and job_hitl != hitl_enabled:
+            continue
+        if warning_level_filter is not None and _job_warning_level(job) != warning_level_filter:
+            continue
+        if grounding_risk_filter is not None and _job_grounding_risk_level(job) != grounding_risk_filter:
+            continue
+        if toc_text_risk_filter is not None and _job_toc_text_risk_level(job) != toc_text_risk_filter:
+            continue
+        filtered.append((str(job_id), job))
+
+    total_bucket_counts: Dict[str, int] = {}
+    severity_bucket_counts: Dict[str, Dict[str, int]] = {}
+    section_bucket_counts: Dict[str, Dict[str, int]] = {}
+    kind_bucket_counts: Dict[str, Dict[str, int]] = {}
+    donor_bucket_counts: Dict[str, Dict[str, int]] = {}
+    donor_hotspot_counts: Dict[str, int] = {}
+    job_hotspot_counts: Dict[str, int] = {}
+    jobs_with_overdue = 0
+    all_hotspots: list[Dict[str, Any]] = []
+
+    for job_id, job in filtered:
+        snapshot = _review_workflow_sla_snapshot(
+            job_id,
+            job,
+            finding_id=finding_id_filter,
+            finding_code=finding_code_filter,
+            finding_section=finding_section_filter,
+            comment_status=comment_status_filter,
+            workflow_state=workflow_state_filter,
+            overdue_after_hours=overdue_after_hours_value,
+        )
+        overdue_rows = snapshot.get("overdue_rows")
+        overdue_rows_list = (
+            [item for item in overdue_rows if isinstance(item, dict)] if isinstance(overdue_rows, list) else []
+        )
+        donor_token = _job_donor_id(job, default="unknown")
+        donor_buckets = donor_bucket_counts.setdefault(donor_token, {})
+        job_matches = 0
+
+        for row in overdue_rows_list:
+            current = dict(row)
+            row_kind = str(current.get("kind") or "").strip().lower() or "unknown"
+            row_severity = str(current.get("severity") or "").strip().lower() or "unknown"
+            row_section = str(current.get("section") or "").strip().lower() or "unknown"
+            row_overdue_hours_raw = current.get("overdue_hours")
+            row_overdue_hours: Optional[float] = None
+            if isinstance(row_overdue_hours_raw, (int, float, str)):
+                try:
+                    row_overdue_hours = float(row_overdue_hours_raw)
+                except (TypeError, ValueError):
+                    row_overdue_hours = None
+
+            if hotspot_kind_filter and row_kind != hotspot_kind_filter:
+                continue
+            if hotspot_severity_filter and row_severity != hotspot_severity_filter:
+                continue
+            if min_overdue_hours_value is not None and (
+                row_overdue_hours is None or row_overdue_hours < min_overdue_hours_value
+            ):
+                continue
+
+            due_dt = _parse_event_ts(current.get("due_at"))
+            bucket = due_dt.date().isoformat() if due_dt is not None else "unknown"
+            total_bucket_counts[bucket] = int(total_bucket_counts.get(bucket) or 0) + 1
+
+            severity_counts = severity_bucket_counts.setdefault(row_severity, {})
+            severity_counts[bucket] = int(severity_counts.get(bucket) or 0) + 1
+
+            section_counts = section_bucket_counts.setdefault(row_section, {})
+            section_counts[bucket] = int(section_counts.get(bucket) or 0) + 1
+
+            kind_counts = kind_bucket_counts.setdefault(row_kind, {})
+            kind_counts[bucket] = int(kind_counts.get(bucket) or 0) + 1
+
+            donor_buckets[bucket] = int(donor_buckets.get(bucket) or 0) + 1
+
+            current["job_id"] = str(job_id)
+            current["donor_id"] = donor_token
+            all_hotspots.append(current)
+            job_matches += 1
+
+        job_hotspot_counts[str(job_id)] = job_matches
+        if job_matches > 0:
+            jobs_with_overdue += 1
+        donor_hotspot_counts[donor_token] = int(donor_hotspot_counts.get(donor_token) or 0) + job_matches
+
+    def _series_rows(counts: Dict[str, int]) -> list[Dict[str, Any]]:
+        return [{"bucket": bucket, "count": int(counts.get(bucket) or 0)} for bucket in sorted(counts.keys())]
+
+    total_series = _series_rows(total_bucket_counts)
+
+    severity_series: Dict[str, list[Dict[str, Any]]] = {}
+    for level in ("high", "medium", "low", "unknown"):
+        severity_series[level] = _series_rows(severity_bucket_counts.get(level, {}))
+    for level in sorted(severity_bucket_counts.keys()):
+        if level in severity_series:
+            continue
+        severity_series[level] = _series_rows(severity_bucket_counts.get(level, {}))
+
+    section_series: Dict[str, list[Dict[str, Any]]] = {}
+    for section in sorted(section_bucket_counts.keys()):
+        section_series[section] = _series_rows(section_bucket_counts.get(section, {}))
+
+    kind_series: Dict[str, list[Dict[str, Any]]] = {}
+    for kind in sorted(kind_bucket_counts.keys()):
+        kind_series[kind] = _series_rows(kind_bucket_counts.get(kind, {}))
+
+    donor_series: Dict[str, list[Dict[str, Any]]] = {}
+    for donor_key in sorted(donor_bucket_counts.keys()):
+        donor_series[donor_key] = _series_rows(donor_bucket_counts.get(donor_key, {}))
+
+    dated_buckets = []
+    for point in total_series:
+        bucket = str(point.get("bucket") or "").strip()
+        try:
+            datetime.strptime(bucket, "%Y-%m-%d")
+            dated_buckets.append(bucket)
+        except ValueError:
+            continue
+    time_window_start = dated_buckets[0] if dated_buckets else None
+    time_window_end = dated_buckets[-1] if dated_buckets else None
+
+    def _top_key_by_series(series_map: Dict[str, list[Dict[str, Any]]]) -> tuple[Optional[str], Optional[int]]:
+        top_key = None
+        top_total = -1
+        for key, rows in series_map.items():
+            current_total = sum(int(row.get("count") or 0) for row in rows if isinstance(row, dict))
+            if current_total > top_total:
+                top_key = key
+                top_total = current_total
+        return top_key, (top_total if top_key is not None else None)
+
+    top_kind, top_kind_count = _top_key_by_series(kind_series)
+    top_severity, top_severity_count = _top_key_by_series(severity_series)
+    top_section, top_section_count = _top_key_by_series(section_series)
+
+    top_donor_id = None
+    top_donor_hotspot_count = -1
+    for key, total in donor_hotspot_counts.items():
+        if int(total) > top_donor_hotspot_count:
+            top_donor_id = key
+            top_donor_hotspot_count = int(total)
+
+    all_hotspots.sort(
+        key=lambda row: (
+            float(row.get("overdue_hours") or -1.0) if isinstance(row.get("overdue_hours"), (int, float)) else -1.0,
+            str(row.get("due_at") or ""),
+        ),
+        reverse=True,
+    )
+    top_overdue = all_hotspots[:top_n]
+    oldest_overdue = top_overdue[0] if top_overdue else None
+
+    job_count = len(filtered)
+    jobs_without_overdue = max(0, job_count - jobs_with_overdue)
+    hotspot_count_total = len(all_hotspots)
+
+    return {
+        "job_count": job_count,
+        "jobs_with_overdue": jobs_with_overdue,
+        "jobs_without_overdue": jobs_without_overdue,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "filters": {
+            "donor_id": donor_id,
+            "status": status,
+            "hitl_enabled": hitl_enabled,
+            "warning_level": warning_level_filter,
+            "grounding_risk_level": grounding_risk_filter,
+            "toc_text_risk_level": toc_text_risk_filter,
+            "finding_id": finding_id_filter,
+            "finding_code": finding_code_filter,
+            "finding_section": finding_section_filter,
+            "comment_status": comment_status_filter,
+            "workflow_state": workflow_state_filter,
+            "overdue_after_hours": overdue_after_hours_value,
+            "top_limit": top_n,
+            "hotspot_kind": hotspot_kind_filter,
+            "hotspot_severity": hotspot_severity_filter,
+            "min_overdue_hours": min_overdue_hours_value,
+        },
+        "bucket_granularity": "day",
+        "bucket_count": len(total_series),
+        "time_window_start": time_window_start,
+        "time_window_end": time_window_end,
+        "hotspot_count_total": hotspot_count_total,
+        "avg_hotspots_per_job": (round(hotspot_count_total / job_count, 3) if job_count else None),
+        "avg_hotspots_per_active_job": (
+            round(hotspot_count_total / jobs_with_overdue, 3) if jobs_with_overdue else None
+        ),
+        "top_kind": top_kind,
+        "top_kind_count": top_kind_count,
+        "top_severity": top_severity,
+        "top_severity_count": top_severity_count,
+        "top_section": top_section,
+        "top_section_count": top_section_count,
+        "top_donor_id": top_donor_id,
+        "top_donor_hotspot_count": top_donor_hotspot_count if top_donor_id is not None else None,
+        "donor_hotspot_counts": dict(sorted(donor_hotspot_counts.items())),
+        "job_hotspot_counts": dict(sorted(job_hotspot_counts.items())),
+        "oldest_overdue": oldest_overdue,
+        "top_overdue": top_overdue,
+        "total_series": total_series,
+        "severity_series": severity_series,
+        "section_series": section_series,
+        "kind_series": kind_series,
+        "donor_series": donor_series,
+    }
+
+
 def public_portfolio_review_workflow_trends_payload(
     jobs_by_id: Dict[str, Dict[str, Any]],
     *,
@@ -4866,6 +5130,10 @@ def public_portfolio_review_workflow_sla_csv_text(payload: Dict[str, Any]) -> st
 
 
 def public_portfolio_review_workflow_sla_hotspots_csv_text(payload: Dict[str, Any]) -> str:
+    return csv_text_from_mapping(payload)
+
+
+def public_portfolio_review_workflow_sla_hotspots_trends_csv_text(payload: Dict[str, Any]) -> str:
     return csv_text_from_mapping(payload)
 
 

@@ -293,6 +293,8 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
   - `donor_id`, `tenant_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `toc_text_risk_level`, `finding_id`, `finding_code`, `finding_section`, `comment_status`, `workflow_state`, `overdue_after_hours`, `top_limit`
 - `GET /portfolio/review-workflow/sla/hotspots` and `/portfolio/review-workflow/sla/hotspots/export` support filters:
   - `donor_id`, `tenant_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `toc_text_risk_level`, `finding_id`, `finding_code`, `finding_section`, `comment_status`, `workflow_state`, `overdue_after_hours`, `top_limit`, `hotspot_kind`, `hotspot_severity`, `min_overdue_hours`
+- `GET /portfolio/review-workflow/sla/hotspots/trends` and `/portfolio/review-workflow/sla/hotspots/trends/export` support filters:
+  - `donor_id`, `tenant_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `toc_text_risk_level`, `finding_id`, `finding_code`, `finding_section`, `comment_status`, `workflow_state`, `overdue_after_hours`, `top_limit`, `hotspot_kind`, `hotspot_severity`, `min_overdue_hours`
 - `GET /portfolio/review-workflow/trends`, `/portfolio/review-workflow/trends/export`, `/portfolio/review-workflow/sla/trends`, `/portfolio/review-workflow/sla/trends/export` support filters:
   - `donor_id`, `tenant_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `toc_text_risk_level`, `finding_id`, `finding_code`, `finding_section`, `comment_status`, `workflow_state`, `overdue_after_hours` (`event_type` is available on review-workflow trends)
 - `POST /hitl/approve`, `GET /hitl/pending` (`tenant_id` supported)
