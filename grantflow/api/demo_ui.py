@@ -1354,6 +1354,8 @@ def render_demo_ui_html() -> str:
             <div class="row3" style="margin-top:10px;">
               <button id="reviewWorkflowSlaBtn" class="ghost">Load Workflow SLA</button>
               <button id="reviewWorkflowSlaTrendsBtn" class="ghost">Load SLA Trends</button>
+              <button id="reviewWorkflowSlaHotspotsBtn" class="ghost">Load SLA Hotspots</button>
+              <button id="reviewWorkflowSlaHotspotsTrendsBtn" class="ghost">Load SLA Hotspots Trends</button>
               <button id="reviewWorkflowSlaProfileBtn" class="ghost">Load SLA Profile</button>
               <div id="reviewWorkflowSlaSummaryLine" class="footer-note mono" style="align-self:center;">
                 sla: overdue=- · breach_rate=- · oldest=-
@@ -1375,6 +1377,48 @@ def render_demo_ui_html() -> str:
               <button id="reviewWorkflowSlaTrendsExportJsonBtn" class="ghost">Export SLA Trends JSON</button>
               <button id="reviewWorkflowSlaTrendsExportCsvBtn" class="secondary">Export SLA Trends CSV</button>
               <div class="sub" style="align-self:center;">SLA trends export uses current workflow filters.</div>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="reviewWorkflowSlaHotspotsExportJsonBtn" class="ghost">Export SLA Hotspots JSON</button>
+              <button id="reviewWorkflowSlaHotspotsExportCsvBtn" class="secondary">Export SLA Hotspots CSV</button>
+              <div id="reviewWorkflowSlaHotspotsSummaryLine" class="footer-note mono" style="align-self:center;">
+                hotspots: shown=-/- · max_overdue=- · avg_overdue=-
+              </div>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="reviewWorkflowSlaHotspotsTrendsExportJsonBtn" class="ghost">Export SLA Hotspots Trends JSON</button>
+              <button id="reviewWorkflowSlaHotspotsTrendsExportCsvBtn" class="secondary">Export SLA Hotspots Trends CSV</button>
+              <div id="reviewWorkflowSlaHotspotsTrendsSummaryLine" class="footer-note mono" style="align-self:center;">
+                hotspots trends: buckets=- · window=-..- · hotspots=-
+              </div>
+            </div>
+            <div class="row4" style="margin-top:10px;">
+              <div>
+                <label for="reviewWorkflowSlaHotspotKindFilter">Hotspot Kind</label>
+                <select id="reviewWorkflowSlaHotspotKindFilter">
+                  <option value="">all</option>
+                  <option value="finding">finding</option>
+                  <option value="comment">comment</option>
+                </select>
+              </div>
+              <div>
+                <label for="reviewWorkflowSlaHotspotSeverityFilter">Hotspot Severity</label>
+                <select id="reviewWorkflowSlaHotspotSeverityFilter">
+                  <option value="">all</option>
+                  <option value="high">high</option>
+                  <option value="medium">medium</option>
+                  <option value="low">low</option>
+                  <option value="unknown">unknown</option>
+                </select>
+              </div>
+              <div>
+                <label for="reviewWorkflowSlaMinOverdueHoursFilter">Min Overdue (h)</label>
+                <input id="reviewWorkflowSlaMinOverdueHoursFilter" type="number" min="0" step="0.5" placeholder="0" />
+              </div>
+              <div>
+                <label for="reviewWorkflowSlaTopLimitFilter">Top Limit</label>
+                <input id="reviewWorkflowSlaTopLimitFilter" type="number" min="1" step="1" value="10" />
+              </div>
             </div>
             <div class="row4" style="margin-top:10px;">
               <div>
@@ -1414,10 +1458,31 @@ def render_demo_ui_html() -> str:
               <div class="list" id="reviewWorkflowSlaTrendsList"></div>
             </div>
             <div style="margin-top:10px;">
+              <label>SLA Hotspots Trends</label>
+              <div id="reviewWorkflowSlaHotspotsTrendSparkline" class="footer-note mono">trend: -</div>
+              <div class="list" id="reviewWorkflowSlaHotspotsTrendsList"></div>
+            </div>
+            <div style="margin-top:10px;">
               <pre id="reviewWorkflowSlaJson">{}</pre>
             </div>
             <div style="margin-top:10px;">
               <pre id="reviewWorkflowSlaTrendsJson">{}</pre>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="copyReviewWorkflowSlaHotspotsJsonBtn" class="ghost">Copy SLA Hotspots JSON</button>
+              <button id="downloadReviewWorkflowSlaHotspotsJsonBtn" class="ghost">Download SLA Hotspots JSON</button>
+              <button id="downloadReviewWorkflowSlaHotspotsCsvBtn" class="secondary">Download SLA Hotspots CSV</button>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="reviewWorkflowSlaHotspotsJson">{}</pre>
+            </div>
+            <div class="row3" style="margin-top:10px;">
+              <button id="copyReviewWorkflowSlaHotspotsTrendsJsonBtn" class="ghost">Copy SLA Hotspots Trends JSON</button>
+              <button id="downloadReviewWorkflowSlaHotspotsTrendsJsonBtn" class="ghost">Download SLA Hotspots Trends JSON</button>
+              <button id="downloadReviewWorkflowSlaHotspotsTrendsCsvBtn" class="secondary">Download SLA Hotspots Trends CSV</button>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="reviewWorkflowSlaHotspotsTrendsJson">{}</pre>
             </div>
             <div style="margin-top:10px;">
               <div id="reviewWorkflowSlaProfileSummaryLine" class="footer-note mono">profile: source=- · updated=-</div>
@@ -1469,6 +1534,10 @@ def render_demo_ui_html() -> str:
         ["reviewWorkflowCommentStatusFilter", "grantflow_demo_review_workflow_comment_status"],
         ["reviewWorkflowStateFilter", "grantflow_demo_review_workflow_state"],
         ["reviewWorkflowOverdueHoursFilter", "grantflow_demo_review_workflow_overdue_hours"],
+        ["reviewWorkflowSlaHotspotKindFilter", "grantflow_demo_review_workflow_sla_hotspot_kind"],
+        ["reviewWorkflowSlaHotspotSeverityFilter", "grantflow_demo_review_workflow_sla_hotspot_severity"],
+        ["reviewWorkflowSlaMinOverdueHoursFilter", "grantflow_demo_review_workflow_sla_min_overdue_hours"],
+        ["reviewWorkflowSlaTopLimitFilter", "grantflow_demo_review_workflow_sla_top_limit"],
         ["reviewWorkflowSlaHighHours", "grantflow_demo_review_workflow_sla_high_hours"],
         ["reviewWorkflowSlaMediumHours", "grantflow_demo_review_workflow_sla_medium_hours"],
         ["reviewWorkflowSlaLowHours", "grantflow_demo_review_workflow_sla_low_hours"],
@@ -1750,6 +1819,10 @@ def render_demo_ui_html() -> str:
         reviewWorkflowCommentStatusFilter: $("reviewWorkflowCommentStatusFilter"),
         reviewWorkflowStateFilter: $("reviewWorkflowStateFilter"),
         reviewWorkflowOverdueHoursFilter: $("reviewWorkflowOverdueHoursFilter"),
+        reviewWorkflowSlaHotspotKindFilter: $("reviewWorkflowSlaHotspotKindFilter"),
+        reviewWorkflowSlaHotspotSeverityFilter: $("reviewWorkflowSlaHotspotSeverityFilter"),
+        reviewWorkflowSlaMinOverdueHoursFilter: $("reviewWorkflowSlaMinOverdueHoursFilter"),
+        reviewWorkflowSlaTopLimitFilter: $("reviewWorkflowSlaTopLimitFilter"),
         reviewWorkflowSlaHighHours: $("reviewWorkflowSlaHighHours"),
         reviewWorkflowSlaMediumHours: $("reviewWorkflowSlaMediumHours"),
         reviewWorkflowSlaLowHours: $("reviewWorkflowSlaLowHours"),
@@ -1760,19 +1833,37 @@ def render_demo_ui_html() -> str:
         reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
         reviewWorkflowSlaBtn: $("reviewWorkflowSlaBtn"),
         reviewWorkflowSlaTrendsBtn: $("reviewWorkflowSlaTrendsBtn"),
+        reviewWorkflowSlaHotspotsBtn: $("reviewWorkflowSlaHotspotsBtn"),
+        reviewWorkflowSlaHotspotsTrendsBtn: $("reviewWorkflowSlaHotspotsTrendsBtn"),
         reviewWorkflowSlaProfileBtn: $("reviewWorkflowSlaProfileBtn"),
         reviewWorkflowSlaRecomputeBtn: $("reviewWorkflowSlaRecomputeBtn"),
         reviewWorkflowSlaExportJsonBtn: $("reviewWorkflowSlaExportJsonBtn"),
         reviewWorkflowSlaExportCsvBtn: $("reviewWorkflowSlaExportCsvBtn"),
         reviewWorkflowSlaTrendsExportJsonBtn: $("reviewWorkflowSlaTrendsExportJsonBtn"),
         reviewWorkflowSlaTrendsExportCsvBtn: $("reviewWorkflowSlaTrendsExportCsvBtn"),
+        reviewWorkflowSlaHotspotsExportJsonBtn: $("reviewWorkflowSlaHotspotsExportJsonBtn"),
+        reviewWorkflowSlaHotspotsExportCsvBtn: $("reviewWorkflowSlaHotspotsExportCsvBtn"),
+        reviewWorkflowSlaHotspotsTrendsExportJsonBtn: $("reviewWorkflowSlaHotspotsTrendsExportJsonBtn"),
+        reviewWorkflowSlaHotspotsTrendsExportCsvBtn: $("reviewWorkflowSlaHotspotsTrendsExportCsvBtn"),
+        copyReviewWorkflowSlaHotspotsJsonBtn: $("copyReviewWorkflowSlaHotspotsJsonBtn"),
+        downloadReviewWorkflowSlaHotspotsJsonBtn: $("downloadReviewWorkflowSlaHotspotsJsonBtn"),
+        downloadReviewWorkflowSlaHotspotsCsvBtn: $("downloadReviewWorkflowSlaHotspotsCsvBtn"),
+        copyReviewWorkflowSlaHotspotsTrendsJsonBtn: $("copyReviewWorkflowSlaHotspotsTrendsJsonBtn"),
+        downloadReviewWorkflowSlaHotspotsTrendsJsonBtn: $("downloadReviewWorkflowSlaHotspotsTrendsJsonBtn"),
+        downloadReviewWorkflowSlaHotspotsTrendsCsvBtn: $("downloadReviewWorkflowSlaHotspotsTrendsCsvBtn"),
         reviewWorkflowSlaSummaryLine: $("reviewWorkflowSlaSummaryLine"),
         reviewWorkflowSlaTrendsSummaryLine: $("reviewWorkflowSlaTrendsSummaryLine"),
+        reviewWorkflowSlaHotspotsSummaryLine: $("reviewWorkflowSlaHotspotsSummaryLine"),
+        reviewWorkflowSlaHotspotsTrendsSummaryLine: $("reviewWorkflowSlaHotspotsTrendsSummaryLine"),
         reviewWorkflowSlaHotspotsList: $("reviewWorkflowSlaHotspotsList"),
         reviewWorkflowSlaTrendSparkline: $("reviewWorkflowSlaTrendSparkline"),
         reviewWorkflowSlaTrendsList: $("reviewWorkflowSlaTrendsList"),
+        reviewWorkflowSlaHotspotsTrendSparkline: $("reviewWorkflowSlaHotspotsTrendSparkline"),
+        reviewWorkflowSlaHotspotsTrendsList: $("reviewWorkflowSlaHotspotsTrendsList"),
         reviewWorkflowSlaJson: $("reviewWorkflowSlaJson"),
         reviewWorkflowSlaTrendsJson: $("reviewWorkflowSlaTrendsJson"),
+        reviewWorkflowSlaHotspotsJson: $("reviewWorkflowSlaHotspotsJson"),
+        reviewWorkflowSlaHotspotsTrendsJson: $("reviewWorkflowSlaHotspotsTrendsJson"),
         reviewWorkflowSlaProfileSummaryLine: $("reviewWorkflowSlaProfileSummaryLine"),
         reviewWorkflowSlaProfileJson: $("reviewWorkflowSlaProfileJson"),
         metricsCards: $("metricsCards"),
@@ -2025,15 +2116,15 @@ def render_demo_ui_html() -> str:
         els.reviewWorkflowCommentStatusFilter.value = "";
         els.reviewWorkflowStateFilter.value = "";
         els.reviewWorkflowOverdueHoursFilter.value = "48";
+        els.reviewWorkflowSlaHotspotKindFilter.value = "";
+        els.reviewWorkflowSlaHotspotSeverityFilter.value = "";
+        els.reviewWorkflowSlaMinOverdueHoursFilter.value = "";
+        els.reviewWorkflowSlaTopLimitFilter.value = "10";
         els.reviewWorkflowSlaHighHours.value = "24";
         els.reviewWorkflowSlaMediumHours.value = "72";
         els.reviewWorkflowSlaLowHours.value = "120";
         els.reviewWorkflowSlaCommentDefaultHours.value = "72";
         els.reviewWorkflowSlaUseSavedProfile.value = "true";
-        els.portfolioSlaHotspotKindFilter.value = "";
-        els.portfolioSlaHotspotSeverityFilter.value = "";
-        els.portfolioSlaMinOverdueHoursFilter.value = "";
-        els.portfolioSlaTopLimitFilter.value = "10";
         persistUiState();
       }
 
@@ -5102,6 +5193,140 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function renderReviewWorkflowSlaHotspots(body) {
+        const hotspots = Array.isArray(body?.top_overdue) ? body.top_overdue : [];
+        const shown = Number(body?.hotspot_count || hotspots.length || 0);
+        const total = Number(body?.total_overdue_items || hotspots.length || 0);
+        const maxOverdue =
+          body?.max_overdue_hours != null && Number.isFinite(Number(body.max_overdue_hours))
+            ? `${Number(body.max_overdue_hours).toFixed(2)}h`
+            : "-";
+        const avgOverdue =
+          body?.avg_overdue_hours != null && Number.isFinite(Number(body.avg_overdue_hours))
+            ? `${Number(body.avg_overdue_hours).toFixed(2)}h`
+            : "-";
+        if (els.reviewWorkflowSlaHotspotsSummaryLine) {
+          els.reviewWorkflowSlaHotspotsSummaryLine.textContent =
+            `hotspots: shown=${shown}/${total} · max_overdue=${maxOverdue} · avg_overdue=${avgOverdue}`;
+        }
+
+        els.reviewWorkflowSlaHotspotsList.innerHTML = "";
+        if (!hotspots.length) {
+          els.reviewWorkflowSlaHotspotsList.innerHTML = `<div class="item"><div class="sub">No SLA hotspots for current filters.</div></div>`;
+          return;
+        }
+        for (const item of hotspots) {
+          const overdueHours =
+            item?.overdue_hours != null && Number.isFinite(Number(item.overdue_hours))
+              ? `${Number(item.overdue_hours).toFixed(2)}h overdue`
+              : "overdue";
+          const bits = [
+            item.kind || "item",
+            item.status || "-",
+            item.section || "-",
+            item.severity || "-",
+            item.id ? `#${String(item.id).slice(0, 8)}` : null,
+          ].filter(Boolean);
+          const meta = [
+            item.due_at ? `due ${item.due_at}` : null,
+            overdueHours,
+            item.linked_finding_id ? `finding ${String(item.linked_finding_id).slice(0, 8)}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(bits.join(" · "))}</div>
+            <div class="sub">${escapeHtml(item.message || "")}</div>
+            <div class="sub" style="margin-top:6px;">${escapeHtml(meta)}</div>
+          `;
+          els.reviewWorkflowSlaHotspotsList.appendChild(div);
+        }
+      }
+
+      function renderReviewWorkflowSlaHotspotsTrends(body) {
+        const totalSeries = Array.isArray(body?.total_series) ? body.total_series : [];
+        const kindSeriesRaw = body?.kind_series && typeof body.kind_series === "object" ? body.kind_series : {};
+        const severitySeriesRaw = body?.severity_series && typeof body.severity_series === "object"
+          ? body.severity_series
+          : {};
+        const hotspotTotal = Number(body?.hotspot_count_total || 0);
+        const bucketCount = Number(body?.bucket_count || totalSeries.length || 0);
+        const windowStart = String(body?.time_window_start || "-");
+        const windowEnd = String(body?.time_window_end || "-");
+        if (els.reviewWorkflowSlaHotspotsTrendsSummaryLine) {
+          els.reviewWorkflowSlaHotspotsTrendsSummaryLine.textContent =
+            `hotspots trends: buckets=${bucketCount} · window=${windowStart}..${windowEnd} · hotspots=${hotspotTotal}`;
+        }
+
+        const sparklinePalette = " .:-=+*#%@";
+        const seriesCounts = totalSeries.map((point) => Number(point?.count || 0));
+        const maxCount = seriesCounts.length ? Math.max(...seriesCounts) : 0;
+        const sparkline = seriesCounts.length
+          ? seriesCounts
+              .map((count) => {
+                if (maxCount <= 0) return ".";
+                const idx = Math.min(
+                  sparklinePalette.length - 1,
+                  Math.max(0, Math.round((count / maxCount) * (sparklinePalette.length - 1)))
+                );
+                return sparklinePalette.charAt(idx);
+              })
+              .join("")
+          : "-";
+        if (els.reviewWorkflowSlaHotspotsTrendSparkline) {
+          els.reviewWorkflowSlaHotspotsTrendSparkline.textContent = `trend: ${sparkline} (max=${maxCount})`;
+        }
+
+        const kindBucketMap = {};
+        for (const [kind, series] of Object.entries(kindSeriesRaw)) {
+          if (!Array.isArray(series)) continue;
+          const bucketMap = {};
+          for (const row of series) {
+            const bucket = String(row?.bucket || "").trim();
+            if (!bucket) continue;
+            bucketMap[bucket] = Number(row?.count || 0);
+          }
+          kindBucketMap[String(kind)] = bucketMap;
+        }
+        const severityBucketMap = {};
+        for (const [severity, series] of Object.entries(severitySeriesRaw)) {
+          if (!Array.isArray(series)) continue;
+          const bucketMap = {};
+          for (const row of series) {
+            const bucket = String(row?.bucket || "").trim();
+            if (!bucket) continue;
+            bucketMap[bucket] = Number(row?.count || 0);
+          }
+          severityBucketMap[String(severity)] = bucketMap;
+        }
+
+        els.reviewWorkflowSlaHotspotsTrendsList.innerHTML = "";
+        if (!totalSeries.length) {
+          els.reviewWorkflowSlaHotspotsTrendsList.innerHTML = `<div class="item"><div class="sub">No hotspot trend buckets for current filters.</div></div>`;
+          return;
+        }
+        for (const point of totalSeries) {
+          const bucket = String(point?.bucket || "").trim() || "unknown";
+          const total = Number(point?.count || 0);
+          const findingCount = Number(kindBucketMap.finding?.[bucket] || 0);
+          const commentCount = Number(kindBucketMap.comment?.[bucket] || 0);
+          const highCount = Number(severityBucketMap.high?.[bucket] || 0);
+          const mediumCount = Number(severityBucketMap.medium?.[bucket] || 0);
+          const lowCount = Number(severityBucketMap.low?.[bucket] || 0);
+          const unknownCount = Number(severityBucketMap.unknown?.[bucket] || 0);
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(`${bucket} · hotspots=${total}`)}</div>
+            <div class="sub">${escapeHtml(`kind(f/c)=${findingCount}/${commentCount}`)}</div>
+            <div class="sub" style="margin-top:6px;">${escapeHtml(`sev(h/m/l/u)=${highCount}/${mediumCount}/${lowCount}/${unknownCount}`)}</div>
+          `;
+          els.reviewWorkflowSlaHotspotsTrendsList.appendChild(div);
+        }
+      }
+
       function renderCriticLists(body) {
         const section = (els.criticSectionFilter.value || "").trim();
         const severity = (els.criticSeverityFilter.value || "").trim();
@@ -5719,6 +5944,32 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshReviewWorkflowSlaHotspots() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        persistUiState();
+        const q = buildReviewWorkflowSlaHotspotsQueryString();
+        const body = await apiFetch(
+          `/status/${encodeURIComponent(jobId)}/review/workflow/sla/hotspots${q}`
+        );
+        renderReviewWorkflowSlaHotspots(body);
+        setJson(els.reviewWorkflowSlaHotspotsJson, body);
+        return body;
+      }
+
+      async function refreshReviewWorkflowSlaHotspotsTrends() {
+        const jobId = currentJobId();
+        if (!jobId) return;
+        persistUiState();
+        const q = buildReviewWorkflowSlaHotspotsTrendsQueryString();
+        const body = await apiFetch(
+          `/status/${encodeURIComponent(jobId)}/review/workflow/sla/hotspots/trends${q}`
+        );
+        renderReviewWorkflowSlaHotspotsTrends(body);
+        setJson(els.reviewWorkflowSlaHotspotsTrendsJson, body);
+        return body;
+      }
+
       async function refreshReviewWorkflowSlaProfile() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -5775,6 +6026,8 @@ def render_demo_ui_html() -> str:
           refreshCritic(),
           refreshReviewWorkflowSlaProfile(),
           refreshReviewWorkflowSlaTrends(),
+          refreshReviewWorkflowSlaHotspots(),
+          refreshReviewWorkflowSlaHotspotsTrends(),
         ]);
         return body;
       }
@@ -5925,6 +6178,31 @@ def render_demo_ui_html() -> str:
         }
         const q = params.toString();
         return q ? `?${q}` : "";
+      }
+
+      function buildReviewWorkflowSlaHotspotsQueryString() {
+        const baseQuery = buildReviewWorkflowSlaFilterQueryString();
+        const params = new URLSearchParams(baseQuery.startsWith("?") ? baseQuery.slice(1) : "");
+        const topLimit = Number.parseInt(String(els.reviewWorkflowSlaTopLimitFilter.value || "").trim(), 10);
+        if (Number.isFinite(topLimit) && topLimit > 0) {
+          params.set("top_limit", String(topLimit));
+        }
+        if (els.reviewWorkflowSlaHotspotKindFilter.value) {
+          params.set("hotspot_kind", els.reviewWorkflowSlaHotspotKindFilter.value);
+        }
+        if (els.reviewWorkflowSlaHotspotSeverityFilter.value) {
+          params.set("hotspot_severity", els.reviewWorkflowSlaHotspotSeverityFilter.value);
+        }
+        const minOverdueHours = Number.parseFloat(String(els.reviewWorkflowSlaMinOverdueHoursFilter.value || "").trim());
+        if (Number.isFinite(minOverdueHours) && minOverdueHours >= 0) {
+          params.set("min_overdue_hours", String(minOverdueHours));
+        }
+        const q = params.toString();
+        return q ? `?${q}` : "";
+      }
+
+      function buildReviewWorkflowSlaHotspotsTrendsQueryString() {
+        return buildReviewWorkflowSlaHotspotsQueryString();
       }
 
       function buildPortfolioReviewWorkflowQueryString() {
@@ -6231,6 +6509,8 @@ def render_demo_ui_html() -> str:
           refreshReviewWorkflowTrends(),
           refreshReviewWorkflowSla(),
           refreshReviewWorkflowSlaTrends(),
+          refreshReviewWorkflowSlaHotspots(),
+          refreshReviewWorkflowSlaHotspotsTrends(),
           refreshReviewWorkflowSlaProfile(),
         ]);
       }
@@ -6325,6 +6605,26 @@ def render_demo_ui_html() -> str:
           text = (els.portfolioReviewWorkflowSlaTrendsJson?.textContent || "").trim();
         }
         if (!text || text === "{}") throw new Error("Load portfolio workflow SLA trends first");
+        return text;
+      }
+
+      async function ensureReviewWorkflowSlaHotspotsLoaded() {
+        let text = (els.reviewWorkflowSlaHotspotsJson?.textContent || "").trim();
+        if (!text || text === "{}") {
+          await refreshReviewWorkflowSlaHotspots();
+          text = (els.reviewWorkflowSlaHotspotsJson?.textContent || "").trim();
+        }
+        if (!text || text === "{}") throw new Error("Load workflow SLA hotspots first");
+        return text;
+      }
+
+      async function ensureReviewWorkflowSlaHotspotsTrendsLoaded() {
+        let text = (els.reviewWorkflowSlaHotspotsTrendsJson?.textContent || "").trim();
+        if (!text || text === "{}") {
+          await refreshReviewWorkflowSlaHotspotsTrends();
+          text = (els.reviewWorkflowSlaHotspotsTrendsJson?.textContent || "").trim();
+        }
+        if (!text || text === "{}") throw new Error("Load workflow SLA hotspots trends first");
         return text;
       }
 
@@ -6513,6 +6813,68 @@ def render_demo_ui_html() -> str:
         downloadBlob(blob, filename);
       }
 
+      async function exportReviewWorkflowSlaHotspotsAggregate(format) {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        persistUiState();
+        persistBasics();
+        const q = buildReviewWorkflowSlaHotspotsQueryString();
+        const params = new URLSearchParams(q.startsWith("?") ? q.slice(1) : "");
+        params.set("format", format);
+        if (exportGzipEnabled()) params.set("gzip", "true");
+        const query = params.toString();
+        const endpointPath = `/status/${encodeURIComponent(jobId)}/review/workflow/sla/hotspots/export`;
+        const res = await fetch(`${apiBase()}${endpointPath}?${query}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          const ct = res.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const body = await res.json();
+            throw new Error(JSON.stringify(body, null, 2));
+          }
+          throw new Error(await res.text());
+        }
+        const fallbackFilename = `grantflow_review_workflow_sla_hotspots_${jobId}.${format}${exportGzipEnabled() ? ".gz" : ""}`;
+        const filename = parseDownloadFilenameFromDisposition(
+          res.headers.get("content-disposition"),
+          fallbackFilename
+        );
+        const blob = await res.blob();
+        downloadBlob(blob, filename);
+      }
+
+      async function exportReviewWorkflowSlaHotspotsTrendsAggregate(format) {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        persistUiState();
+        persistBasics();
+        const q = buildReviewWorkflowSlaHotspotsTrendsQueryString();
+        const params = new URLSearchParams(q.startsWith("?") ? q.slice(1) : "");
+        params.set("format", format);
+        if (exportGzipEnabled()) params.set("gzip", "true");
+        const query = params.toString();
+        const endpointPath = `/status/${encodeURIComponent(jobId)}/review/workflow/sla/hotspots/trends/export`;
+        const res = await fetch(`${apiBase()}${endpointPath}?${query}`, {
+          headers: { ...headers() },
+        });
+        if (!res.ok) {
+          const ct = res.headers.get("content-type") || "";
+          if (ct.includes("application/json")) {
+            const body = await res.json();
+            throw new Error(JSON.stringify(body, null, 2));
+          }
+          throw new Error(await res.text());
+        }
+        const fallbackFilename = `grantflow_review_workflow_sla_hotspots_trends_${jobId}.${format}${exportGzipEnabled() ? ".gz" : ""}`;
+        const filename = parseDownloadFilenameFromDisposition(
+          res.headers.get("content-disposition"),
+          fallbackFilename
+        );
+        const blob = await res.blob();
+        downloadBlob(blob, filename);
+      }
+
       async function copyPortfolioMetricsJson() {
         const text = await ensurePortfolioMetricsLoaded();
         if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
@@ -6603,6 +6965,22 @@ def render_demo_ui_html() -> str:
 
       async function copyPortfolioReviewWorkflowSlaTrendsJson() {
         const text = await ensurePortfolioReviewWorkflowSlaTrendsLoaded();
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          throw new Error("Clipboard API is not available in this browser");
+        }
+        await navigator.clipboard.writeText(text);
+      }
+
+      async function copyReviewWorkflowSlaHotspotsJson() {
+        const text = await ensureReviewWorkflowSlaHotspotsLoaded();
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          throw new Error("Clipboard API is not available in this browser");
+        }
+        await navigator.clipboard.writeText(text);
+      }
+
+      async function copyReviewWorkflowSlaHotspotsTrendsJson() {
+        const text = await ensureReviewWorkflowSlaHotspotsTrendsLoaded();
         if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
           throw new Error("Clipboard API is not available in this browser");
         }
@@ -6817,6 +7195,26 @@ def render_demo_ui_html() -> str:
         await exportReviewWorkflowSlaTrendsAggregate("csv");
       }
 
+      async function downloadReviewWorkflowSlaHotspotsJson() {
+        await ensureReviewWorkflowSlaHotspotsLoaded();
+        await exportReviewWorkflowSlaHotspotsAggregate("json");
+      }
+
+      async function downloadReviewWorkflowSlaHotspotsCsv() {
+        await ensureReviewWorkflowSlaHotspotsLoaded();
+        await exportReviewWorkflowSlaHotspotsAggregate("csv");
+      }
+
+      async function downloadReviewWorkflowSlaHotspotsTrendsJson() {
+        await ensureReviewWorkflowSlaHotspotsTrendsLoaded();
+        await exportReviewWorkflowSlaHotspotsTrendsAggregate("json");
+      }
+
+      async function downloadReviewWorkflowSlaHotspotsTrendsCsv() {
+        await ensureReviewWorkflowSlaHotspotsTrendsLoaded();
+        await exportReviewWorkflowSlaHotspotsTrendsAggregate("csv");
+      }
+
       function formatExportPolicyError(statusCode, detail, rawBody) {
         if (Number(statusCode) !== 409 || !detail || typeof detail !== "object") return "";
         const reason = String(detail.reason || "").trim();
@@ -6997,6 +7395,8 @@ def render_demo_ui_html() -> str:
           refreshComments(),
           refreshReviewWorkflow(),
           refreshReviewWorkflowTrends(),
+          refreshReviewWorkflowSlaHotspots(),
+          refreshReviewWorkflowSlaHotspotsTrends(),
           refreshPortfolioReviewWorkflow(),
           refreshPortfolioReviewWorkflowSla(),
           refreshPortfolioReviewWorkflowSlaHotspots(),
@@ -7026,6 +7426,8 @@ def render_demo_ui_html() -> str:
           refreshCritic(),
           refreshReviewWorkflow(),
           refreshReviewWorkflowTrends(),
+          refreshReviewWorkflowSlaHotspots(),
+          refreshReviewWorkflowSlaHotspotsTrends(),
           refreshPortfolioReviewWorkflow(),
           refreshPortfolioReviewWorkflowSla(),
           refreshPortfolioReviewWorkflowSlaHotspots(),
@@ -7068,6 +7470,8 @@ def render_demo_ui_html() -> str:
           refreshCritic(),
           refreshReviewWorkflow(),
           refreshReviewWorkflowTrends(),
+          refreshReviewWorkflowSlaHotspots(),
+          refreshReviewWorkflowSlaHotspotsTrends(),
           refreshPortfolioReviewWorkflow(),
           refreshPortfolioReviewWorkflowSla(),
           refreshPortfolioReviewWorkflowSlaHotspots(),
@@ -7092,6 +7496,8 @@ def render_demo_ui_html() -> str:
           refreshComments(),
           refreshReviewWorkflow(),
           refreshReviewWorkflowTrends(),
+          refreshReviewWorkflowSlaHotspots(),
+          refreshReviewWorkflowSlaHotspotsTrends(),
           refreshPortfolioReviewWorkflow(),
           refreshPortfolioReviewWorkflowSla(),
           refreshPortfolioReviewWorkflowSlaHotspots(),
@@ -7356,6 +7762,8 @@ def render_demo_ui_html() -> str:
             refreshReviewWorkflowTrends(),
             refreshReviewWorkflowSla(),
             refreshReviewWorkflowSlaTrends(),
+            refreshReviewWorkflowSlaHotspots(),
+            refreshReviewWorkflowSlaHotspotsTrends(),
             refreshReviewWorkflowSlaProfile(),
             refreshPortfolioReviewWorkflow(),
             refreshPortfolioReviewWorkflowSla(),
@@ -7367,6 +7775,10 @@ def render_demo_ui_html() -> str:
         });
         els.reviewWorkflowTrendsBtn.addEventListener("click", () => refreshReviewWorkflowTrends().catch(showError));
         els.reviewWorkflowSlaBtn.addEventListener("click", () => refreshReviewWorkflowSla().catch(showError));
+        els.reviewWorkflowSlaHotspotsBtn.addEventListener("click", () => refreshReviewWorkflowSlaHotspots().catch(showError));
+        els.reviewWorkflowSlaHotspotsTrendsBtn.addEventListener("click", () =>
+          refreshReviewWorkflowSlaHotspotsTrends().catch(showError)
+        );
         els.reviewWorkflowSlaTrendsBtn.addEventListener("click", () => refreshReviewWorkflowSlaTrends().catch(showError));
         els.reviewWorkflowSlaProfileBtn.addEventListener("click", () => refreshReviewWorkflowSlaProfile().catch(showError));
         els.reviewWorkflowSlaRecomputeBtn.addEventListener("click", () => recomputeReviewWorkflowSla().catch(showError));
@@ -7388,6 +7800,36 @@ def render_demo_ui_html() -> str:
         els.reviewWorkflowSlaTrendsExportCsvBtn.addEventListener("click", () =>
           downloadReviewWorkflowSlaTrendsCsv().catch((err) => showError(err))
         );
+        els.reviewWorkflowSlaHotspotsExportJsonBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaHotspotsJson().catch((err) => showError(err))
+        );
+        els.reviewWorkflowSlaHotspotsExportCsvBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaHotspotsCsv().catch((err) => showError(err))
+        );
+        els.reviewWorkflowSlaHotspotsTrendsExportJsonBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaHotspotsTrendsJson().catch((err) => showError(err))
+        );
+        els.reviewWorkflowSlaHotspotsTrendsExportCsvBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaHotspotsTrendsCsv().catch((err) => showError(err))
+        );
+        els.copyReviewWorkflowSlaHotspotsJsonBtn.addEventListener("click", () =>
+          copyReviewWorkflowSlaHotspotsJson().catch((err) => showError(err))
+        );
+        els.downloadReviewWorkflowSlaHotspotsJsonBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaHotspotsJson().catch((err) => showError(err))
+        );
+        els.downloadReviewWorkflowSlaHotspotsCsvBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaHotspotsCsv().catch((err) => showError(err))
+        );
+        els.copyReviewWorkflowSlaHotspotsTrendsJsonBtn.addEventListener("click", () =>
+          copyReviewWorkflowSlaHotspotsTrendsJson().catch((err) => showError(err))
+        );
+        els.downloadReviewWorkflowSlaHotspotsTrendsJsonBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaHotspotsTrendsJson().catch((err) => showError(err))
+        );
+        els.downloadReviewWorkflowSlaHotspotsTrendsCsvBtn.addEventListener("click", () =>
+          downloadReviewWorkflowSlaHotspotsTrendsCsv().catch((err) => showError(err))
+        );
         els.reviewWorkflowClearFiltersBtn.addEventListener("click", () => {
           clearReviewWorkflowFilters();
           Promise.allSettled([
@@ -7395,6 +7837,8 @@ def render_demo_ui_html() -> str:
             refreshReviewWorkflowTrends(),
             refreshReviewWorkflowSla(),
             refreshReviewWorkflowSlaTrends(),
+            refreshReviewWorkflowSlaHotspots(),
+            refreshReviewWorkflowSlaHotspotsTrends(),
             refreshReviewWorkflowSlaProfile(),
             refreshPortfolioReviewWorkflow(),
             refreshPortfolioReviewWorkflowSla(),
@@ -7462,6 +7906,8 @@ def render_demo_ui_html() -> str:
               refreshReviewWorkflowTrends(),
               refreshReviewWorkflowSla(),
               refreshReviewWorkflowSlaTrends(),
+              refreshReviewWorkflowSlaHotspots(),
+              refreshReviewWorkflowSlaHotspotsTrends(),
               refreshPortfolioReviewWorkflow(),
               refreshPortfolioReviewWorkflowSla(),
               refreshPortfolioReviewWorkflowSlaHotspots(),
@@ -7478,6 +7924,8 @@ def render_demo_ui_html() -> str:
             refreshReviewWorkflowTrends(),
             refreshReviewWorkflowSla(),
             refreshReviewWorkflowSlaTrends(),
+            refreshReviewWorkflowSlaHotspots(),
+            refreshReviewWorkflowSlaHotspotsTrends(),
             refreshPortfolioReviewWorkflow(),
             refreshPortfolioReviewWorkflowSla(),
             refreshPortfolioReviewWorkflowSlaHotspots(),
@@ -7493,6 +7941,8 @@ def render_demo_ui_html() -> str:
             refreshReviewWorkflowTrends(),
             refreshReviewWorkflowSla(),
             refreshReviewWorkflowSlaTrends(),
+            refreshReviewWorkflowSlaHotspots(),
+            refreshReviewWorkflowSlaHotspotsTrends(),
             refreshPortfolioReviewWorkflow(),
             refreshPortfolioReviewWorkflowSla(),
             refreshPortfolioReviewWorkflowSlaHotspots(),
@@ -7501,6 +7951,20 @@ def render_demo_ui_html() -> str:
             refreshPortfolioReviewWorkflowSlaTrends(),
           ]).catch(showError);
         });
+        [
+          els.reviewWorkflowSlaHotspotKindFilter,
+          els.reviewWorkflowSlaHotspotSeverityFilter,
+          els.reviewWorkflowSlaMinOverdueHoursFilter,
+          els.reviewWorkflowSlaTopLimitFilter,
+        ].forEach((el) =>
+          el.addEventListener("change", () => {
+            persistUiState();
+            Promise.allSettled([
+              refreshReviewWorkflowSlaHotspots(),
+              refreshReviewWorkflowSlaHotspotsTrends(),
+            ]).catch(showError);
+          })
+        );
         [
           els.portfolioSlaHotspotKindFilter,
           els.portfolioSlaHotspotSeverityFilter,

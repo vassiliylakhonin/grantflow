@@ -444,6 +444,8 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowTrendsExportJsonBtn" in body
     assert "reviewWorkflowTrendsExportCsvBtn" in body
     assert "reviewWorkflowSlaBtn" in body
+    assert "reviewWorkflowSlaHotspotsBtn" in body
+    assert "reviewWorkflowSlaHotspotsTrendsBtn" in body
     assert "reviewWorkflowSlaTrendsBtn" in body
     assert "reviewWorkflowSlaProfileBtn" in body
     assert "reviewWorkflowSlaRecomputeBtn" in body
@@ -451,18 +453,38 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowSlaExportCsvBtn" in body
     assert "reviewWorkflowSlaTrendsExportJsonBtn" in body
     assert "reviewWorkflowSlaTrendsExportCsvBtn" in body
+    assert "reviewWorkflowSlaHotspotsExportJsonBtn" in body
+    assert "reviewWorkflowSlaHotspotsExportCsvBtn" in body
+    assert "reviewWorkflowSlaHotspotsTrendsExportJsonBtn" in body
+    assert "reviewWorkflowSlaHotspotsTrendsExportCsvBtn" in body
+    assert "copyReviewWorkflowSlaHotspotsJsonBtn" in body
+    assert "downloadReviewWorkflowSlaHotspotsJsonBtn" in body
+    assert "downloadReviewWorkflowSlaHotspotsCsvBtn" in body
+    assert "copyReviewWorkflowSlaHotspotsTrendsJsonBtn" in body
+    assert "downloadReviewWorkflowSlaHotspotsTrendsJsonBtn" in body
+    assert "downloadReviewWorkflowSlaHotspotsTrendsCsvBtn" in body
     assert "reviewWorkflowSlaHighHours" in body
     assert "reviewWorkflowSlaMediumHours" in body
     assert "reviewWorkflowSlaLowHours" in body
     assert "reviewWorkflowSlaCommentDefaultHours" in body
     assert "reviewWorkflowSlaUseSavedProfile" in body
+    assert "reviewWorkflowSlaHotspotKindFilter" in body
+    assert "reviewWorkflowSlaHotspotSeverityFilter" in body
+    assert "reviewWorkflowSlaMinOverdueHoursFilter" in body
+    assert "reviewWorkflowSlaTopLimitFilter" in body
     assert "reviewWorkflowSlaSummaryLine" in body
     assert "reviewWorkflowSlaTrendsSummaryLine" in body
     assert "reviewWorkflowSlaHotspotsList" in body
+    assert "reviewWorkflowSlaHotspotsSummaryLine" in body
     assert "reviewWorkflowSlaTrendSparkline" in body
     assert "reviewWorkflowSlaTrendsList" in body
+    assert "reviewWorkflowSlaHotspotsTrendSparkline" in body
+    assert "reviewWorkflowSlaHotspotsTrendsSummaryLine" in body
+    assert "reviewWorkflowSlaHotspotsTrendsList" in body
     assert "reviewWorkflowSlaJson" in body
     assert "reviewWorkflowSlaTrendsJson" in body
+    assert "reviewWorkflowSlaHotspotsJson" in body
+    assert "reviewWorkflowSlaHotspotsTrendsJson" in body
     assert "reviewWorkflowSlaProfileSummaryLine" in body
     assert "reviewWorkflowSlaProfileJson" in body
     assert "grantflow_demo_review_workflow_event_type" in body
@@ -472,6 +494,10 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_review_workflow_comment_status" in body
     assert "grantflow_demo_review_workflow_state" in body
     assert "grantflow_demo_review_workflow_overdue_hours" in body
+    assert "grantflow_demo_review_workflow_sla_hotspot_kind" in body
+    assert "grantflow_demo_review_workflow_sla_hotspot_severity" in body
+    assert "grantflow_demo_review_workflow_sla_min_overdue_hours" in body
+    assert "grantflow_demo_review_workflow_sla_top_limit" in body
     assert "grantflow_demo_review_workflow_sla_use_saved_profile" in body
     assert 'params.set("finding_code",' in body
     assert 'params.set("finding_section",' in body
@@ -481,8 +507,12 @@ def test_demo_console_page_loads():
     assert "/status/${encodeURIComponent(jobId)}/review/workflow" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/trends" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla" in body
+    assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/hotspots" in body
+    assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/hotspots/trends" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/trends" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/export" in body
+    assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/hotspots/export" in body
+    assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/hotspots/trends/export" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/trends/export" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/profile" in body
     assert "/status/${encodeURIComponent(jobId)}/review/workflow/sla/recompute" in body
