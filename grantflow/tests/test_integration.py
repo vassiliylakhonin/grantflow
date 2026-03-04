@@ -466,6 +466,8 @@ def test_generate_preflight_reports_high_risk_when_namespace_empty():
     assert response.status_code == 200
     body = response.json()
     assert body["donor_id"] == "usaid"
+    assert isinstance(body.get("retrieval_query_terms"), list)
+    assert "development objectives" in body.get("retrieval_query_terms")
     assert body["namespace_empty"] is True
     assert body["risk_level"] == "high"
     assert body["grounding_risk_level"] == "high"
@@ -601,6 +603,8 @@ def test_ingest_readiness_reports_preflight_payload_and_expected_families_overri
     assert response.status_code == 200
     body = response.json()
     assert body["donor_id"] == "usaid"
+    assert isinstance(body.get("retrieval_query_terms"), list)
+    assert "development objectives" in body.get("retrieval_query_terms")
     assert body["expected_doc_families"] == ["donor_policy", "country_context"]
     assert body["present_doc_families"] == ["donor_policy", "country_context"]
     assert body["missing_doc_families"] == []

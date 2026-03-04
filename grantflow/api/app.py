@@ -98,7 +98,7 @@ from grantflow.swarm.graph import grantflow_graph
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
 from grantflow.swarm.nodes.architect_generation import generate_toc_under_contract
 from grantflow.swarm.nodes.architect_retrieval import retrieve_architect_evidence
-from grantflow.swarm.retrieval_query import donor_query_preset_terms
+from grantflow.swarm.retrieval_query import donor_query_preset_list
 from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.state_contract import (
     build_graph_state,
@@ -1481,7 +1481,7 @@ def _build_generate_preflight(
         "tenant_id": resolved_tenant_id,
         "retrieval_namespace": namespace,
         "retrieval_namespace_normalized": namespace_normalized,
-        "retrieval_query_terms": donor_query_preset_terms(donor_id),
+        "retrieval_query_terms": donor_query_preset_list(donor_id),
         "expected_doc_families": expected_doc_families,
         "present_doc_families": present_doc_families,
         "missing_doc_families": missing_doc_families,

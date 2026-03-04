@@ -886,7 +886,7 @@ class GeneratePreflightPublicResponse(BaseModel):
     tenant_id: Optional[str] = None
     retrieval_namespace: Optional[str] = None
     retrieval_namespace_normalized: Optional[str] = None
-    retrieval_query_terms: Optional[Any] = None
+    retrieval_query_terms: list[str]
     expected_doc_families: list[str]
     present_doc_families: list[str]
     missing_doc_families: list[str]

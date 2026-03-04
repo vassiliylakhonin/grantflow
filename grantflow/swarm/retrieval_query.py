@@ -59,10 +59,14 @@ _CONTEXT_HINT_KEYS = (
 )
 
 
-def donor_query_preset_terms(donor_id: str) -> str:
+def donor_query_preset_list(donor_id: str) -> list[str]:
     donor_key = str(donor_id or "").strip().lower()
     terms = _DONOR_QUERY_PRESETS.get(donor_key, ["institutional donor guidance", "results framework", "indicators"])
-    return " | ".join(terms)
+    return list(terms)
+
+
+def donor_query_preset_terms(donor_id: str) -> str:
+    return " | ".join(donor_query_preset_list(donor_id))
 
 
 def context_query_hints(input_context: Dict[str, Any] | None, *, max_items: int = 5) -> str:
