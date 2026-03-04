@@ -3657,6 +3657,17 @@ def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
         _set_job(job_id, {"status": "error", "error": str(exc), "hitl_enabled": False})
 
 
+def _run_pipeline_to_completion_by_job_id(job_id: str) -> None:
+    job = _get_job(job_id)
+    if not isinstance(job, dict):
+        return
+    state = job.get("state")
+    if not isinstance(state, dict):
+        _set_job(job_id, {"status": "error", "error": "Job state is missing or invalid", "hitl_enabled": False})
+        return
+    _run_pipeline_to_completion(job_id, state)
+
+
 def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
     try:
         if _job_is_canceled(job_id):
@@ -3761,6 +3772,17 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
         return
     except Exception as exc:
         _set_job(job_id, {"status": "error", "error": str(exc), "hitl_enabled": True, "state": state})
+
+
+def _run_hitl_pipeline_by_job_id(job_id: str, start_at: HITLStartAt) -> None:
+    job = _get_job(job_id)
+    if not isinstance(job, dict):
+        return
+    state = job.get("state")
+    if not isinstance(state, dict):
+        _set_job(job_id, {"status": "error", "error": "Job state is missing or invalid", "hitl_enabled": True})
+        return
+    _run_hitl_pipeline(job_id, state, start_at)
 
 
 def _resume_target_from_checkpoint(checkpoint: Dict[str, Any], default_resume_from: str | None) -> HITLStartAt:
@@ -5183,13 +5205,19 @@ async def generate(
     try:
         queue_backend = "background_tasks"
         if req.hitl_enabled:
-            queue_backend = _dispatch_pipeline_task(
-                background_tasks, _run_hitl_pipeline, job_id, initial_state, "start"
-            )
+            if _uses_redis_queue_runner():
+                queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline_by_job_id, job_id, "start")
+            else:
+                queue_backend = _dispatch_pipeline_task(
+                    background_tasks, _run_hitl_pipeline, job_id, initial_state, "start"
+                )
         else:
-            queue_backend = _dispatch_pipeline_task(
-                background_tasks, _run_pipeline_to_completion, job_id, initial_state
-            )
+            if _uses_redis_queue_runner():
+                queue_backend = _dispatch_pipeline_task(background_tasks, _run_pipeline_to_completion_by_job_id, job_id)
+            else:
+                queue_backend = _dispatch_pipeline_task(
+                    background_tasks, _run_pipeline_to_completion, job_id, initial_state
+                )
     except HTTPException as exc:
         _set_job(
             job_id,
@@ -5369,7 +5397,10 @@ async def resume_job(
         request_id=request_id_token,
     )
     try:
-        queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline, job_id, state, start_at)
+        if _uses_redis_queue_runner():
+            queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline_by_job_id, job_id, start_at)
+        else:
+            queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline, job_id, state, start_at)
     except HTTPException as exc:
         _update_job(
             job_id,

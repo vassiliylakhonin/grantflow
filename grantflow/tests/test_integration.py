@@ -11025,14 +11025,86 @@ def test_generate_uses_redis_queue_dispatch_when_enabled(monkeypatch):
     body = response.json()
     job_id = body["job_id"]
 
-    assert captured["fn"] == api_app_module._run_pipeline_to_completion
+    assert captured["fn"] == api_app_module._run_pipeline_to_completion_by_job_id
     assert captured["args"][0] == job_id
-    queued_state = captured["args"][1]
-    assert queued_state["donor_id"] == "usaid"
+    assert len(captured["args"]) == 1
 
     status_resp = client.get(f"/status/{job_id}")
     assert status_resp.status_code == 200
     assert status_resp.json()["status"] == "accepted"
+
+
+def test_generate_hitl_uses_redis_queue_dispatch_by_job_id(monkeypatch):
+    captured: dict = {}
+
+    def _submit_stub(fn, *args, **kwargs):
+        captured["fn"] = fn
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return True
+
+    monkeypatch.setattr(api_app_module.config.job_runner, "mode", "redis_queue")
+    monkeypatch.setattr(api_app_module.JOB_RUNNER, "submit", _submit_stub)
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Redis queue HITL dispatch", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": True,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    job_id = body["job_id"]
+
+    assert captured["fn"] == api_app_module._run_hitl_pipeline_by_job_id
+    assert captured["args"] == (job_id, "start")
+
+
+def test_resume_uses_redis_queue_dispatch_by_job_id(monkeypatch):
+    captured: dict = {}
+
+    def _submit_stub(fn, *args, **kwargs):
+        captured["fn"] = fn
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return True
+
+    checkpoint_id = api_app_module.hitl_manager.create_checkpoint(
+        stage="toc",
+        state={"donor_id": "usaid", "input_context": {"project": "Resume redis", "country": "Kenya"}},
+        donor_id="usaid",
+    )
+    api_app_module.hitl_manager.approve(checkpoint_id, "approved")
+
+    job_id = "resume-redis-dispatch-job-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "pending_hitl",
+            "state": {
+                "donor_id": "usaid",
+                "input_context": {"project": "Resume redis", "country": "Kenya"},
+                "hitl_pending": True,
+            },
+            "hitl_enabled": True,
+            "checkpoint_id": checkpoint_id,
+            "checkpoint_stage": "toc",
+            "resume_from": "mel",
+        },
+    )
+
+    monkeypatch.setattr(api_app_module.config.job_runner, "mode", "redis_queue")
+    monkeypatch.setattr(api_app_module.JOB_RUNNER, "submit", _submit_stub)
+
+    response = client.post(f"/resume/{job_id}", json={})
+    assert response.status_code == 200
+    assert response.json()["resuming_from"] == "mel"
+
+    assert captured["fn"] == api_app_module._run_hitl_pipeline_by_job_id
+    assert captured["args"] == (job_id, "mel")
 
 
 def test_generate_returns_503_when_redis_queue_is_unavailable(monkeypatch):
