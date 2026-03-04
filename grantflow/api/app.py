@@ -683,8 +683,10 @@ def _preflight_doc_family_min_uploads_map(
             continue
         raw_override = override_map.get(token)
         try:
-            min_uploads = int(raw_override) if raw_override is not None else int(
-                PREFLIGHT_CRITICAL_DOC_FAMILY_MIN_UPLOADS.get(token, 1)
+            min_uploads = (
+                int(raw_override)
+                if raw_override is not None
+                else int(PREFLIGHT_CRITICAL_DOC_FAMILY_MIN_UPLOADS.get(token, 1))
             )
         except (TypeError, ValueError):
             min_uploads = int(PREFLIGHT_CRITICAL_DOC_FAMILY_MIN_UPLOADS.get(token, 1))
@@ -832,7 +834,9 @@ def _evaluate_mel_grounding_policy_from_state(state: Any) -> Dict[str, Any]:
     mel_traceability_complete_rate = (
         round(mel_traceability_complete_count / mel_citation_count, 4) if mel_citation_count else None
     )
-    mel_traceability_gap_rate = round(mel_traceability_gap_count / mel_citation_count, 4) if mel_citation_count else None
+    mel_traceability_gap_rate = (
+        round(mel_traceability_gap_count / mel_citation_count, 4) if mel_citation_count else None
+    )
 
     reasons: list[str] = []
     risk_level = "low"
@@ -969,9 +973,7 @@ def _evaluate_export_grounding_policy(citations: list[dict[str, Any]]) -> Dict[s
     architect_traceability_missing_count = sum(1 for status in architect_traceability_statuses if status == "missing")
     architect_traceability_gap_count = architect_traceability_partial_count + architect_traceability_missing_count
     architect_traceability_complete_rate = (
-        round(architect_traceability_complete_count / architect_citation_count, 4)
-        if architect_citation_count
-        else None
+        round(architect_traceability_complete_count / architect_citation_count, 4) if architect_citation_count else None
     )
     architect_traceability_gap_rate = (
         round(architect_traceability_gap_count / architect_citation_count, 4) if architect_citation_count else None
@@ -1149,11 +1151,20 @@ def _estimate_preflight_architect_claims(
     namespace: str,
     input_context: Optional[Dict[str, Any]],
     tenant_id: Optional[str] = None,
+    architect_rag_enabled: bool = True,
 ) -> Dict[str, Any]:
     if not str(namespace or "").strip():
-        return {"available": False, "reason": "namespace_missing"}
+        return {
+            "available": False,
+            "reason": "namespace_missing",
+            "retrieval_expected": bool(architect_rag_enabled),
+        }
     if not isinstance(input_context, dict) or not input_context:
-        return {"available": False, "reason": "input_context_missing"}
+        return {
+            "available": False,
+            "reason": "input_context_missing",
+            "retrieval_expected": bool(architect_rag_enabled),
+        }
 
     state = build_graph_state(
         donor_id=donor_id,
@@ -1164,7 +1175,7 @@ def _estimate_preflight_architect_claims(
         llm_mode=False,
         max_iterations=int(getattr(config.graph, "max_iterations", 3) or 3),
         extras={
-            "architect_rag_enabled": True,
+            "architect_rag_enabled": bool(architect_rag_enabled),
         },
     )
     try:
@@ -1175,7 +1186,12 @@ def _estimate_preflight_architect_claims(
             evidence_hits=retrieval_hits,
         )
     except Exception as exc:
-        return {"available": False, "reason": "estimation_error", "error": str(exc)}
+        return {
+            "available": False,
+            "reason": "estimation_error",
+            "error": str(exc),
+            "retrieval_expected": bool(architect_rag_enabled),
+        }
 
     architect_claim_citations = [
         c
@@ -1251,7 +1267,10 @@ def _estimate_preflight_architect_claims(
         "traceability_missing_citation_count": traceability_missing_count,
         "traceability_gap_citation_count": traceability_gap_count,
         "traceability_gap_rate": _safe_rate(traceability_gap_count, claim_count),
-        "retrieval_hits_count": int(retrieval_summary.get("hits_count") or 0) if isinstance(retrieval_summary, dict) else 0,
+        "retrieval_hits_count": (
+            int(retrieval_summary.get("hits_count") or 0) if isinstance(retrieval_summary, dict) else 0
+        ),
+        "retrieval_expected": bool(architect_rag_enabled),
     }
 
 
@@ -1401,6 +1420,7 @@ def _build_generate_preflight(
     strategy: Any,
     client_metadata: Optional[Dict[str, Any]],
     tenant_id: Optional[str] = None,
+    architect_rag_enabled: bool = True,
 ) -> Dict[str, Any]:
     metadata = client_metadata if isinstance(client_metadata, dict) else {}
     input_context = _preflight_input_context(client_metadata)
@@ -1450,6 +1470,7 @@ def _build_generate_preflight(
         namespace=namespace or "",
         input_context=input_context,
         tenant_id=resolved_tenant_id,
+        architect_rag_enabled=bool(architect_rag_enabled),
     )
 
     warnings: list[Dict[str, Any]] = []
@@ -1526,6 +1547,7 @@ def _build_generate_preflight(
         "warning_level": risk_level,
         "risk_level": risk_level,
         "grounding_risk_level": grounding_risk_level,
+        "architect_rag_enabled": bool(architect_rag_enabled),
         "grounding_policy": grounding_policy,
         "architect_claims": architect_claims,
         "go_ahead": risk_level != "high" and not blocking,
@@ -1558,12 +1580,7 @@ def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
 
 def _update_job(job_id: str, **patch: Any) -> Dict[str, Any]:
     previous = JOB_STORE.get(job_id)
-    if (
-        previous
-        and previous.get("status") == "canceled"
-        and "status" in patch
-        and patch.get("status") != "canceled"
-    ):
+    if previous and previous.get("status") == "canceled" and "status" in patch and patch.get("status") != "canceled":
         return previous
     next_patch = dict(patch)
     merged_preview = dict(previous or {})
@@ -1793,6 +1810,7 @@ class GenerateRequest(BaseModel):
     tenant_id: Optional[str] = None
     request_id: Optional[str] = None
     llm_mode: bool = False
+    architect_rag_enabled: bool = True
     require_grounded_generation: bool = False
     hitl_enabled: bool = False
     hitl_checkpoints: Optional[list[Literal["architect", "toc", "mel", "logframe"]]] = None
@@ -1807,6 +1825,7 @@ class GenerateRequest(BaseModel):
 class GeneratePreflightRequest(BaseModel):
     donor_id: str
     tenant_id: Optional[str] = None
+    architect_rag_enabled: bool = True
     client_metadata: Optional[Dict[str, Any]] = None
     input_context: Optional[Dict[str, Any]] = None
 
@@ -1816,6 +1835,7 @@ class GeneratePreflightRequest(BaseModel):
 class IngestReadinessRequest(BaseModel):
     donor_id: str
     tenant_id: Optional[str] = None
+    architect_rag_enabled: bool = True
     expected_doc_families: Optional[list[str]] = None
     client_metadata: Optional[Dict[str, Any]] = None
     input_context: Optional[Dict[str, Any]] = None
@@ -2134,7 +2154,9 @@ def _normalize_critic_fatal_flaws_for_job(job_id: str) -> Optional[Dict[str, Any
     normalized_with_due = [_ensure_finding_due_at(item, now_iso=now_iso) for item in raw_flaws]
     existing_notes_raw = state.get("critic_notes")
     existing_notes: Dict[str, Any] = existing_notes_raw if isinstance(existing_notes_raw, dict) else {}
-    existing_notes_flaws = existing_notes.get("fatal_flaws") if isinstance(existing_notes.get("fatal_flaws"), list) else []
+    existing_notes_flaws = (
+        existing_notes.get("fatal_flaws") if isinstance(existing_notes.get("fatal_flaws"), list) else []
+    )
     existing_state_flaws = state.get("critic_fatal_flaws") if isinstance(state.get("critic_fatal_flaws"), list) else []
     changed = normalized_with_due != existing_notes_flaws or normalized_with_due != existing_state_flaws
 
@@ -2142,7 +2164,9 @@ def _normalize_critic_fatal_flaws_for_job(job_id: str) -> Optional[Dict[str, Any
         return job
 
     next_state = dict(state)
-    write_state_critic_findings(next_state, normalized_with_due, previous_items=normalized_with_due, default_source="rules")
+    write_state_critic_findings(
+        next_state, normalized_with_due, previous_items=normalized_with_due, default_source="rules"
+    )
     return _update_job(job_id, state=next_state)
 
 
@@ -2206,8 +2230,12 @@ def _recompute_review_workflow_sla(
     state_changed = False
     existing_notes_raw = state_dict.get("critic_notes")
     existing_notes: Dict[str, Any] = existing_notes_raw if isinstance(existing_notes_raw, dict) else {}
-    existing_notes_flaws = existing_notes.get("fatal_flaws") if isinstance(existing_notes.get("fatal_flaws"), list) else []
-    existing_state_flaws = state_dict.get("critic_fatal_flaws") if isinstance(state_dict.get("critic_fatal_flaws"), list) else []
+    existing_notes_flaws = (
+        existing_notes.get("fatal_flaws") if isinstance(existing_notes.get("fatal_flaws"), list) else []
+    )
+    existing_state_flaws = (
+        state_dict.get("critic_fatal_flaws") if isinstance(state_dict.get("critic_fatal_flaws"), list) else []
+    )
     if isinstance(state, dict) and (next_flaws != existing_notes_flaws or next_flaws != existing_state_flaws):
         next_state = dict(state_dict)
         write_state_critic_findings(next_state, next_flaws, previous_items=next_flaws, default_source="rules")
@@ -2493,7 +2521,9 @@ def _set_critic_fatal_flaws_status_bulk(
     if expected_status and expected_status not in CRITIC_FINDING_STATUSES:
         raise HTTPException(status_code=400, detail="Unsupported if_match_status")
     if expected_status and finding_status_filter and expected_status != finding_status_filter:
-        raise HTTPException(status_code=400, detail="if_match_status must match finding_status filter when both provided")
+        raise HTTPException(
+            status_code=400, detail="if_match_status must match finding_status filter when both provided"
+        )
     severity_filter = str(severity or "").strip().lower() or None
     if severity_filter and severity_filter not in {"high", "medium", "low"}:
         raise HTTPException(status_code=400, detail="Unsupported severity filter")
@@ -3586,6 +3616,7 @@ def generate_preflight(req: GeneratePreflightRequest, request: Request):
         donor_id=donor,
         strategy=strategy,
         client_metadata=client_metadata,
+        architect_rag_enabled=bool(req.architect_rag_enabled),
     )
 
 
@@ -3652,6 +3683,7 @@ def ingest_readiness(req: IngestReadinessRequest, request: Request):
         donor_id=donor,
         strategy=strategy,
         client_metadata=client_metadata,
+        architect_rag_enabled=bool(req.architect_rag_enabled),
     )
 
 
@@ -3682,6 +3714,7 @@ async def generate(
             "input_context": req.input_context or {},
             "tenant_id": req.tenant_id,
             "llm_mode": bool(req.llm_mode),
+            "architect_rag_enabled": bool(req.architect_rag_enabled),
             "require_grounded_generation": bool(req.require_grounded_generation),
             "hitl_enabled": bool(req.hitl_enabled),
             "hitl_checkpoints": list(req.hitl_checkpoints or []),
@@ -3722,6 +3755,7 @@ async def generate(
         donor_id=donor,
         strategy=strategy,
         client_metadata=preflight_client_metadata or None,
+        architect_rag_enabled=bool(req.architect_rag_enabled),
     )
     preflight_payload: Dict[str, Any] = preflight if isinstance(preflight, dict) else {}
     raw_grounding_policy = preflight_payload.get("grounding_policy")
@@ -3789,6 +3823,7 @@ async def generate(
         strict_preflight=bool(req.strict_preflight),
         extras={
             "require_grounded_generation": bool(req.require_grounded_generation),
+            "architect_rag_enabled": bool(req.architect_rag_enabled),
         },
     )
 
@@ -3820,13 +3855,18 @@ async def generate(
         require_grounded_generation=bool(req.require_grounded_generation),
         grounding_policy_mode=str(grounding_policy.get("mode") or ""),
         grounding_policy_blocking=bool(grounding_policy.get("blocking")),
+        architect_rag_enabled=bool(req.architect_rag_enabled),
     )
     try:
         queue_backend = "background_tasks"
         if req.hitl_enabled:
-            queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline, job_id, initial_state, "start")
+            queue_backend = _dispatch_pipeline_task(
+                background_tasks, _run_hitl_pipeline, job_id, initial_state, "start"
+            )
         else:
-            queue_backend = _dispatch_pipeline_task(background_tasks, _run_pipeline_to_completion, job_id, initial_state)
+            queue_backend = _dispatch_pipeline_task(
+                background_tasks, _run_pipeline_to_completion, job_id, initial_state
+            )
     except HTTPException as exc:
         _set_job(
             job_id,
@@ -3922,7 +3962,9 @@ def cancel_job(job_id: str, request: Request, request_id: Optional[str] = Query(
         cancellation_reason="Canceled by user",
         canceled=True,
     )
-    _record_job_event(job_id, "job_canceled", previous_status=status, reason="Canceled by user", request_id=request_id_token)
+    _record_job_event(
+        job_id, "job_canceled", previous_status=status, reason="Canceled by user", request_id=request_id_token
+    )
     response = {"status": "canceled", "job_id": job_id, "previous_status": status}
     if request_id_token:
         response["request_id"] = request_id_token

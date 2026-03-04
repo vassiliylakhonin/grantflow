@@ -140,9 +140,12 @@ curl -s -X POST http://127.0.0.1:8000/generate \
       "country": "Kenya"
     },
     "llm_mode": false,
+    "architect_rag_enabled": true,
     "hitl_enabled": false
   }'
 ```
+
+`architect_rag_enabled` controls Architect retrieval behavior per request (default: `true`).
 
 `/generate` is async and returns `job_id`.
 

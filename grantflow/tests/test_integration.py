@@ -540,6 +540,20 @@ def test_generate_preflight_reports_high_risk_when_namespace_empty():
     assert body.get("depth_coverage_rate") == 0.0
 
 
+def test_generate_preflight_accepts_architect_rag_toggle():
+    api_app_module.INGEST_AUDIT_STORE.clear()
+
+    response = client.post(
+        "/generate/preflight",
+        json={"donor_id": "usaid", "architect_rag_enabled": False},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["architect_rag_enabled"] is False
+    architect_claims = body.get("architect_claims") or {}
+    assert architect_claims.get("retrieval_expected") is False
+
+
 def test_generate_preflight_reports_depth_coverage_warning_when_family_min_not_met():
     api_app_module.INGEST_AUDIT_STORE.clear()
     api_app_module.INGEST_AUDIT_STORE.append(
@@ -973,6 +987,7 @@ def test_generate_response_and_status_include_preflight_payload():
     preflight = data.get("preflight")
     assert isinstance(preflight, dict)
     assert preflight["donor_id"] == "usaid"
+    assert preflight["architect_rag_enabled"] is True
     assert preflight["risk_level"] == "high"
     assert preflight["grounding_risk_level"] == "high"
     assert isinstance(preflight.get("grounding_policy"), dict)
@@ -980,8 +995,31 @@ def test_generate_response_and_status_include_preflight_payload():
     status = _wait_for_terminal_status(data["job_id"])
     assert status["generate_preflight"] == preflight
     assert status["state"]["generate_preflight"] == preflight
+    assert status["state"]["architect_rag_enabled"] is True
     assert status["strict_preflight"] is False
     assert status["state"]["strict_preflight"] is False
+
+
+def test_generate_respects_architect_rag_enabled_flag():
+    api_app_module.INGEST_AUDIT_STORE.clear()
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+            "llm_mode": False,
+            "architect_rag_enabled": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["preflight"]["architect_rag_enabled"] is False
+    job_id = data["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["state"]["architect_rag_enabled"] is False
 
 
 def test_generate_strict_preflight_blocks_when_risk_is_high():
@@ -1010,7 +1048,7 @@ def test_generate_strict_preflight_allows_when_risk_is_not_high(monkeypatch):
     monkeypatch.setattr(
         api_app_module,
         "_build_generate_preflight",
-        lambda donor_id, strategy, client_metadata: {
+        lambda donor_id, strategy, client_metadata, **kwargs: {
             "donor_id": donor_id,
             "risk_level": "medium",
             "go_ahead": True,
@@ -1038,7 +1076,7 @@ def test_generate_strict_preflight_blocks_when_grounding_risk_is_high(monkeypatc
     monkeypatch.setattr(
         api_app_module,
         "_build_generate_preflight",
-        lambda donor_id, strategy, client_metadata: {
+        lambda donor_id, strategy, client_metadata, **kwargs: {
             "donor_id": donor_id,
             "risk_level": "medium",
             "grounding_risk_level": "high",
@@ -1079,7 +1117,7 @@ def test_generate_require_grounded_generation_blocks_llm_when_grounding_risk_is_
     monkeypatch.setattr(
         api_app_module,
         "_build_generate_preflight",
-        lambda donor_id, strategy, client_metadata: {
+        lambda donor_id, strategy, client_metadata, **kwargs: {
             "donor_id": donor_id,
             "risk_level": "medium",
             "grounding_risk_level": "high",
@@ -1197,7 +1235,7 @@ def test_strict_grounding_gate_blocks_job_finalization(monkeypatch):
     monkeypatch.setattr(
         api_app_module,
         "_build_generate_preflight",
-        lambda donor_id, strategy, client_metadata: {
+        lambda donor_id, strategy, client_metadata, **kwargs: {
             "donor_id": donor_id,
             "risk_level": "low",
             "grounding_risk_level": "low",
@@ -1256,7 +1294,7 @@ def test_strict_mel_grounding_policy_blocks_job_finalization(monkeypatch):
     monkeypatch.setattr(
         api_app_module,
         "_build_generate_preflight",
-        lambda donor_id, strategy, client_metadata: {
+        lambda donor_id, strategy, client_metadata, **kwargs: {
             "donor_id": donor_id,
             "risk_level": "low",
             "grounding_risk_level": "low",
@@ -1317,7 +1355,7 @@ def test_strict_mel_grounding_policy_blocks_after_hitl_resume(monkeypatch):
     monkeypatch.setattr(
         api_app_module,
         "_build_generate_preflight",
-        lambda donor_id, strategy, client_metadata: {
+        lambda donor_id, strategy, client_metadata, **kwargs: {
             "donor_id": donor_id,
             "risk_level": "low",
             "grounding_risk_level": "low",
