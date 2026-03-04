@@ -175,8 +175,33 @@ def _uses_inmemory_queue_runner() -> bool:
     return _job_runner_mode() == "inmemory_queue"
 
 
+def _job_store_mode() -> str:
+    return "sqlite" if getattr(JOB_STORE, "db_path", None) else "inmem"
+
+
+def _hitl_store_mode() -> str:
+    return "sqlite" if bool(getattr(hitl_manager, "_use_sqlite", False)) else "inmem"
+
+
+def _ingest_store_mode() -> str:
+    return "sqlite" if getattr(INGEST_AUDIT_STORE, "db_path", None) else "inmem"
+
+
+def _validate_store_backend_alignment() -> None:
+    job_store_mode = _job_store_mode()
+    hitl_store_mode = _hitl_store_mode()
+    if job_store_mode == hitl_store_mode:
+        return
+    raise RuntimeError(
+        "Store backend mismatch: "
+        f"JOB_STORE={job_store_mode} while HITL_STORE={hitl_store_mode}. "
+        "Use matching backends for GRANTFLOW_JOB_STORE and GRANTFLOW_HITL_STORE."
+    )
+
+
 @asynccontextmanager
 async def _app_lifespan(_: FastAPI) -> AsyncIterator[None]:
+    _validate_store_backend_alignment()
     if _uses_inmemory_queue_runner():
         JOB_RUNNER.start()
     try:
@@ -3221,9 +3246,9 @@ def _clear_hitl_runtime_state(state: dict, *, clear_pending: bool) -> None:
 
 
 def _health_diagnostics() -> dict[str, Any]:
-    job_store_mode = "sqlite" if getattr(JOB_STORE, "db_path", None) else "inmem"
-    hitl_store_mode = "sqlite" if bool(getattr(hitl_manager, "_use_sqlite", False)) else "inmem"
-    ingest_store_mode = "sqlite" if getattr(INGEST_AUDIT_STORE, "db_path", None) else "inmem"
+    job_store_mode = _job_store_mode()
+    hitl_store_mode = _hitl_store_mode()
+    ingest_store_mode = _ingest_store_mode()
     sqlite_path = getattr(JOB_STORE, "db_path", None) or (
         getattr(hitl_manager, "_sqlite_path", None) if hitl_store_mode == "sqlite" else None
     )

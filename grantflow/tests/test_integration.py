@@ -4,6 +4,7 @@ import gzip
 import json
 import time
 
+import pytest
 from fastapi.testclient import TestClient
 
 import grantflow.api.app as api_app_module
@@ -65,6 +66,31 @@ def test_health_endpoint():
     assert 0.0 <= float(export_thresholds["max_traceability_gap_rate"]) <= 1.0
     export_contract_policy = diagnostics["export_contract_policy"]
     assert export_contract_policy["mode"] in {"warn", "strict", "off"}
+
+
+def test_store_backend_alignment_validation_detects_job_hitl_mismatch(monkeypatch):
+    class FakeJobStore:
+        db_path = "/tmp/grantflow_state.db"
+
+    class FakeHitlManager:
+        _use_sqlite = False
+
+    monkeypatch.setattr(api_app_module, "JOB_STORE", FakeJobStore())
+    monkeypatch.setattr(api_app_module, "hitl_manager", FakeHitlManager())
+    with pytest.raises(RuntimeError, match="GRANTFLOW_JOB_STORE"):
+        api_app_module._validate_store_backend_alignment()
+
+
+def test_store_backend_alignment_validation_allows_matching_backends(monkeypatch):
+    class FakeJobStore:
+        db_path = "/tmp/grantflow_state.db"
+
+    class FakeHitlManager:
+        _use_sqlite = True
+
+    monkeypatch.setattr(api_app_module, "JOB_STORE", FakeJobStore())
+    monkeypatch.setattr(api_app_module, "hitl_manager", FakeHitlManager())
+    api_app_module._validate_store_backend_alignment()
 
 
 def test_demo_console_page_loads():
