@@ -119,6 +119,7 @@ Notes:
 - Applies only to `llm_mode=true` with `architect_rag_enabled=true`.
 - In `strict` mode, job finalization is blocked when grounded signals are below threshold.
 - Gate outcome is exposed in `GET /status/{job_id}/quality` as `grounded_gate`.
+- `GET /status/{job_id}/grounding-gate` returns runtime/preflight/mel grounding policies with structured `reason_details`, `failed_sections`, and sample evidence rows for triage.
 
 ### 4.2) (Optional) Configure pipeline runner mode
 

@@ -404,6 +404,16 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Strict preflight</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Grounded gate</div><div class="value mono">-</div></div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <div id="qualityGroundedGatePill" class="pill readiness-level-none">
+                <span class="dot"></span><span>gate=unknown</span>
+              </div>
+              <button id="qualityGroundedGateExplainBtn" class="ghost">Why blocked?</button>
+            </div>
+            <div id="qualityGroundedGateReasonsWrap" style="margin-top:10px;" class="hidden">
+              <label>Grounded Gate Evidence</label>
+              <div class="list" id="qualityGroundedGateReasonsList"></div>
+            </div>
             <div id="qualityPreflightMetaLine" class="footer-note mono">warning_count=- · coverage_rate=-</div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -1230,6 +1240,8 @@ def render_demo_ui_html() -> str:
         lastCritic: null,
         lastCitations: null,
         lastIngestInventory: null,
+        lastQualitySummary: null,
+        qualityGroundedGateExplainExpanded: false,
         ingestChecklistProgress: {},
         zeroReadinessWarningPrefs: {},
       };
@@ -1437,6 +1449,10 @@ def render_demo_ui_html() -> str:
         qualityArchitectCitationTypeCountsList: $("qualityArchitectCitationTypeCountsList"),
         qualityReadinessWarningsList: $("qualityReadinessWarningsList"),
         qualityReadinessWarningLevelPill: $("qualityReadinessWarningLevelPill"),
+        qualityGroundedGatePill: $("qualityGroundedGatePill"),
+        qualityGroundedGateExplainBtn: $("qualityGroundedGateExplainBtn"),
+        qualityGroundedGateReasonsWrap: $("qualityGroundedGateReasonsWrap"),
+        qualityGroundedGateReasonsList: $("qualityGroundedGateReasonsList"),
         qualityPreflightMetaLine: $("qualityPreflightMetaLine"),
         groundingKpiCards: $("groundingKpiCards"),
         groundingKpiMetaLine: $("groundingKpiMetaLine"),
@@ -2585,6 +2601,16 @@ def render_demo_ui_html() -> str:
           const melReasons = Array.isArray(melPolicy?.reasons)
             ? melPolicy.reasons.map((item) => String(item || "").trim()).filter(Boolean)
             : [];
+          const runtimeGate =
+            summary?.grounded_gate && typeof summary.grounded_gate === "object" && !Array.isArray(summary.grounded_gate)
+              ? summary.grounded_gate
+              : {};
+          const runtimeReasonDetails = Array.isArray(runtimeGate?.reason_details)
+            ? runtimeGate.reason_details.filter((item) => item && typeof item === "object")
+            : [];
+          const runtimeReasons = Array.isArray(runtimeGate?.reasons)
+            ? runtimeGate.reasons.map((item) => String(item || "").trim()).filter(Boolean)
+            : [];
           const architectClaims =
             preflight?.architect_claims && typeof preflight.architect_claims === "object"
               ? preflight.architect_claims
@@ -2612,6 +2638,15 @@ def render_demo_ui_html() -> str:
           }
           const rows = [
             ...(architectClaimsSummary ? [{ title: "architect_claims", value: architectClaimsSummary }] : []),
+            ...runtimeReasonDetails.map((item) => ({
+              title: "runtime_gate",
+              value:
+                `${String(item.message || item.code || "gate_reason")}` +
+                ` · section=${String(item.section || "overall")}` +
+                (item.observed !== undefined ? ` · observed=${String(item.observed)}` : "") +
+                (item.threshold !== undefined ? ` · threshold=${String(item.threshold)}` : ""),
+            })),
+            ...(!runtimeReasonDetails.length ? runtimeReasons.map((reason) => ({ title: "runtime_gate", value: reason })) : []),
             ...preflightReasons.map((reason) => ({ title: "preflight", value: reason })),
             ...melReasons.map((reason) => ({ title: "mel", value: reason })),
           ];
@@ -2821,6 +2856,7 @@ def render_demo_ui_html() -> str:
               ? `reasons=${groundedGateReasons.join(", ")}`
               : "No grounded gate summary";
         }
+        renderQualityGroundedGateExplain(groundedGate);
         renderKeyValueList(
           els.qualityMelSummaryList,
           {
@@ -2857,6 +2893,115 @@ def render_demo_ui_html() -> str:
         );
         renderGroundingKpiCards(summary);
         renderQualityReadinessWarnings(readiness);
+        state.lastQualitySummary = summary && typeof summary === "object" ? summary : null;
+      }
+
+      function renderQualityGroundedGateExplain(groundedGate) {
+        if (!els.qualityGroundedGatePill || !els.qualityGroundedGateExplainBtn || !els.qualityGroundedGateReasonsList) {
+          return;
+        }
+        const mode = String(groundedGate?.mode || "-");
+        const applicable = groundedGate?.applicable;
+        const blocking = groundedGate?.blocking === true;
+        const passed = groundedGate?.passed === true;
+        const summary = String(groundedGate?.summary || "").trim();
+        const reasons = Array.isArray(groundedGate?.reasons)
+          ? groundedGate.reasons.map((item) => String(item || "").trim()).filter(Boolean)
+          : [];
+        const reasonDetails = Array.isArray(groundedGate?.reason_details)
+          ? groundedGate.reason_details.filter((item) => item && typeof item === "object")
+          : [];
+        const evidenceBySection =
+          groundedGate?.evidence &&
+          groundedGate.evidence.sample_citations_by_section &&
+          typeof groundedGate.evidence.sample_citations_by_section === "object"
+            ? groundedGate.evidence.sample_citations_by_section
+            : {};
+
+        let gateLabel = "unknown";
+        let level = "none";
+        if (applicable === false) {
+          gateLabel = "N/A";
+          level = "none";
+        } else if (blocking) {
+          gateLabel = "BLOCK";
+          level = "high";
+        } else if (passed) {
+          gateLabel = "PASS";
+          level = "low";
+        } else if (groundedGate?.passed === false) {
+          gateLabel = "WARN";
+          level = "medium";
+        }
+        els.qualityGroundedGatePill.className = `pill readiness-level-${level}`;
+        const pillTextNode = els.qualityGroundedGatePill.querySelector("span:last-child");
+        if (pillTextNode) {
+          const reasonCount = reasonDetails.length || reasons.length;
+          pillTextNode.textContent =
+            `gate=${gateLabel} · mode=${mode}` + (reasonCount > 0 ? ` · reasons=${reasonCount}` : "");
+        }
+        els.qualityGroundedGateExplainBtn.disabled = !(blocking || reasonDetails.length || reasons.length);
+        els.qualityGroundedGateExplainBtn.textContent = state.qualityGroundedGateExplainExpanded
+          ? "Hide gate details"
+          : "Why blocked?";
+
+        els.qualityGroundedGateReasonsList.innerHTML = "";
+        const rows = [];
+        if (reasonDetails.length) {
+          for (const item of reasonDetails) {
+            const code = String(item.code || "gate_reason");
+            const section = String(item.section || "overall");
+            const observed = item.observed;
+            const threshold = item.threshold;
+            const detail = String(item.message || "").trim() || code;
+            let meta = `section=${section} · code=${code}`;
+            if (observed !== undefined) meta += ` · observed=${String(observed)}`;
+            if (threshold !== undefined) meta += ` · threshold=${String(threshold)}`;
+            rows.push({ title: detail, sub: meta, severity: blocking ? "high" : "medium" });
+          }
+        } else if (reasons.length) {
+          for (const reason of reasons) {
+            rows.push({ title: reason, sub: `mode=${mode}`, severity: blocking ? "high" : "medium" });
+          }
+        } else {
+          rows.push({
+            title: summary || "Grounded gate has no blocking reasons.",
+            sub: `mode=${mode} · applicable=${String(applicable)}`,
+            severity: passed ? "low" : "medium",
+          });
+        }
+
+        for (const row of rows.slice(0, 10)) {
+          const div = document.createElement("div");
+          div.className = `item severity-${row.severity}`;
+          div.innerHTML = `<div class="title">${escapeHtml(row.title)}</div><div class="sub mono">${escapeHtml(row.sub)}</div>`;
+          els.qualityGroundedGateReasonsList.appendChild(div);
+        }
+
+        const evidenceEntries = Object.entries(evidenceBySection)
+          .filter(([, items]) => Array.isArray(items))
+          .slice(0, 2);
+        for (const [section, itemsRaw] of evidenceEntries) {
+          const items = itemsRaw.filter((item) => item && typeof item === "object").slice(0, 2);
+          for (const item of items) {
+            const citationType = String(item.citation_type || "unknown");
+            const source = String(item.source || item.doc_id || "citation");
+            const statementPath = String(item.statement_path || "");
+            const confidence = item.retrieval_confidence;
+            const confLabel =
+              typeof confidence === "number" ? confidence.toFixed(3) : String(confidence || "-");
+            const div = document.createElement("div");
+            div.className = "item severity-low";
+            div.innerHTML =
+              `<div class="title mono">evidence:${escapeHtml(section)}:${escapeHtml(citationType)}</div>` +
+              `<div class="sub mono">${escapeHtml(source)} · statement_path=${escapeHtml(statementPath || "-")} · retrieval_confidence=${escapeHtml(confLabel)}</div>`;
+            els.qualityGroundedGateReasonsList.appendChild(div);
+          }
+        }
+
+        if (els.qualityGroundedGateReasonsWrap) {
+          els.qualityGroundedGateReasonsWrap.classList.toggle("hidden", !state.qualityGroundedGateExplainExpanded);
+        }
       }
 
       function renderQualityReadinessWarnings(readiness) {
@@ -5142,6 +5287,16 @@ def render_demo_ui_html() -> str:
         setJson(els.statusJson, { error: msg });
       }
 
+      function toggleQualityGroundedGateExplain() {
+        state.qualityGroundedGateExplainExpanded = !state.qualityGroundedGateExplainExpanded;
+        const summary = state.lastQualitySummary && typeof state.lastQualitySummary === "object" ? state.lastQualitySummary : {};
+        const groundedGate =
+          summary.grounded_gate && typeof summary.grounded_gate === "object" && !Array.isArray(summary.grounded_gate)
+            ? summary.grounded_gate
+            : {};
+        renderQualityGroundedGateExplain(groundedGate);
+      }
+
       function bind() {
         els.generateBtn.addEventListener("click", () => generateJob().catch(showError));
         els.applyPresetBtn.addEventListener("click", applyGeneratePreset);
@@ -5202,6 +5357,9 @@ def render_demo_ui_html() -> str:
           else refreshCritic().catch(showError);
         });
         els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
+        if (els.qualityGroundedGateExplainBtn) {
+          els.qualityGroundedGateExplainBtn.addEventListener("click", toggleQualityGroundedGateExplain);
+        }
         els.portfolioBtn.addEventListener("click", () => {
           refreshPortfolioBundle().catch(showError);
         });

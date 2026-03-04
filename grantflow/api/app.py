@@ -815,6 +815,53 @@ def _runtime_grounded_quality_gate_thresholds() -> Dict[str, Any]:
     }
 
 
+def _runtime_grounded_gate_section(citation: Dict[str, Any]) -> str:
+    stage = str(citation.get("stage") or "").strip().lower()
+    if stage == "architect":
+        return "toc"
+    if stage == "mel":
+        return "logframe"
+
+    statement_path = str(citation.get("statement_path") or "").strip().lower()
+    if statement_path:
+        if statement_path == "toc" or statement_path.startswith(
+            ("goal", "objective", "outcome", "output", "assumption", "activity")
+        ):
+            return "toc"
+        return "toc"
+
+    used_for = str(citation.get("used_for") or "").strip().lower()
+    if used_for.startswith(("ind", "mel", "logframe", "lf_")):
+        return "logframe"
+    return "general"
+
+
+def _runtime_grounded_gate_evidence_row(citation: Dict[str, Any]) -> Dict[str, Any]:
+    row: Dict[str, Any] = {}
+    allowed_keys = (
+        "stage",
+        "citation_type",
+        "doc_id",
+        "source",
+        "page",
+        "retrieval_rank",
+        "retrieval_confidence",
+        "statement_path",
+        "used_for",
+        "label",
+    )
+    for key in allowed_keys:
+        value = citation.get(key)
+        if value in (None, ""):
+            continue
+        if isinstance(value, (str, int, float, bool)):
+            row[key] = value
+        else:
+            row[key] = str(value)
+    row["traceability_status"] = citation_traceability_status(citation)
+    return row
+
+
 def _evaluate_runtime_grounded_quality_gate_from_state(state: Any) -> Dict[str, Any]:
     mode = _configured_runtime_grounded_quality_gate_mode()
     thresholds = _runtime_grounded_quality_gate_thresholds()
@@ -839,26 +886,153 @@ def _evaluate_runtime_grounded_quality_gate_from_state(state: Any) -> Dict[str, 
     citation_count = len(citations)
     non_retrieval_citation_count = 0
     retrieval_grounded_citation_count = 0
+    section_counters: Dict[str, Dict[str, int]] = {
+        "toc": {
+            "citation_count": 0,
+            "non_retrieval_citation_count": 0,
+            "retrieval_grounded_citation_count": 0,
+            "traceability_complete_citation_count": 0,
+            "traceability_gap_citation_count": 0,
+        },
+        "logframe": {
+            "citation_count": 0,
+            "non_retrieval_citation_count": 0,
+            "retrieval_grounded_citation_count": 0,
+            "traceability_complete_citation_count": 0,
+            "traceability_gap_citation_count": 0,
+        },
+        "general": {
+            "citation_count": 0,
+            "non_retrieval_citation_count": 0,
+            "retrieval_grounded_citation_count": 0,
+            "traceability_complete_citation_count": 0,
+            "traceability_gap_citation_count": 0,
+        },
+    }
+    section_evidence: Dict[str, list[Dict[str, Any]]] = {"toc": [], "logframe": [], "general": []}
+
     for citation in citations:
+        section = _runtime_grounded_gate_section(citation)
+        if section not in section_counters:
+            section = "general"
+        section_row = section_counters[section]
+        section_row["citation_count"] += 1
         citation_type = citation.get("citation_type")
         if is_non_retrieval_citation_type(citation_type):
             non_retrieval_citation_count += 1
+            section_row["non_retrieval_citation_count"] += 1
         if is_retrieval_grounded_citation_type(citation_type):
             retrieval_grounded_citation_count += 1
+            section_row["retrieval_grounded_citation_count"] += 1
+        if citation_traceability_status(citation) == "complete":
+            section_row["traceability_complete_citation_count"] += 1
+        else:
+            section_row["traceability_gap_citation_count"] += 1
+        if len(section_evidence[section]) < 3:
+            section_evidence[section].append(_runtime_grounded_gate_evidence_row(citation))
 
     non_retrieval_citation_rate = round(non_retrieval_citation_count / citation_count, 4) if citation_count else None
     retrieval_grounded_citation_rate = (
         round(retrieval_grounded_citation_count / citation_count, 4) if citation_count else None
     )
+    section_signals: Dict[str, Dict[str, Any]] = {}
+    for section, counters in section_counters.items():
+        section_total = int(counters.get("citation_count") or 0)
+        section_non_retrieval = int(counters.get("non_retrieval_citation_count") or 0)
+        section_retrieval_grounded = int(counters.get("retrieval_grounded_citation_count") or 0)
+        section_traceability_complete = int(counters.get("traceability_complete_citation_count") or 0)
+        section_traceability_gap = int(counters.get("traceability_gap_citation_count") or 0)
+        section_signals[section] = {
+            "citation_count": section_total,
+            "non_retrieval_citation_count": section_non_retrieval,
+            "retrieval_grounded_citation_count": section_retrieval_grounded,
+            "traceability_complete_citation_count": section_traceability_complete,
+            "traceability_gap_citation_count": section_traceability_gap,
+            "non_retrieval_citation_rate": (round(section_non_retrieval / section_total, 4) if section_total else None),
+            "retrieval_grounded_citation_rate": (
+                round(section_retrieval_grounded / section_total, 4) if section_total else None
+            ),
+            "traceability_complete_citation_rate": (
+                round(section_traceability_complete / section_total, 4) if section_total else None
+            ),
+            "traceability_gap_citation_rate": (
+                round(section_traceability_gap / section_total, 4) if section_total else None
+            ),
+        }
 
     reasons: list[str] = []
+    reason_details: list[Dict[str, Any]] = []
+    failed_sections: set[str] = set()
+
+    def _append_reason_detail(
+        *,
+        code: str,
+        message: str,
+        section: str = "overall",
+        observed: Any = None,
+        threshold: Any = None,
+    ) -> None:
+        row: Dict[str, Any] = {"code": code, "message": message, "section": section}
+        if observed is not None:
+            row["observed"] = observed
+        if threshold is not None:
+            row["threshold"] = threshold
+        reason_details.append(row)
+        if section in {"toc", "logframe"}:
+            failed_sections.add(section)
+
     if applicable and mode != "off":
         if citation_count < min_citations_for_gate:
             reasons.append("insufficient_citations_for_runtime_grounded_gate")
+            _append_reason_detail(
+                code="insufficient_citations_for_runtime_grounded_gate",
+                message="Total citation count is below runtime grounded gate minimum.",
+                section="overall",
+                observed=citation_count,
+                threshold=min_citations_for_gate,
+            )
         if non_retrieval_citation_rate is None or non_retrieval_citation_rate > max_non_retrieval_citation_rate:
             reasons.append("non_retrieval_citation_rate_above_max")
+            _append_reason_detail(
+                code="non_retrieval_citation_rate_above_max",
+                message="Non-retrieval citations exceed allowed maximum rate.",
+                section="overall",
+                observed=non_retrieval_citation_rate,
+                threshold=max_non_retrieval_citation_rate,
+            )
+            for section in ("toc", "logframe"):
+                section_rate = section_signals.get(section, {}).get("non_retrieval_citation_rate")
+                section_count = int(section_signals.get(section, {}).get("citation_count") or 0)
+                if section_count <= 0 or section_rate is None:
+                    continue
+                if float(section_rate) > max_non_retrieval_citation_rate:
+                    _append_reason_detail(
+                        code="section_non_retrieval_citation_rate_above_max",
+                        message=f"{section} non-retrieval citation rate exceeds allowed maximum.",
+                        section=section,
+                        observed=section_rate,
+                        threshold=max_non_retrieval_citation_rate,
+                    )
         if retrieval_grounded_citation_count < min_retrieval_grounded_citations:
             reasons.append("retrieval_grounded_citation_count_below_min")
+            _append_reason_detail(
+                code="retrieval_grounded_citation_count_below_min",
+                message="Retrieval-grounded citations are below required minimum.",
+                section="overall",
+                observed=retrieval_grounded_citation_count,
+                threshold=min_retrieval_grounded_citations,
+            )
+            for section in ("toc", "logframe"):
+                section_count = int(section_signals.get(section, {}).get("citation_count") or 0)
+                section_grounded = int(section_signals.get(section, {}).get("retrieval_grounded_citation_count") or 0)
+                if section_count > 0 and section_grounded <= 0:
+                    _append_reason_detail(
+                        code="section_missing_retrieval_grounding",
+                        message=f"{section} has citations but none are retrieval-grounded.",
+                        section=section,
+                        observed=section_grounded,
+                        threshold=1,
+                    )
 
     if not applicable:
         passed = True
@@ -875,6 +1049,15 @@ def _evaluate_runtime_grounded_quality_gate_from_state(state: Any) -> Dict[str, 
         blocking = mode == "strict" and not passed
         summary = "runtime_grounded_signals_ok" if passed else ",".join(reasons)
         risk_level = "low" if passed else "high"
+
+    failed_section_list = sorted(failed_sections)
+    evidence_sections = failed_section_list or [section for section in ("toc", "logframe") if section_evidence[section]]
+    evidence = {
+        "sample_citations_by_section": {
+            section: list(section_evidence.get(section) or [])[:3] for section in evidence_sections
+        },
+        "failed_sections": failed_section_list,
+    }
 
     return {
         "mode": mode,
@@ -893,6 +1076,10 @@ def _evaluate_runtime_grounded_quality_gate_from_state(state: Any) -> Dict[str, 
         "retrieval_grounded_citation_count": retrieval_grounded_citation_count,
         "non_retrieval_citation_rate": non_retrieval_citation_rate,
         "retrieval_grounded_citation_rate": retrieval_grounded_citation_rate,
+        "reason_details": reason_details,
+        "section_signals": section_signals,
+        "failed_sections": failed_section_list,
+        "evidence": evidence,
         "thresholds": thresholds,
     }
 
@@ -2109,6 +2296,8 @@ def _append_runtime_grounded_quality_gate_finding(state: dict, gate: Dict[str, A
     if not isinstance(state, dict):
         return
     reasons = gate.get("reasons") if isinstance(gate.get("reasons"), list) else []
+    reason_details = gate.get("reason_details") if isinstance(gate.get("reason_details"), list) else []
+    failed_sections = gate.get("failed_sections") if isinstance(gate.get("failed_sections"), list) else []
     thresholds = gate.get("thresholds") if isinstance(gate.get("thresholds"), dict) else {}
     non_retrieval_rate = gate.get("non_retrieval_citation_rate")
     retrieval_grounded_count = gate.get("retrieval_grounded_citation_count")
@@ -2118,7 +2307,8 @@ def _append_runtime_grounded_quality_gate_finding(state: dict, gate: Dict[str, A
         f"{summary}; citation_count={citation_count}; "
         f"non_retrieval_rate={non_retrieval_rate}; "
         f"retrieval_grounded_count={retrieval_grounded_count}; "
-        f"thresholds={thresholds}; reasons={reasons}"
+        f"thresholds={thresholds}; reasons={reasons}; "
+        f"reason_details={reason_details}; failed_sections={failed_sections}"
     )
     existing = state_critic_findings(state, default_source="rules")
     existing_codes = {str(item.get("code") or "").strip().upper() for item in existing if isinstance(item, dict)}

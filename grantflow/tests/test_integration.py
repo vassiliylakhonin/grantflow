@@ -175,6 +175,11 @@ def test_demo_console_page_loads():
     assert "qualityBtn" in body
     assert "qualityCards" in body
     assert "qualityPreflightMetaLine" in body
+    assert "qualityGroundedGatePill" in body
+    assert "qualityGroundedGateExplainBtn" in body
+    assert "qualityGroundedGateReasonsWrap" in body
+    assert "qualityGroundedGateReasonsList" in body
+    assert "Why blocked?" in body
     assert "qualityMelSummaryList" in body
     assert "qualityCitationTypeCountsList" in body
     assert "qualityArchitectCitationTypeCountsList" in body
@@ -1393,6 +1398,13 @@ def test_runtime_grounded_quality_gate_blocks_llm_when_non_retrieval_signals_dom
     assert gate.get("passed") is False
     reasons = gate.get("reasons") if isinstance(gate.get("reasons"), list) else []
     assert "non_retrieval_citation_rate_above_max" in reasons
+    reason_details = gate.get("reason_details") if isinstance(gate.get("reason_details"), list) else []
+    assert reason_details
+    detail_codes = {str(item.get("code") or "") for item in reason_details if isinstance(item, dict)}
+    assert "non_retrieval_citation_rate_above_max" in detail_codes
+    section_signals = gate.get("section_signals") if isinstance(gate.get("section_signals"), dict) else {}
+    assert "toc" in section_signals
+    assert "logframe" in section_signals
     flaws = (state.get("critic_notes") or {}).get("fatal_flaws") or []
     flaw_codes = {str(item.get("code") or "") for item in flaws if isinstance(item, dict)}
     assert "RUNTIME_GROUNDED_QUALITY_GATE_BLOCK" in flaw_codes
@@ -1462,6 +1474,155 @@ def test_runtime_grounded_quality_gate_skips_when_architect_rag_disabled(monkeyp
     assert gate.get("applicable") is False
     assert gate.get("blocking") is False
     assert gate.get("passed") is True
+
+
+def test_runtime_grounded_quality_gate_passes_with_seeded_corpus_grounded_llm(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "grounding_gate_mode", "warn")
+    monkeypatch.setattr(api_app_module.config.graph, "mel_grounding_policy_mode", "warn")
+    monkeypatch.setattr(api_app_module.config.graph, "runtime_grounded_quality_gate_mode", "strict")
+    monkeypatch.setattr(api_app_module.config.graph, "runtime_grounded_quality_gate_min_citations", 5)
+    monkeypatch.setattr(
+        api_app_module.config.graph, "runtime_grounded_quality_gate_max_non_retrieval_citation_rate", 0.35
+    )
+    monkeypatch.setattr(
+        api_app_module.config.graph, "runtime_grounded_quality_gate_min_retrieval_grounded_citations", 2
+    )
+    monkeypatch.setattr(
+        api_app_module,
+        "_build_generate_preflight",
+        lambda donor_id, strategy, client_metadata, **kwargs: {
+            "donor_id": donor_id,
+            "risk_level": "low",
+            "grounding_risk_level": "low",
+            "go_ahead": True,
+            "warning_count": 0,
+            "warnings": [],
+            "retrieval_namespace": "usaid_ads201",
+            "namespace_empty": False,
+            "grounding_policy": {
+                "mode": "warn",
+                "risk_level": "low",
+                "blocking": False,
+                "go_ahead": True,
+                "summary": "readiness_signals_ok",
+                "reasons": ["sufficient_readiness_signals"],
+            },
+        },
+    )
+
+    api_app_module.INGEST_AUDIT_STORE.clear()
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "seed-gate-pass-1",
+            "ts": "2026-03-01T09:00:00+00:00",
+            "donor_id": "usaid",
+            "namespace": "usaid_ads201",
+            "filename": "ads-policy-seed.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "donor_policy", "source_type": "donor_guidance"},
+            "result": {"chunks_ingested": 10},
+        }
+    )
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "seed-gate-pass-2",
+            "ts": "2026-03-01T09:01:00+00:00",
+            "donor_id": "usaid",
+            "namespace": "usaid_ads201",
+            "filename": "responsible-ai-seed.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "responsible_ai_guidance", "source_type": "reference_guidance"},
+            "result": {"chunks_ingested": 8},
+        }
+    )
+    api_app_module.INGEST_AUDIT_STORE.append(
+        {
+            "event_id": "seed-gate-pass-3",
+            "ts": "2026-03-01T09:02:00+00:00",
+            "donor_id": "usaid",
+            "namespace": "usaid_ads201",
+            "filename": "country-context-seed.pdf",
+            "content_type": "application/pdf",
+            "metadata": {"doc_family": "country_context", "source_type": "country_context"},
+            "result": {"chunks_ingested": 7},
+        }
+    )
+
+    def fake_query(namespace, query_texts, n_results=5, where=None, top_k=None):
+        query_rows = query_texts if isinstance(query_texts, list) and query_texts else [str(query_texts or "")]
+        docs: list[list[str]] = []
+        metadatas: list[list[dict[str, object]]] = []
+        ids: list[list[str]] = []
+        distances: list[list[float]] = []
+        limit = max(1, min(int(n_results or top_k or 5), 4))
+        for q_idx, query in enumerate(query_rows):
+            docs_row: list[str] = []
+            metas_row: list[dict[str, object]] = []
+            ids_row: list[str] = []
+            distances_row: list[float] = []
+            for hit_idx in range(limit):
+                doc_id = f"{namespace}-seed-doc-{q_idx + 1}-{hit_idx + 1}"
+                chunk_id = f"{doc_id}-chunk"
+                docs_row.append(
+                    f"Seed evidence for grounded drafting. Query={str(query)[:120]}. "
+                    f"Reference #{hit_idx + 1} focuses on USAID-style compliance and MEL traceability."
+                )
+                metas_row.append(
+                    {
+                        "doc_id": doc_id,
+                        "chunk_id": chunk_id,
+                        "source": f"seed-source-{hit_idx + 1}.pdf",
+                        "page": hit_idx + 1,
+                        "doc_family": "donor_policy" if hit_idx == 0 else "responsible_ai_guidance",
+                    }
+                )
+                ids_row.append(chunk_id)
+                distances_row.append(0.05 + (hit_idx * 0.02))
+            docs.append(docs_row)
+            metadatas.append(metas_row)
+            ids.append(ids_row)
+            distances.append(distances_row)
+        return {"documents": docs, "metadatas": metadatas, "ids": ids, "distances": distances}
+
+    monkeypatch.setattr(api_app_module.vector_store, "query", fake_query)
+
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {
+                "project": "AI civil service capability and governance modernization",
+                "country": "Kazakhstan",
+                "timeframe": "2026-2027",
+            },
+            "llm_mode": True,
+            "hitl_enabled": False,
+            "architect_rag_enabled": True,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    terminal = _wait_for_terminal_status(job_id, timeout_s=5.0)
+    assert terminal["status"] == "done"
+    state = terminal.get("state") or {}
+    gate = state.get("grounded_quality_gate") or {}
+    assert gate.get("mode") == "strict"
+    assert gate.get("applicable") is True
+    assert gate.get("passed") is True
+    assert gate.get("blocking") is False
+    assert float(gate.get("non_retrieval_citation_rate") or 0.0) <= 0.35
+    assert int(gate.get("retrieval_grounded_citation_count") or 0) >= 2
+    section_signals = gate.get("section_signals") if isinstance(gate.get("section_signals"), dict) else {}
+    assert "toc" in section_signals
+    assert "logframe" in section_signals
+
+    grounding_gate_response = client.get(f"/status/{job_id}/grounding-gate")
+    assert grounding_gate_response.status_code == 200
+    grounding_gate_body = grounding_gate_response.json()
+    runtime_gate = grounding_gate_body.get("grounded_gate") or {}
+    assert runtime_gate.get("passed") is True
+    assert runtime_gate.get("blocking") is False
 
 
 def test_strict_mel_grounding_policy_blocks_job_finalization(monkeypatch):
@@ -4407,6 +4568,50 @@ def test_status_grounding_gate_endpoint_returns_runtime_and_preflight_policies()
                     "go_ahead": False,
                     "summary": "non_retrieval_citation_rate_above_max",
                     "reasons": ["non_retrieval_citation_rate_above_max"],
+                    "reason_details": [
+                        {
+                            "code": "non_retrieval_citation_rate_above_max",
+                            "message": "Non-retrieval citations exceed allowed maximum rate.",
+                            "section": "overall",
+                            "observed": 0.5,
+                            "threshold": 0.35,
+                        },
+                        {
+                            "code": "section_non_retrieval_citation_rate_above_max",
+                            "message": "toc non-retrieval citation rate exceeds allowed maximum.",
+                            "section": "toc",
+                            "observed": 1.0,
+                            "threshold": 0.35,
+                        },
+                    ],
+                    "section_signals": {
+                        "toc": {
+                            "citation_count": 4,
+                            "non_retrieval_citation_count": 4,
+                            "retrieval_grounded_citation_count": 0,
+                            "non_retrieval_citation_rate": 1.0,
+                        },
+                        "logframe": {
+                            "citation_count": 4,
+                            "non_retrieval_citation_count": 0,
+                            "retrieval_grounded_citation_count": 4,
+                            "non_retrieval_citation_rate": 0.0,
+                        },
+                    },
+                    "failed_sections": ["toc"],
+                    "evidence": {
+                        "sample_citations_by_section": {
+                            "toc": [
+                                {
+                                    "stage": "architect",
+                                    "citation_type": "fallback_namespace",
+                                    "statement_path": "development_objectives.0",
+                                    "doc_id": "strategy::usaid_ads201::development_objectives.0",
+                                }
+                            ]
+                        },
+                        "failed_sections": ["toc"],
+                    },
                     "citation_count": 8,
                 },
                 "mel_grounding_policy": {
@@ -4430,6 +4635,10 @@ def test_status_grounding_gate_endpoint_returns_runtime_and_preflight_policies()
     assert runtime_gate["passed"] is False
     assert runtime_gate["citation_count"] == 8
     assert runtime_gate["reasons"] == ["non_retrieval_citation_rate_above_max"]
+    assert runtime_gate["reason_details"][0]["code"] == "non_retrieval_citation_rate_above_max"
+    assert runtime_gate["section_signals"]["toc"]["non_retrieval_citation_rate"] == 1.0
+    assert runtime_gate["failed_sections"] == ["toc"]
+    assert runtime_gate["evidence"]["sample_citations_by_section"]["toc"][0]["citation_type"] == "fallback_namespace"
     preflight_gate = body.get("preflight_grounding_policy") or {}
     assert preflight_gate["mode"] == "strict"
     assert preflight_gate["blocking"] is True
