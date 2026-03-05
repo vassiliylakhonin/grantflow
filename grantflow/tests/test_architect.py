@@ -575,4 +575,90 @@ def test_architect_llm_tries_fallback_model_chain_and_selects_first_success(monk
     assert generation_meta["llm_selected_model"] == "model-secondary"
     assert generation_meta["llm_attempt_count"] == 2
     assert generation_meta["llm_models_tried"] == ["model-primary", "model-secondary"]
-    assert calls == ["model-primary", "model-secondary"]
+    assert calls[:2] == ["model-primary", "model-secondary"]
+    assert len(calls) >= 2
+
+
+def test_summarize_architect_claim_citations_includes_traceability_and_threshold_stats():
+    claim_records = [
+        {"statement_path": "toc.project_goal", "statement": "Goal", "priority": 5},
+        {"statement_path": "toc.objectives[0].description", "statement": "Objective", "priority": 4},
+    ]
+    citations = [
+        {
+            "stage": "architect",
+            "used_for": "toc_claim",
+            "statement_path": "toc.project_goal",
+            "citation_type": "rag_claim_support",
+            "traceability_status": "complete",
+            "citation_confidence": 0.82,
+            "confidence_threshold": 0.6,
+        },
+        {
+            "stage": "architect",
+            "used_for": "toc_claim",
+            "statement_path": "toc.objectives[0].description",
+            "citation_type": "rag_low_confidence",
+            "traceability_status": "partial",
+            "citation_confidence": 0.31,
+            "confidence_threshold": 0.5,
+        },
+    ]
+    stats = summarize_architect_claim_citations(claim_records=claim_records, citations=citations)
+    assert stats["traceability_complete_citation_count"] == 1
+    assert stats["traceability_partial_citation_count"] == 1
+    assert stats["traceability_missing_citation_count"] == 0
+    assert stats["traceability_gap_citation_count"] == 1
+    assert stats["traceability_gap_rate"] == 0.5
+    assert stats["threshold_considered_count"] == 2
+    assert stats["threshold_hit_count"] == 1
+    assert stats["threshold_hit_rate"] == 0.5
+
+
+def test_architect_llm_soft_quality_repair_retries_once(monkeypatch):
+    strategy = DonorFactory.get_strategy("usaid")
+    monkeypatch.setattr(architect_generation_module, "openai_compatible_llm_available", lambda: True)
+
+    schema_cls = strategy.get_toc_schema()
+    valid_payload, _ = _fallback_structured_toc(
+        schema_cls,
+        donor_id="usaid",
+        project="Water Sanitation",
+        country="Kenya",
+        revision_hint="",
+        evidence_hits=[],
+    )
+    placeholder_payload = dict(valid_payload)
+    placeholder_payload["project_goal"] = "TBD"
+
+    hints: list[str | None] = []
+
+    def fake_llm_structured_toc(*args, **kwargs):
+        hints.append(kwargs.get("validation_error_hint"))
+        if len(hints) == 1:
+            return placeholder_payload, "llm:mock", None
+        return valid_payload, "llm:mock", None
+
+    monkeypatch.setattr(architect_generation_module, "_llm_structured_toc", fake_llm_structured_toc)
+
+    state = {
+        "donor_id": "usaid",
+        "donor_strategy": strategy,
+        "input_context": {"project": "Water Sanitation", "country": "Kenya"},
+        "llm_mode": True,
+        "critic_notes": {},
+    }
+    toc, validation, generation_meta, _claim_citations = generate_toc_under_contract(
+        state=state,
+        strategy=strategy,
+        evidence_hits=[],
+    )
+    assert validation["valid"] is True
+    assert toc["project_goal"] != "TBD"
+    assert generation_meta["llm_used"] is True
+    assert generation_meta.get("llm_quality_repair_attempted") is True
+    assert int(generation_meta.get("llm_quality_issue_count") or 0) >= 1
+    assert len(hints) == 2
+    assert hints[0] is None
+    assert isinstance(hints[1], str)
+    assert "Soft quality issues detected" in str(hints[1])

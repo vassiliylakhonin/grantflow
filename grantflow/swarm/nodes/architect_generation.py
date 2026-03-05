@@ -32,6 +32,20 @@ from grantflow.swarm.state_contract import (
     state_revision_hint,
 )
 
+ARCHITECT_PLACEHOLDER_TOKENS = {
+    "",
+    "tbd",
+    "to be determined",
+    "placeholder",
+    "n/a",
+    "na",
+    "none",
+    "unknown",
+    "-",
+    "--",
+    "null",
+}
+
 
 def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> BaseModel:
     validator = getattr(schema_cls, "model_validate", None)
@@ -98,6 +112,45 @@ def _type_label(annotation: Any) -> str:
     if isinstance(annotation, type):
         return annotation.__name__
     return str(annotation)
+
+
+def _is_placeholder_text(value: Any) -> bool:
+    token = str(value or "").strip().lower()
+    return token in ARCHITECT_PLACEHOLDER_TOKENS
+
+
+def _collect_soft_quality_issues(value: Any, path: str = "toc") -> list[str]:
+    issues: list[str] = []
+    if isinstance(value, dict):
+        for key, inner in value.items():
+            issues.extend(_collect_soft_quality_issues(inner, f"{path}.{key}"))
+        return issues
+    if isinstance(value, list):
+        for idx, inner in enumerate(value):
+            issues.extend(_collect_soft_quality_issues(inner, f"{path}[{idx}]"))
+        return issues
+    if not isinstance(value, str):
+        return issues
+
+    text = str(value).strip()
+    lowered_path = path.lower()
+    if any(token in lowered_path for token in ("_id", ".id", "indicator_code", ".code")):
+        return issues
+    if _is_placeholder_text(text):
+        issues.append(f"{path}:placeholder")
+        return issues
+    if any(token in lowered_path for token in ("goal", "objective", "outcome", "result", "description", "rationale")):
+        if len(text) < 8:
+            issues.append(f"{path}:too_short")
+    return issues
+
+
+def _soft_quality_issue_hint(issues: list[str], *, max_items: int = 6) -> str:
+    if not issues:
+        return ""
+    sample = ", ".join(issues[:max_items])
+    extra = f" (+{len(issues) - max_items} more)" if len(issues) > max_items else ""
+    return f"Soft quality issues detected ({len(issues)}): {sample}{extra}. Replace placeholders with concrete text."
 
 
 def _field_description(field: Any) -> str:
@@ -519,20 +572,58 @@ def summarize_architect_claim_citations(
     }
     fallback_claim_count = sum(1 for c in claim_citations if str(c.get("citation_type") or "") == "fallback_namespace")
     low_conf_claim_count = sum(1 for c in claim_citations if str(c.get("citation_type") or "") == "rag_low_confidence")
+    traceability_complete_count = 0
+    traceability_partial_count = 0
+    traceability_missing_count = 0
+    threshold_considered = 0
+    threshold_hit_count = 0
+    for citation in claim_citations:
+        status = citation_traceability_status(citation)
+        if status == "complete":
+            traceability_complete_count += 1
+        elif status == "partial":
+            traceability_partial_count += 1
+        else:
+            traceability_missing_count += 1
+        threshold_raw = citation.get("confidence_threshold")
+        confidence_raw = citation.get("citation_confidence")
+        try:
+            threshold_value = float(threshold_raw) if threshold_raw is not None else None
+            confidence_value = float(confidence_raw) if confidence_raw is not None else None
+        except (TypeError, ValueError):
+            threshold_value = None
+            confidence_value = None
+        if threshold_value is None or confidence_value is None:
+            continue
+        threshold_considered += 1
+        if confidence_value >= threshold_value:
+            threshold_hit_count += 1
+    traceability_gap_count = traceability_partial_count + traceability_missing_count
+    claim_citation_count = len(claim_citations)
     return {
         "claims_total": len(claim_records),
         "key_claims_total": len(key_claim_paths),
-        "claim_citation_count": len(claim_citations),
+        "claim_citation_count": claim_citation_count,
         "claim_paths_covered": len(cited_paths & claim_paths),
         "key_claim_paths_covered": len(cited_paths & key_claim_paths),
         "confident_claim_paths_covered": len(confident_paths & claim_paths),
         "fallback_claim_count": fallback_claim_count,
         "low_confidence_claim_count": low_conf_claim_count,
+        "traceability_complete_citation_count": traceability_complete_count,
+        "traceability_partial_citation_count": traceability_partial_count,
+        "traceability_missing_citation_count": traceability_missing_count,
+        "traceability_gap_citation_count": traceability_gap_count,
+        "threshold_considered_count": threshold_considered,
+        "threshold_hit_count": threshold_hit_count,
         "claim_coverage_ratio": round((len(cited_paths & claim_paths) / len(claim_paths)), 4) if claim_paths else 1.0,
         "key_claim_coverage_ratio": (
             round((len(cited_paths & key_claim_paths) / len(key_claim_paths)), 4) if key_claim_paths else 1.0
         ),
-        "fallback_claim_ratio": round((fallback_claim_count / len(claim_citations)), 4) if claim_citations else 0.0,
+        "fallback_claim_ratio": round((fallback_claim_count / claim_citation_count), 4) if claim_citation_count else 0.0,
+        "traceability_gap_rate": (
+            round((traceability_gap_count / claim_citation_count), 4) if claim_citation_count else 0.0
+        ),
+        "threshold_hit_rate": round((threshold_hit_count / threshold_considered), 4) if threshold_considered else None,
     }
 
 
@@ -772,6 +863,9 @@ def generate_toc_under_contract(
     engine = "deterministic:contract_synthesizer"
     model: Optional[BaseModel] = None
     llm_repair_attempted = False
+    llm_quality_repair_attempted = False
+    llm_quality_issue_count = 0
+    llm_quality_issue_sample: list[str] = []
     llm_attempted = False
     llm_selected_model: Optional[str] = None
     llm_models_tried: list[str] = []
@@ -839,6 +933,44 @@ def generate_toc_under_contract(
                         llm_error = llm_error_retry or f"LLM structured output failed validation: {llm_validation_error}"
                         llm_failure_reasons.append(f"{model_name}: {llm_error}")
                 else:
+                    soft_quality_issues = _collect_soft_quality_issues(raw_payload)
+                    if soft_quality_issues:
+                        llm_quality_repair_attempted = True
+                        llm_quality_issue_count = len(soft_quality_issues)
+                        llm_quality_issue_sample = soft_quality_issues[:6]
+                        quality_hint = _soft_quality_issue_hint(soft_quality_issues)
+                        raw_payload_retry, llm_engine_retry, llm_error_retry = _llm_structured_toc(
+                            schema_cls,
+                            model_name=model_name,
+                            system_prompt=str(prompts.get("Architect") or ""),
+                            donor_id=donor_id,
+                            project=project,
+                            country=country,
+                            input_context=input_context,
+                            revision_hint=revision_hint,
+                            evidence_hits=evidence_hits,
+                            schema_contract_hint=schema_contract_hint,
+                            validation_error_hint=quality_hint,
+                        )
+                        if raw_payload_retry:
+                            try:
+                                model = _model_validate(schema_cls, raw_payload_retry)
+                            except Exception as exc_retry:
+                                llm_error = f"LLM quality-repair payload failed validation: {exc_retry}"
+                                llm_failure_reasons.append(f"{model_name}: {llm_error}")
+                                llm_selected_model = model_name
+                                break
+                            else:
+                                raw_payload = raw_payload_retry
+                                engine = llm_engine_retry or engine
+                                llm_selected_model = model_name
+                                if llm_error_retry:
+                                    llm_error = llm_error_retry
+                                break
+                        elif llm_error_retry:
+                            llm_error = llm_error_retry
+                        llm_selected_model = model_name
+                        break
                     llm_selected_model = model_name
                     break
             else:
@@ -920,4 +1052,8 @@ def generate_toc_under_contract(
         generation_meta["llm_failure_reasons"] = llm_failure_reasons[:5]
     if llm_repair_attempted:
         generation_meta["llm_validation_repair_attempted"] = True
+    if llm_quality_repair_attempted:
+        generation_meta["llm_quality_repair_attempted"] = True
+        generation_meta["llm_quality_issue_count"] = llm_quality_issue_count
+        generation_meta["llm_quality_issue_sample"] = llm_quality_issue_sample
     return toc_payload, validation, generation_meta, claim_citations
