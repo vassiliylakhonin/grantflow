@@ -101,6 +101,7 @@ def test_health_endpoint():
     assert export_contract_policy["mode"] in {"warn", "strict", "off"}
     export_runtime_gate_policy = diagnostics["export_runtime_grounded_gate_policy"]
     assert isinstance(export_runtime_gate_policy["require_pass"], bool)
+    assert isinstance(diagnostics.get("configuration_warnings"), list)
 
 
 def test_store_backend_alignment_validation_detects_job_hitl_mismatch(monkeypatch):
@@ -583,6 +584,7 @@ def test_ready_endpoint():
     assert export_contract_policy["mode"] in {"warn", "strict", "off"}
     export_runtime_gate_policy = checks["export_runtime_grounded_gate_policy"]
     assert isinstance(export_runtime_gate_policy["require_pass"], bool)
+    assert isinstance(checks.get("configuration_warnings"), list)
 
 
 def test_ready_endpoint_redis_dispatcher_mode_without_local_consumer(monkeypatch):
@@ -837,6 +839,28 @@ def test_ready_endpoint_reflects_export_runtime_grounded_gate_policy_override(mo
     body = response.json()
     policy = body["checks"]["export_runtime_grounded_gate_policy"]
     assert policy["require_pass"] is True
+
+
+def test_health_endpoint_reports_chroma_port_conflict_warning(monkeypatch):
+    monkeypatch.setattr(api_app_module.vector_store, "_chroma_host", "127.0.0.1")
+    monkeypatch.setattr(api_app_module.vector_store, "_chroma_port", 8000)
+
+    response = client.get("/health")
+    assert response.status_code == 200
+    body = response.json()
+    warnings = body["diagnostics"].get("configuration_warnings") or []
+    assert any(w.get("code") == "CHROMA_PORT_MAY_CONFLICT_WITH_API_DEFAULT" for w in warnings if isinstance(w, dict))
+
+
+def test_ready_endpoint_reports_chroma_port_conflict_warning(monkeypatch):
+    monkeypatch.setattr(api_app_module.vector_store, "_chroma_host", "127.0.0.1")
+    monkeypatch.setattr(api_app_module.vector_store, "_chroma_port", 8000)
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    warnings = body["checks"].get("configuration_warnings") or []
+    assert any(w.get("code") == "CHROMA_PORT_MAY_CONFLICT_WITH_API_DEFAULT" for w in warnings if isinstance(w, dict))
 
 
 def test_list_donors():

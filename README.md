@@ -89,7 +89,7 @@ curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/ready
 ```
 
-`/ready` now includes `checks.preflight_grounding_policy` and `checks.runtime_grounded_quality_gate` with active modes and thresholds.
+`/ready` now includes `checks.preflight_grounding_policy` and `checks.runtime_grounded_quality_gate` with active modes and thresholds, plus `checks.configuration_warnings` for non-blocking setup risks (for example Chroma/API port conflicts).
 
 ### 4) (Optional) Configure preflight grounding thresholds
 

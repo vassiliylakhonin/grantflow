@@ -3894,6 +3894,30 @@ def _clear_hitl_runtime_state(state: dict, *, clear_pending: bool) -> None:
         state["hitl_pending"] = False
 
 
+def _configuration_warnings() -> list[dict[str, Any]]:
+    warnings: list[dict[str, Any]] = []
+    chroma_host = str(getattr(vector_store, "_chroma_host", "") or "").strip()
+    chroma_port_raw = getattr(vector_store, "_chroma_port", None)
+    try:
+        chroma_port = int(chroma_port_raw)
+    except (TypeError, ValueError):
+        chroma_port = None
+
+    if chroma_host and chroma_port == 8000:
+        warnings.append(
+            {
+                "code": "CHROMA_PORT_MAY_CONFLICT_WITH_API_DEFAULT",
+                "severity": "medium",
+                "message": (
+                    "CHROMA_PORT=8000 with CHROMA_HOST set may conflict with uvicorn default API port 8000. "
+                    "Use CHROMA_PORT=8001 or run API on a different port."
+                ),
+                "details": {"chroma_host": chroma_host, "chroma_port": chroma_port},
+            }
+        )
+    return warnings
+
+
 def _health_diagnostics() -> dict[str, Any]:
     job_store_mode = _job_store_mode()
     hitl_store_mode = _hitl_store_mode()
@@ -3950,6 +3974,7 @@ def _health_diagnostics() -> dict[str, Any]:
         "export_runtime_grounded_gate_policy": {
             "require_pass": _configured_export_require_grounded_gate_pass(),
         },
+        "configuration_warnings": _configuration_warnings(),
     }
     if sqlite_path and (job_store_mode == "sqlite" or hitl_store_mode == "sqlite" or ingest_store_mode == "sqlite"):
         diagnostics["sqlite"] = {"path": str(sqlite_path)}
@@ -4163,6 +4188,7 @@ def readiness_check():
             "export_runtime_grounded_gate_policy": {
                 "require_pass": _configured_export_require_grounded_gate_pass(),
             },
+            "configuration_warnings": _configuration_warnings(),
         },
     }
     if not ready:

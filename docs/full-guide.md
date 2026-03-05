@@ -96,6 +96,8 @@ curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/ready
 ```
 
+`/ready` includes `checks.configuration_warnings` for non-blocking config risks (for example `CHROMA_HOST` with `CHROMA_PORT=8000`).
+
 ### Start job
 
 ```bash
