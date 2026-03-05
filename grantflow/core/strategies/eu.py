@@ -38,6 +38,21 @@ class EU_TOC(BaseModel):
     risks: list[str] = Field(default_factory=list, description="Key implementation risks")
 
 
+class EU_MELIndicator(BaseModel):
+    indicator_id: str = Field(description="Indicator identifier.")
+    name: str = Field(description="Indicator name aligned to EU intervention logic.")
+    result_level: str = Field(description="Expected result level (output/outcome/impact).")
+    justification: str = Field(description="Reason this indicator fits the intervention logic.")
+    citation: str = Field(description="Donor/source reference used for grounding.")
+    baseline: str = Field(description="Baseline value.")
+    target: str = Field(description="Target value.")
+    evidence_excerpt: str | None = Field(default=None, description="Optional grounded evidence excerpt.")
+
+
+class EU_MELDraft(BaseModel):
+    indicators: list[EU_MELIndicator] = Field(default_factory=list)
+
+
 class EUStrategy(DonorStrategy):
     donor_id: str = "EU"
 
@@ -46,6 +61,9 @@ class EUStrategy(DonorStrategy):
 
     def get_rag_collection(self) -> str:
         return "eu_intpa"
+
+    def get_mel_schema(self) -> Type[EU_MELDraft]:
+        return EU_MELDraft
 
     def get_system_prompts(self) -> dict:
         return {

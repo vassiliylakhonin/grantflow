@@ -1,6 +1,7 @@
 # grantflow/tests/test_strategies.py
 
 import pytest
+from pydantic import BaseModel
 
 from grantflow.core.strategies.catalog import list_supported_donors
 from grantflow.core.strategies.eu import EUStrategy
@@ -20,6 +21,9 @@ def test_usaid_strategy():
     assert "Architect" in prompts
     assert "MEL_Specialist" in prompts
     assert "Red_Team_Critic" in prompts
+    mel_schema = strategy.get_mel_schema()
+    assert isinstance(mel_schema, type)
+    assert issubclass(mel_schema, BaseModel)
 
 
 def test_eu_strategy():
@@ -27,6 +31,9 @@ def test_eu_strategy():
     assert isinstance(strategy, EUStrategy)
     assert strategy.donor_id == "EU"
     assert strategy.get_rag_collection() == "eu_intpa"
+    mel_schema = strategy.get_mel_schema()
+    assert isinstance(mel_schema, type)
+    assert issubclass(mel_schema, BaseModel)
 
 
 def test_worldbank_strategy():
@@ -34,6 +41,9 @@ def test_worldbank_strategy():
     assert isinstance(strategy, WorldBankStrategy)
     assert strategy.donor_id == "WorldBank"
     assert strategy.get_rag_collection() == "worldbank_ads301"
+    mel_schema = strategy.get_mel_schema()
+    assert isinstance(mel_schema, type)
+    assert issubclass(mel_schema, BaseModel)
 
 
 def test_giz_strategy():
@@ -42,6 +52,9 @@ def test_giz_strategy():
     assert strategy.get_rag_collection() == "giz_guidance"
     prompts = strategy.get_system_prompts()
     assert "Architect" in prompts and "MEL_Specialist" in prompts and "Red_Team_Critic" in prompts
+    mel_schema = strategy.get_mel_schema()
+    assert isinstance(mel_schema, type)
+    assert issubclass(mel_schema, BaseModel)
 
 
 def test_state_department_strategy():
@@ -50,6 +63,9 @@ def test_state_department_strategy():
     assert strategy.get_rag_collection() == "us_state_department_guidance"
     prompts = strategy.get_system_prompts()
     assert "Architect" in prompts and "MEL_Specialist" in prompts and "Red_Team_Critic" in prompts
+    mel_schema = strategy.get_mel_schema()
+    assert isinstance(mel_schema, type)
+    assert issubclass(mel_schema, BaseModel)
 
 
 def test_donor_factory_aliases():
@@ -61,6 +77,7 @@ def test_donor_factory_aliases():
     assert isinstance(DonorFactory.get_strategy("giz"), GIZStrategy)
     assert isinstance(DonorFactory.get_strategy("state_department"), StateDepartmentStrategy)
     assert DonorFactory.get_strategy("gates").get_rag_collection() == "gates_foundation_guidance"
+    assert DonorFactory.get_strategy("gates").get_mel_schema() is None
 
 
 def test_all_catalog_donors_supported():

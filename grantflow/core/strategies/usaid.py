@@ -40,6 +40,26 @@ class USAID_TOC(BaseModel):
     critical_assumptions: List[str] = Field(description="External conditions necessary for success")
 
 
+class USAID_MELIndicator(BaseModel):
+    indicator_id: str = Field(description="Internal indicator identifier for logframe rows.")
+    name: str = Field(description="Indicator title.")
+    indicator_code: str | None = Field(
+        default=None,
+        description="Official USAID/F-Indicator code when available.",
+    )
+    justification: str = Field(description="Reason this indicator is required for the results chain.")
+    citation: str = Field(description="Source reference for donor guidance and indicator definition.")
+    baseline: str = Field(description="Baseline value at project start.")
+    target: str = Field(description="Target value by endline.")
+    evidence_excerpt: str | None = Field(default=None, description="Optional grounded excerpt from retrieved evidence.")
+    disaggregation: list[str] = Field(default_factory=list, description="Recommended disaggregation dimensions.")
+    frequency: str | None = Field(default=None, description="Monitoring frequency (monthly/quarterly/annual).")
+
+
+class USAID_MELDraft(BaseModel):
+    indicators: list[USAID_MELIndicator] = Field(default_factory=list)
+
+
 # --- 2. The Strategy Implementation ---
 class USAIDStrategy(DonorStrategy):
     donor_id: str = "USAID"
@@ -49,6 +69,9 @@ class USAIDStrategy(DonorStrategy):
 
     def get_rag_collection(self) -> str:
         return "usaid_ads201"
+
+    def get_mel_schema(self) -> Type[USAID_MELDraft]:
+        return USAID_MELDraft
 
     def get_system_prompts(self) -> dict:
         return {

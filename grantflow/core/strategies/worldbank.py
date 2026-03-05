@@ -30,6 +30,21 @@ class WorldBank_TOC(BaseModel):
     risks: list[str] = Field(default_factory=list)
 
 
+class WorldBank_MELIndicator(BaseModel):
+    indicator_id: str = Field(description="Indicator identifier.")
+    name: str = Field(description="Indicator title.")
+    pdo_result_id: str | None = Field(default=None, description="Linked PDO/result chain identifier.")
+    justification: str = Field(description="Why this indicator supports the PDO/results framework.")
+    citation: str = Field(description="Source reference from WB guidance/corpus.")
+    baseline: str = Field(description="Baseline value.")
+    target: str = Field(description="Target value.")
+    evidence_excerpt: str | None = Field(default=None, description="Optional grounded excerpt.")
+
+
+class WorldBank_MELDraft(BaseModel):
+    indicators: list[WorldBank_MELIndicator] = Field(default_factory=list)
+
+
 class WorldBankStrategy(DonorStrategy):
     donor_id: str = "WorldBank"
 
@@ -38,6 +53,9 @@ class WorldBankStrategy(DonorStrategy):
 
     def get_rag_collection(self) -> str:
         return "worldbank_ads301"
+
+    def get_mel_schema(self) -> Type[WorldBank_MELDraft]:
+        return WorldBank_MELDraft
 
     def get_system_prompts(self) -> dict:
         return {

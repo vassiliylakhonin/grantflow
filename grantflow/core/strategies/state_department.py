@@ -23,6 +23,21 @@ class StateDeptTOC(BaseModel):
     risk_mitigation: list[str] = Field(default_factory=list)
 
 
+class StateDept_MELIndicator(BaseModel):
+    indicator_id: str = Field(description="Indicator identifier.")
+    name: str = Field(description="Indicator title.")
+    line_of_effort: str | None = Field(default=None, description="Linked State Department line of effort.")
+    justification: str = Field(description="Why this indicator tracks policy/program progress.")
+    citation: str = Field(description="Grounding reference from State Department corpus.")
+    baseline: str = Field(description="Baseline value.")
+    target: str = Field(description="Target value.")
+    evidence_excerpt: str | None = Field(default=None, description="Optional grounded excerpt.")
+
+
+class StateDept_MELDraft(BaseModel):
+    indicators: list[StateDept_MELIndicator] = Field(default_factory=list)
+
+
 class StateDepartmentStrategy(DonorStrategy):
     donor_id: str = "U.S. Department of State"
 
@@ -31,6 +46,9 @@ class StateDepartmentStrategy(DonorStrategy):
 
     def get_rag_collection(self) -> str:
         return "us_state_department_guidance"
+
+    def get_mel_schema(self) -> Type[StateDept_MELDraft]:
+        return StateDept_MELDraft
 
     def get_system_prompts(self) -> dict:
         return {

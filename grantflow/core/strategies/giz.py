@@ -21,6 +21,21 @@ class GIZTOC(BaseModel):
     assumptions_risks: list[str] = Field(default_factory=list)
 
 
+class GIZ_MELIndicator(BaseModel):
+    indicator_id: str = Field(description="Indicator identifier.")
+    name: str = Field(description="Indicator title.")
+    partner_data_source: str | None = Field(default=None, description="Primary partner institution/data source.")
+    justification: str = Field(description="Why this indicator supports GIZ implementation outcomes.")
+    citation: str = Field(description="Grounding reference from guidance corpus.")
+    baseline: str = Field(description="Baseline value.")
+    target: str = Field(description="Target value.")
+    evidence_excerpt: str | None = Field(default=None, description="Optional grounded excerpt.")
+
+
+class GIZ_MELDraft(BaseModel):
+    indicators: list[GIZ_MELIndicator] = Field(default_factory=list)
+
+
 class GIZStrategy(DonorStrategy):
     donor_id: str = "GIZ"
 
@@ -29,6 +44,9 @@ class GIZStrategy(DonorStrategy):
 
     def get_rag_collection(self) -> str:
         return "giz_guidance"
+
+    def get_mel_schema(self) -> Type[GIZ_MELDraft]:
+        return GIZ_MELDraft
 
     def get_system_prompts(self) -> dict:
         return {
