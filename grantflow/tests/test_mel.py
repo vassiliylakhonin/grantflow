@@ -542,3 +542,27 @@ def test_mel_preserves_explicit_baseline_target_from_retrieval_metadata(monkeypa
 
     assert indicator["baseline"] == "90 days"
     assert indicator["target"] == "60 days"
+
+
+def test_mel_donor_aware_placeholder_target_profiles():
+    usaid_baseline, usaid_target = mel_module._resolve_baseline_target(
+        baseline_raw="TBD",
+        target_raw="TBD",
+        indicator_name="Service coverage rate",
+        input_context={},
+        idx=0,
+        donor_id="usaid",
+    )
+    eu_baseline, eu_target = mel_module._resolve_baseline_target(
+        baseline_raw="TBD",
+        target_raw="TBD",
+        indicator_name="Service coverage rate",
+        input_context={},
+        idx=0,
+        donor_id="eu",
+    )
+
+    assert usaid_baseline == "0%"
+    assert eu_baseline == "0%"
+    assert usaid_target == "30%"
+    assert eu_target == "20%"

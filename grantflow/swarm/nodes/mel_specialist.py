@@ -307,6 +307,7 @@ def _deterministic_indicators_from_toc(
     toc_payload: Dict[str, Any],
     retrieval_hits: list[Dict[str, Any]],
     namespace: str,
+    donor_id: str = "",
     input_context: Optional[Dict[str, Any]] = None,
     max_indicators: int = 6,
 ) -> list[Dict[str, Any]]:
@@ -327,6 +328,8 @@ def _deterministic_indicators_from_toc(
             indicator_name=name,
             input_context=input_context or {},
             idx=idx,
+            donor_id=donor_id,
+            result_level=str(hit.get("result_level") or "").strip() or None,
         )
         citation = str(hit.get("label") or hit.get("source") or hit.get("doc_id") or namespace)
         justification = (
@@ -637,35 +640,109 @@ def _baseline_target_seed(input_context: Dict[str, Any]) -> int:
     return max(40, seed)
 
 
+def _donor_target_profile(donor_id: str) -> Dict[str, int]:
+    token = str(donor_id or "").strip().lower()
+    base = {
+        "percent_target": 25,
+        "policy_target": 3,
+        "institution_target": 5,
+        "time_improvement_percent": 30,
+        "people_floor": 120,
+    }
+    overrides: Dict[str, Dict[str, int]] = {
+        "usaid": {
+            "percent_target": 30,
+            "policy_target": 4,
+            "institution_target": 6,
+            "time_improvement_percent": 35,
+            "people_floor": 150,
+        },
+        "eu": {
+            "percent_target": 20,
+            "policy_target": 3,
+            "institution_target": 4,
+            "time_improvement_percent": 25,
+            "people_floor": 100,
+        },
+        "worldbank": {
+            "percent_target": 20,
+            "policy_target": 2,
+            "institution_target": 8,
+            "time_improvement_percent": 25,
+            "people_floor": 130,
+        },
+        "giz": {
+            "percent_target": 22,
+            "policy_target": 3,
+            "institution_target": 5,
+            "time_improvement_percent": 25,
+            "people_floor": 120,
+        },
+        "state_department": {
+            "percent_target": 25,
+            "policy_target": 4,
+            "institution_target": 5,
+            "time_improvement_percent": 30,
+            "people_floor": 110,
+        },
+        "us_state_department": {
+            "percent_target": 25,
+            "policy_target": 4,
+            "institution_target": 5,
+            "time_improvement_percent": 30,
+            "people_floor": 110,
+        },
+    }
+    selected = overrides.get(token, {})
+    out = dict(base)
+    out.update(selected)
+    return out
+
+
 def _suggest_baseline_target(
     *,
     indicator_name: str,
     input_context: Dict[str, Any],
     idx: int,
+    donor_id: str = "",
+    result_level: Optional[str] = None,
     existing_baseline: str = "",
 ) -> tuple[str, str]:
     name = str(indicator_name or "").lower()
     seed = _baseline_target_seed(input_context)
+    profile = _donor_target_profile(donor_id)
+    percent_target = int(profile.get("percent_target") or 25)
+    policy_target = int(profile.get("policy_target") or 3)
+    institution_target = int(profile.get("institution_target") or 5)
+    time_improvement_percent = int(profile.get("time_improvement_percent") or 30)
+    people_floor = int(profile.get("people_floor") or 120)
+    level = str(result_level or "").strip().lower()
+    if level == "impact":
+        percent_target = min(40, percent_target + 5)
+        institution_target = max(institution_target, 6)
+    elif level == "output":
+        percent_target = max(15, percent_target - 5)
     if any(token in name for token in ("time", "days", "duration", "delay", "processing", "turnaround")):
-        return "90 days", "60 days"
+        target_days = max(1, int(round(90 * (1 - (time_improvement_percent / 100)))))
+        return "90 days", f"{target_days} days"
     if any(token in name for token in ("percent", "%", "rate", "share", "coverage")):
-        return "0%", "25%"
+        return "0%", f"{percent_target}%"
     if any(token in name for token in ("policy", "regulation", "protocol", "sop", "guideline")):
-        return "0 policies", "3 policies"
+        return "0 policies", f"{policy_target} policies"
     if any(token in name for token in ("institution", "agency", "ministry", "municipal", "department")):
-        return "0 institutions", "5 institutions"
+        return "0 institutions", f"{institution_target} institutions"
     if any(token in name for token in ("train", "certif", "capacity", "skills", "official", "staff")):
-        return "0 people", f"{seed} people"
+        return "0 people", f"{max(seed, people_floor)} people"
 
     if existing_baseline:
         baseline_l = existing_baseline.lower()
         if "%" in baseline_l:
-            return existing_baseline, "25%"
+            return existing_baseline, f"{percent_target}%"
         number_match = re.search(r"(\d+(?:\.\d+)?)", baseline_l.replace(",", ""))
         if number_match:
             baseline_num = float(number_match.group(1))
             if any(token in name for token in ("time", "days", "duration", "delay", "processing", "turnaround")):
-                target_num = max(1.0, baseline_num * 0.7)
+                target_num = max(1.0, baseline_num * (1 - (time_improvement_percent / 100)))
             else:
                 target_num = baseline_num + max(5.0, baseline_num * 0.3)
             if target_num.is_integer():
@@ -687,6 +764,8 @@ def _resolve_baseline_target(
     indicator_name: str,
     input_context: Dict[str, Any],
     idx: int,
+    donor_id: str = "",
+    result_level: Optional[str] = None,
 ) -> tuple[str, str]:
     baseline = str(baseline_raw or "").strip()
     target = str(target_raw or "").strip()
@@ -694,12 +773,20 @@ def _resolve_baseline_target(
     baseline_placeholder = _is_placeholder_baseline_target(baseline)
     target_placeholder = _is_placeholder_baseline_target(target)
     if baseline_placeholder and target_placeholder:
-        return _suggest_baseline_target(indicator_name=indicator_name, input_context=input_context, idx=idx)
+        return _suggest_baseline_target(
+            indicator_name=indicator_name,
+            input_context=input_context,
+            idx=idx,
+            donor_id=donor_id,
+            result_level=result_level,
+        )
     if baseline_placeholder:
         suggested_baseline, _ = _suggest_baseline_target(
             indicator_name=indicator_name,
             input_context=input_context,
             idx=idx,
+            donor_id=donor_id,
+            result_level=result_level,
             existing_baseline=target,
         )
         return suggested_baseline, target
@@ -708,6 +795,8 @@ def _resolve_baseline_target(
             indicator_name=indicator_name,
             input_context=input_context,
             idx=idx,
+            donor_id=donor_id,
+            result_level=result_level,
             existing_baseline=baseline,
         )
         return baseline, suggested_target
@@ -719,6 +808,7 @@ def _indicator_from_hit(
     *,
     idx: int,
     namespace: str,
+    donor_id: str = "",
     input_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     name = str(hit.get("name") or f"Indicator from {namespace} #{idx + 1}")
@@ -728,6 +818,8 @@ def _indicator_from_hit(
         indicator_name=name,
         input_context=input_context or {},
         idx=idx,
+        donor_id=donor_id,
+        result_level=str(hit.get("result_level") or "").strip() or None,
     )
     indicator: Dict[str, Any] = {
         "indicator_id": str(hit.get("indicator_id") or f"IND_{idx + 1:03d}"),
@@ -748,6 +840,7 @@ def _normalize_indicator_item(
     *,
     idx: int,
     namespace: str,
+    donor_id: str = "",
     input_context: Optional[Dict[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     if not isinstance(item, dict):
@@ -762,6 +855,8 @@ def _normalize_indicator_item(
         indicator_name=name,
         input_context=input_context or {},
         idx=idx,
+        donor_id=donor_id,
+        result_level=str(item.get("result_level") or "").strip() or None,
     )
     evidence_excerpt = str(item.get("evidence_excerpt") or "").strip() or None
     normalized: Dict[str, Any] = {
@@ -798,13 +893,20 @@ def _normalize_indicator_item(
     return normalized
 
 
-def _fallback_indicator(namespace: str, *, input_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def _fallback_indicator(
+    namespace: str,
+    *,
+    donor_id: str = "",
+    input_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     baseline, target = _resolve_baseline_target(
         baseline_raw="",
         target_raw="",
         indicator_name="Project Output Indicator",
         input_context=input_context or {},
         idx=0,
+        donor_id=donor_id,
+        result_level="output",
     )
     return {
         "indicator_id": "IND_001",
@@ -821,13 +923,20 @@ def _normalize_llm_indicators(
     raw_indicators: Any,
     *,
     namespace: str,
+    donor_id: str = "",
     input_context: Optional[Dict[str, Any]] = None,
 ) -> list[Dict[str, Any]]:
     if not isinstance(raw_indicators, list):
         return []
     indicators: list[Dict[str, Any]] = []
     for idx, item in enumerate(raw_indicators):
-        normalized = _normalize_indicator_item(item, idx=idx, namespace=namespace, input_context=input_context)
+        normalized = _normalize_indicator_item(
+            item,
+            idx=idx,
+            namespace=namespace,
+            donor_id=donor_id,
+            input_context=input_context,
+        )
         if normalized is None:
             continue
         indicators.append(normalized)
@@ -1205,6 +1314,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                     indicators = _normalize_llm_indicators(
                         _extract_mel_indicators(_model_dump(parsed)),
                         namespace=namespace,
+                        donor_id=donor_id,
                         input_context=input_context,
                     )
                 except Exception as exc:
@@ -1231,6 +1341,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
                             indicators = _normalize_llm_indicators(
                                 _extract_mel_indicators(_model_dump(parsed_retry)),
                                 namespace=namespace,
+                                donor_id=donor_id,
                                 input_context=input_context,
                             )
                         except Exception as exc_retry:
@@ -1259,6 +1370,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
             toc_payload=toc_payload if isinstance(toc_payload, dict) else {},
             retrieval_hits=retrieval_hits,
             namespace=namespace,
+            donor_id=donor_id,
             input_context=input_context,
             max_indicators=max(top_k, 2),
         )
@@ -1267,12 +1379,18 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
             deterministic_source = "toc_results_template"
         elif retrieval_hits:
             indicators = [
-                _indicator_from_hit(hit, idx=idx, namespace=namespace, input_context=input_context)
+                _indicator_from_hit(
+                    hit,
+                    idx=idx,
+                    namespace=namespace,
+                    donor_id=donor_id,
+                    input_context=input_context,
+                )
                 for idx, hit in enumerate(retrieval_hits)
             ]
             deterministic_source = "retrieval_template"
         else:
-            indicators = [_fallback_indicator(namespace, input_context=input_context)]
+            indicators = [_fallback_indicator(namespace, donor_id=donor_id, input_context=input_context)]
             deterministic_source = "fallback_single_indicator"
         if llm_mode:
             generation_engine = f"fallback:{deterministic_source}"
