@@ -512,6 +512,8 @@ Current constraints:
 - Sample LogFrame export (`.xlsx`): `docs/samples/grantflow-sample-logframe-review-package.xlsx`
 - Sample export payload (`.json`): `docs/samples/grantflow-sample-export-payload.json`
 - Sample RBM logic model (`.md`): `docs/samples/rbm-logic-model-ai-civil-service-kazakhstan.md`
+- Sample RBM logic model (`.md`): `docs/samples/rbm-logic-model-eu-youth-employment-jordan.md`
+- Sample RBM payloads (`.json`): `docs/samples/rbm-sample-usaid-ai-civil-service-kazakhstan.json`, `docs/samples/rbm-sample-eu-youth-employment-jordan.json`
 
 ## Documentation
 

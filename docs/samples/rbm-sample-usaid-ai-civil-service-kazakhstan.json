@@ -1,0 +1,200 @@
+{
+  "sample_id": "usaid_ai_civil_service_kazakhstan_2026_2027",
+  "donor_id": "usaid",
+  "program_context": {
+    "title": "Responsible AI Capacity for Civil Service",
+    "country": "Kazakhstan",
+    "time_horizon": {
+      "implementation_months": 24,
+      "impact_horizon_years": "3-5"
+    },
+    "problem_summary": "Public institutions need practical responsible AI competencies and governance procedures to deploy AI-enabled services safely and accountably.",
+    "target_population": "National and subnational civil servants in participating ministries/agencies",
+    "inclusion_priorities": [
+      "women in public administration",
+      "regional agency representation"
+    ],
+    "assumptions": [
+      "Illustrative budget and participating agency counts; replace during inception.",
+      "Baseline competency and service performance values collected in months 1-2."
+    ]
+  },
+  "theory_of_change": {
+    "if_then": "If civil servants receive practical responsible AI training and agencies adopt minimum AI governance controls, then institutions can improve service quality with safer and more accountable AI-enabled workflows.",
+    "causal_pathway": [
+      "inputs",
+      "activities",
+      "outputs",
+      "outcomes_skills",
+      "outcomes_institutional_adoption",
+      "outcomes_service_quality",
+      "impact"
+    ],
+    "key_assumptions": [
+      "Agency leadership allocates staff time for training and implementation.",
+      "Data and digital infrastructure remain available for pilot services."
+    ]
+  },
+  "logic_model": {
+    "inputs": [
+      "Funding, technical team, curriculum, learning platform, ministry partnerships, M&E systems"
+    ],
+    "activities": [
+      "Baseline assessment",
+      "Modular training and coaching",
+      "AI governance SOP development",
+      "Pilot implementation support"
+    ],
+    "outputs": [
+      "Civil servants trained and certified",
+      "Agency implementation plans",
+      "Approved AI governance SOP/checklist packages",
+      "Pilot services launched with monitoring dashboards"
+    ],
+    "outcomes": [
+      "Improved responsible AI competencies among civil servants by month 24",
+      "Institutionalized AI governance controls in participating agencies by month 24",
+      "Improved quality metrics for pilot services by month 24"
+    ],
+    "impact": "More effective, transparent, and accountable digital public services over 3-5 years."
+  },
+  "outcome_indicators": {
+    "O1_skills": [
+      {
+        "name": "Share of participants reaching proficiency threshold",
+        "definition_formula": "(participants with post-test >= 70%) / tested participants * 100",
+        "baseline": "22% (assumption; verify baseline month 1)",
+        "target": ">= 75% by month 24",
+        "frequency": "quarterly",
+        "data_source": "LMS tests and practical assessments",
+        "disaggregation": [
+          "sex",
+          "age_band",
+          "ministry",
+          "region"
+        ],
+        "owner": "Training manager"
+      },
+      {
+        "name": "Average practical assessment improvement",
+        "definition_formula": "average post-test score - average pre-test score (pp)",
+        "baseline": "0 pp",
+        "target": ">= +25 pp by month 24",
+        "frequency": "quarterly",
+        "data_source": "Pre/post assessment records",
+        "disaggregation": [
+          "sex",
+          "ministry",
+          "role_level"
+        ],
+        "owner": "M&E lead"
+      },
+      {
+        "name": "Share of trained staff applying responsible AI tools in workflows",
+        "definition_formula": "(verified users in prior 90 days) / trained staff sampled * 100",
+        "baseline": "10% (assumption; verify month 3)",
+        "target": ">= 60% by month 24",
+        "frequency": "semi-annual",
+        "data_source": "Supervisor verification and workflow artifacts",
+        "disaggregation": [
+          "sex",
+          "ministry",
+          "region"
+        ],
+        "owner": "Implementation lead"
+      }
+    ],
+    "O2_institutional_adoption": [
+      {
+        "name": "Share of agencies with approved AI governance package",
+        "definition_formula": "(agencies with approved SOP package) / participating agencies * 100",
+        "baseline": "0%",
+        "target": "100% by month 24",
+        "frequency": "quarterly",
+        "data_source": "Agency approval records",
+        "disaggregation": [
+          "agency_type",
+          "sector"
+        ],
+        "owner": "Governance specialist"
+      },
+      {
+        "name": "Share of new AI initiatives passing governance review pre-launch",
+        "definition_formula": "(initiatives passing review pre-launch) / reviewed initiatives * 100",
+        "baseline": "15% (assumption; verify month 2)",
+        "target": ">= 85% by month 24",
+        "frequency": "quarterly",
+        "data_source": "Governance review logs",
+        "disaggregation": [
+          "agency",
+          "initiative_type"
+        ],
+        "owner": "Agency focal points"
+      },
+      {
+        "name": "Median governance review turnaround",
+        "definition_formula": "median days from submission to decision",
+        "baseline": "45 days (assumption)",
+        "target": "<= 20 days by month 24",
+        "frequency": "quarterly",
+        "data_source": "Agency workflow system",
+        "disaggregation": [
+          "agency"
+        ],
+        "owner": "Program operations manager"
+      }
+    ]
+  },
+  "sdg_alignment": [
+    {
+      "result": "Outcome 1",
+      "goal": "SDG 4",
+      "target": "4.4",
+      "rationale": "Digital skills development"
+    },
+    {
+      "result": "Outcome 2",
+      "goal": "SDG 16",
+      "target": "16.6",
+      "rationale": "Effective and accountable institutions"
+    },
+    {
+      "result": "Outcome 3",
+      "goal": "SDG 16",
+      "target": "16.6",
+      "rationale": "Improved quality and accountability of services"
+    }
+  ],
+  "data_collection_plan": [
+    {
+      "component": "baseline_study",
+      "method": "assessment + mapping",
+      "frequency": "once (months 1-2)",
+      "owner": "M&E lead"
+    },
+    {
+      "component": "routine_monitoring",
+      "method": "LMS and admin records",
+      "frequency": "monthly/quarterly",
+      "owner": "Training manager"
+    },
+    {
+      "component": "midline",
+      "method": "outcome review",
+      "frequency": "month 12",
+      "owner": "Program director"
+    },
+    {
+      "component": "endline",
+      "method": "repeat baseline instruments",
+      "frequency": "month 24",
+      "owner": "External evaluator"
+    },
+    {
+      "component": "follow_up",
+      "method": "persistence check",
+      "frequency": "6 and 12 months post-close",
+      "owner": "Program team"
+    }
+  ]
+}

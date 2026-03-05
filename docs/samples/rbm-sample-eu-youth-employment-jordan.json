@@ -1,0 +1,207 @@
+{
+  "sample_id": "eu_youth_employment_jordan_2026_2028",
+  "donor_id": "eu",
+  "program_context": {
+    "title": "Youth Employment and SME Skills Pathways",
+    "country": "Jordan",
+    "time_horizon": {
+      "implementation_months": 30,
+      "impact_horizon_years": "3-5"
+    },
+    "problem_summary": "Youth face high unemployment and mismatch between labor-market needs and practical skills, especially for women and vulnerable young people outside major urban centers.",
+    "target_population": "Youth aged 18-29, with priority for women and low-income participants",
+    "inclusion_priorities": [
+      "women",
+      "youth with disabilities",
+      "governorates outside Amman"
+    ],
+    "assumptions": [
+      "Labor demand remains sufficient in target sectors (digital services, light manufacturing, tourism services).",
+      "Private-sector partners maintain internship and placement commitments."
+    ]
+  },
+  "theory_of_change": {
+    "if_then": "If youth receive market-relevant technical and employability training, and SMEs engage in co-designed internship and placement pathways, then youth employment and retention will increase, including for women and underserved groups.",
+    "causal_pathway": [
+      "inputs",
+      "activities",
+      "outputs",
+      "outcomes_skills_and_placement",
+      "outcomes_retention_and_income",
+      "impact"
+    ],
+    "key_assumptions": [
+      "Training quality remains aligned with employer demand.",
+      "Participant barriers (transport/childcare) are partially mitigated by program support."
+    ]
+  },
+  "logic_model": {
+    "inputs": [
+      "EU funding, training providers, employer network, placement coordinators, support services budget"
+    ],
+    "activities": [
+      "Employer-informed curriculum design",
+      "Technical and soft-skills cohorts",
+      "Career coaching and placement support",
+      "SME internship agreements and retention mentoring"
+    ],
+    "outputs": [
+      "Youth completed certified training tracks",
+      "SME internships and interviews facilitated",
+      "Career plans and job-readiness portfolios completed",
+      "Employer feedback loops operational"
+    ],
+    "outcomes": [
+      "Higher placement rate for graduates within 6 months",
+      "Higher employment retention at 12 months",
+      "Improved median earnings among employed graduates"
+    ],
+    "impact": "Reduced youth unemployment pressure and improved inclusive economic participation over 3-5 years."
+  },
+  "outcome_indicators": {
+    "O1_placement": [
+      {
+        "name": "Graduate placement rate within 6 months",
+        "definition_formula": "(graduates employed/self-employed within 6 months) / total graduates * 100",
+        "baseline": "28% (assumption; verify in baseline labor-market scan)",
+        "target": ">= 65% by month 30",
+        "frequency": "quarterly",
+        "data_source": "Follow-up tracer surveys + employer verification",
+        "disaggregation": [
+          "sex",
+          "age_band",
+          "governorate",
+          "disability_status"
+        ],
+        "owner": "Placement coordinator"
+      },
+      {
+        "name": "Share of women graduates placed within 6 months",
+        "definition_formula": "(women graduates placed within 6 months) / women graduates * 100",
+        "baseline": "20% (assumption)",
+        "target": ">= 55% by month 30",
+        "frequency": "quarterly",
+        "data_source": "Tracer surveys + HR confirmations",
+        "disaggregation": [
+          "governorate",
+          "sector"
+        ],
+        "owner": "Gender and inclusion officer"
+      },
+      {
+        "name": "SME satisfaction with graduate job readiness",
+        "definition_formula": "(SMEs rating graduates >= 4 on 5-point readiness scale) / responding SMEs * 100",
+        "baseline": "35% (assumption)",
+        "target": ">= 80% by month 30",
+        "frequency": "semi-annual",
+        "data_source": "Employer feedback survey",
+        "disaggregation": [
+          "sector",
+          "firm_size"
+        ],
+        "owner": "Private-sector engagement lead"
+      }
+    ],
+    "O2_retention_income": [
+      {
+        "name": "12-month employment retention rate",
+        "definition_formula": "(graduates employed at 12 months after placement) / graduates placed * 100",
+        "baseline": "45% (assumption)",
+        "target": ">= 75% by month 30",
+        "frequency": "semi-annual",
+        "data_source": "Tracer surveys + payroll/employer confirmation",
+        "disaggregation": [
+          "sex",
+          "governorate",
+          "sector"
+        ],
+        "owner": "M&E lead"
+      },
+      {
+        "name": "Median earnings change among employed graduates",
+        "definition_formula": "((median monthly earnings at follow-up - baseline) / baseline) * 100",
+        "baseline": "0% change",
+        "target": ">= +30% by month 30",
+        "frequency": "semi-annual",
+        "data_source": "Participant earnings survey",
+        "disaggregation": [
+          "sex",
+          "governorate",
+          "sector"
+        ],
+        "owner": "M&E lead"
+      },
+      {
+        "name": "Share of graduates employed in trained occupation",
+        "definition_formula": "(graduates employed in field aligned with training) / employed graduates * 100",
+        "baseline": "40% (assumption)",
+        "target": ">= 70% by month 30",
+        "frequency": "quarterly",
+        "data_source": "Tracer survey and employer job-role verification",
+        "disaggregation": [
+          "sex",
+          "training_track"
+        ],
+        "owner": "Program manager"
+      }
+    ]
+  },
+  "sdg_alignment": [
+    {
+      "result": "Outcome 1",
+      "goal": "SDG 8",
+      "target": "8.6",
+      "rationale": "Reduce youth not in employment, education, or training"
+    },
+    {
+      "result": "Outcome 2",
+      "goal": "SDG 8",
+      "target": "8.5",
+      "rationale": "Decent work and equal pay opportunity"
+    },
+    {
+      "result": "Outcome 1/2",
+      "goal": "SDG 5",
+      "target": "5.5",
+      "rationale": "Economic participation and leadership opportunities for women"
+    },
+    {
+      "result": "Impact",
+      "goal": "SDG 1",
+      "target": "1.2",
+      "rationale": "Income gains contribute to poverty reduction"
+    }
+  ],
+  "data_collection_plan": [
+    {
+      "component": "baseline_scan",
+      "method": "labor market + participant baseline survey",
+      "frequency": "months 1-3",
+      "owner": "M&E team"
+    },
+    {
+      "component": "cohort_monitoring",
+      "method": "attendance, completion, assessments",
+      "frequency": "monthly",
+      "owner": "Training partners"
+    },
+    {
+      "component": "placement_tracking",
+      "method": "tracer and employer verification",
+      "frequency": "quarterly",
+      "owner": "Placement team"
+    },
+    {
+      "component": "retention_followup",
+      "method": "3/6/12-month follow-up windows",
+      "frequency": "rolling",
+      "owner": "M&E team"
+    },
+    {
+      "component": "data_quality_assurance",
+      "method": "spot checks, duplicate checks, source verification",
+      "frequency": "quarterly",
+      "owner": "M&E lead"
+    }
+  ]
+}
