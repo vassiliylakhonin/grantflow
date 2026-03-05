@@ -493,6 +493,7 @@ def compute_state_metrics(state: dict[str, Any]) -> dict[str, Any]:
     else:
         architect_fallback_claim_ratio = _to_float(raw_architect_fallback_claim_ratio, default=0.0)
     return {
+        "architect_rag_enabled": bool(state.get("architect_rag_enabled", True)),
         "toc_schema_valid": bool(toc_validation.get("valid")),
         "toc_schema_name": toc_validation.get("schema_name"),
         "has_toc_draft": bool(state.get("toc_draft")),
@@ -687,6 +688,7 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         case = case_raw
         prefix = "PASS" if case.get("passed") else "FAIL"
         metrics = _dict_from(case.get("metrics"))
+        architect_rag_enabled = bool(metrics.get("architect_rag_enabled", True))
         citation_count = int(metrics.get("citations_total") or 0)
         fallback_count = int(metrics.get("fallback_namespace_citation_count") or 0)
         raw_non_retrieval_count = metrics.get("non_retrieval_citation_count")
@@ -694,19 +696,26 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
             non_retrieval_count = fallback_count + int(metrics.get("strategy_reference_citation_count") or 0)
         else:
             non_retrieval_count = _to_int(raw_non_retrieval_count, default=0)
-        grounding_risk_label, fallback_ratio = _fallback_dominance_label(
-            fallback_count=fallback_count,
-            citation_count=citation_count,
-        )
-        non_retrieval_risk_label, non_retrieval_ratio = _non_retrieval_dominance_label(
-            non_retrieval_count=non_retrieval_count,
-            citation_count=citation_count,
-        )
+        grounding_risk_label: str | None = None
+        fallback_ratio: float | None = None
+        non_retrieval_risk_label: str | None = None
+        non_retrieval_ratio: float | None = None
         traceability_gap_count = int(metrics.get("traceability_gap_citation_count") or 0)
-        traceability_risk_label, traceability_ratio = _traceability_gap_label(
-            gap_count=traceability_gap_count,
-            citation_count=citation_count,
-        )
+        traceability_risk_label: str | None = None
+        traceability_ratio: float | None = None
+        if architect_rag_enabled:
+            grounding_risk_label, fallback_ratio = _fallback_dominance_label(
+                fallback_count=fallback_count,
+                citation_count=citation_count,
+            )
+            non_retrieval_risk_label, non_retrieval_ratio = _non_retrieval_dominance_label(
+                non_retrieval_count=non_retrieval_count,
+                citation_count=citation_count,
+            )
+            traceability_risk_label, traceability_ratio = _traceability_gap_label(
+                gap_count=traceability_gap_count,
+                citation_count=citation_count,
+            )
         grounding_suffix = ""
         if grounding_risk_label and fallback_ratio is not None:
             grounding_suffix = f" grounding_risk=fallback_dominant:{grounding_risk_label}({fallback_ratio:.0%})"
@@ -767,6 +776,11 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                 "traceability_missing_total": 0,
                 "traceability_complete_total": 0,
                 "citation_total": 0,
+                "rag_expected_case_count": 0,
+                "rag_expected_citation_total": 0,
+                "rag_expected_fallback_ns_total": 0,
+                "rag_expected_non_retrieval_total": 0,
+                "rag_expected_traceability_gap_total": 0,
             },
         )
         row["case_count"] = int(row["case_count"]) + 1
@@ -804,6 +818,19 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         row["traceability_complete_total"] = int(row["traceability_complete_total"]) + int(
             metrics.get("traceability_complete_citation_count") or 0
         )
+        architect_rag_enabled = bool(metrics.get("architect_rag_enabled", True))
+        if architect_rag_enabled:
+            row["rag_expected_case_count"] = int(row["rag_expected_case_count"]) + 1
+            row["rag_expected_citation_total"] = int(row["rag_expected_citation_total"]) + int(
+                metrics.get("citations_total") or 0
+            )
+            row["rag_expected_fallback_ns_total"] = int(row["rag_expected_fallback_ns_total"]) + int(
+                metrics.get("fallback_namespace_citation_count") or 0
+            )
+            row["rag_expected_non_retrieval_total"] = int(row["rag_expected_non_retrieval_total"]) + non_retrieval_total
+            row["rag_expected_traceability_gap_total"] = int(row["rag_expected_traceability_gap_total"]) + int(
+                metrics.get("traceability_gap_citation_count") or 0
+            )
         row_label_counts = row.setdefault("llm_finding_label_counts", {})
         if not isinstance(row_label_counts, dict):
             row_label_counts = {}
@@ -867,32 +894,33 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
                     f"fallback_ns_citations={int(row.get('fallback_ns_total') or 0)} "
                     f"strategy_ref_citations={int(row.get('strategy_reference_total') or 0)} "
                     f"non_retrieval_citations={int(row.get('non_retrieval_total') or 0)} "
-                    f"traceability_gap_citations={int(row.get('traceability_gap_total') or 0)}"
+                    f"traceability_gap_citations={int(row.get('traceability_gap_total') or 0)} "
+                    f"rag_expected_cases={int(row.get('rag_expected_case_count') or 0)}"
                 )
             )
         risky_donors: list[tuple[str, dict[str, Any], float, str]] = []
         for donor_id, row in donor_rows.items():
-            citation_total = int(row.get("citation_total") or 0)
-            fallback_total = int(row.get("fallback_ns_total") or 0)
+            citation_total = int(row.get("rag_expected_citation_total") or 0)
+            fallback_total = int(row.get("rag_expected_fallback_ns_total") or 0)
             label, ratio = _fallback_dominance_label(fallback_count=fallback_total, citation_count=citation_total)
             if label and ratio is not None:
                 risky_donors.append((donor_id, row, ratio, label))
         if risky_donors:
             lines.append("")
             lines.append("Grounding risk summary (fallback dominance)")
-            risky_donors.sort(key=lambda item: (-item[2], -int(item[1].get("citation_total") or 0), item[0]))
+            risky_donors.sort(key=lambda item: (-item[2], -int(item[1].get("rag_expected_citation_total") or 0), item[0]))
             for donor_id, row, ratio, label in risky_donors:
                 lines.append(
                     (
                         f"- {donor_id}: fallback_dominance={label} ({ratio:.0%}) "
-                        f"fallback_ns_citations={int(row.get('fallback_ns_total') or 0)}/"
-                        f"{int(row.get('citation_total') or 0)}"
+                        f"fallback_ns_citations={int(row.get('rag_expected_fallback_ns_total') or 0)}/"
+                        f"{int(row.get('rag_expected_citation_total') or 0)}"
                     )
                 )
         non_retrieval_risky_donors: list[tuple[str, dict[str, Any], float, str]] = []
         for donor_id, row in donor_rows.items():
-            citation_total = int(row.get("citation_total") or 0)
-            non_retrieval_total = int(row.get("non_retrieval_total") or 0)
+            citation_total = int(row.get("rag_expected_citation_total") or 0)
+            non_retrieval_total = int(row.get("rag_expected_non_retrieval_total") or 0)
             label, ratio = _non_retrieval_dominance_label(
                 non_retrieval_count=non_retrieval_total,
                 citation_count=citation_total,
@@ -903,16 +931,16 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
             lines.append("")
             lines.append("Grounding risk summary (non-retrieval dominance)")
             non_retrieval_risky_donors.sort(
-                key=lambda item: (-item[2], -int(item[1].get("citation_total") or 0), item[0])
+                key=lambda item: (-item[2], -int(item[1].get("rag_expected_citation_total") or 0), item[0])
             )
             for donor_id, row, ratio, label in non_retrieval_risky_donors:
                 lines.append(
                     (
                         f"- {donor_id}: non_retrieval_dominance={label} ({ratio:.0%}) "
-                        f"non_retrieval_citations={int(row.get('non_retrieval_total') or 0)}/"
-                        f"{int(row.get('citation_total') or 0)} "
-                        f"(fallback={int(row.get('fallback_ns_total') or 0)}, "
-                        f"strategy_ref={int(row.get('strategy_reference_total') or 0)})"
+                        f"non_retrieval_citations={int(row.get('rag_expected_non_retrieval_total') or 0)}/"
+                        f"{int(row.get('rag_expected_citation_total') or 0)} "
+                        f"(fallback={int(row.get('rag_expected_fallback_ns_total') or 0)}, "
+                        f"strategy_ref={max(0, int(row.get('rag_expected_non_retrieval_total') or 0) - int(row.get('rag_expected_fallback_ns_total') or 0))})"
                     )
                 )
     if llm_finding_label_counts_total:

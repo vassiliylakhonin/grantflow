@@ -179,6 +179,44 @@ def test_format_eval_suite_report_highlights_fallback_dominance_signals():
     assert "eu: fallback_dominance" not in text
 
 
+def test_format_eval_suite_report_suppresses_grounding_risk_when_architect_rag_disabled():
+    suite = {
+        "suite_label": "baseline",
+        "expectations_skipped": True,
+        "case_count": 1,
+        "passed_count": 1,
+        "failed_count": 0,
+        "all_passed": True,
+        "cases": [
+            {
+                "case_id": "c_no_rag",
+                "donor_id": "eu",
+                "passed": True,
+                "failed_checks": [],
+                "metrics": {
+                    "architect_rag_enabled": False,
+                    "quality_score": 8.75,
+                    "critic_score": 8.75,
+                    "toc_schema_valid": True,
+                    "fatal_flaw_count": 1,
+                    "citations_total": 12,
+                    "fallback_namespace_citation_count": 0,
+                    "strategy_reference_citation_count": 12,
+                    "non_retrieval_citation_count": 12,
+                    "traceability_gap_citation_count": 0,
+                    "high_severity_fatal_flaw_count": 0,
+                    "low_confidence_citation_count": 0,
+                    "needs_revision": False,
+                },
+            }
+        ],
+    }
+    text = format_eval_suite_report(suite)
+    assert "grounding_risk=" not in text
+    assert "Grounding risk summary (fallback dominance)" not in text
+    assert "Grounding risk summary (non-retrieval dominance)" not in text
+
+
 def test_compute_state_metrics_splits_fallback_namespace_from_rag_low_confidence():
     metrics = compute_state_metrics(
         {
@@ -229,6 +267,7 @@ def test_compute_state_metrics_splits_fallback_namespace_from_rag_low_confidence
             ],
         }
     )
+    assert metrics["architect_rag_enabled"] is True
     assert metrics["citations_total"] == 3
     assert metrics["low_confidence_citation_count"] == 2
     assert metrics["rag_low_confidence_citation_count"] == 1
@@ -259,6 +298,19 @@ def test_compute_state_metrics_splits_fallback_namespace_from_rag_low_confidence
     assert metrics["llm_advisory_applied_label_counts"]["CAUSAL_LINK_DETAIL"] == 2
     assert metrics["llm_advisory_applied_label_counts"]["BASELINE_TARGET_MISSING"] == 1
     assert metrics["llm_advisory_rejected_label_counts"] == {}
+
+
+def test_compute_state_metrics_preserves_architect_rag_flag():
+    metrics = compute_state_metrics(
+        {
+            "architect_rag_enabled": False,
+            "toc_validation": {"valid": True},
+            "toc_draft": {"toc": {}},
+            "logframe_draft": {"indicators": []},
+            "citations": [],
+        }
+    )
+    assert metrics["architect_rag_enabled"] is False
 
 
 def test_compute_state_metrics_tracks_strategy_reference_separately():
