@@ -2301,6 +2301,13 @@ class GenerateFromPresetRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class GenerateFromPresetBatchRequest(BaseModel):
+    items: list[GenerateFromPresetRequest]
+    continue_on_error: bool = True
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class GeneratePreflightRequest(BaseModel):
     donor_id: str
     tenant_id: Optional[str] = None
@@ -5710,14 +5717,13 @@ def _build_generate_request_from_preset(req: GenerateFromPresetRequest) -> tuple
         ) from exc
 
 
-@app.post("/generate/from-preset")
-async def generate_from_preset(
+async def _dispatch_generate_from_preset(
     req: GenerateFromPresetRequest,
     background_tasks: BackgroundTasks,
     request: Request,
-    request_id: Optional[str] = Query(default=None),
+    *,
+    request_id: Optional[str] = None,
 ):
-    require_api_key_if_configured(request)
     generate_req, source_kind = _build_generate_request_from_preset(req)
     generated = await generate(
         generate_req,
@@ -5731,6 +5737,89 @@ async def generate_from_preset(
         response["preset_source"] = source_kind
         return response
     return generated
+
+
+@app.post("/generate/from-preset")
+async def generate_from_preset(
+    req: GenerateFromPresetRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    request_id: Optional[str] = Query(default=None),
+):
+    require_api_key_if_configured(request)
+    return await _dispatch_generate_from_preset(
+        req,
+        background_tasks,
+        request,
+        request_id=request_id,
+    )
+
+
+@app.post("/generate/from-preset/batch")
+async def generate_from_preset_batch(
+    req: GenerateFromPresetBatchRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    request_id: Optional[str] = Query(default=None),
+):
+    require_api_key_if_configured(request)
+    items = list(req.items or [])
+    if not items:
+        raise HTTPException(status_code=400, detail="items must be non-empty")
+    if len(items) > 25:
+        raise HTTPException(status_code=400, detail="items limit exceeded (max 25)")
+
+    results: list[dict[str, Any]] = []
+    accepted_count = 0
+    error_count = 0
+    request_id_prefix = str(request_id or "").strip()
+
+    for idx, item in enumerate(items):
+        preset_key = str(item.preset_key or "").strip()
+        if request_id_prefix:
+            item_request_id = f"{request_id_prefix}:{idx}"[:120]
+        else:
+            item_request_id = None
+        try:
+            result = await _dispatch_generate_from_preset(
+                item,
+                background_tasks,
+                request,
+                request_id=item_request_id,
+            )
+            row = dict(result) if isinstance(result, dict) else {"result": result}
+            row["index"] = idx
+            results.append(row)
+            accepted_count += 1
+        except HTTPException as exc:
+            error_count += 1
+            error_row = {
+                "index": idx,
+                "preset_key": preset_key,
+                "status": "error",
+                "http_status": int(exc.status_code),
+                "error": exc.detail,
+            }
+            results.append(error_row)
+            if not req.continue_on_error:
+                raise HTTPException(
+                    status_code=exc.status_code,
+                    detail={
+                        "reason": "generate_from_preset_batch_item_failed",
+                        "index": idx,
+                        "preset_key": preset_key,
+                        "item_error": exc.detail,
+                        "results": results,
+                    },
+                ) from exc
+
+    return {
+        "status": "accepted" if error_count == 0 else "partial_error",
+        "total": len(items),
+        "accepted_count": accepted_count,
+        "error_count": error_count,
+        "results": results,
+    }
 
 
 @app.post("/generate")

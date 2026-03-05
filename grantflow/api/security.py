@@ -9,6 +9,7 @@ from fastapi.openapi.utils import get_openapi
 PROTECTED_OPERATIONS = {
     ("post", "/generate"),
     ("post", "/generate/from-preset"),
+    ("post", "/generate/from-preset/batch"),
     ("post", "/generate/preflight"),
     ("post", "/ingest"),
     ("post", "/ingest/readiness"),

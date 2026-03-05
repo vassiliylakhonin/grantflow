@@ -1235,6 +1235,90 @@ def test_generate_from_preset_unknown_returns_404():
     assert detail.get("preset_key") == "missing-generate-preset"
 
 
+def test_generate_from_preset_batch_supports_partial_error_mode():
+    response = client.post(
+        "/generate/from-preset/batch",
+        json={
+            "continue_on_error": True,
+            "items": [
+                {
+                    "preset_key": "usaid_gov_ai_kazakhstan",
+                    "preset_type": "legacy",
+                    "llm_mode": False,
+                    "hitl_enabled": False,
+                    "architect_rag_enabled": False,
+                    "strict_preflight": False,
+                },
+                {
+                    "preset_key": "missing-generate-preset",
+                    "preset_type": "auto",
+                },
+                {
+                    "preset_key": "rbm-eu-youth-employment-jordan",
+                    "preset_type": "rbm",
+                    "llm_mode": False,
+                    "hitl_enabled": False,
+                    "architect_rag_enabled": False,
+                    "strict_preflight": False,
+                },
+            ],
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "partial_error"
+    assert body["total"] == 3
+    assert body["accepted_count"] == 2
+    assert body["error_count"] == 1
+    rows = body.get("results")
+    assert isinstance(rows, list) and len(rows) == 3
+    assert rows[0]["status"] == "accepted"
+    assert rows[0]["preset_source"] == "legacy"
+    assert rows[1]["status"] == "error"
+    assert rows[1]["http_status"] == 404
+    assert rows[2]["status"] == "accepted"
+    assert rows[2]["preset_source"] == "rbm"
+
+    for row in rows:
+        if row.get("status") != "accepted":
+            continue
+        job_id = str(row.get("job_id") or "").strip()
+        assert job_id
+        status = _wait_for_terminal_status(job_id)
+        assert status["status"] == "done"
+
+
+def test_generate_from_preset_batch_stops_when_continue_on_error_false():
+    response = client.post(
+        "/generate/from-preset/batch",
+        json={
+            "continue_on_error": False,
+            "items": [
+                {
+                    "preset_key": "usaid_gov_ai_kazakhstan",
+                    "preset_type": "legacy",
+                    "llm_mode": False,
+                    "hitl_enabled": False,
+                    "architect_rag_enabled": False,
+                    "strict_preflight": False,
+                },
+                {
+                    "preset_key": "missing-generate-preset",
+                    "preset_type": "auto",
+                },
+            ],
+        },
+    )
+    assert response.status_code == 404
+    detail = response.json().get("detail") or {}
+    assert detail.get("reason") == "generate_from_preset_batch_item_failed"
+    assert detail.get("index") == 1
+    results = detail.get("results")
+    assert isinstance(results, list) and len(results) == 2
+    assert results[0]["status"] == "accepted"
+    assert results[1]["status"] == "error"
+
+
 def test_generate_preflight_reports_high_risk_when_namespace_empty():
     api_app_module.INGEST_AUDIT_STORE.clear()
 
@@ -9189,6 +9273,29 @@ def test_generate_requires_api_key_when_configured(monkeypatch):
     assert from_preset_auth.status_code == 200
     assert from_preset_auth.json()["status"] == "accepted"
 
+    from_preset_batch_payload = {
+        "items": [
+            {
+                "preset_key": "usaid_gov_ai_kazakhstan",
+                "preset_type": "legacy",
+                "llm_mode": False,
+                "hitl_enabled": False,
+                "architect_rag_enabled": False,
+                "strict_preflight": False,
+            }
+        ]
+    }
+    from_preset_batch_unauth = client.post("/generate/from-preset/batch", json=from_preset_batch_payload)
+    assert from_preset_batch_unauth.status_code == 401
+
+    from_preset_batch_auth = client.post(
+        "/generate/from-preset/batch",
+        json=from_preset_batch_payload,
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert from_preset_batch_auth.status_code == 200
+    assert from_preset_batch_auth.json()["status"] == "accepted"
+
 
 def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_API_KEY", "test-secret")
@@ -9732,6 +9839,9 @@ def test_openapi_declares_api_key_security_scheme():
     generate_security = (((spec.get("paths") or {}).get("/generate") or {}).get("post") or {}).get("security")
     generate_from_preset_security = (
         (((spec.get("paths") or {}).get("/generate/from-preset") or {}).get("post") or {})
+    ).get("security")
+    generate_from_preset_batch_security = (
+        (((spec.get("paths") or {}).get("/generate/from-preset/batch") or {}).get("post") or {})
     ).get("security")
     generate_preflight_security = (((spec.get("paths") or {}).get("/generate/preflight") or {}).get("post") or {}).get(
         "security"
@@ -10322,6 +10432,7 @@ def test_openapi_declares_api_key_security_scheme():
     )
     assert generate_security == [{"ApiKeyAuth": []}]
     assert generate_from_preset_security == [{"ApiKeyAuth": []}]
+    assert generate_from_preset_batch_security == [{"ApiKeyAuth": []}]
     assert generate_preflight_security == [{"ApiKeyAuth": []}]
     assert ingest_security == [{"ApiKeyAuth": []}]
     assert ingest_readiness_security == [{"ApiKeyAuth": []}]
