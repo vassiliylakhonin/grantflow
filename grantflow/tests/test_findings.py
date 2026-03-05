@@ -228,6 +228,26 @@ def test_normalize_findings_generates_deterministic_id_for_object_without_id():
     assert first[0]["id"] == second[0]["id"]
 
 
+def test_normalize_findings_enforces_required_contract_fields():
+    rows = normalize_findings(
+        [
+            {
+                "message": "Reviewer note without explicit metadata.",
+            }
+        ],
+        default_source="rules",
+    )
+    assert len(rows) == 1
+    finding = rows[0]
+    assert finding["id"]
+    assert finding["finding_id"] == finding["id"]
+    assert finding["status"] == "open"
+    assert finding["source"] == "rules"
+    assert finding["code"] == "FINDING_UNSPECIFIED"
+    assert finding["severity"] == "medium"
+    assert finding["section"] == "general"
+
+
 def test_canonicalize_findings_dedupes_by_finding_id():
     items = [
         {
