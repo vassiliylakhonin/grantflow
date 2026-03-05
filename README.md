@@ -454,6 +454,12 @@ python -m grantflow.eval.harness \
   --json-out eval-artifacts/llm-eval-sampled.json
 ```
 
+One-command variant:
+
+```bash
+make eval-llm-sampled
+```
+
 Tune guard via environment variables if needed:
 
 ```bash

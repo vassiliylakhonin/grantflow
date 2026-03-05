@@ -1,4 +1,4 @@
-.PHONY: eval-grounded-ab refresh-grounded-baseline
+.PHONY: eval-grounded-ab eval-llm-sampled refresh-grounded-baseline
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -14,6 +14,8 @@ GROUNDED_MIN_RETRIEVAL_GROUNDED_IMPROVEMENT ?= 0.25
 GROUNDED_EXPECTED_DONORS ?= usaid,eu,worldbank,state_department
 GROUNDED_MIN_SEEDED_TOTAL ?= 1
 ALLOW_BASELINE_REFRESH ?= 0
+LLM_EVAL_SAMPLE_MAX_CASES ?= 2
+LLM_EVAL_SAMPLE_SEED ?= 42
 
 eval-grounded-ab:
 	mkdir -p $(EVAL_ARTIFACTS_DIR)
@@ -76,6 +78,18 @@ eval-grounded-ab:
 		--expected-donors $(GROUNDED_EXPECTED_DONORS) \
 		--min-seeded-total $(GROUNDED_MIN_SEEDED_TOTAL) \
 		--out $(EVAL_ARTIFACTS_DIR)/grounded-gate-summary.md
+
+eval-llm-sampled:
+	mkdir -p $(EVAL_ARTIFACTS_DIR)
+	$(PYTHON) -m grantflow.eval.harness \
+		--suite-label llm-eval-sampled \
+		--force-llm \
+		--force-architect-rag \
+		--skip-expectations \
+		--max-cases $(LLM_EVAL_SAMPLE_MAX_CASES) \
+		--sample-seed $(LLM_EVAL_SAMPLE_SEED) \
+		--text-out $(EVAL_ARTIFACTS_DIR)/llm-eval-sampled.txt \
+		--json-out $(EVAL_ARTIFACTS_DIR)/llm-eval-sampled.json
 
 refresh-grounded-baseline:
 	ALLOW_BASELINE_REFRESH=$(ALLOW_BASELINE_REFRESH) PYTHONPATH=. $(PYTHON) scripts/refresh_grounded_baseline.py \
