@@ -112,6 +112,8 @@ def test_health_endpoint():
     tenant_status = tenant_policy["status"]
     assert isinstance(tenant_status.get("enabled"), bool)
     assert isinstance(tenant_status.get("allowed_tenant_count"), int)
+    assert tenant_status.get("default_tenant") is None or isinstance(tenant_status.get("default_tenant"), str)
+    assert isinstance(tenant_status.get("issues"), list)
     assert isinstance(tenant_status.get("valid"), bool)
     assert isinstance(diagnostics.get("configuration_warnings"), list)
     dispatcher_policy = diagnostics["job_runner"]["dispatcher_worker_heartbeat_policy"]
@@ -179,6 +181,16 @@ def test_tenant_authz_configuration_validation_allows_strict_with_allowlist(monk
     monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE", "strict")
 
     api_app_module._validate_tenant_authz_configuration()
+
+
+def test_tenant_authz_configuration_validation_detects_default_tenant_not_allowed(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "true")
+    monkeypatch.setenv("GRANTFLOW_ALLOWED_TENANTS", "tenant_alpha")
+    monkeypatch.setenv("GRANTFLOW_DEFAULT_TENANT", "tenant_beta")
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE", "strict")
+
+    with pytest.raises(RuntimeError, match="GRANTFLOW_DEFAULT_TENANT"):
+        api_app_module._validate_tenant_authz_configuration()
 
 
 def test_tenant_authz_configuration_validation_runs_at_startup(monkeypatch):
@@ -688,6 +700,8 @@ def test_ready_endpoint():
     tenant_status = tenant_policy["status"]
     assert isinstance(tenant_status.get("enabled"), bool)
     assert isinstance(tenant_status.get("allowed_tenant_count"), int)
+    assert tenant_status.get("default_tenant") is None or isinstance(tenant_status.get("default_tenant"), str)
+    assert isinstance(tenant_status.get("issues"), list)
     assert isinstance(tenant_status.get("valid"), bool)
     assert isinstance(tenant_policy.get("blocking"), bool)
     assert isinstance(tenant_policy.get("alerts"), list)
@@ -755,6 +769,26 @@ def test_ready_endpoint_tenant_authz_policy_strict_mode_blocks(monkeypatch):
     monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "true")
     monkeypatch.delenv("GRANTFLOW_ALLOWED_TENANTS", raising=False)
     monkeypatch.delenv("AIDGRAPH_ALLOWED_TENANTS", raising=False)
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE", "strict")
+    monkeypatch.setattr(api_app_module, "_vector_store_readiness", lambda: {"ready": True, "backend": "memory"})
+
+    response = client.get("/ready")
+    assert response.status_code == 503
+    detail = response.json()["detail"]
+    assert detail["status"] == "degraded"
+    policy = detail["checks"]["tenant_authz_configuration_policy"]
+    assert policy["mode"] == "strict"
+    assert policy["status"]["enabled"] is True
+    assert policy["status"]["valid"] is False
+    assert policy["blocking"] is True
+    alerts = policy["alerts"]
+    assert any(str(item.get("code") or "") == "TENANT_AUTHZ_CONFIGURATION_RISK" for item in alerts if isinstance(item, dict))
+
+
+def test_ready_endpoint_tenant_authz_policy_strict_mode_blocks_default_tenant_mismatch(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "true")
+    monkeypatch.setenv("GRANTFLOW_ALLOWED_TENANTS", "tenant_alpha")
+    monkeypatch.setenv("GRANTFLOW_DEFAULT_TENANT", "tenant_beta")
     monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE", "strict")
     monkeypatch.setattr(api_app_module, "_vector_store_readiness", lambda: {"ready": True, "backend": "memory"})
 
@@ -1138,6 +1172,18 @@ def test_health_endpoint_reports_tenant_authz_without_allowlist_warning(monkeypa
     )
 
 
+def test_health_endpoint_reports_default_tenant_not_in_allowlist_warning(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "true")
+    monkeypatch.setenv("GRANTFLOW_ALLOWED_TENANTS", "tenant_alpha")
+    monkeypatch.setenv("GRANTFLOW_DEFAULT_TENANT", "tenant_beta")
+
+    response = client.get("/health")
+    assert response.status_code == 200
+    body = response.json()
+    warnings = body["diagnostics"].get("configuration_warnings") or []
+    assert any(w.get("code") == "TENANT_DEFAULT_NOT_IN_ALLOWLIST" for w in warnings if isinstance(w, dict))
+
+
 def test_health_endpoint_reports_python_version_warning(monkeypatch):
     monkeypatch.setattr(api_app_module.sys, "version_info", (3, 14, 0, "final", 0))
 
@@ -1216,6 +1262,18 @@ def test_ready_endpoint_reports_tenant_authz_without_allowlist_warning(monkeypat
     assert any(
         w.get("code") == "TENANT_AUTHZ_ENABLED_WITHOUT_ALLOWLIST" for w in warnings if isinstance(w, dict)
     )
+
+
+def test_ready_endpoint_reports_default_tenant_not_in_allowlist_warning(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "true")
+    monkeypatch.setenv("GRANTFLOW_ALLOWED_TENANTS", "tenant_alpha")
+    monkeypatch.setenv("GRANTFLOW_DEFAULT_TENANT", "tenant_beta")
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    warnings = body["checks"].get("configuration_warnings") or []
+    assert any(w.get("code") == "TENANT_DEFAULT_NOT_IN_ALLOWLIST" for w in warnings if isinstance(w, dict))
 
 
 def test_ready_endpoint_reports_python_version_warning(monkeypatch):

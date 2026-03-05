@@ -321,7 +321,8 @@ With tenant authz enabled:
 - access is denied (`403`) for cross-tenant reads
 - RAG namespace becomes tenant-aware: `{tenant}/{donor_namespace}` (example: `tenant_a/usaid_ads201`)
 - keep `GRANTFLOW_ALLOWED_TENANTS` non-empty when authz is enabled; `/health` and `/ready` emit warning `TENANT_AUTHZ_ENABLED_WITHOUT_ALLOWLIST` if allowlist is empty
-- set `GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE=strict` to fail startup and degrade `/ready` on empty allowlist
+- if `GRANTFLOW_DEFAULT_TENANT` is set, include it in `GRANTFLOW_ALLOWED_TENANTS`; otherwise `/health` and `/ready` emit warning `TENANT_DEFAULT_NOT_IN_ALLOWLIST`
+- set `GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE=strict` to fail startup and degrade `/ready` on invalid tenant authz config (empty allowlist or default tenant mismatch)
 
 ### 10) Export artifacts
 

@@ -326,15 +326,24 @@ def _validate_tenant_authz_configuration() -> None:
     policy_mode = str(status.get("policy_mode") or "warn")
     enabled = bool(status.get("enabled"))
     allowed_tenant_count = int(status.get("allowed_tenant_count") or 0)
+    default_tenant = str(status.get("default_tenant") or "").strip()
+    issues = {str(item).strip().lower() for item in (status.get("issues") or []) if str(item).strip()}
     valid = bool(status.get("valid"))
     if policy_mode != "strict":
         return
     if valid:
         return
-    if enabled and allowed_tenant_count == 0:
+    if enabled and "allowlist_empty" in issues:
         raise RuntimeError(
             "Tenant authz misconfiguration: GRANTFLOW_TENANT_AUTHZ_ENABLED=true but tenant allowlist is empty. "
             "Set GRANTFLOW_ALLOWED_TENANTS or disable strict policy "
+            "(GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE=warn|off)."
+        )
+    if enabled and "default_tenant_not_in_allowlist" in issues:
+        raise RuntimeError(
+            "Tenant authz misconfiguration: GRANTFLOW_DEFAULT_TENANT is not included in GRANTFLOW_ALLOWED_TENANTS "
+            f"(default={default_tenant}, allowed_count={allowed_tenant_count}). "
+            "Set a matching default tenant or disable strict policy "
             "(GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE=warn|off)."
         )
 
@@ -720,10 +729,18 @@ def _configured_tenant_authz_configuration_policy_mode() -> str:
 def _tenant_authz_configuration_status() -> dict[str, Any]:
     enabled = _tenant_authz_enabled()
     allowed_tenants = _allowed_tenant_tokens()
-    valid = not (enabled and len(allowed_tenants) == 0)
+    default_tenant = _default_tenant_token()
+    issues: list[str] = []
+    if enabled and len(allowed_tenants) == 0:
+        issues.append("allowlist_empty")
+    if enabled and default_tenant and allowed_tenants and default_tenant not in allowed_tenants:
+        issues.append("default_tenant_not_in_allowlist")
+    valid = len(issues) == 0
     return {
         "enabled": enabled,
         "allowed_tenant_count": len(allowed_tenants),
+        "default_tenant": default_tenant,
+        "issues": issues,
         "valid": valid,
         "policy_mode": _configured_tenant_authz_configuration_policy_mode(),
     }
@@ -4231,9 +4248,12 @@ def _configuration_warnings() -> list[dict[str, Any]]:
                 "details": {"chroma_host": chroma_host, "chroma_port": chroma_port},
             }
         )
-    tenant_authz_enabled = _tenant_authz_enabled()
-    allowed_tenant_count = len(_allowed_tenant_tokens())
-    if tenant_authz_enabled and allowed_tenant_count == 0:
+    tenant_authz_status = _tenant_authz_configuration_status()
+    tenant_authz_enabled = bool(tenant_authz_status.get("enabled"))
+    allowed_tenant_count = int(tenant_authz_status.get("allowed_tenant_count") or 0)
+    default_tenant = str(tenant_authz_status.get("default_tenant") or "").strip() or None
+    issues = {str(item).strip().lower() for item in (tenant_authz_status.get("issues") or []) if str(item).strip()}
+    if tenant_authz_enabled and "allowlist_empty" in issues:
         warnings.append(
             {
                 "code": "TENANT_AUTHZ_ENABLED_WITHOUT_ALLOWLIST",
@@ -4243,6 +4263,22 @@ def _configuration_warnings() -> list[dict[str, Any]]:
                     "Set explicit tenant allowlist to avoid unintended tenant access scope."
                 ),
                 "details": {"tenant_authz_enabled": True, "allowed_tenant_count": 0},
+            }
+        )
+    if tenant_authz_enabled and "default_tenant_not_in_allowlist" in issues:
+        warnings.append(
+            {
+                "code": "TENANT_DEFAULT_NOT_IN_ALLOWLIST",
+                "severity": "medium",
+                "message": (
+                    "Tenant authz is enabled and GRANTFLOW_DEFAULT_TENANT is not included in allowlist. "
+                    "Use an allowed default tenant to avoid implicit 403 failures."
+                ),
+                "details": {
+                    "tenant_authz_enabled": True,
+                    "default_tenant": default_tenant,
+                    "allowed_tenant_count": allowed_tenant_count,
+                },
             }
         )
     return warnings
@@ -4524,15 +4560,27 @@ def readiness_check():
         )
     tenant_authz_valid = bool(tenant_authz_status.get("valid"))
     tenant_authz_blocking = tenant_authz_policy_mode == "strict" and not tenant_authz_valid
+    tenant_authz_issues = {
+        str(item).strip().lower() for item in (tenant_authz_status.get("issues") or []) if str(item).strip()
+    }
     tenant_authz_alerts: list[dict[str, Any]] = []
     if not tenant_authz_valid:
+        if "allowlist_empty" in tenant_authz_issues:
+            tenant_authz_message = (
+                "Tenant authz is enabled but allowlist is empty; configure GRANTFLOW_ALLOWED_TENANTS."
+            )
+        elif "default_tenant_not_in_allowlist" in tenant_authz_issues:
+            tenant_authz_message = (
+                "Tenant authz default tenant is not in allowlist; align GRANTFLOW_DEFAULT_TENANT with "
+                "GRANTFLOW_ALLOWED_TENANTS."
+            )
+        else:
+            tenant_authz_message = "Tenant authz configuration is invalid."
         tenant_authz_alerts.append(
             {
                 "code": "TENANT_AUTHZ_CONFIGURATION_RISK",
                 "severity": "high" if tenant_authz_blocking else "medium",
-                "message": (
-                    "Tenant authz is enabled but allowlist is empty; configure GRANTFLOW_ALLOWED_TENANTS."
-                ),
+                "message": tenant_authz_message,
                 "blocking": tenant_authz_blocking,
             }
         )
