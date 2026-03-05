@@ -1,23 +1,87 @@
 from __future__ import annotations
 
-# mypy: ignore-errors
-
-# ruff: noqa: F403,F405
-from grantflow.api.app import *
-
+from grantflow.api.app import (
+    ExportRequest,
+    HTTPException,
+    JobExportPayloadPublicResponse,
+    Optional,
+    Query,
+    REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+    REVIEW_WORKFLOW_STATE_FILTER_VALUES,
+    Request,
+    StreamingResponse,
+    _configured_export_require_grounded_gate_pass,
+    _dead_letter_queue_csv_text,
+    _ensure_job_tenant_read_access,
+    _evaluate_export_contract_gate,
+    _evaluate_export_grounding_policy,
+    _extract_export_grounding_gate,
+    _extract_export_runtime_grounded_quality_gate,
+    _filter_jobs_by_tenant,
+    _get_job,
+    _hitl_history_csv_text,
+    _hitl_history_payload,
+    _ingest_inventory,
+    _job_comments_csv_text,
+    _job_donor_id,
+    _job_events_csv_text,
+    _job_tenant_id,
+    _list_jobs,
+    _normalize_critic_fatal_flaws_for_job,
+    _normalize_review_comments_for_job,
+    _portfolio_export_response,
+    _redis_queue_admin_runner,
+    _resolve_export_inputs,
+    _resolve_tenant_id,
+    _validated_filter_token,
+    _xlsx_contract_validation_context,
+    build_docx_from_toc,
+    build_xlsx_from_logframe,
+    io,
+    public_ingest_inventory_csv_text,
+    public_ingest_inventory_payload,
+    public_job_comments_payload,
+    public_job_events_payload,
+    public_job_export_payload,
+    public_job_review_workflow_csv_text,
+    public_job_review_workflow_payload,
+    public_job_review_workflow_sla_csv_text,
+    public_job_review_workflow_sla_hotspots_csv_text,
+    public_job_review_workflow_sla_hotspots_payload,
+    public_job_review_workflow_sla_hotspots_trends_csv_text,
+    public_job_review_workflow_sla_hotspots_trends_payload,
+    public_job_review_workflow_sla_payload,
+    public_job_review_workflow_sla_trends_csv_text,
+    public_job_review_workflow_sla_trends_payload,
+    public_job_review_workflow_trends_csv_text,
+    public_job_review_workflow_trends_payload,
+    public_portfolio_metrics_csv_text,
+    public_portfolio_metrics_payload,
+    public_portfolio_quality_csv_text,
+    public_portfolio_quality_payload,
+    public_portfolio_review_workflow_csv_text,
+    public_portfolio_review_workflow_payload,
+    public_portfolio_review_workflow_sla_csv_text,
+    public_portfolio_review_workflow_sla_hotspots_csv_text,
+    public_portfolio_review_workflow_sla_hotspots_payload,
+    public_portfolio_review_workflow_sla_hotspots_trends_csv_text,
+    public_portfolio_review_workflow_sla_hotspots_trends_payload,
+    public_portfolio_review_workflow_sla_payload,
+    public_portfolio_review_workflow_sla_trends_csv_text,
+    public_portfolio_review_workflow_sla_trends_payload,
+    public_portfolio_review_workflow_trends_csv_text,
+    public_portfolio_review_workflow_trends_payload,
+    require_api_key_if_configured,
+    zipfile,
+)
 from grantflow.api.routers import exports_router
-
-import grantflow.api.app as _api_app_module
-
-# `from ... import *` does not import private names; endpoints use many helper underscores.
-globals().update({k: v for k, v in _api_app_module.__dict__.items() if k.startswith("_")})
 
 
 @exports_router.get("/queue/dead-letter/export")
 def export_dead_letter_queue(
     request: Request,
     limit: int = Query(default=500, ge=1, le=5000),
-    format: Literal["csv", "json"] = Query(default="json"),
+    format: str = Query(default="json"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -50,7 +114,7 @@ def export_portfolio_metrics(
     grounding_risk_level: Optional[str] = None,
     toc_text_risk_level: Optional[str] = None,
     mel_risk_level: Optional[str] = None,
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -92,7 +156,7 @@ def export_portfolio_quality(
     finding_severity: Optional[str] = None,
     toc_text_risk_level: Optional[str] = None,
     mel_risk_level: Optional[str] = None,
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -145,7 +209,7 @@ def export_portfolio_review_workflow(
         le=24 * 30,
         alias="overdue_after_hours",
     ),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -210,7 +274,7 @@ def export_portfolio_review_workflow_sla(
         alias="overdue_after_hours",
     ),
     top_limit: int = Query(default=10, ge=1, le=200, alias="top_limit"),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -278,7 +342,7 @@ def export_portfolio_review_workflow_sla_hotspots(
     hotspot_kind: Optional[str] = Query(default=None, alias="hotspot_kind"),
     hotspot_severity: Optional[str] = Query(default=None, alias="hotspot_severity"),
     min_overdue_hours: Optional[float] = Query(default=None, ge=0.0, le=24 * 365, alias="min_overdue_hours"),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -359,7 +423,7 @@ def export_portfolio_review_workflow_sla_hotspots_trends(
     hotspot_kind: Optional[str] = Query(default=None, alias="hotspot_kind"),
     hotspot_severity: Optional[str] = Query(default=None, alias="hotspot_severity"),
     min_overdue_hours: Optional[float] = Query(default=None, ge=0.0, le=24 * 365, alias="min_overdue_hours"),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -437,7 +501,7 @@ def export_portfolio_review_workflow_trends(
         le=24 * 30,
         alias="overdue_after_hours",
     ),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -501,7 +565,7 @@ def export_portfolio_review_workflow_sla_trends(
         le=24 * 30,
         alias="overdue_after_hours",
     ),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -565,7 +629,7 @@ def get_status_export_payload(job_id: str, request: Request):
 def export_status_events(
     job_id: str,
     request: Request,
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -592,7 +656,7 @@ def export_status_hitl_history(
     request: Request,
     event_type: Optional[str] = Query(default=None),
     checkpoint_id: Optional[str] = Query(default=None),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -625,7 +689,7 @@ def export_status_comments(
     section: Optional[str] = None,
     comment_status: Optional[str] = Query(default=None, alias="status"),
     version_id: Optional[str] = None,
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -673,7 +737,7 @@ def export_status_review_workflow_sla_hotspots(
     hotspot_kind: Optional[str] = Query(default=None, alias="hotspot_kind"),
     hotspot_severity: Optional[str] = Query(default=None, alias="hotspot_severity"),
     min_overdue_hours: Optional[float] = Query(default=None, ge=0.0, le=24 * 365, alias="min_overdue_hours"),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -746,7 +810,7 @@ def export_status_review_workflow_sla_hotspots_trends(
     hotspot_kind: Optional[str] = Query(default=None, alias="hotspot_kind"),
     hotspot_severity: Optional[str] = Query(default=None, alias="hotspot_severity"),
     min_overdue_hours: Optional[float] = Query(default=None, ge=0.0, le=24 * 365, alias="min_overdue_hours"),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -815,7 +879,7 @@ def export_status_review_workflow_sla(
         le=24 * 30,
         alias="overdue_after_hours",
     ),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -870,7 +934,7 @@ def export_status_review_workflow_sla_trends(
         le=24 * 30,
         alias="overdue_after_hours",
     ),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -926,7 +990,7 @@ def export_status_review_workflow(
         le=24 * 30,
         alias="overdue_after_hours",
     ),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -983,7 +1047,7 @@ def export_status_review_workflow_trends(
         le=24 * 30,
         alias="overdue_after_hours",
     ),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)
@@ -1029,7 +1093,7 @@ def export_ingest_inventory(
     request: Request,
     donor_id: Optional[str] = None,
     tenant_id: Optional[str] = Query(default=None),
-    format: Literal["csv", "json"] = Query(default="csv"),
+    format: str = Query(default="csv"),
     gzip_enabled: bool = Query(default=False, alias="gzip"),
 ):
     require_api_key_if_configured(request, for_read=True)

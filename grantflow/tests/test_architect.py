@@ -496,6 +496,7 @@ def test_architect_llm_prompt_receives_full_input_context_and_schema_contract(mo
     def fake_llm_structured_toc(*args, **kwargs):
         captured["input_context"] = kwargs.get("input_context")
         captured["schema_contract_hint"] = kwargs.get("schema_contract_hint")
+        captured["schema_json_contract_hint"] = kwargs.get("schema_json_contract_hint")
         return valid_payload, "llm:mock", None
 
     monkeypatch.setattr(architect_generation_module, "_llm_structured_toc", fake_llm_structured_toc)
@@ -520,12 +521,16 @@ def test_architect_llm_prompt_receives_full_input_context_and_schema_contract(mo
     assert validation["valid"] is True
     assert generation_meta["llm_used"] is True
     assert generation_meta["schema_contract_hint_present"] is True
+    assert generation_meta["schema_json_hint_present"] is True
     assert generation_meta["input_context_key_count"] == 4
     assert isinstance(captured.get("input_context"), dict)
     assert captured["input_context"] == state["input_context"]
     schema_hint = str(captured.get("schema_contract_hint") or "")
     assert schema_hint
     assert "project_goal" in schema_hint
+    schema_json_hint = str(captured.get("schema_json_contract_hint") or "")
+    assert schema_json_hint
+    assert "properties" in schema_json_hint
 
 
 def test_architect_llm_tries_fallback_model_chain_and_selects_first_success(monkeypatch):

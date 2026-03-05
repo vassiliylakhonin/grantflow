@@ -197,6 +197,19 @@ def _schema_contract_hint(schema_cls: Type[BaseModel], *, max_fields: int = 24) 
     return "\n".join(lines)
 
 
+def _schema_json_contract_hint(schema_cls: Type[BaseModel], *, max_chars: int = 2600) -> str:
+    schema_builder = getattr(schema_cls, "model_json_schema", None)
+    if not callable(schema_builder):
+        return ""
+    try:
+        payload = schema_builder()
+    except Exception:
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    return _safe_json(payload, max_chars=max_chars)
+
+
 def _text_for_field(
     *,
     field_name: str,
@@ -385,6 +398,7 @@ def _llm_structured_toc(
     revision_hint: str,
     evidence_hits: Iterable[Dict[str, Any]],
     schema_contract_hint: str = "",
+    schema_json_contract_hint: str = "",
     validation_error_hint: Optional[str] = None,
 ) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[str]]:
     llm_kwargs = chat_openai_init_kwargs(model=model_name, temperature=0.1)
@@ -414,6 +428,11 @@ def _llm_structured_toc(
         if schema_contract_hint:
             human_prompt += "\nSchema contract (follow field names and types):\n"
             human_prompt += f"{schema_contract_hint}\n"
+        if schema_json_contract_hint:
+            human_prompt += (
+                "\nJSON schema contract (authoritative): use exact property names and honor required fields/types.\n"
+            )
+            human_prompt += f"{schema_json_contract_hint}\n"
         if revision_hint:
             human_prompt += f"Revision instructions from critic: {revision_hint}\n"
         sanitized_validation_error_hint = sanitize_validation_error_hint(validation_error_hint)
@@ -619,7 +638,9 @@ def summarize_architect_claim_citations(
         "key_claim_coverage_ratio": (
             round((len(cited_paths & key_claim_paths) / len(key_claim_paths)), 4) if key_claim_paths else 1.0
         ),
-        "fallback_claim_ratio": round((fallback_claim_count / claim_citation_count), 4) if claim_citation_count else 0.0,
+        "fallback_claim_ratio": (
+            round((fallback_claim_count / claim_citation_count), 4) if claim_citation_count else 0.0
+        ),
         "traceability_gap_rate": (
             round((traceability_gap_count / claim_citation_count), 4) if claim_citation_count else 0.0
         ),
@@ -712,7 +733,9 @@ def build_architect_claim_citations(
                         "raw_claim_confidence": 0.75,
                         "evidence_score": 0.75,
                         "retrieval_confidence": 0.75,
-                        "confidence_threshold": architect_claim_confidence_threshold(donor_id=donor_id, statement_path="toc"),
+                        "confidence_threshold": architect_claim_confidence_threshold(
+                            donor_id=donor_id, statement_path="toc"
+                        ),
                         "traceability_status": "complete",
                         "traceability_complete": True,
                     }
@@ -763,7 +786,9 @@ def build_architect_claim_citations(
                     "raw_claim_confidence": 0.1,
                     "evidence_score": 0.1,
                     "retrieval_confidence": 0.1,
-                    "confidence_threshold": architect_claim_confidence_threshold(donor_id=donor_id, statement_path="toc"),
+                    "confidence_threshold": architect_claim_confidence_threshold(
+                        donor_id=donor_id, statement_path="toc"
+                    ),
                     "traceability_status": "missing",
                     "traceability_complete": False,
                 }
@@ -856,6 +881,7 @@ def generate_toc_under_contract(
     country = str(input_context.get("country") or "TBD")
     revision_hint = state_revision_hint(state)
     schema_contract_hint = _schema_contract_hint(schema_cls)
+    schema_json_hint = _schema_json_contract_hint(schema_cls)
     llm_mode = state_llm_mode(state, default=False)
     llm_available = openai_compatible_llm_available()
     llm_error: Optional[str] = None
@@ -894,6 +920,7 @@ def generate_toc_under_contract(
                 revision_hint=revision_hint,
                 evidence_hits=evidence_hits,
                 schema_contract_hint=schema_contract_hint,
+                schema_json_contract_hint=schema_json_hint,
                 validation_error_hint=None,
             )
             if raw_payload:
@@ -914,6 +941,7 @@ def generate_toc_under_contract(
                         revision_hint=revision_hint,
                         evidence_hits=evidence_hits,
                         schema_contract_hint=schema_contract_hint,
+                        schema_json_contract_hint=schema_json_hint,
                         validation_error_hint=llm_validation_error,
                     )
                     if raw_payload:
@@ -930,7 +958,9 @@ def generate_toc_under_contract(
                                 llm_error = llm_error_retry
                             break
                     else:
-                        llm_error = llm_error_retry or f"LLM structured output failed validation: {llm_validation_error}"
+                        llm_error = (
+                            llm_error_retry or f"LLM structured output failed validation: {llm_validation_error}"
+                        )
                         llm_failure_reasons.append(f"{model_name}: {llm_error}")
                 else:
                     soft_quality_issues = _collect_soft_quality_issues(raw_payload)
@@ -950,6 +980,7 @@ def generate_toc_under_contract(
                             revision_hint=revision_hint,
                             evidence_hits=evidence_hits,
                             schema_contract_hint=schema_contract_hint,
+                            schema_json_contract_hint=schema_json_hint,
                             validation_error_hint=quality_hint,
                         )
                         if raw_payload_retry:
@@ -1037,6 +1068,7 @@ def generate_toc_under_contract(
         "architect_mode": "llm" if llm_mode else "deterministic",
         "schema_name": validation["schema_name"],
         "schema_contract_hint_present": bool(schema_contract_hint),
+        "schema_json_hint_present": bool(schema_json_hint),
         "input_context_key_count": len(input_context),
         "claim_coverage": claim_citation_stats,
         "citation_policy": {

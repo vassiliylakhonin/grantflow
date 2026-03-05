@@ -1,16 +1,40 @@
 from __future__ import annotations
 
-# mypy: ignore-errors
-
-# ruff: noqa: F403,F405
-from grantflow.api.app import *
-
+from grantflow.api.app import (
+    Any,
+    Dict,
+    DonorFactory,
+    File,
+    Form,
+    GeneratePreflightPublicResponse,
+    HTTPException,
+    IngestInventoryPublicResponse,
+    IngestPresetDetailPublicResponse,
+    IngestPresetListPublicResponse,
+    IngestReadinessRequest,
+    IngestRecentListPublicResponse,
+    Optional,
+    Query,
+    Request,
+    UploadFile,
+    _build_generate_preflight,
+    _ingest_inventory,
+    _list_ingest_events,
+    _record_ingest_event,
+    _resolve_preflight_request_context,
+    _resolve_tenant_id,
+    _tenant_rag_namespace,
+    ingest_pdf_to_namespace,
+    json,
+    list_ingest_preset_summaries,
+    load_ingest_preset,
+    public_ingest_inventory_payload,
+    public_ingest_recent_payload,
+    require_api_key_if_configured,
+    tempfile,
+    vector_store,
+)
 from grantflow.api.routers import ingest_router
-
-import grantflow.api.app as _api_app_module
-
-# `from ... import *` does not import private names; endpoints use many helper underscores.
-globals().update({k: v for k, v in _api_app_module.__dict__.items() if k.startswith("_")})
 
 
 @ingest_router.get(

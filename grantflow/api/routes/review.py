@@ -1,16 +1,77 @@
 from __future__ import annotations
 
-# mypy: ignore-errors
-
-# ruff: noqa: F403,F405
-from grantflow.api.app import *
-
+from grantflow.api.app import (
+    CRITIC_FINDING_STATUSES,
+    CriticFatalFlawPublicResponse,
+    CriticFatalFlawStatusUpdatePublicResponse,
+    CriticFindingsBulkStatusPublicResponse,
+    CriticFindingsBulkStatusRequest,
+    CriticFindingsListPublicResponse,
+    HITLApprovalRequest,
+    HITLPendingListPublicResponse,
+    HITLStatus,
+    HTTPException,
+    JobCommentCreateRequest,
+    JobCommentsPublicResponse,
+    JobCriticPublicResponse,
+    JobHITLHistoryPublicResponse,
+    JobReviewWorkflowPublicResponse,
+    JobReviewWorkflowSLAHotspotsPublicResponse,
+    JobReviewWorkflowSLAHotspotsTrendsPublicResponse,
+    JobReviewWorkflowSLAProfilePublicResponse,
+    JobReviewWorkflowSLAPublicResponse,
+    JobReviewWorkflowSLARecomputePublicResponse,
+    JobReviewWorkflowSLATrendsPublicResponse,
+    JobReviewWorkflowTrendsPublicResponse,
+    Optional,
+    Query,
+    REVIEW_COMMENT_SECTIONS,
+    REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+    REVIEW_WORKFLOW_STATE_FILTER_VALUES,
+    Request,
+    ReviewCommentPublicResponse,
+    ReviewWorkflowSLARecomputeRequest,
+    _append_review_comment,
+    _checkpoint_status_token,
+    _checkpoint_tenant_id,
+    _critic_findings_list_payload,
+    _ensure_checkpoint_tenant_write_access,
+    _ensure_job_tenant_read_access,
+    _ensure_job_tenant_write_access,
+    _find_critic_fatal_flaw,
+    _find_job_by_checkpoint_id,
+    _finding_actor_from_request,
+    _get_job,
+    _global_idempotency_replay_response,
+    _hitl_history_payload,
+    _idempotency_fingerprint,
+    _job_draft_version_exists_for_section,
+    _normalize_critic_fatal_flaws_for_job,
+    _normalize_review_comments_for_job,
+    _recompute_review_workflow_sla,
+    _record_job_event,
+    _resolve_request_id,
+    _resolve_tenant_id,
+    _review_workflow_sla_profile_payload,
+    _set_critic_fatal_flaw_status,
+    _set_critic_fatal_flaws_status_bulk,
+    _set_review_comment_status,
+    _store_global_idempotency_response,
+    _validated_filter_token,
+    finding_primary_id,
+    hitl_manager,
+    public_checkpoint_payload,
+    public_job_comments_payload,
+    public_job_critic_payload,
+    public_job_review_workflow_payload,
+    public_job_review_workflow_sla_hotspots_payload,
+    public_job_review_workflow_sla_hotspots_trends_payload,
+    public_job_review_workflow_sla_payload,
+    public_job_review_workflow_sla_trends_payload,
+    public_job_review_workflow_trends_payload,
+    require_api_key_if_configured,
+)
 from grantflow.api.routers import review_router
-
-import grantflow.api.app as _api_app_module
-
-# `from ... import *` does not import private names; endpoints use many helper underscores.
-globals().update({k: v for k, v in _api_app_module.__dict__.items() if k.startswith("_")})
 
 
 @review_router.get(

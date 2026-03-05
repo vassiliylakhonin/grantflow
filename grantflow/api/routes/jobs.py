@@ -1,16 +1,78 @@
 from __future__ import annotations
 
-# mypy: ignore-errors
-
-# ruff: noqa: F403,F405
-from grantflow.api.app import *
-
+from grantflow.api.app import (
+    Any,
+    BackgroundTasks,
+    Dict,
+    DonorFactory,
+    GenerateAcceptedPublicResponse,
+    GenerateFromPresetAcceptedPublicResponse,
+    GenerateFromPresetBatchPublicResponse,
+    GenerateFromPresetBatchRequest,
+    GenerateFromPresetRequest,
+    GeneratePreflightPublicResponse,
+    GeneratePreflightRequest,
+    GenerateRequest,
+    HITLStatus,
+    HTTPException,
+    JobCitationsPublicResponse,
+    JobDiffPublicResponse,
+    JobEventsPublicResponse,
+    JobGroundingGatePublicResponse,
+    JobMetricsPublicResponse,
+    JobQualitySummaryPublicResponse,
+    JobStatusPublicResponse,
+    JobVersionsPublicResponse,
+    Optional,
+    Query,
+    Request,
+    _build_generate_preflight,
+    _checkpoint_status_token,
+    _clear_hitl_runtime_state,
+    _dispatch_generate_from_preset,
+    _dispatch_pipeline_task,
+    _ensure_job_tenant_read_access,
+    _ensure_job_tenant_write_access,
+    _get_job,
+    _global_idempotency_replay_response,
+    _idempotency_fingerprint,
+    _idempotency_replay_response,
+    _ingest_inventory,
+    _job_donor_id,
+    _job_runner_mode,
+    _job_tenant_id,
+    _normalize_critic_fatal_flaws_for_job,
+    _record_hitl_feedback_in_state,
+    _record_job_event,
+    _resolve_preflight_request_context,
+    _resolve_request_id,
+    _resolve_tenant_id,
+    _resume_target_from_checkpoint,
+    _run_hitl_pipeline,
+    _run_hitl_pipeline_by_job_id,
+    _run_pipeline_to_completion,
+    _run_pipeline_to_completion_by_job_id,
+    _set_job,
+    _store_global_idempotency_response,
+    _store_idempotency_response,
+    _update_job,
+    _uses_redis_queue_runner,
+    build_graph_state,
+    config,
+    hitl_manager,
+    normalize_state_contract,
+    public_job_citations_payload,
+    public_job_diff_payload,
+    public_job_events_payload,
+    public_job_grounding_gate_payload,
+    public_job_metrics_payload,
+    public_job_payload,
+    public_job_quality_payload,
+    public_job_versions_payload,
+    require_api_key_if_configured,
+    uuid,
+)
 from grantflow.api.routers import jobs_router
-
-import grantflow.api.app as _api_app_module
-
-# `from ... import *` does not import private names; endpoints use many helper underscores.
-globals().update({k: v for k, v in _api_app_module.__dict__.items() if k.startswith("_")})
 
 
 @jobs_router.post(
