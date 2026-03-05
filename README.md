@@ -325,6 +325,8 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
 - `GET /generate/presets`
   - unified generate preset catalog (`legacy` + `rbm`) with ready-to-send `generate_payload`
   - Demo Console generate preset loading uses this endpoint (or bundled `/demo/presets` when available)
+- `GET /generate/presets/{preset_key}`
+  - unified generate preset detail with optional runtime overrides: `llm_mode`, `hitl_enabled`, `architect_rag_enabled`, `strict_preflight`
 - `GET /ingest/presets`, `GET /ingest/presets/{preset_key}`
   - Demo Console loads ingest preset metadata/checklists from these endpoints at runtime
 - `GET /demo/presets`

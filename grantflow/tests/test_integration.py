@@ -1070,6 +1070,37 @@ def test_list_generate_presets():
     assert isinstance(rbm_row.get("generate_payload"), dict)
 
 
+def test_get_generate_preset_unified_detail_supports_runtime_flags():
+    response = client.get(
+        "/generate/presets/rbm-usaid-ai-civil-service-kazakhstan",
+        params={
+            "llm_mode": "false",
+            "hitl_enabled": "false",
+            "architect_rag_enabled": "false",
+            "strict_preflight": "true",
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["preset_key"] == "rbm-usaid-ai-civil-service-kazakhstan"
+    assert body["source_kind"] == "rbm"
+    payload = body.get("generate_payload")
+    assert isinstance(payload, dict)
+    assert payload.get("llm_mode") is False
+    assert payload.get("hitl_enabled") is False
+    assert payload.get("architect_rag_enabled") is False
+    assert payload.get("strict_preflight") is True
+
+
+def test_get_generate_preset_unified_detail_unknown_returns_404():
+    response = client.get("/generate/presets/not-a-real-preset-key")
+    assert response.status_code == 404
+    detail = response.json().get("detail") or {}
+    assert detail.get("reason") == "generate_preset_not_found"
+    assert detail.get("preset_key") == "not-a-real-preset-key"
+    assert isinstance(detail.get("available"), list)
+
+
 def test_list_ingest_presets():
     response = client.get("/ingest/presets")
     assert response.status_code == 200
@@ -10078,6 +10109,13 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    generate_presets_detail_response_schema = (
+        ((((spec.get("paths") or {}).get("/generate/presets/{preset_key}") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     generate_presets_legacy_list_response_schema = (
         ((((spec.get("paths") or {}).get("/generate/presets/legacy") or {}).get("get") or {}).get("responses") or {})
         .get("200", {})
@@ -10594,6 +10632,7 @@ def test_openapi_declares_api_key_security_scheme():
         "$ref": "#/components/schemas/GenerateFromPresetBatchPublicResponse"
     }
     assert generate_presets_response_schema == {"$ref": "#/components/schemas/GeneratePresetListPublicResponse"}
+    assert generate_presets_detail_response_schema == {"$ref": "#/components/schemas/DemoGeneratePresetPublicResponse"}
     assert generate_presets_legacy_list_response_schema == {
         "$ref": "#/components/schemas/GenerateLegacyPresetListPublicResponse"
     }

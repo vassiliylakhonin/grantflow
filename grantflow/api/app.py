@@ -80,6 +80,7 @@ from grantflow.api.schemas import (
     CriticFatalFlawStatusUpdatePublicResponse,
     CriticFindingsBulkStatusPublicResponse,
     CriticFindingsListPublicResponse,
+    DemoGeneratePresetPublicResponse,
     DeadLetterQueueListPublicResponse,
     DeadLetterQueueMutationPublicResponse,
     DemoPresetBundlePublicResponse,
@@ -4592,6 +4593,58 @@ def get_rbm_generate_preset(
             strict_preflight=bool(strict_preflight),
         ),
     }
+
+
+@app.get(
+    "/generate/presets/{preset_key}",
+    response_model=DemoGeneratePresetPublicResponse,
+    response_model_exclude_none=True,
+)
+def get_generate_preset(
+    preset_key: str,
+    llm_mode: Optional[bool] = Query(default=None),
+    hitl_enabled: Optional[bool] = Query(default=None),
+    architect_rag_enabled: Optional[bool] = Query(default=None),
+    strict_preflight: Optional[bool] = Query(default=None),
+):
+    token = str(preset_key or "").strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing preset_key")
+
+    target = None
+    for row in _generate_preset_rows_for_public():
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("preset_key") or "").strip() == token:
+            target = dict(row)
+            break
+
+    if target is None:
+        available = sorted(
+            str(row.get("preset_key") or "").strip()
+            for row in _generate_preset_rows_for_public()
+            if isinstance(row, dict) and str(row.get("preset_key") or "").strip()
+        )
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "reason": "generate_preset_not_found",
+                "preset_key": token,
+                "available": available,
+            },
+        )
+
+    generate_payload = dict(target.get("generate_payload") or {})
+    if llm_mode is not None:
+        generate_payload["llm_mode"] = bool(llm_mode)
+    if hitl_enabled is not None:
+        generate_payload["hitl_enabled"] = bool(hitl_enabled)
+    if architect_rag_enabled is not None:
+        generate_payload["architect_rag_enabled"] = bool(architect_rag_enabled)
+    if strict_preflight is not None:
+        generate_payload["strict_preflight"] = bool(strict_preflight)
+    target["generate_payload"] = generate_payload
+    return target
 
 
 @app.get("/demo", response_class=HTMLResponse, include_in_schema=False)
