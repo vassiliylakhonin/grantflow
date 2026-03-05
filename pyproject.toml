@@ -7,7 +7,7 @@ name = "grantflow"
 dynamic = ["version"]
 description = "Compliance-aware, agentic workflow engine for donor-funded proposal drafting."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "fastapi==0.128.8",
     "uvicorn[standard]==0.39.0",

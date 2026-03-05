@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import sys
 import tempfile
 import threading
 import uuid
@@ -4113,6 +4114,24 @@ def _clear_hitl_runtime_state(state: dict, *, clear_pending: bool) -> None:
 
 def _configuration_warnings() -> list[dict[str, Any]]:
     warnings: list[dict[str, Any]] = []
+    python_major = int(sys.version_info[0])
+    python_minor = int(sys.version_info[1])
+    if python_major == 3 and python_minor >= 14:
+        warnings.append(
+            {
+                "code": "PYTHON_VERSION_MAY_BE_UNSUPPORTED_BY_CHROMADB",
+                "severity": "medium",
+                "message": (
+                    "Python >= 3.14 may be unstable with current Chroma dependency chain. "
+                    "Use Python 3.11-3.13 for production reliability."
+                ),
+                "details": {
+                    "python_version": f"{python_major}.{python_minor}",
+                    "recommended": "3.11-3.13",
+                },
+            }
+        )
+
     chroma_host = str(getattr(vector_store, "_chroma_host", "") or "").strip()
     chroma_port_raw: object = getattr(vector_store, "_chroma_port", None)
     chroma_port: Optional[int]

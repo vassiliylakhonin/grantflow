@@ -964,6 +964,20 @@ def test_health_endpoint_reports_chroma_port_conflict_warning(monkeypatch):
     assert any(w.get("code") == "CHROMA_PORT_MAY_CONFLICT_WITH_API_DEFAULT" for w in warnings if isinstance(w, dict))
 
 
+def test_health_endpoint_reports_python_version_warning(monkeypatch):
+    monkeypatch.setattr(api_app_module.sys, "version_info", (3, 14, 0, "final", 0))
+
+    response = client.get("/health")
+    assert response.status_code == 200
+    body = response.json()
+    warnings = body["diagnostics"].get("configuration_warnings") or []
+    assert any(
+        w.get("code") == "PYTHON_VERSION_MAY_BE_UNSUPPORTED_BY_CHROMADB"
+        for w in warnings
+        if isinstance(w, dict)
+    )
+
+
 def test_health_endpoint_reports_dispatcher_worker_heartbeat_metrics(monkeypatch):
     monkeypatch.setattr(api_app_module.config.job_runner, "mode", "redis_queue")
     monkeypatch.setattr(api_app_module.config.job_runner, "redis_worker_heartbeat_policy_mode", "warn")
@@ -1014,6 +1028,20 @@ def test_ready_endpoint_reports_chroma_port_conflict_warning(monkeypatch):
     body = response.json()
     warnings = body["checks"].get("configuration_warnings") or []
     assert any(w.get("code") == "CHROMA_PORT_MAY_CONFLICT_WITH_API_DEFAULT" for w in warnings if isinstance(w, dict))
+
+
+def test_ready_endpoint_reports_python_version_warning(monkeypatch):
+    monkeypatch.setattr(api_app_module.sys, "version_info", (3, 14, 0, "final", 0))
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    warnings = body["checks"].get("configuration_warnings") or []
+    assert any(
+        w.get("code") == "PYTHON_VERSION_MAY_BE_UNSUPPORTED_BY_CHROMADB"
+        for w in warnings
+        if isinstance(w, dict)
+    )
 
 
 def test_list_donors():

@@ -4,7 +4,7 @@ Institutional proposal operating system: compliance-aware, agentic workflow engi
 
 [![CI](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml/badge.svg)](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.11--3.13-blue.svg)](https://www.python.org/)
 
 ## What It Is
 
@@ -55,6 +55,8 @@ Generic strategy:
 ## Quick Start
 
 ### 1) Install
+
+Recommended runtime: Python `3.11` to `3.13`.
 
 ```bash
 pip install .
