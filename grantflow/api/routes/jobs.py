@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import BackgroundTasks, HTTPException, Query, Request
 
+from grantflow.api import app as api_app_module
 from grantflow.api.app import (
     _build_generate_preflight,
     _checkpoint_status_token,
@@ -23,9 +24,7 @@ from grantflow.api.app import (
     _resolve_preflight_request_context,
     _resolve_request_id,
     _resume_target_from_checkpoint,
-    _run_hitl_pipeline,
     _run_hitl_pipeline_by_job_id,
-    _run_pipeline_to_completion,
     _run_pipeline_to_completion_by_job_id,
     _set_job,
     _store_global_idempotency_response,
@@ -370,14 +369,14 @@ async def generate(
                 queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline_by_job_id, job_id, "start")
             else:
                 queue_backend = _dispatch_pipeline_task(
-                    background_tasks, _run_hitl_pipeline, job_id, initial_state, "start"
+                    background_tasks, api_app_module._run_hitl_pipeline, job_id, initial_state, "start"
                 )
         else:
             if _uses_redis_queue_runner():
                 queue_backend = _dispatch_pipeline_task(background_tasks, _run_pipeline_to_completion_by_job_id, job_id)
             else:
                 queue_backend = _dispatch_pipeline_task(
-                    background_tasks, _run_pipeline_to_completion, job_id, initial_state
+                    background_tasks, api_app_module._run_pipeline_to_completion, job_id, initial_state
                 )
     except HTTPException as exc:
         _set_job(
@@ -569,7 +568,13 @@ async def resume_job(
         if _uses_redis_queue_runner():
             queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline_by_job_id, job_id, start_at)
         else:
-            queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline, job_id, state, start_at)
+            queue_backend = _dispatch_pipeline_task(
+                background_tasks,
+                api_app_module._run_hitl_pipeline,
+                job_id,
+                state,
+                start_at,
+            )
     except HTTPException as exc:
         _update_job(
             job_id,

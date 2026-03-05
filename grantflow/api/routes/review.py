@@ -5,7 +5,6 @@ from typing import Optional
 from fastapi import HTTPException, Query, Request
 
 from grantflow.api.app import (
-    _append_review_comment,
     _checkpoint_status_token,
     _find_critic_fatal_flaw,
     _find_job_by_checkpoint_id,
@@ -17,12 +16,8 @@ from grantflow.api.app import (
     _job_draft_version_exists_for_section,
     _normalize_critic_fatal_flaws_for_job,
     _normalize_review_comments_for_job,
-    _recompute_review_workflow_sla,
     _record_job_event,
     _resolve_request_id,
-    _set_critic_fatal_flaw_status,
-    _set_critic_fatal_flaws_status_bulk,
-    _set_review_comment_status,
     _store_global_idempotency_response,
 )
 from grantflow.api.constants import CRITIC_FINDING_STATUSES, REVIEW_COMMENT_SECTIONS
@@ -41,6 +36,13 @@ from grantflow.api.public_views import (
     public_job_review_workflow_trends_payload,
 )
 from grantflow.api.review_helpers import _critic_findings_list_payload, _review_workflow_sla_profile_payload
+from grantflow.api.review_mutations import (
+    _append_review_comment,
+    _recompute_review_workflow_sla,
+    _set_critic_fatal_flaw_status,
+    _set_critic_fatal_flaws_status_bulk,
+    _set_review_comment_status,
+)
 from grantflow.api.schemas import (
     CriticFatalFlawPublicResponse,
     CriticFatalFlawStatusUpdatePublicResponse,
