@@ -11915,6 +11915,50 @@ def test_hitl_pause_resume_flow():
     assert engine in {"rules", ""} or engine.startswith("rules+llm:")
 
 
+def test_hitl_pause_resume_flow_supports_export_payload_and_export():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Education", "country": "Kenya"},
+            "llm_mode": False,
+            "hitl_enabled": True,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] in {"pending_hitl", "done"}
+    if status["status"] != "done":
+        status = _drain_hitl_to_done(job_id, initial_status=status, max_cycles=12)
+    assert status["status"] == "done"
+
+    export_payload_response = client.get(f"/status/{job_id}/export-payload")
+    assert export_payload_response.status_code == 200
+    export_payload_body = export_payload_response.json()
+    payload = export_payload_body.get("payload")
+    assert isinstance(payload, dict)
+    payload_state = payload.get("state")
+    assert isinstance(payload_state, dict)
+    assert payload_state.get("hitl_pending") is False
+    assert "strategy" not in payload_state
+    assert "donor_strategy" not in payload_state
+
+    critic_findings = payload.get("critic_findings")
+    assert isinstance(critic_findings, list)
+    for finding in critic_findings:
+        assert isinstance(finding, dict)
+        finding_id = str(finding.get("finding_id") or "").strip()
+        assert finding_id
+        assert str(finding.get("id") or "").strip() == finding_id
+
+    export = client.post("/export", json={"payload": payload, "format": "both"})
+    assert export.status_code == 200
+    assert export.headers["content-type"].startswith("application/zip")
+    assert export.content[:2] == b"PK"
+
+
 def test_hitl_checkpoint_selection_logframe_only_flow():
     response = client.post(
         "/generate",

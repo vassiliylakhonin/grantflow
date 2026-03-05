@@ -3822,6 +3822,7 @@ def _run_hitl_pipeline(job_id: str, state: dict, start_at: HITLStartAt) -> None:
         final_state = grantflow_graph.invoke(state)
         if _job_is_canceled(job_id):
             return
+        normalize_state_contract(final_state)
         checkpoint_stage = str(final_state.get("hitl_checkpoint_stage") or "").strip().lower()
         checkpoint_resume = str(final_state.get("hitl_resume_from") or "").strip().lower()
         if bool(final_state.get("hitl_pending")) and checkpoint_stage in {"toc", "logframe"}:
