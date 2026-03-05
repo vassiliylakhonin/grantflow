@@ -339,10 +339,26 @@ def _validate_tenant_authz_configuration() -> None:
         )
 
 
+def _validate_runtime_compatibility_configuration() -> None:
+    status = _python_runtime_compatibility_status()
+    policy_mode = _configured_runtime_compatibility_policy_mode()
+    supported = bool(status.get("supported"))
+    if policy_mode != "strict":
+        return
+    if supported:
+        return
+    raise RuntimeError(
+        "Runtime compatibility misconfiguration: Python "
+        f"{status.get('python_version')} is outside validated range {status.get('supported_range')}. "
+        "Use Python 3.11-3.13 or set GRANTFLOW_RUNTIME_COMPATIBILITY_POLICY_MODE=warn|off."
+    )
+
+
 @asynccontextmanager
 async def _app_lifespan(_: FastAPI) -> AsyncIterator[None]:
     _validate_store_backend_alignment()
     _validate_tenant_authz_configuration()
+    _validate_runtime_compatibility_configuration()
     if _uses_queue_runner():
         JOB_RUNNER.start()
     try:

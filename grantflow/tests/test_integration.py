@@ -195,6 +195,33 @@ def test_tenant_authz_configuration_validation_runs_at_startup(monkeypatch):
         asyncio.run(_start_lifespan())
 
 
+def test_runtime_compatibility_validation_detects_strict_misconfig(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "runtime_compatibility_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.sys, "version_info", (3, 14, 0, "final", 0))
+
+    with pytest.raises(RuntimeError, match="outside validated range"):
+        api_app_module._validate_runtime_compatibility_configuration()
+
+
+def test_runtime_compatibility_validation_allows_supported_version(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "runtime_compatibility_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.sys, "version_info", (3, 11, 9, "final", 0))
+
+    api_app_module._validate_runtime_compatibility_configuration()
+
+
+def test_runtime_compatibility_validation_runs_at_startup(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.graph, "runtime_compatibility_policy_mode", "strict")
+    monkeypatch.setattr(api_app_module.sys, "version_info", (3, 14, 0, "final", 0))
+
+    async def _start_lifespan():
+        async with api_app_module._app_lifespan(api_app_module.app):
+            return None
+
+    with pytest.raises(RuntimeError, match="Runtime compatibility misconfiguration"):
+        asyncio.run(_start_lifespan())
+
+
 def test_demo_console_page_loads():
     response = client.get("/demo")
     assert response.status_code == 200

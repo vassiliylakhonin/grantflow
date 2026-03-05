@@ -150,7 +150,7 @@ export GRANTFLOW_RUNTIME_COMPATIBILITY_POLICY_MODE=warn   # off | warn | strict
 
 Notes:
 - `warn` keeps `/ready` non-blocking but reports compatibility risk when Python is outside validated runtime range.
-- `strict` degrades `/ready` when runtime Python is outside `3.11-3.13`.
+- `strict` fails startup and degrades `/ready` when runtime Python is outside `3.11-3.13`.
 
 ### 4.2) (Optional) Configure pipeline runner mode
 
