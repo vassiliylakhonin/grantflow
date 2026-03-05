@@ -195,27 +195,6 @@ curl -s -X POST http://127.0.0.1:8000/generate/preflight \
 ### 6) Start a job
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/generate \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "donor_id": "usaid",
-    "input_context": {
-      "project": "Youth Employment Initiative",
-      "country": "Kenya"
-    },
-    "llm_mode": false,
-    "architect_rag_enabled": true,
-    "hitl_enabled": false
-  }'
-```
-
-`architect_rag_enabled` controls Architect retrieval behavior per request (default: `true`).
-
-`/generate` is async and returns `job_id`.
-
-Preset-based shortcut (no manual payload assembly):
-
-```bash
 curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
   -H 'Content-Type: application/json' \
   -d '{
@@ -225,27 +204,35 @@ curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
     "hitl_enabled": false,
     "architect_rag_enabled": true,
     "input_context_patch": {
+      "project": "Youth Employment Initiative",
       "country": "Kenya"
     }
   }'
 ```
 
+`architect_rag_enabled` controls Architect retrieval behavior per request (default: `true`).
+
+`/generate/from-preset` is async and returns `job_id`.
+
 ### 7) (Optional) Enforce strict preflight gate
 
 ```bash
-curl -s -X POST http://127.0.0.1:8000/generate \
+curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
   -H 'Content-Type: application/json' \
   -d '{
-    "donor_id": "usaid",
-    "input_context": {
-      "project": "Youth Employment Initiative",
-      "country": "Kenya"
-    },
+    "preset_key": "usaid_gov_ai_kazakhstan",
+    "preset_type": "auto",
     "llm_mode": false,
     "hitl_enabled": false,
-    "strict_preflight": true
+    "strict_preflight": true,
+    "input_context_patch": {
+      "project": "Youth Employment Initiative",
+      "country": "Kenya"
+    }
   }'
 ```
+
+Direct payload mode (`POST /generate`) is still supported for advanced/custom integrations.
 
 If strict preflight blocks, API returns `409`:
 
