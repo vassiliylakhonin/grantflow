@@ -338,11 +338,6 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
 - `GET /generate/presets`
   - unified generate preset catalog (`legacy` + `rbm`) with ready-to-send `generate_payload`
   - Demo Console generate preset loading uses this endpoint (or bundled `/demo/presets` when available)
-- `GET /generate/presets/rbm`, `GET /generate/presets/rbm/{sample_id}`
-  - optional query flags on detail endpoint: `llm_mode`, `hitl_enabled`, `architect_rag_enabled`, `strict_preflight`
-  - available for direct API clients and sample inspection
-- `GET /generate/presets/legacy`, `GET /generate/presets/legacy/{preset_key}`
-  - available for direct API clients and preset debugging
 - `GET /ingest/presets`, `GET /ingest/presets/{preset_key}`
   - Demo Console loads ingest preset metadata/checklists from these endpoints at runtime
 - `GET /demo/presets`
@@ -383,6 +378,14 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
 - `POST /ingest`, `GET /ingest/recent`, `GET /ingest/inventory`, `GET /ingest/inventory/export`
   - `tenant_id` supported on ingest and ingest read endpoints
 - `POST /export`
+
+## API Reference (Advanced)
+
+- `GET /generate/presets/legacy`, `GET /generate/presets/legacy/{preset_key}`
+  - legacy preset catalog and detailed payload lookup
+- `GET /generate/presets/rbm`, `GET /generate/presets/rbm/{sample_id}`
+  - RBM sample catalog and detailed payload lookup
+  - optional runtime flags on detail endpoint: `llm_mode`, `hitl_enabled`, `architect_rag_enabled`, `strict_preflight`
 
 ## Evaluation
 
