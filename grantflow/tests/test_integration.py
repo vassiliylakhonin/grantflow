@@ -197,6 +197,7 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_ingest_checklist_progress" in body
     assert "doc_family=" in body
     assert "/generate/presets/rbm" in body
+    assert "/ingest/presets" in body
     assert "/ingest" in body
     assert "/ingest/inventory?" in body
     assert "/ingest/inventory/export?" in body
@@ -1017,6 +1018,40 @@ def test_list_donors():
     assert "usaid" in donor_ids
     assert "eu" in donor_ids
     assert "worldbank" in donor_ids
+
+
+def test_list_ingest_presets():
+    response = client.get("/ingest/presets")
+    assert response.status_code == 200
+    body = response.json()
+    presets = body.get("presets")
+    assert isinstance(presets, list) and presets
+    preset_keys = {str(item.get("preset_key") or "") for item in presets if isinstance(item, dict)}
+    assert "usaid_gov_ai_kazakhstan" in preset_keys
+    assert "eu_digital_governance_moldova" in preset_keys
+    assert "worldbank_public_sector_uzbekistan" in preset_keys
+
+
+def test_get_ingest_preset():
+    response = client.get("/ingest/presets/usaid_gov_ai_kazakhstan")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["preset_key"] == "usaid_gov_ai_kazakhstan"
+    assert body["donor_id"] == "usaid"
+    metadata = body.get("metadata")
+    assert isinstance(metadata, dict)
+    assert metadata.get("doc_family") == "donor_policy"
+    checklist_items = body.get("checklist_items")
+    assert isinstance(checklist_items, list) and checklist_items
+    assert any(str(item.get("id") or "") == "country_context" for item in checklist_items if isinstance(item, dict))
+    recommended_docs = body.get("recommended_docs")
+    assert isinstance(recommended_docs, list) and recommended_docs
+
+
+def test_get_ingest_preset_unknown_returns_404():
+    response = client.get("/ingest/presets/not-a-real-preset")
+    assert response.status_code == 404
+    assert "Unknown preset_key" in str(response.json().get("detail") or "")
 
 
 def test_list_rbm_generate_presets():

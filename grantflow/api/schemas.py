@@ -1575,6 +1575,39 @@ class DeadLetterQueueMutationPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class IngestPresetChecklistItemPublicResponse(BaseModel):
+    id: str
+    label: str
+    source_type: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class IngestPresetSummaryPublicResponse(BaseModel):
+    preset_key: str
+    donor_id: Optional[str] = None
+    title: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class IngestPresetListPublicResponse(BaseModel):
+    presets: list[IngestPresetSummaryPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
+class IngestPresetDetailPublicResponse(BaseModel):
+    preset_key: str
+    donor_id: Optional[str] = None
+    title: Optional[str] = None
+    metadata: Dict[str, Any]
+    checklist_items: list[IngestPresetChecklistItemPublicResponse]
+    recommended_docs: list[str]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class RBMSamplePresetSummaryPublicResponse(BaseModel):
     sample_id: str
     donor_id: Optional[str] = None

@@ -273,9 +273,6 @@ def render_demo_ui_html() -> str:
                 <label for="ingestPresetSelect">Ingest Preset</label>
                 <select id="ingestPresetSelect">
                   <option value="">none</option>
-                  <option value="usaid_gov_ai_kazakhstan">USAID: AI civil service (KZ)</option>
-                  <option value="eu_digital_governance_moldova">EU: digital governance (MD)</option>
-                  <option value="worldbank_public_sector_uzbekistan">World Bank: public sector performance (UZ)</option>
                 </select>
               </div>
               <div style="align-self:end;">
@@ -1672,7 +1669,7 @@ def render_demo_ui_html() -> str:
         worldbank_public_sector_uzbekistan: "World Bank: public sector performance (UZ)",
       };
       const SERVER_GENERATE_PRESET_LABELS = {};
-      const INGEST_PRESETS = {
+      let INGEST_PRESETS = {
         usaid_gov_ai_kazakhstan: {
           donor_id: "usaid",
           metadata: {
@@ -1740,6 +1737,12 @@ def render_demo_ui_html() -> str:
           ],
         },
       };
+      const LOCAL_INGEST_PRESET_LABELS = {
+        usaid_gov_ai_kazakhstan: "USAID: AI civil service (KZ)",
+        eu_digital_governance_moldova: "EU: digital governance (MD)",
+        worldbank_public_sector_uzbekistan: "World Bank: public sector performance (UZ)",
+      };
+      const SERVER_INGEST_PRESET_LABELS = {};
 
       const els = {
         apiBase: $("apiBase"),
@@ -2077,6 +2080,7 @@ def render_demo_ui_html() -> str:
         state.ingestChecklistProgress = loadIngestChecklistProgress();
         state.zeroReadinessWarningPrefs = loadZeroReadinessWarningPrefs();
         renderGeneratePresetOptions();
+        renderIngestPresetOptions();
         restoreUiState();
         if (!String(els.productionExportMode?.value || "").trim()) {
           els.productionExportMode.value = "false";
@@ -2215,6 +2219,90 @@ def render_demo_ui_html() -> str:
           const storedPreset = localStorage.getItem("grantflow_demo_generate_preset") || "";
           const preferredValue = String(els.generatePresetSelect.value || "").trim() || String(storedPreset || "").trim();
           renderGeneratePresetOptions({ preferredValue });
+          renderGeneratePresetReadiness();
+          renderZeroReadinessWarningPreference();
+        }
+      }
+
+      function ingestPresetLabel(key) {
+        const token = String(key || "").trim();
+        if (!token) return "Preset";
+        if (SERVER_INGEST_PRESET_LABELS[token]) return SERVER_INGEST_PRESET_LABELS[token];
+        if (LOCAL_INGEST_PRESET_LABELS[token]) return LOCAL_INGEST_PRESET_LABELS[token];
+        return token;
+      }
+
+      function renderIngestPresetOptions({ preferredValue = null } = {}) {
+        if (!els.ingestPresetSelect) return;
+        const selected = preferredValue == null
+          ? String(els.ingestPresetSelect.value || "").trim()
+          : String(preferredValue || "").trim();
+        const keys = Object.keys(INGEST_PRESETS || {});
+        els.ingestPresetSelect.innerHTML = "";
+        const noneOption = document.createElement("option");
+        noneOption.value = "";
+        noneOption.textContent = "none";
+        els.ingestPresetSelect.appendChild(noneOption);
+        for (const key of keys) {
+          const option = document.createElement("option");
+          option.value = key;
+          option.textContent = ingestPresetLabel(key);
+          els.ingestPresetSelect.appendChild(option);
+        }
+        if (selected && INGEST_PRESETS[selected]) {
+          els.ingestPresetSelect.value = selected;
+        } else {
+          els.ingestPresetSelect.value = "";
+        }
+      }
+
+      async function loadServerIngestPresets() {
+        let listBody;
+        try {
+          listBody = await apiFetch("/ingest/presets");
+        } catch (err) {
+          return;
+        }
+        const rows = Array.isArray(listBody?.presets) ? listBody.presets : [];
+        if (!rows.length) return;
+
+        const merged = { ...(INGEST_PRESETS || {}) };
+        let changed = false;
+        for (const row of rows) {
+          if (!row || typeof row !== "object") continue;
+          const presetKey = String(row.preset_key || "").trim();
+          if (!presetKey) continue;
+          try {
+            const detail = await apiFetch(`/ingest/presets/${encodeURIComponent(presetKey)}`);
+            const metadata =
+              detail && typeof detail.metadata === "object" && !Array.isArray(detail.metadata)
+                ? { ...detail.metadata }
+                : {};
+            const checklistItems = Array.isArray(detail?.checklist_items) ? detail.checklist_items : [];
+            const recommendedDocs = Array.isArray(detail?.recommended_docs) ? detail.recommended_docs : [];
+            const donorId = String(detail?.donor_id || row.donor_id || "").trim();
+            merged[presetKey] = {
+              donor_id: donorId,
+              metadata,
+              checklist_items: checklistItems,
+              recommended_docs: recommendedDocs,
+            };
+            const donorLabel = donorId ? donorId.toUpperCase() : "INGEST";
+            const title = String(detail?.title || row.title || presetKey).trim();
+            SERVER_INGEST_PRESET_LABELS[presetKey] = `${donorLabel}: ${title}`;
+            changed = true;
+          } catch (err) {
+            // Keep local fallback presets when server detail lookup fails.
+          }
+        }
+
+        if (changed) {
+          INGEST_PRESETS = merged;
+          const storedPreset = localStorage.getItem("grantflow_demo_ingest_preset") || "";
+          const preferredValue = String(els.ingestPresetSelect.value || "").trim() || String(storedPreset || "").trim();
+          renderIngestPresetOptions({ preferredValue });
+          renderIngestPresetGuidance();
+          renderIngestChecklistProgress();
           renderGeneratePresetReadiness();
           renderZeroReadinessWarningPreference();
         }
@@ -8267,6 +8355,7 @@ def render_demo_ui_html() -> str:
       initDefaults();
       bind();
       loadServerGeneratePresets().catch(() => {});
+      loadServerIngestPresets().catch(() => {});
       if (currentJobId()) {
         refreshAll().catch(() => {});
       } else {
