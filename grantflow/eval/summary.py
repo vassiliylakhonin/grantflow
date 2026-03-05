@@ -30,6 +30,14 @@ def _avg(total: float, count: int) -> float | None:
     return round(total / count, 4)
 
 
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
 def donor_rows_from_report(report_payload: dict[str, Any]) -> list[dict[str, Any]]:
     from_report = report_payload.get("donor_quality_breakdown")
     if isinstance(from_report, dict) and from_report:
@@ -60,11 +68,11 @@ def donor_rows_from_report(report_payload: dict[str, Any]) -> list[dict[str, Any
             return rows
 
     grouped: dict[str, dict[str, Any]] = {}
-    for case in report_payload.get("cases") or []:
+    for case in _as_list(report_payload.get("cases")):
         if not isinstance(case, dict):
             continue
         donor_id = str(case.get("donor_id") or "unknown").strip().lower()
-        metrics = case.get("metrics") if isinstance(case.get("metrics"), dict) else {}
+        metrics = _as_dict(case.get("metrics"))
         row = grouped.setdefault(
             donor_id,
             {
@@ -201,12 +209,12 @@ def build_eval_summary_markdown(
             )
 
     failed_rows = []
-    for case in report_payload.get("cases") or []:
+    for case in _as_list(report_payload.get("cases")):
         if not isinstance(case, dict) or bool(case.get("passed")):
             continue
         case_id = str(case.get("case_id") or "unknown")
         donor_id = str(case.get("donor_id") or "unknown")
-        failed_checks = case.get("failed_checks") if isinstance(case.get("failed_checks"), list) else []
+        failed_checks = _as_list(case.get("failed_checks"))
         top = []
         for item in failed_checks[:3]:
             if not isinstance(item, dict):

@@ -31,10 +31,8 @@ repos:
     rev: v1.19.1
     hooks:
       - id: mypy
-        name: mypy-targeted-baseline
+        name: mypy-grantflow
         args:
           - --config-file=pyproject.toml
-          - grantflow/api
-          - grantflow/core/stores.py
-          - grantflow/swarm/versioning.py
+          - grantflow
         pass_filenames: false

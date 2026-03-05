@@ -79,6 +79,14 @@ def _as_float(value: Any, default: float | None = None) -> float | None:
         return default
 
 
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _as_list(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
 def parse_csv_tokens(raw: str | None) -> list[str]:
     if raw is None:
         return []
@@ -115,10 +123,9 @@ def build_thresholds(
 ) -> dict[str, dict[str, float]]:
     payload = threshold_payload or {}
     default_override = _sanitize_thresholds(payload.get("default"))
-    donor_overrides_raw = payload.get("donors") if isinstance(payload.get("donors"), dict) else {}
+    donor_overrides_raw = _as_dict(payload.get("donors"))
     donor_overrides = {
-        str(donor_id).strip().lower(): _sanitize_thresholds(value)
-        for donor_id, value in donor_overrides_raw.items()
+        str(donor_id).strip().lower(): _sanitize_thresholds(value) for donor_id, value in donor_overrides_raw.items()
     }
 
     resolved: dict[str, dict[str, float]] = {}
@@ -152,12 +159,12 @@ def _avg(total: float, count: int) -> float | None:
 def summarize_report_by_donor(report_payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     from_report = report_payload.get("donor_quality_breakdown")
     if isinstance(from_report, dict) and from_report:
-        summary: dict[str, dict[str, Any]] = {}
+        report_summary: dict[str, dict[str, Any]] = {}
         for donor_id, row in from_report.items():
             if not isinstance(row, dict):
                 continue
             token = str(donor_id or "unknown").strip().lower()
-            summary[token] = {
+            report_summary[token] = {
                 "case_count": _as_int(row.get("cases_total"), default=0),
                 "passed_count": _as_int(row.get("cases_passed"), default=0),
                 "avg_quality_score": _as_float(row.get("avg_quality_score")),
@@ -175,15 +182,15 @@ def summarize_report_by_donor(report_payload: dict[str, Any]) -> dict[str, dict[
                     else None
                 ),
             }
-        if summary:
-            return summary
+        if report_summary:
+            return report_summary
 
     rows: dict[str, dict[str, Any]] = {}
-    for case in report_payload.get("cases") or []:
+    for case in _as_list(report_payload.get("cases")):
         if not isinstance(case, dict):
             continue
         donor_id = str(case.get("donor_id") or "unknown").strip().lower()
-        metrics = case.get("metrics") if isinstance(case.get("metrics"), dict) else {}
+        metrics = _as_dict(case.get("metrics"))
         row = rows.setdefault(
             donor_id,
             {
@@ -380,11 +387,9 @@ def render_gate_markdown(*, report_payload: dict[str, Any], gate_payload: dict[s
     passed_count = _as_int(report_payload.get("passed_count"), default=0)
     failed_count = _as_int(report_payload.get("failed_count"), default=0)
     required_donors = [str(item) for item in (gate_payload.get("required_donors") or [])]
-    donor_breakdown = gate_payload.get("donor_breakdown") if isinstance(gate_payload.get("donor_breakdown"), dict) else {}
-    donor_gate_results = (
-        gate_payload.get("donor_gate_results") if isinstance(gate_payload.get("donor_gate_results"), dict) else {}
-    )
-    failures = gate_payload.get("failures") if isinstance(gate_payload.get("failures"), list) else []
+    donor_breakdown = _as_dict(gate_payload.get("donor_breakdown"))
+    donor_gate_results = _as_dict(gate_payload.get("donor_gate_results"))
+    failures = _as_list(gate_payload.get("failures"))
 
     lines = [
         "## LLM Grounded Strict Donor Gate",
@@ -406,8 +411,8 @@ def render_gate_markdown(*, report_payload: dict[str, Any], gate_payload: dict[s
         ]
     )
     for donor_id in required_donors:
-        donor_metrics = donor_breakdown.get(donor_id) if isinstance(donor_breakdown.get(donor_id), dict) else {}
-        gate_row = donor_gate_results.get(donor_id) if isinstance(donor_gate_results.get(donor_id), dict) else {}
+        donor_metrics = _as_dict(donor_breakdown.get(donor_id))
+        gate_row = _as_dict(donor_gate_results.get(donor_id))
         gate_mark = "PASS" if bool(gate_row.get("passed")) else "FAIL"
         if status.startswith("skipped"):
             gate_mark = "SKIP"
@@ -443,7 +448,7 @@ def render_gate_markdown(*, report_payload: dict[str, Any], gate_payload: dict[s
 def render_gate_text(*, report_payload: dict[str, Any], gate_payload: dict[str, Any]) -> str:
     status = str(gate_payload.get("status") or "unknown")
     suite_label = str(report_payload.get("suite_label") or "llm-eval-grounded-strict")
-    failures = gate_payload.get("failures") if isinstance(gate_payload.get("failures"), list) else []
+    failures = _as_list(gate_payload.get("failures"))
     lines = [
         "Strict donor gate",
         f"Suite: {suite_label}",

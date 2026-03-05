@@ -73,6 +73,33 @@ jobs:
         run: |
           python scripts/dependency_contract_guard.py
 
+  style:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run ruff (project lint)
+        run: |
+          python -m ruff check grantflow scripts
+
+      - name: Run black (format check)
+        run: |
+          python -m black --check grantflow/eval grantflow/core/job_runner.py scripts/build_llm_eval_summary.py
+
   mypy:
     runs-on: ubuntu-latest
     env:
@@ -92,9 +119,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[dev]"
 
-      - name: Run mypy (targeted baseline)
+      - name: Run mypy (grantflow package)
         run: |
-          python -m mypy grantflow/api grantflow/core/stores.py grantflow/swarm/versioning.py
+          python -m mypy grantflow
 
   eval:
     runs-on: ubuntu-latest

@@ -76,6 +76,7 @@ from grantflow.api.public_views import (
     public_portfolio_review_workflow_trends_csv_text,
     public_portfolio_review_workflow_trends_payload,
 )
+from grantflow.api.routers import exports_router, include_api_routers, ingest_router, jobs_router, review_router
 from grantflow.api.schemas import (
     CriticFatalFlawPublicResponse,
     CriticFatalFlawStatusUpdatePublicResponse,
@@ -231,6 +232,7 @@ HITL_HISTORY_EVENT_TYPES = {
 }
 GLOBAL_IDEMPOTENCY_RECORDS: Dict[str, Dict[str, Any]] = {}
 GLOBAL_IDEMPOTENCY_LOCK = threading.Lock()
+PRODUCTION_ENV_TOKENS = {"prod", "production"}
 
 
 def _job_runner_mode() -> str:
@@ -363,11 +365,38 @@ def _validate_runtime_compatibility_configuration() -> None:
     )
 
 
+def _deployment_environment() -> str:
+    return str(os.getenv("GRANTFLOW_ENV", "dev") or "dev").strip().lower()
+
+
+def _is_production_environment() -> bool:
+    return _deployment_environment() in PRODUCTION_ENV_TOKENS
+
+
+def _require_api_key_on_startup() -> bool:
+    explicit = os.getenv("GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP")
+    if explicit is None or not str(explicit).strip():
+        return _is_production_environment()
+    return str(explicit).strip().lower() == "true"
+
+
+def _validate_api_key_startup_security() -> None:
+    if not _require_api_key_on_startup():
+        return
+    if api_key_configured():
+        return
+    raise RuntimeError(
+        "Security defaults violation: API key auth is required at startup but GRANTFLOW_API_KEY is not set. "
+        "Set GRANTFLOW_API_KEY or disable this guard with GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP=false."
+    )
+
+
 @asynccontextmanager
 async def _app_lifespan(_: FastAPI) -> AsyncIterator[None]:
     _validate_store_backend_alignment()
     _validate_tenant_authz_configuration()
     _validate_runtime_compatibility_configuration()
+    _validate_api_key_startup_security()
     if _uses_queue_runner():
         JOB_RUNNER.start()
     try:
@@ -4758,7 +4787,7 @@ def purge_dead_letter_queue(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
-@app.get("/queue/dead-letter/export")
+@exports_router.get("/queue/dead-letter/export")
 def export_dead_letter_queue(
     request: Request,
     limit: int = Query(default=500, ge=1, le=5000),
@@ -4901,7 +4930,7 @@ def get_generate_legacy_preset(preset_key: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@app.get(
+@ingest_router.get(
     "/ingest/presets",
     response_model=IngestPresetListPublicResponse,
     response_model_exclude_none=True,
@@ -4910,7 +4939,7 @@ def list_ingest_presets():
     return {"presets": list_ingest_preset_summaries()}
 
 
-@app.get(
+@ingest_router.get(
     "/ingest/presets/{preset_key}",
     response_model=IngestPresetDetailPublicResponse,
     response_model_exclude_none=True,
@@ -5057,7 +5086,7 @@ def get_portfolio_metrics(
     )
 
 
-@app.get("/portfolio/metrics/export")
+@exports_router.get("/portfolio/metrics/export")
 def export_portfolio_metrics(
     request: Request,
     donor_id: Optional[str] = None,
@@ -5132,7 +5161,7 @@ def get_portfolio_quality(
     )
 
 
-@app.get("/portfolio/quality/export")
+@exports_router.get("/portfolio/quality/export")
 def export_portfolio_quality(
     request: Request,
     donor_id: Optional[str] = None,
@@ -5232,7 +5261,7 @@ def get_portfolio_review_workflow(
     )
 
 
-@app.get("/portfolio/review-workflow/export")
+@exports_router.get("/portfolio/review-workflow/export")
 def export_portfolio_review_workflow(
     request: Request,
     donor_id: Optional[str] = None,
@@ -5353,7 +5382,7 @@ def get_portfolio_review_workflow_sla(
     )
 
 
-@app.get("/portfolio/review-workflow/sla/export")
+@exports_router.get("/portfolio/review-workflow/sla/export")
 def export_portfolio_review_workflow_sla(
     request: Request,
     donor_id: Optional[str] = None,
@@ -5490,7 +5519,7 @@ def get_portfolio_review_workflow_sla_hotspots(
     )
 
 
-@app.get("/portfolio/review-workflow/sla/hotspots/export")
+@exports_router.get("/portfolio/review-workflow/sla/hotspots/export")
 def export_portfolio_review_workflow_sla_hotspots(
     request: Request,
     donor_id: Optional[str] = None,
@@ -5643,7 +5672,7 @@ def get_portfolio_review_workflow_sla_hotspots_trends(
     )
 
 
-@app.get("/portfolio/review-workflow/sla/hotspots/trends/export")
+@exports_router.get("/portfolio/review-workflow/sla/hotspots/trends/export")
 def export_portfolio_review_workflow_sla_hotspots_trends(
     request: Request,
     donor_id: Optional[str] = None,
@@ -5780,7 +5809,7 @@ def get_portfolio_review_workflow_trends(
     )
 
 
-@app.get("/portfolio/review-workflow/trends/export")
+@exports_router.get("/portfolio/review-workflow/trends/export")
 def export_portfolio_review_workflow_trends(
     request: Request,
     donor_id: Optional[str] = None,
@@ -5899,7 +5928,7 @@ def get_portfolio_review_workflow_sla_trends(
     )
 
 
-@app.get("/portfolio/review-workflow/sla/trends/export")
+@exports_router.get("/portfolio/review-workflow/sla/trends/export")
 def export_portfolio_review_workflow_sla_trends(
     request: Request,
     donor_id: Optional[str] = None,
@@ -5962,7 +5991,7 @@ def export_portfolio_review_workflow_sla_trends(
     )
 
 
-@app.post(
+@jobs_router.post(
     "/generate/preflight",
     response_model=GeneratePreflightPublicResponse,
     response_model_exclude_none=True,
@@ -6028,7 +6057,7 @@ def _resolve_preflight_request_context(
     return donor, strategy, (metadata or None)
 
 
-@app.post(
+@ingest_router.post(
     "/ingest/readiness",
     response_model=GeneratePreflightPublicResponse,
     response_model_exclude_none=True,
@@ -6192,7 +6221,7 @@ async def _dispatch_generate_from_preset(
     return generated
 
 
-@app.post(
+@jobs_router.post(
     "/generate/from-preset",
     response_model=GenerateFromPresetAcceptedPublicResponse,
     response_model_exclude_none=True,
@@ -6212,7 +6241,7 @@ async def generate_from_preset(
     )
 
 
-@app.post(
+@jobs_router.post(
     "/generate/from-preset/batch",
     response_model=GenerateFromPresetBatchPublicResponse,
     response_model_exclude_none=True,
@@ -6283,7 +6312,7 @@ async def generate_from_preset_batch(
     }
 
 
-@app.post(
+@jobs_router.post(
     "/generate",
     response_model=GenerateAcceptedPublicResponse,
     response_model_exclude_none=True,
@@ -6512,7 +6541,7 @@ async def generate(
     return response
 
 
-@app.post("/cancel/{job_id}")
+@jobs_router.post("/cancel/{job_id}")
 def cancel_job(job_id: str, request: Request, request_id: Optional[str] = Query(default=None)):
     require_api_key_if_configured(request)
     job = _get_job(job_id)
@@ -6585,7 +6614,7 @@ def cancel_job(job_id: str, request: Request, request_id: Optional[str] = Query(
     return response
 
 
-@app.post("/resume/{job_id}")
+@jobs_router.post("/resume/{job_id}")
 async def resume_job(
     job_id: str,
     background_tasks: BackgroundTasks,
@@ -6711,7 +6740,7 @@ async def resume_job(
     return response
 
 
-@app.get("/status/{job_id}", response_model=JobStatusPublicResponse, response_model_exclude_none=True)
+@jobs_router.get("/status/{job_id}", response_model=JobStatusPublicResponse, response_model_exclude_none=True)
 def get_status(job_id: str, request: Request):
     require_api_key_if_configured(request, for_read=True)
     job = _get_job(job_id)
@@ -6721,7 +6750,7 @@ def get_status(job_id: str, request: Request):
     return public_job_payload(job)
 
 
-@app.get(
+@jobs_router.get(
     "/status/{job_id}/citations",
     response_model=JobCitationsPublicResponse,
     response_model_exclude_none=True,
@@ -6735,7 +6764,7 @@ def get_status_citations(job_id: str, request: Request):
     return public_job_citations_payload(job_id, job)
 
 
-@app.get(
+@exports_router.get(
     "/status/{job_id}/export-payload",
     response_model=JobExportPayloadPublicResponse,
     response_model_exclude_none=True,
@@ -6753,7 +6782,7 @@ def get_status_export_payload(job_id: str, request: Request):
     return public_job_export_payload(job_id, job, ingest_inventory_rows=inventory_rows)
 
 
-@app.get(
+@jobs_router.get(
     "/status/{job_id}/versions",
     response_model=JobVersionsPublicResponse,
     response_model_exclude_none=True,
@@ -6767,7 +6796,7 @@ def get_status_versions(job_id: str, request: Request, section: Optional[str] = 
     return public_job_versions_payload(job_id, job, section=section)
 
 
-@app.get(
+@jobs_router.get(
     "/status/{job_id}/diff",
     response_model=JobDiffPublicResponse,
     response_model_exclude_none=True,
@@ -6793,7 +6822,7 @@ def get_status_diff(
     )
 
 
-@app.get(
+@jobs_router.get(
     "/status/{job_id}/events",
     response_model=JobEventsPublicResponse,
     response_model_exclude_none=True,
@@ -6807,7 +6836,7 @@ def get_status_events(job_id: str, request: Request):
     return public_job_events_payload(job_id, job)
 
 
-@app.get("/status/{job_id}/events/export")
+@exports_router.get("/status/{job_id}/events/export")
 def export_status_events(
     job_id: str,
     request: Request,
@@ -6832,7 +6861,7 @@ def export_status_events(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/hitl/history",
     response_model=JobHITLHistoryPublicResponse,
     response_model_exclude_none=True,
@@ -6856,7 +6885,7 @@ def get_status_hitl_history(
     )
 
 
-@app.get("/status/{job_id}/hitl/history/export")
+@exports_router.get("/status/{job_id}/hitl/history/export")
 def export_status_hitl_history(
     job_id: str,
     request: Request,
@@ -6888,7 +6917,7 @@ def export_status_hitl_history(
     )
 
 
-@app.get(
+@jobs_router.get(
     "/status/{job_id}/metrics",
     response_model=JobMetricsPublicResponse,
     response_model_exclude_none=True,
@@ -6902,7 +6931,7 @@ def get_status_metrics(job_id: str, request: Request):
     return public_job_metrics_payload(job_id, job)
 
 
-@app.get(
+@jobs_router.get(
     "/status/{job_id}/quality",
     response_model=JobQualitySummaryPublicResponse,
     response_model_exclude_none=True,
@@ -6920,7 +6949,7 @@ def get_status_quality(job_id: str, request: Request):
     return public_job_quality_payload(job_id, job, ingest_inventory_rows=inventory_rows)
 
 
-@app.get(
+@jobs_router.get(
     "/status/{job_id}/grounding-gate",
     response_model=JobGroundingGatePublicResponse,
     response_model_exclude_none=True,
@@ -6934,7 +6963,7 @@ def get_status_grounding_gate(job_id: str, request: Request):
     return public_job_grounding_gate_payload(job_id, job)
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/critic",
     response_model=JobCriticPublicResponse,
     response_model_exclude_none=True,
@@ -6949,7 +6978,7 @@ def get_status_critic(job_id: str, request: Request):
     return public_job_critic_payload(job_id, job)
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/critic/findings",
     response_model=CriticFindingsListPublicResponse,
     response_model_exclude_none=True,
@@ -7008,7 +7037,7 @@ def get_status_critic_findings(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/critic/findings/{finding_id}",
     response_model=CriticFatalFlawPublicResponse,
     response_model_exclude_none=True,
@@ -7043,7 +7072,7 @@ def get_status_critic_finding(
     raise HTTPException(status_code=404, detail="Critic finding not found")
 
 
-@app.post(
+@review_router.post(
     "/status/{job_id}/critic/findings/{finding_id}/ack",
     response_model=CriticFatalFlawStatusUpdatePublicResponse,
     response_model_exclude_none=True,
@@ -7072,7 +7101,7 @@ def acknowledge_status_critic_finding(
     )
 
 
-@app.post(
+@review_router.post(
     "/status/{job_id}/critic/findings/{finding_id}/open",
     response_model=CriticFatalFlawStatusUpdatePublicResponse,
     response_model_exclude_none=True,
@@ -7101,7 +7130,7 @@ def reopen_status_critic_finding(
     )
 
 
-@app.post(
+@review_router.post(
     "/status/{job_id}/critic/findings/{finding_id}/resolve",
     response_model=CriticFatalFlawStatusUpdatePublicResponse,
     response_model_exclude_none=True,
@@ -7130,7 +7159,7 @@ def resolve_status_critic_finding(
     )
 
 
-@app.post(
+@review_router.post(
     "/status/{job_id}/critic/findings/bulk-status",
     response_model=CriticFindingsBulkStatusPublicResponse,
     response_model_exclude_none=True,
@@ -7157,7 +7186,7 @@ def bulk_status_critic_findings(job_id: str, req: CriticFindingsBulkStatusReques
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/comments",
     response_model=JobCommentsPublicResponse,
     response_model_exclude_none=True,
@@ -7185,7 +7214,7 @@ def get_status_comments(
     )
 
 
-@app.get("/status/{job_id}/comments/export")
+@exports_router.get("/status/{job_id}/comments/export")
 def export_status_comments(
     job_id: str,
     request: Request,
@@ -7221,7 +7250,7 @@ def export_status_comments(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/review/workflow",
     response_model=JobReviewWorkflowPublicResponse,
     response_model_exclude_none=True,
@@ -7270,7 +7299,7 @@ def get_status_review_workflow(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/review/workflow/trends",
     response_model=JobReviewWorkflowTrendsPublicResponse,
     response_model_exclude_none=True,
@@ -7319,7 +7348,7 @@ def get_status_review_workflow_trends(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/review/workflow/sla",
     response_model=JobReviewWorkflowSLAPublicResponse,
     response_model_exclude_none=True,
@@ -7366,7 +7395,7 @@ def get_status_review_workflow_sla(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/review/workflow/sla/trends",
     response_model=JobReviewWorkflowSLATrendsPublicResponse,
     response_model_exclude_none=True,
@@ -7413,7 +7442,7 @@ def get_status_review_workflow_sla_trends(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/review/workflow/sla/hotspots",
     response_model=JobReviewWorkflowSLAHotspotsPublicResponse,
     response_model_exclude_none=True,
@@ -7478,7 +7507,7 @@ def get_status_review_workflow_sla_hotspots(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/review/workflow/sla/hotspots/trends",
     response_model=JobReviewWorkflowSLAHotspotsTrendsPublicResponse,
     response_model_exclude_none=True,
@@ -7543,7 +7572,7 @@ def get_status_review_workflow_sla_hotspots_trends(
     )
 
 
-@app.get("/status/{job_id}/review/workflow/sla/hotspots/export")
+@exports_router.get("/status/{job_id}/review/workflow/sla/hotspots/export")
 def export_status_review_workflow_sla_hotspots(
     job_id: str,
     request: Request,
@@ -7616,7 +7645,7 @@ def export_status_review_workflow_sla_hotspots(
     )
 
 
-@app.get("/status/{job_id}/review/workflow/sla/hotspots/trends/export")
+@exports_router.get("/status/{job_id}/review/workflow/sla/hotspots/trends/export")
 def export_status_review_workflow_sla_hotspots_trends(
     job_id: str,
     request: Request,
@@ -7689,7 +7718,7 @@ def export_status_review_workflow_sla_hotspots_trends(
     )
 
 
-@app.get("/status/{job_id}/review/workflow/sla/export")
+@exports_router.get("/status/{job_id}/review/workflow/sla/export")
 def export_status_review_workflow_sla(
     job_id: str,
     request: Request,
@@ -7744,7 +7773,7 @@ def export_status_review_workflow_sla(
     )
 
 
-@app.get("/status/{job_id}/review/workflow/sla/trends/export")
+@exports_router.get("/status/{job_id}/review/workflow/sla/trends/export")
 def export_status_review_workflow_sla_trends(
     job_id: str,
     request: Request,
@@ -7799,7 +7828,7 @@ def export_status_review_workflow_sla_trends(
     )
 
 
-@app.get(
+@review_router.get(
     "/status/{job_id}/review/workflow/sla/profile",
     response_model=JobReviewWorkflowSLAProfilePublicResponse,
     response_model_exclude_none=True,
@@ -7815,7 +7844,7 @@ def get_status_review_workflow_sla_profile(job_id: str, request: Request):
     return _review_workflow_sla_profile_payload(job_id, job)
 
 
-@app.post(
+@review_router.post(
     "/status/{job_id}/review/workflow/sla/recompute",
     response_model=JobReviewWorkflowSLARecomputePublicResponse,
     response_model_exclude_none=True,
@@ -7840,7 +7869,7 @@ def recompute_status_review_workflow_sla(
     )
 
 
-@app.get("/status/{job_id}/review/workflow/export")
+@exports_router.get("/status/{job_id}/review/workflow/export")
 def export_status_review_workflow(
     job_id: str,
     request: Request,
@@ -7897,7 +7926,7 @@ def export_status_review_workflow(
     )
 
 
-@app.get("/status/{job_id}/review/workflow/trends/export")
+@exports_router.get("/status/{job_id}/review/workflow/trends/export")
 def export_status_review_workflow_trends(
     job_id: str,
     request: Request,
@@ -7954,7 +7983,7 @@ def export_status_review_workflow_trends(
     )
 
 
-@app.post(
+@review_router.post(
     "/status/{job_id}/comments",
     response_model=ReviewCommentPublicResponse,
     response_model_exclude_none=True,
@@ -8007,7 +8036,7 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
     )
 
 
-@app.post(
+@review_router.post(
     "/status/{job_id}/comments/{comment_id}/resolve",
     response_model=ReviewCommentPublicResponse,
     response_model_exclude_none=True,
@@ -8032,7 +8061,7 @@ def resolve_status_comment(
     )
 
 
-@app.post(
+@review_router.post(
     "/status/{job_id}/comments/{comment_id}/reopen",
     response_model=ReviewCommentPublicResponse,
     response_model_exclude_none=True,
@@ -8057,7 +8086,7 @@ def reopen_status_comment(
     )
 
 
-@app.post("/hitl/approve")
+@review_router.post("/hitl/approve")
 def approve_checkpoint(
     req: HITLApprovalRequest,
     request: Request,
@@ -8137,7 +8166,7 @@ def approve_checkpoint(
     return response
 
 
-@app.get("/hitl/pending", response_model=HITLPendingListPublicResponse, response_model_exclude_none=True)
+@review_router.get("/hitl/pending", response_model=HITLPendingListPublicResponse, response_model_exclude_none=True)
 def list_pending_hitl(request: Request, donor_id: Optional[str] = None, tenant_id: Optional[str] = None):
     require_api_key_if_configured(request, for_read=True)
     resolved_tenant_id = _resolve_tenant_id(request, explicit_tenant=tenant_id, require_if_enabled=True)
@@ -8158,7 +8187,7 @@ def list_pending_hitl(request: Request, donor_id: Optional[str] = None, tenant_i
     }
 
 
-@app.get("/ingest/recent", response_model=IngestRecentListPublicResponse, response_model_exclude_none=True)
+@ingest_router.get("/ingest/recent", response_model=IngestRecentListPublicResponse, response_model_exclude_none=True)
 def list_recent_ingests(
     request: Request,
     donor_id: Optional[str] = Query(default=None),
@@ -8171,7 +8200,7 @@ def list_recent_ingests(
     return public_ingest_recent_payload(rows, donor_id=(donor_id or None), tenant_id=resolved_tenant_id)
 
 
-@app.get("/ingest/inventory", response_model=IngestInventoryPublicResponse, response_model_exclude_none=True)
+@ingest_router.get("/ingest/inventory", response_model=IngestInventoryPublicResponse, response_model_exclude_none=True)
 def get_ingest_inventory(
     request: Request,
     donor_id: Optional[str] = Query(default=None),
@@ -8183,7 +8212,7 @@ def get_ingest_inventory(
     return public_ingest_inventory_payload(rows, donor_id=(donor_id or None), tenant_id=resolved_tenant_id)
 
 
-@app.get("/ingest/inventory/export")
+@exports_router.get("/ingest/inventory/export")
 def export_ingest_inventory(
     request: Request,
     donor_id: Optional[str] = None,
@@ -8207,7 +8236,7 @@ def export_ingest_inventory(
     )
 
 
-@app.post("/ingest")
+@ingest_router.post("/ingest")
 async def ingest_pdf(
     request: Request,
     donor_id: str = Form(...),
@@ -8308,7 +8337,7 @@ async def ingest_pdf(
     }
 
 
-@app.post("/export")
+@exports_router.post("/export")
 def export_artifacts(req: ExportRequest, request: Request):
     require_api_key_if_configured(request)
     grounding_gate = _extract_export_grounding_gate(req)
@@ -8474,6 +8503,9 @@ def export_artifacts(req: ExportRequest, request: Request):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     raise HTTPException(status_code=400, detail="Unsupported format")
+
+
+include_api_routers(app)
 
 
 if __name__ == "__main__":

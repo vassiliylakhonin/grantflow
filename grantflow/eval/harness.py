@@ -309,7 +309,8 @@ def seed_rag_corpus_from_manifest(
             continue
         namespace = str(strategy.get_rag_collection() or "").strip() or donor_id
         donor_namespaces[donor_id] = namespace
-        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        raw_metadata = row.get("metadata")
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
         doc_family = str(metadata.get("doc_family") or "").strip().lower()
         try:
             file_path = _resolve_manifest_entry_path(manifest_path, row.get("file"))
@@ -808,7 +809,9 @@ def _build_donor_quality_breakdown(results: list[dict[str, Any]]) -> dict[str, d
             "needs_revision_total": int(row.get("needs_revision_total") or 0),
             "avg_quality_score": _avg("quality_sum", "quality_count"),
             "avg_critic_score": _avg("critic_sum", "critic_count"),
-            "avg_retrieval_grounded_citation_rate": _avg("retrieval_grounded_rate_sum", "retrieval_grounded_rate_count"),
+            "avg_retrieval_grounded_citation_rate": _avg(
+                "retrieval_grounded_rate_sum", "retrieval_grounded_rate_count"
+            ),
             "avg_non_retrieval_citation_rate": _avg("non_retrieval_rate_sum", "non_retrieval_rate_count"),
             "avg_traceability_gap_citation_rate": _avg("traceability_gap_rate_sum", "traceability_gap_rate_count"),
             "high_severity_fatal_flaws_total": int(row.get("high_severity_fatal_flaws_total") or 0),
@@ -1074,7 +1077,9 @@ def format_eval_suite_report(suite: dict[str, Any]) -> str:
         if risky_donors:
             lines.append("")
             lines.append("Grounding risk summary (fallback dominance)")
-            risky_donors.sort(key=lambda item: (-item[2], -int(item[1].get("rag_expected_citation_total") or 0), item[0]))
+            risky_donors.sort(
+                key=lambda item: (-item[2], -int(item[1].get("rag_expected_citation_total") or 0), item[0])
+            )
             for donor_id, row, ratio, label in risky_donors:
                 lines.append(
                     (
@@ -1625,10 +1630,7 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--baseline-ignore-missing-current-cases",
         action="store_true",
-        help=(
-            "Ignore warnings for baseline cases missing in current suite "
-            "(useful for filtered/subset runs)."
-        ),
+        help=("Ignore warnings for baseline cases missing in current suite " "(useful for filtered/subset runs)."),
     )
     return parser.parse_args(argv)
 

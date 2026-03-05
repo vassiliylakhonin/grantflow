@@ -622,7 +622,7 @@ class RedisJobRunner:
             candidate: Optional[dict[str, Any]] = None
             if isinstance(parsed, dict):
                 payload = parsed.get("payload")
-                if self._is_task_payload(payload):
+                if self._is_task_payload(payload) and isinstance(payload, dict):
                     candidate = dict(payload)
                 elif self._is_task_payload(parsed):
                     candidate = dict(parsed)

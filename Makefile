@@ -30,10 +30,11 @@ deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
 
 qa-fast:
-	$(PYTHON) -m ruff check grantflow/swarm/nodes/mel_specialist.py grantflow/swarm/nodes/architect_generation.py grantflow/core/strategies grantflow/tests/test_mel.py grantflow/tests/test_strategies.py grantflow/tests/test_contracts.py
+	$(PYTHON) -m ruff check grantflow scripts
+	$(PYTHON) -m black --check grantflow/eval grantflow/core/job_runner.py scripts/build_llm_eval_summary.py
 	$(PYTHON) -m pytest grantflow/tests/test_mel.py grantflow/tests/test_strategies.py grantflow/tests/test_contracts.py -q
 	$(MAKE) qa-hitl
-	$(PYTHON) -m mypy grantflow/api grantflow/core/stores.py grantflow/swarm/versioning.py
+	$(PYTHON) -m mypy grantflow
 
 qa-hitl:
 	$(PYTHON) -m pytest grantflow/tests/test_integration.py -k "test_quality_summary_endpoint_aggregates_quality_signals or test_hitl_pause_resume_flow_supports_export_payload_and_export or test_hitl_reject_then_resume_flow_supports_export_payload_and_export or test_hitl_logframe_reject_then_resume_flow_supports_export_payload_and_export or test_hitl_mixed_checkpoints_reject_approve_flow_records_history_events or test_status_hitl_history_endpoint_lists_and_filters_events" -q

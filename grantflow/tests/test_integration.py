@@ -234,6 +234,48 @@ def test_runtime_compatibility_validation_runs_at_startup(monkeypatch):
         asyncio.run(_start_lifespan())
 
 
+def test_api_key_startup_security_blocks_production_without_key(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_ENV", "production")
+    monkeypatch.delenv("GRANTFLOW_API_KEY", raising=False)
+    monkeypatch.delenv("API_KEY", raising=False)
+    monkeypatch.delenv("GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP", raising=False)
+
+    with pytest.raises(RuntimeError, match="GRANTFLOW_API_KEY"):
+        api_app_module._validate_api_key_startup_security()
+
+
+def test_api_key_startup_security_allows_dev_without_key(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_ENV", "dev")
+    monkeypatch.delenv("GRANTFLOW_API_KEY", raising=False)
+    monkeypatch.delenv("API_KEY", raising=False)
+    monkeypatch.delenv("GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP", raising=False)
+
+    api_app_module._validate_api_key_startup_security()
+
+
+def test_api_key_startup_security_allows_explicit_override(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_ENV", "production")
+    monkeypatch.delenv("GRANTFLOW_API_KEY", raising=False)
+    monkeypatch.delenv("API_KEY", raising=False)
+    monkeypatch.setenv("GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP", "false")
+
+    api_app_module._validate_api_key_startup_security()
+
+
+def test_api_key_startup_security_runs_at_startup(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_ENV", "prod")
+    monkeypatch.delenv("GRANTFLOW_API_KEY", raising=False)
+    monkeypatch.delenv("API_KEY", raising=False)
+    monkeypatch.delenv("GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP", raising=False)
+
+    async def _start_lifespan():
+        async with api_app_module._app_lifespan(api_app_module.app):
+            return None
+
+    with pytest.raises(RuntimeError, match="Security defaults violation"):
+        asyncio.run(_start_lifespan())
+
+
 def test_demo_console_page_loads():
     response = client.get("/demo")
     assert response.status_code == 200
