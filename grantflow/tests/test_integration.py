@@ -6984,6 +6984,31 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                 "quality_score": 8.5,
                 "critic_score": 8.0,
                 "needs_revision": True,
+                "logframe_draft": {
+                    "indicators": [
+                        {
+                            "indicator_id": "IND_001",
+                            "name": "Civil servants completing AI policy training",
+                            "baseline": "0 people",
+                            "target": "300 people",
+                            "frequency": "quarterly",
+                            "formula": "Count of certified participants",
+                            "definition": "Number of participants passing post-training assessment.",
+                            "data_source": "Training attendance records",
+                            "disaggregation": ["sex", "region"],
+                            "result_level": "outcome",
+                        },
+                        {
+                            "indicator_id": "IND_002",
+                            "name": "Government SOPs updated for AI governance",
+                            "baseline": "TBD",
+                            "target": "",
+                            "frequency": "semiannual",
+                            "data_source": "Official SOP approval registry",
+                            "result_level": "output",
+                        },
+                    ]
+                },
                 "toc_validation": {"valid": True, "schema_name": "UsaidTocSchema"},
                 "toc_generation_meta": {
                     "engine": "fallback:contract_synthesizer",
@@ -7072,6 +7097,22 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
                 "quality_score": 6.5,
                 "critic_score": 6.0,
                 "needs_revision": False,
+                "logframe_draft": {
+                    "indicators": [
+                        {
+                            "indicator_id": "IND_003",
+                            "name": "Adoption of AI governance framework at ministry level",
+                            "baseline": "0 ministries",
+                            "target": "4 ministries",
+                            "frequency": "annual",
+                            "formula": "Count of ministries adopting framework by decree",
+                            "definition": "Number of ministries with formal AI governance framework adopted.",
+                            "data_source": "Government decree records",
+                            "disaggregation": ["ministry_type"],
+                            "result_level": "impact",
+                        }
+                    ]
+                },
                 "critic_notes": {
                     "fatal_flaws": [
                         {
@@ -7378,6 +7419,27 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["toc_text_quality"]["placeholder_check_status_counts"]["unknown"] >= 0
     assert body["toc_text_quality"]["repetition_check_status_counts"]["unknown"] >= 0
     assert body["toc_text_quality"]["risk_counts"]["high"] >= 1
+    assert "mel" in body
+    assert body["mel"]["indicator_job_count"] >= 2
+    assert body["mel"]["indicator_count_total"] >= 3
+    assert body["mel"]["avg_indicator_count_per_job"] is not None
+    assert body["mel"]["baseline_coverage_rate"] == 0.6667
+    assert body["mel"]["target_coverage_rate"] == 0.6667
+    assert body["mel"]["frequency_coverage_rate"] == 1.0
+    assert body["mel"]["formula_coverage_rate"] == 0.6667
+    assert body["mel"]["definition_coverage_rate"] == 0.6667
+    assert body["mel"]["data_source_coverage_rate"] == 1.0
+    assert body["mel"]["disaggregation_coverage_rate"] == 0.6667
+    assert body["mel"]["result_level_coverage_rate"] == 1.0
+    assert body["mel"]["smart_field_coverage_rate"] == 0.8095
+    assert body["mel"]["baseline_placeholder_count"] >= 1
+    assert body["mel"]["target_placeholder_count"] >= 1
+    assert body["mel"]["missing_field_counts"]["baseline"] >= 1
+    assert body["mel"]["missing_field_counts"]["target"] >= 1
+    assert body["mel"]["missing_field_counts"]["formula"] >= 1
+    assert body["mel"]["result_level_counts"]["impact"] >= 1
+    assert body["mel"]["result_level_counts"]["outcome"] >= 1
+    assert body["mel"]["result_level_counts"]["output"] >= 1
     assert "eu" not in body["donor_counts"]
 
     warning_filtered = client.get("/portfolio/quality", params={"warning_level": "high"})

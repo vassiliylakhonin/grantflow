@@ -1243,6 +1243,27 @@ class PortfolioQualityToCTextQualitySummaryPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class PortfolioQualityMelSummaryPublicResponse(BaseModel):
+    indicator_job_count: int
+    indicator_count_total: int
+    avg_indicator_count_per_job: Optional[float] = None
+    baseline_coverage_rate: Optional[float] = None
+    target_coverage_rate: Optional[float] = None
+    frequency_coverage_rate: Optional[float] = None
+    formula_coverage_rate: Optional[float] = None
+    definition_coverage_rate: Optional[float] = None
+    data_source_coverage_rate: Optional[float] = None
+    disaggregation_coverage_rate: Optional[float] = None
+    result_level_coverage_rate: Optional[float] = None
+    smart_field_coverage_rate: Optional[float] = None
+    baseline_placeholder_count: int
+    target_placeholder_count: int
+    missing_field_counts: Dict[str, int]
+    result_level_counts: Dict[str, int]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class PortfolioQualityDonorWeightedRiskPublicResponse(BaseModel):
     weighted_score: int
     high_priority_signal_count: int
@@ -1340,6 +1361,7 @@ class PortfolioQualityPublicResponse(BaseModel):
     grounded_gate_reason_counts: Dict[str, int]
     donor_grounded_gate_breakdown: Dict[str, PortfolioQualityDonorGroundedGatePublicResponse]
     toc_text_quality: PortfolioQualityToCTextQualitySummaryPublicResponse
+    mel: PortfolioQualityMelSummaryPublicResponse
     donor_needs_revision_counts: Dict[str, int]
     donor_open_findings_counts: Dict[str, int]
 

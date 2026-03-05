@@ -3249,6 +3249,12 @@ def public_portfolio_quality_payload(
     toc_text_quality_issues_total = 0
     toc_text_quality_placeholder_finding_count = 0
     toc_text_quality_repetition_finding_count = 0
+    mel_indicator_job_count = 0
+    mel_indicator_count_total = 0
+    mel_baseline_placeholder_count = 0
+    mel_target_placeholder_count = 0
+    mel_field_present_weighted_totals: Dict[str, float] = {field: 0.0 for field in MEL_COVERAGE_FIELDS}
+    mel_result_level_counts_total: Dict[str, int] = {"impact": 0, "outcome": 0, "output": 0, "unknown": 0}
 
     for row in quality_rows:
         row_critic: Dict[str, Any] = (
@@ -3260,6 +3266,7 @@ def public_portfolio_quality_payload(
         row_toc_text_quality: Dict[str, Any] = (
             cast(Dict[str, Any], row.get("toc_text_quality")) if isinstance(row.get("toc_text_quality"), dict) else {}
         )
+        row_mel: Dict[str, Any] = cast(Dict[str, Any], row.get("mel")) if isinstance(row.get("mel"), dict) else {}
         if bool(row.get("needs_revision")):
             needs_revision_job_count += 1
         critic_open_findings_total += int(row_critic.get("open_finding_count") or 0)
@@ -3399,6 +3406,49 @@ def public_portfolio_quality_payload(
         toc_text_quality_repetition_check_status_counts[repetition_check_status] = (
             int(toc_text_quality_repetition_check_status_counts.get(repetition_check_status, 0)) + 1
         )
+
+        row_indicator_count = _coerce_int(row_mel.get("indicator_count"), default=0)
+        if row_indicator_count > 0:
+            mel_indicator_job_count += 1
+            mel_indicator_count_total += row_indicator_count
+
+        row_missing_field_counts = (
+            cast(Dict[str, Any], row_mel.get("missing_field_counts"))
+            if isinstance(row_mel.get("missing_field_counts"), dict)
+            else {}
+        )
+        for field in MEL_COVERAGE_FIELDS:
+            if row_indicator_count <= 0:
+                continue
+            field_present: Optional[float] = None
+            missing_raw = row_missing_field_counts.get(field)
+            if isinstance(missing_raw, (int, float)):
+                row_missing = max(0, min(row_indicator_count, _coerce_int(missing_raw, default=0)))
+                field_present = float(max(0, row_indicator_count - row_missing))
+            else:
+                rate_raw = row_mel.get(f"{field}_coverage_rate")
+                if isinstance(rate_raw, (int, float)):
+                    bounded_rate = max(0.0, min(1.0, float(rate_raw)))
+                    field_present = bounded_rate * float(row_indicator_count)
+            if field_present is not None:
+                mel_field_present_weighted_totals[field] = (
+                    float(mel_field_present_weighted_totals.get(field, 0.0)) + float(field_present)
+                )
+
+        mel_baseline_placeholder_count += _coerce_int(row_mel.get("baseline_placeholder_count"), default=0)
+        mel_target_placeholder_count += _coerce_int(row_mel.get("target_placeholder_count"), default=0)
+        row_result_level_counts = (
+            cast(Dict[str, Any], row_mel.get("result_level_counts"))
+            if isinstance(row_mel.get("result_level_counts"), dict)
+            else {}
+        )
+        row_result_level_total = 0
+        for level in ("impact", "outcome", "output", "unknown"):
+            level_count = _coerce_int(row_result_level_counts.get(level), default=0)
+            mel_result_level_counts_total[level] = int(mel_result_level_counts_total.get(level, 0)) + level_count
+            row_result_level_total += level_count
+        if row_indicator_count > 0 and row_result_level_total <= 0:
+            mel_result_level_counts_total["unknown"] = int(mel_result_level_counts_total.get("unknown", 0)) + row_indicator_count
 
         donor_for_row = str(row.get("_donor_id") or "unknown")
         row_grounded_gate: Dict[str, Any] = (
@@ -3908,6 +3958,32 @@ def public_portfolio_quality_payload(
         level: (round(int(count) / job_count, 4) if job_count else None)
         for level, count in toc_text_quality_risk_counts.items()
     }
+    mel_missing_field_counts: Dict[str, int] = {
+        field: (
+            max(
+                0,
+                int(
+                    round(
+                        max(0.0, float(mel_indicator_count_total) - float(mel_field_present_weighted_totals.get(field, 0.0)))
+                    )
+                ),
+            )
+        )
+        if mel_indicator_count_total > 0
+        else 0
+        for field in MEL_COVERAGE_FIELDS
+    }
+    mel_coverage_rates: Dict[str, Optional[float]] = {
+        field: (
+            round(float(mel_field_present_weighted_totals.get(field, 0.0)) / float(mel_indicator_count_total), 4)
+            if mel_indicator_count_total
+            else None
+        )
+        for field in MEL_COVERAGE_FIELDS
+    }
+    mel_smart_present_total = sum(float(mel_field_present_weighted_totals.get(field, 0.0)) for field in MEL_SMART_COVERAGE_FIELDS)
+    mel_smart_total = mel_indicator_count_total * len(MEL_SMART_COVERAGE_FIELDS)
+    mel_smart_field_coverage_rate = round(mel_smart_present_total / mel_smart_total, 4) if mel_smart_total else None
     quality_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("quality_score"), (int, float)))
     critic_score_job_count = sum(1 for row in quality_rows if isinstance(row.get("critic_score"), (int, float)))
 
@@ -4097,6 +4173,26 @@ def public_portfolio_quality_payload(
             "high_risk_job_rate": toc_text_quality_risk_job_rates.get("high"),
             "placeholder_check_status_counts": toc_text_quality_placeholder_check_status_counts,
             "repetition_check_status_counts": toc_text_quality_repetition_check_status_counts,
+        },
+        "mel": {
+            "indicator_job_count": mel_indicator_job_count,
+            "indicator_count_total": mel_indicator_count_total,
+            "avg_indicator_count_per_job": (
+                round(mel_indicator_count_total / mel_indicator_job_count, 4) if mel_indicator_job_count else None
+            ),
+            "baseline_coverage_rate": mel_coverage_rates.get("baseline"),
+            "target_coverage_rate": mel_coverage_rates.get("target"),
+            "frequency_coverage_rate": mel_coverage_rates.get("frequency"),
+            "formula_coverage_rate": mel_coverage_rates.get("formula"),
+            "definition_coverage_rate": mel_coverage_rates.get("definition"),
+            "data_source_coverage_rate": mel_coverage_rates.get("data_source"),
+            "disaggregation_coverage_rate": mel_coverage_rates.get("disaggregation"),
+            "result_level_coverage_rate": mel_coverage_rates.get("result_level"),
+            "smart_field_coverage_rate": mel_smart_field_coverage_rate,
+            "baseline_placeholder_count": mel_baseline_placeholder_count,
+            "target_placeholder_count": mel_target_placeholder_count,
+            "missing_field_counts": mel_missing_field_counts,
+            "result_level_counts": mel_result_level_counts_total,
         },
         "terminal_job_count": len(terminal_rows),
         "quality_score_job_count": quality_score_job_count,
