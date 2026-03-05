@@ -295,6 +295,51 @@ def test_excel_export_includes_citations_sheet():
     assert any(row[6] == "2026-02-25T10:00:00Z" for row in comments_rows[1:])
 
 
+def test_excel_export_logframe_sheet_includes_smart_indicator_columns():
+    logframe_draft = {
+        "indicators": [
+            {
+                "indicator_id": "IND_001",
+                "name": "Service coverage rate",
+                "result_level": "outcome",
+                "justification": "Tracks outcome-level service adoption.",
+                "citation": "USAID ADS 201 p.12",
+                "baseline": "0%",
+                "target": "30%",
+                "frequency": "quarterly",
+                "formula": "(Numerator / Denominator) * 100",
+                "definition": "Share of target beneficiaries receiving digital service.",
+                "data_source": "PMP indicator tracking dataset",
+                "disaggregation": ["sex", "age", "location"],
+            }
+        ]
+    }
+    wb = load_workbook(BytesIO(build_xlsx_from_logframe(logframe_draft, "usaid")))
+    ws = wb["LogFrame"]
+    rows = list(ws.iter_rows(values_only=True))
+
+    assert rows[0] == (
+        "Indicator ID",
+        "Name",
+        "Result Level",
+        "Justification",
+        "Citation",
+        "Baseline",
+        "Target",
+        "Frequency",
+        "Formula",
+        "Definition",
+        "Data Source",
+        "Disaggregation",
+    )
+    assert rows[1][0] == "IND_001"
+    assert rows[1][2] == "outcome"
+    assert rows[1][7] == "quarterly"
+    assert rows[1][8] == "(Numerator / Denominator) * 100"
+    assert rows[1][10] == "PMP indicator tracking dataset"
+    assert rows[1][11] == "sex, age, location"
+
+
 def test_excel_export_includes_template_meta_sheet():
     eu_toc_incomplete = {
         "toc": {

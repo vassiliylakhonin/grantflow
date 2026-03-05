@@ -578,17 +578,43 @@ def build_xlsx_from_logframe(
     ws = wb.active
     ws.title = "LogFrame"
 
-    headers = ["Indicator ID", "Name", "Justification", "Citation", "Baseline", "Target"]
+    headers = [
+        "Indicator ID",
+        "Name",
+        "Result Level",
+        "Justification",
+        "Citation",
+        "Baseline",
+        "Target",
+        "Frequency",
+        "Formula",
+        "Definition",
+        "Data Source",
+        "Disaggregation",
+    ]
     thin_border = _apply_table_header(ws, headers)
 
     indicators = logframe_draft.get("indicators", []) if logframe_draft else []
+    def _cell_text(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, list):
+            return ", ".join(str(item).strip() for item in value if str(item).strip())
+        return str(value)
+
     for row, ind in enumerate(indicators, 2):
-        ws.cell(row=row, column=1, value=ind.get("indicator_id", "")).border = thin_border
-        ws.cell(row=row, column=2, value=ind.get("name", "")).border = thin_border
-        ws.cell(row=row, column=3, value=ind.get("justification", "")).border = thin_border
-        ws.cell(row=row, column=4, value=ind.get("citation", "")).border = thin_border
-        ws.cell(row=row, column=5, value=ind.get("baseline", "TBD")).border = thin_border
-        ws.cell(row=row, column=6, value=ind.get("target", "TBD")).border = thin_border
+        ws.cell(row=row, column=1, value=_cell_text(ind.get("indicator_id", ""))).border = thin_border
+        ws.cell(row=row, column=2, value=_cell_text(ind.get("name", ""))).border = thin_border
+        ws.cell(row=row, column=3, value=_cell_text(ind.get("result_level", ""))).border = thin_border
+        ws.cell(row=row, column=4, value=_cell_text(ind.get("justification", ""))).border = thin_border
+        ws.cell(row=row, column=5, value=_cell_text(ind.get("citation", ""))).border = thin_border
+        ws.cell(row=row, column=6, value=_cell_text(ind.get("baseline", "TBD"))).border = thin_border
+        ws.cell(row=row, column=7, value=_cell_text(ind.get("target", "TBD"))).border = thin_border
+        ws.cell(row=row, column=8, value=_cell_text(ind.get("frequency", ""))).border = thin_border
+        ws.cell(row=row, column=9, value=_cell_text(ind.get("formula", ""))).border = thin_border
+        ws.cell(row=row, column=10, value=_cell_text(ind.get("definition", ""))).border = thin_border
+        ws.cell(row=row, column=11, value=_cell_text(ind.get("data_source", ""))).border = thin_border
+        ws.cell(row=row, column=12, value=_cell_text(ind.get("disaggregation", ""))).border = thin_border
 
     toc_payload_raw = toc_draft if isinstance(toc_draft, dict) else {}
     if not toc_payload_raw:
