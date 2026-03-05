@@ -598,7 +598,7 @@ def _normalize_indicator_item(
         idx=idx,
     )
     evidence_excerpt = str(item.get("evidence_excerpt") or "").strip() or None
-    return {
+    normalized: Dict[str, Any] = {
         "indicator_id": indicator_id,
         "name": name,
         "justification": justification,
@@ -607,6 +607,29 @@ def _normalize_indicator_item(
         "target": target,
         "evidence_excerpt": evidence_excerpt,
     }
+    canonical_keys = {
+        "indicator_id",
+        "name",
+        "justification",
+        "citation",
+        "baseline",
+        "target",
+        "evidence_excerpt",
+    }
+    for key, value in item.items():
+        if key in canonical_keys:
+            continue
+        if value is None:
+            continue
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                continue
+            normalized[key] = cleaned
+            continue
+        if isinstance(value, (int, float, bool, list, dict)):
+            normalized[key] = value
+    return normalized
 
 
 def _fallback_indicator(namespace: str, *, input_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

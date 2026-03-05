@@ -298,6 +298,70 @@ def test_mel_llm_mode_uses_strategy_mel_schema_contract(monkeypatch):
     assert indicators[0]["indicator_id"] == "IND_777"
 
 
+def test_mel_llm_mode_preserves_strategy_specific_indicator_fields(monkeypatch):
+    monkeypatch.setattr(mel_module, "openai_compatible_llm_available", lambda: True)
+
+    class DonorSpecificIndicator(BaseModel):
+        indicator_id: str
+        name: str
+        justification: str
+        citation: str
+        baseline: str = "0"
+        target: str = "1"
+        indicator_code: str | None = None
+        frequency: str | None = None
+        evidence_excerpt: str | None = None
+
+    class DonorSpecificMELDraft(BaseModel):
+        mel_indicators: list[DonorSpecificIndicator] = Field(default_factory=list)
+
+    def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
+        return {
+            "documents": [["Donor indicator guidance excerpt"]],
+            "metadatas": [[{"doc_id": "usaid_ads201_p10_c1", "chunk_id": "usaid_ads201_p10_c1", "page": 10}]],
+            "ids": [["usaid_ads201_p10_c1"]],
+            "distances": [[0.1]],
+        }
+
+    monkeypatch.setattr(mel_module.vector_store, "query", fake_query)
+    strategy = DonorFactory.get_strategy("usaid")
+    monkeypatch.setattr(strategy, "get_mel_schema", lambda: DonorSpecificMELDraft)
+
+    def fake_llm_structured_mel(**kwargs):  # noqa: ARG001
+        return (
+            {
+                "mel_indicators": [
+                    {
+                        "indicator_id": "IND_778",
+                        "name": "Civil servants trained on AI governance",
+                        "justification": "Tracks capability development outcome.",
+                        "citation": "usaid_ads201_p10_c1",
+                        "baseline": "0",
+                        "target": "300",
+                        "indicator_code": "EG.3.2-27",
+                        "frequency": "quarterly",
+                        "evidence_excerpt": "Donor indicator guidance excerpt",
+                    }
+                ]
+            },
+            "llm:stub-mel-model",
+            None,
+        )
+
+    monkeypatch.setattr(mel_module, "_llm_structured_mel", fake_llm_structured_mel)
+
+    state = _base_state(llm_mode=True)
+    state["strategy"] = strategy
+    state["donor_strategy"] = strategy
+    out = mel_module.mel_assign_indicators(state)
+    indicators = out["logframe_draft"]["indicators"]
+
+    assert len(indicators) == 1
+    assert indicators[0]["indicator_id"] == "IND_778"
+    assert indicators[0]["indicator_code"] == "EG.3.2-27"
+    assert indicators[0]["frequency"] == "quarterly"
+
+
 def test_mel_llm_tries_fallback_model_chain_and_selects_first_success(monkeypatch):
     monkeypatch.setattr(mel_module, "openai_compatible_llm_available", lambda: True)
     monkeypatch.setattr(mel_module.config.llm, "mel_model", "model-primary")
