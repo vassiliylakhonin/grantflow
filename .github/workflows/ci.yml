@@ -291,7 +291,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run docker-compose smoke (/generate llm_mode=false)
+      - name: Run docker-compose smoke (/ready + redis worker heartbeat + /generate llm_mode=false)
         run: |
           scripts/docker_compose_smoke.sh
 

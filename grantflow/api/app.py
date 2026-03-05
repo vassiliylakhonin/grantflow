@@ -250,6 +250,10 @@ def _build_job_runner():
             pop_timeout_seconds=float(getattr(config.job_runner, "redis_pop_timeout_seconds", 1.0) or 1.0),
             max_attempts=int(getattr(config.job_runner, "redis_max_attempts", 3) or 3),
             dead_letter_queue_name=str(getattr(config.job_runner, "redis_dead_letter_queue_name", "") or ""),
+            worker_heartbeat_key=str(getattr(config.job_runner, "redis_worker_heartbeat_key", "") or ""),
+            worker_heartbeat_ttl_seconds=float(
+                getattr(config.job_runner, "redis_worker_heartbeat_ttl_seconds", 45.0) or 45.0
+            ),
             consumer_enabled=consumer_enabled,
         )
     return InMemoryJobRunner(worker_count=worker_count, queue_maxsize=queue_maxsize)
@@ -3903,7 +3907,8 @@ def _configuration_warnings() -> list[dict[str, Any]]:
     except (TypeError, ValueError):
         chroma_port = None
 
-    if chroma_host and chroma_port == 8000:
+    local_hosts = {"localhost", "127.0.0.1", "::1"}
+    if chroma_host.lower() in local_hosts and chroma_port == 8000:
         warnings.append(
             {
                 "code": "CHROMA_PORT_MAY_CONFLICT_WITH_API_DEFAULT",
@@ -4109,6 +4114,7 @@ def readiness_check():
     vector_ready = _vector_store_readiness()
     job_runner_mode = _job_runner_mode()
     job_runner_diag = JOB_RUNNER.diagnostics()
+    alerts: list[dict[str, Any]] = []
     dead_letter_threshold = _dead_letter_alert_threshold()
     dead_letter_queue_size_raw = job_runner_diag.get("dead_letter_queue_size")
     try:
@@ -4128,6 +4134,22 @@ def readiness_check():
         consumer_enabled = bool(job_runner_diag.get("consumer_enabled", True))
         running_ok = bool(job_runner_diag.get("running")) if consumer_enabled else True
         job_runner_ready = running_ok and bool(job_runner_diag.get("redis_available"))
+        if not consumer_enabled:
+            heartbeat = job_runner_diag.get("worker_heartbeat")
+            heartbeat_healthy = bool(heartbeat.get("healthy")) if isinstance(heartbeat, dict) else False
+            if not heartbeat_healthy:
+                alerts.append(
+                    {
+                        "code": "REDIS_DISPATCHER_WORKER_HEARTBEAT_MISSING",
+                        "severity": "high",
+                        "message": (
+                            "Redis dispatcher mode is enabled with local consumer disabled, "
+                            "but no healthy external worker heartbeat was detected."
+                        ),
+                        "blocking": True,
+                    }
+                )
+                job_runner_ready = False
     if dead_letter_alert_triggered and _dead_letter_alert_blocking():
         job_runner_ready = False
     ready = bool(vector_ready.get("ready")) and job_runner_ready
@@ -4142,7 +4164,6 @@ def readiness_check():
         "triggered": bool(dead_letter_alert_triggered),
         "blocking": bool(_dead_letter_alert_blocking()),
     }
-    alerts: list[dict[str, Any]] = []
     if dead_letter_alert_triggered:
         alerts.append(
             {

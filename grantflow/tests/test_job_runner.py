@@ -17,6 +17,7 @@ def _redis_test_task(value: int) -> None:
 class _FakeRedisClient:
     def __init__(self) -> None:
         self._queues: dict[str, list[bytes]] = {}
+        self._kv: dict[str, bytes] = {}
         self._lock = threading.Lock()
 
     def ping(self) -> bool:
@@ -31,6 +32,16 @@ class _FakeRedisClient:
             queue = self._queues.setdefault(queue_name, [])
             queue.append(payload.encode("utf-8"))
             return len(queue)
+
+    def setex(self, key: str, ttl_seconds: int, payload: str) -> bool:
+        _ = int(ttl_seconds)
+        with self._lock:
+            self._kv[str(key)] = payload.encode("utf-8")
+        return True
+
+    def get(self, key: str):
+        with self._lock:
+            return self._kv.get(str(key))
 
     def blpop(self, queue_name: str, timeout: int = 1):
         deadline = time.time() + max(0, int(timeout))
@@ -158,6 +169,7 @@ def test_redis_job_runner_executes_tasks_with_fake_client():
     assert diag["failed_count"] == 0
     assert diag["retry_count"] == 0
     assert diag["dead_lettered_count"] == 0
+    assert isinstance(diag.get("worker_heartbeat"), dict)
     runner.stop()
 
 
@@ -385,5 +397,32 @@ def test_redis_job_runner_requeue_preserves_metadata_from_wrapped_dead_letter_pa
         payload = json.loads(queued[0])
         assert payload["dispatch_id"] == "dispatch-123"
         assert payload["metadata"]["job_id"] == "job-wrapped-1"
+    finally:
+        runner.stop()
+
+
+def test_redis_job_runner_worker_heartbeat_status_for_dispatcher_mode():
+    fake_client = _FakeRedisClient()
+    runner = RedisJobRunner(
+        worker_count=1,
+        queue_maxsize=8,
+        redis_url="redis://local-test/0",
+        queue_name="grantflow:test:jobs:hb-status",
+        pop_timeout_seconds=0.1,
+        redis_client_factory=lambda _url: fake_client,
+        consumer_enabled=False,
+    )
+    try:
+        before = runner.worker_heartbeat_status()
+        assert before["present"] is False
+        assert before["healthy"] is False
+
+        assert runner.touch_worker_heartbeat(source="test-worker") is True
+        after = runner.worker_heartbeat_status()
+        assert after["present"] is True
+        assert after["healthy"] is True
+        assert after["source"] == "test-worker"
+        diag = runner.diagnostics()
+        assert diag["worker_heartbeat"]["healthy"] is True
     finally:
         runner.stop()

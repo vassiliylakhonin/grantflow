@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import signal
 import threading
+import time
 
 from grantflow.core.config import config
 from grantflow.core.job_runner import RedisJobRunner
@@ -16,6 +17,10 @@ def _build_redis_worker_runner() -> RedisJobRunner:
         pop_timeout_seconds=float(getattr(config.job_runner, "redis_pop_timeout_seconds", 1.0) or 1.0),
         max_attempts=int(getattr(config.job_runner, "redis_max_attempts", 3) or 3),
         dead_letter_queue_name=str(getattr(config.job_runner, "redis_dead_letter_queue_name", "") or ""),
+        worker_heartbeat_key=str(getattr(config.job_runner, "redis_worker_heartbeat_key", "") or ""),
+        worker_heartbeat_ttl_seconds=float(
+            getattr(config.job_runner, "redis_worker_heartbeat_ttl_seconds", 45.0) or 45.0
+        ),
         consumer_enabled=True,
     )
 
@@ -39,6 +44,12 @@ def main() -> int:
     signal.signal(signal.SIGTERM, _request_shutdown)
 
     runner.start()
+    heartbeat_interval_seconds = float(
+        getattr(config.job_runner, "redis_worker_heartbeat_interval_seconds", 10.0) or 10.0
+    )
+    heartbeat_interval_seconds = max(1.0, heartbeat_interval_seconds)
+    runner.touch_worker_heartbeat(source="worker_process")
+    next_heartbeat_at = time.monotonic() + heartbeat_interval_seconds
     diag = runner.diagnostics()
     print(
         "GrantFlow Redis worker started "
@@ -47,7 +58,10 @@ def main() -> int:
     )
     try:
         while not shutdown_requested.wait(1.0):
-            pass
+            # Periodic heartbeat so dispatcher APIs can verify external worker liveness.
+            if time.monotonic() >= next_heartbeat_at:
+                runner.touch_worker_heartbeat(source="worker_process")
+                next_heartbeat_at = time.monotonic() + heartbeat_interval_seconds
     finally:
         runner.stop()
         print("GrantFlow Redis worker stopped", flush=True)

@@ -14,6 +14,8 @@ def test_worker_builds_redis_runner_with_consumer_enabled(monkeypatch):
     monkeypatch.setattr(worker_module.config.job_runner, "redis_pop_timeout_seconds", 0.5)
     monkeypatch.setattr(worker_module.config.job_runner, "redis_max_attempts", 5)
     monkeypatch.setattr(worker_module.config.job_runner, "redis_dead_letter_queue_name", "grantflow:test:jobs:dead")
+    monkeypatch.setattr(worker_module.config.job_runner, "redis_worker_heartbeat_key", "grantflow:test:jobs:hb")
+    monkeypatch.setattr(worker_module.config.job_runner, "redis_worker_heartbeat_ttl_seconds", 33.0)
 
     runner = worker_module._build_redis_worker_runner()
     diag = runner.diagnostics()
@@ -24,3 +26,5 @@ def test_worker_builds_redis_runner_with_consumer_enabled(monkeypatch):
     assert diag["queue_name"] == "grantflow:test:jobs"
     assert diag["max_attempts"] == 5
     assert diag["dead_letter_queue_name"] == "grantflow:test:jobs:dead"
+    assert diag["worker_heartbeat"]["key"] == "grantflow:test:jobs:hb"
+    assert diag["worker_heartbeat"]["ttl_seconds"] == 33.0

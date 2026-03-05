@@ -137,6 +137,9 @@ export GRANTFLOW_JOB_RUNNER_REDIS_QUEUE_NAME=grantflow:jobs
 export GRANTFLOW_JOB_RUNNER_REDIS_POP_TIMEOUT_SECONDS=1.0
 export GRANTFLOW_JOB_RUNNER_REDIS_MAX_ATTEMPTS=3
 export GRANTFLOW_JOB_RUNNER_REDIS_DEAD_LETTER_QUEUE_NAME=grantflow:jobs:dead
+export GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_KEY=grantflow:jobs:worker_heartbeat
+export GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_TTL_SECONDS=45
+export GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_INTERVAL_SECONDS=10
 export GRANTFLOW_JOB_RUNNER_DEAD_LETTER_ALERT_THRESHOLD=0
 export GRANTFLOW_JOB_RUNNER_DEAD_LETTER_ALERT_BLOCKING=false
 ```
@@ -147,6 +150,7 @@ Notes:
 - `redis_queue` uses Redis LIST/BLPOP for queue persistence and worker coordination; requires a reachable Redis instance.
 - `redis_queue` retries transient task failures up to `GRANTFLOW_JOB_RUNNER_REDIS_MAX_ATTEMPTS`; exhausted jobs are moved to dead-letter queue.
 - Use `GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED=false` on API when running a dedicated worker process.
+- In dispatcher mode (`redis_queue` + `...CONSUMER_ENABLED=false`), `/ready` requires a healthy external worker heartbeat; otherwise readiness degrades with `REDIS_DISPATCHER_WORKER_HEARTBEAT_MISSING`.
 - Dead-letter ops (redis mode only):
   - `GET /queue/dead-letter?limit=50`
   - `GET /queue/dead-letter/export?limit=500&format=json` (or `format=csv`)

@@ -97,6 +97,7 @@ curl -s http://127.0.0.1:8000/ready
 ```
 
 `/ready` includes `checks.configuration_warnings` for non-blocking config risks (for example `CHROMA_HOST` with `CHROMA_PORT=8000`).
+In dispatcher mode (`redis_queue` with local consumer disabled), `/ready` also checks external worker heartbeat and degrades when heartbeat is missing/stale.
 
 ### Start job
 
@@ -250,6 +251,9 @@ Common env vars:
 - `GRANTFLOW_REQUIRE_AUTH_FOR_READS`
 - `GRANTFLOW_JOB_STORE`, `GRANTFLOW_HITL_STORE`, `GRANTFLOW_INGEST_STORE`
 - `GRANTFLOW_SQLITE_PATH`
+- `GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_KEY`
+- `GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_TTL_SECONDS`
+- `GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_INTERVAL_SECONDS`
 
 Store alignment rule:
 - `GRANTFLOW_JOB_STORE` and `GRANTFLOW_HITL_STORE` must match (`inmem` or `sqlite`).

@@ -30,6 +30,46 @@ for _ in $(seq 1 90); do
 done
 curl -fsS http://127.0.0.1:8000/health >/dev/null
 
+ready_payload=""
+for _ in $(seq 1 90); do
+  ready_payload="$(curl -sS http://127.0.0.1:8000/ready || true)"
+  if [[ -n "${ready_payload}" ]] && python3 -c '
+import json,sys
+payload=json.loads(sys.stdin.read())
+checks=payload.get("checks") or {}
+job_runner=checks.get("job_runner") or {}
+worker_heartbeat=job_runner.get("queue", {}).get("worker_heartbeat")
+ok=(
+    payload.get("status")=="ready"
+    and str(job_runner.get("mode") or "")=="redis_queue"
+    and bool(job_runner.get("ready")) is True
+    and isinstance(worker_heartbeat, dict)
+    and bool(worker_heartbeat.get("healthy")) is True
+)
+raise SystemExit(0 if ok else 1)
+' <<<"${ready_payload}"; then
+    break
+  fi
+  sleep 2
+done
+
+python3 -c '
+import json,sys
+payload=json.loads(sys.stdin.read())
+checks=payload.get("checks") or {}
+job_runner=checks.get("job_runner") or {}
+worker_heartbeat=job_runner.get("queue", {}).get("worker_heartbeat")
+ok=(
+    payload.get("status")=="ready"
+    and str(job_runner.get("mode") or "")=="redis_queue"
+    and bool(job_runner.get("ready")) is True
+    and isinstance(worker_heartbeat, dict)
+    and bool(worker_heartbeat.get("healthy")) is True
+)
+if not ok:
+    raise SystemExit("docker-compose smoke: /ready did not confirm redis_queue + healthy external worker heartbeat")
+' <<<"${ready_payload}"
+
 generate_payload='{"donor_id":"usaid","input_context":{"project":"Docker Smoke Proposal","country":"Kenya"},"llm_mode":false,"hitl_enabled":false}'
 generate_response="$(curl -fsS -X POST http://127.0.0.1:8000/generate -H 'Content-Type: application/json' -d "${generate_payload}")"
 job_id="$(python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["job_id"])' <<<"${generate_response}")"

@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
+import os
 import queue
 import threading
 import time
@@ -242,6 +243,8 @@ class RedisJobRunner:
         reconnect_sleep_seconds: float = 0.25,
         max_attempts: int = 3,
         dead_letter_queue_name: str = "",
+        worker_heartbeat_key: str = "",
+        worker_heartbeat_ttl_seconds: float = 45.0,
         allowed_import_prefixes: tuple[str, ...] = ("grantflow.",),
         redis_client_factory: Optional[Callable[[str], Any]] = None,
         consumer_enabled: bool = True,
@@ -255,6 +258,9 @@ class RedisJobRunner:
         self.dead_letter_queue_name = dead_letter_token if dead_letter_token else f"{self.queue_name}:dead"
         if self.dead_letter_queue_name == self.queue_name:
             self.dead_letter_queue_name = f"{self.queue_name}:dead"
+        heartbeat_token = str(worker_heartbeat_key or "").strip()
+        self.worker_heartbeat_key = heartbeat_token if heartbeat_token else f"{self.queue_name}:worker_heartbeat"
+        self.worker_heartbeat_ttl_seconds = max(5.0, float(worker_heartbeat_ttl_seconds or 45.0))
         self.pop_timeout_seconds = max(0.1, float(pop_timeout_seconds))
         self.reconnect_sleep_seconds = max(0.05, float(reconnect_sleep_seconds))
         self.allowed_import_prefixes = tuple(
@@ -367,6 +373,7 @@ class RedisJobRunner:
             dead_letter_queue_size = -1
         if availability_error:
             last_error = availability_error
+        worker_heartbeat = self.worker_heartbeat_status()
         return {
             "backend": "redis",
             "consumer_enabled": self.consumer_enabled,
@@ -386,9 +393,84 @@ class RedisJobRunner:
             "max_attempts": self.max_attempts,
             "dead_letter_queue_name": self.dead_letter_queue_name,
             "dead_letter_queue_size": dead_letter_queue_size,
+            "worker_heartbeat": worker_heartbeat,
             "redis_available": redis_available,
             "last_error": last_error,
         }
+
+    def touch_worker_heartbeat(self, *, source: str = "worker") -> bool:
+        client = self._ensure_client()
+        if client is None:
+            return False
+        payload = {
+            "ts": time.time(),
+            "source": str(source or "worker").strip() or "worker",
+            "pid": int(os.getpid()),
+        }
+        try:
+            encoded = json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+            # TTL keeps key self-cleaning when worker disappears unexpectedly.
+            ttl = max(10, int(round(self.worker_heartbeat_ttl_seconds * 2.0)))
+            client.setex(self.worker_heartbeat_key, ttl, encoded)
+            return True
+        except Exception as exc:
+            self._record_error(exc)
+            return False
+
+    def worker_heartbeat_status(self) -> Dict[str, Any]:
+        status: Dict[str, Any] = {
+            "key": self.worker_heartbeat_key,
+            "ttl_seconds": float(self.worker_heartbeat_ttl_seconds),
+            "present": False,
+            "healthy": False,
+        }
+        client = self._ensure_client()
+        if client is None:
+            status["error"] = "redis_unavailable"
+            return status
+        try:
+            raw = client.get(self.worker_heartbeat_key)
+        except Exception as exc:
+            self._record_error(exc)
+            status["error"] = str(exc)
+            return status
+        if raw is None:
+            return status
+
+        if isinstance(raw, (bytes, bytearray)):
+            decoded = raw.decode("utf-8", errors="replace")
+        else:
+            decoded = str(raw)
+        ts_value: Any = None
+        source = ""
+        try:
+            parsed = json.loads(decoded)
+            if isinstance(parsed, dict):
+                ts_value = parsed.get("ts")
+                source = str(parsed.get("source") or "").strip()
+            else:
+                ts_value = parsed
+        except Exception:
+            ts_value = decoded
+
+        try:
+            last_seen = float(ts_value)
+        except (TypeError, ValueError):
+            status.update({"present": True, "parse_error": "invalid_timestamp"})
+            return status
+
+        age_seconds = max(0.0, time.time() - last_seen)
+        status.update(
+            {
+                "present": True,
+                "healthy": bool(age_seconds <= self.worker_heartbeat_ttl_seconds),
+                "last_seen_unix": round(last_seen, 3),
+                "age_seconds": round(age_seconds, 3),
+            }
+        )
+        if source:
+            status["source"] = source
+        return status
 
     def _ensure_client(self) -> Any:
         with self._lock:

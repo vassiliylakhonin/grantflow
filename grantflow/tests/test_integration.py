@@ -603,6 +603,7 @@ def test_ready_endpoint_redis_dispatcher_mode_without_local_consumer(monkeypatch
                         "running": False,
                         "redis_available": True,
                         "queue_size": 0,
+                        "worker_heartbeat": {"present": True, "healthy": True, "age_seconds": 1.2},
                     }
                 )
             },
@@ -617,6 +618,44 @@ def test_ready_endpoint_redis_dispatcher_mode_without_local_consumer(monkeypatch
     checks = body["checks"]
     assert checks["job_runner"]["mode"] == "redis_queue"
     assert checks["job_runner"]["ready"] is True
+
+
+def test_ready_endpoint_degrades_when_dispatcher_worker_heartbeat_missing(monkeypatch):
+    monkeypatch.setattr(api_app_module.config.job_runner, "mode", "redis_queue")
+    monkeypatch.setattr(
+        api_app_module,
+        "JOB_RUNNER",
+        type(
+            "_Runner",
+            (),
+            {
+                "diagnostics": staticmethod(
+                    lambda: {
+                        "backend": "redis",
+                        "consumer_enabled": False,
+                        "running": False,
+                        "redis_available": True,
+                        "queue_size": 0,
+                        "worker_heartbeat": {"present": False, "healthy": False},
+                    }
+                )
+            },
+        )(),
+    )
+    monkeypatch.setattr(api_app_module, "_vector_store_readiness", lambda: {"ready": True, "backend": "memory"})
+
+    response = client.get("/ready")
+    assert response.status_code == 503
+    detail = response.json()["detail"]
+    assert detail["status"] == "degraded"
+    checks = detail["checks"]
+    assert checks["job_runner"]["ready"] is False
+    alerts = checks["job_runner"]["alerts"]
+    assert any(
+        str(item.get("code") or "") == "REDIS_DISPATCHER_WORKER_HEARTBEAT_MISSING"
+        for item in alerts
+        if isinstance(item, dict)
+    )
 
 
 def test_ready_endpoint_reports_dead_letter_alert_when_threshold_exceeded(monkeypatch):
@@ -638,6 +677,7 @@ def test_ready_endpoint_reports_dead_letter_alert_when_threshold_exceeded(monkey
                         "redis_available": True,
                         "queue_size": 0,
                         "dead_letter_queue_size": 3,
+                        "worker_heartbeat": {"present": True, "healthy": True, "age_seconds": 0.8},
                     }
                 )
             },
@@ -676,6 +716,7 @@ def test_ready_endpoint_can_block_when_dead_letter_alert_is_blocking(monkeypatch
                         "redis_available": True,
                         "queue_size": 0,
                         "dead_letter_queue_size": 2,
+                        "worker_heartbeat": {"present": True, "healthy": True, "age_seconds": 0.8},
                     }
                 )
             },

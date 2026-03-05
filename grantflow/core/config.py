@@ -93,6 +93,9 @@ class JobRunnerConfig(BaseModel):
     redis_pop_timeout_seconds: float = 1.0
     redis_max_attempts: int = 3
     redis_dead_letter_queue_name: str = ""
+    redis_worker_heartbeat_key: str = ""
+    redis_worker_heartbeat_ttl_seconds: float = 45.0
+    redis_worker_heartbeat_interval_seconds: float = 10.0
     dead_letter_alert_threshold: int = 0
     dead_letter_alert_blocking: bool = False
 
@@ -229,6 +232,13 @@ class GrantFlowConfig(BaseModel):
                 redis_pop_timeout_seconds=float(_env("GRANTFLOW_JOB_RUNNER_REDIS_POP_TIMEOUT_SECONDS", "1.0")),
                 redis_max_attempts=int(_env("GRANTFLOW_JOB_RUNNER_REDIS_MAX_ATTEMPTS", "3")),
                 redis_dead_letter_queue_name=_env("GRANTFLOW_JOB_RUNNER_REDIS_DEAD_LETTER_QUEUE_NAME", ""),
+                redis_worker_heartbeat_key=_env("GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_KEY", ""),
+                redis_worker_heartbeat_ttl_seconds=float(
+                    _env("GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_TTL_SECONDS", "45.0")
+                ),
+                redis_worker_heartbeat_interval_seconds=float(
+                    _env("GRANTFLOW_JOB_RUNNER_REDIS_WORKER_HEARTBEAT_INTERVAL_SECONDS", "10.0")
+                ),
                 dead_letter_alert_threshold=int(_env("GRANTFLOW_JOB_RUNNER_DEAD_LETTER_ALERT_THRESHOLD", "0")),
                 dead_letter_alert_blocking=_env("GRANTFLOW_JOB_RUNNER_DEAD_LETTER_ALERT_BLOCKING", "false").lower()
                 == "true",
