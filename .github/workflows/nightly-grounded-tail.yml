@@ -1,0 +1,55 @@
+name: Nightly Grounded Tail Eval
+
+on:
+  schedule:
+    - cron: "20 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  grounded-tail-eval:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Run evaluation harness (grounded tail suite)
+        run: |
+          mkdir -p grounded-tail-artifacts
+          python -m grantflow.eval.harness \
+            --cases-file grantflow/eval/cases/grounded_tail_cases.json \
+            --seed-rag-manifest docs/rag_seed_corpus/ingest_manifest.jsonl \
+            --suite-label grounded-tail-eval \
+            --text-out grounded-tail-artifacts/grounded-tail-eval-report.txt \
+            --json-out grounded-tail-artifacts/grounded-tail-eval-report.json \
+            --compare-to-baseline grantflow/eval/fixtures/grounded_tail_regression_snapshot.json \
+            --comparison-text-out grounded-tail-artifacts/grounded-tail-regression-comparison.txt \
+            --comparison-json-out grounded-tail-artifacts/grounded-tail-regression-comparison.json
+
+      - name: Validate seeded corpus (grounded tail suite)
+        run: |
+          python scripts/check_seeded_corpus.py \
+            --json grounded-tail-artifacts/grounded-tail-eval-report.json \
+            --label grounded-tail-eval-seed \
+            --expected-donors eu,giz,un_agencies \
+            --min-seeded-total 1
+
+      - name: Upload grounded tail evaluation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grounded-tail-eval-report
+          path: grounded-tail-artifacts/
+          if-no-files-found: error

@@ -478,7 +478,7 @@ Tune guard via environment variables if needed:
 GROUNDED_GUARD_DONORS=usaid,worldbank GROUNDED_MAX_NON_RETRIEVAL=0.25 GROUNDED_MIN_RETRIEVAL_GROUNDED=0.75 GROUNDED_MAX_TRACEABILITY_GAP=0.10 GROUNDED_MIN_NON_RETRIEVAL_IMPROVEMENT=0.25 GROUNDED_MIN_RETRIEVAL_GROUNDED_IMPROVEMENT=0.25 make eval-grounded-ab
 ```
 
-CI uploads evaluation artifacts in `eval-report` and `grounded-tail-eval-report` (tail suite).
+CI uploads `eval-report`; grounded tail artifacts (`grounded-tail-eval-report`) are published by nightly workflow `.github/workflows/nightly-grounded-tail.yml` (or manual dispatch).
 
 Refresh grounded trend baseline intentionally after expected quality changes:
 
