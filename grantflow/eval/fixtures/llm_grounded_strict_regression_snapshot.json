@@ -56,8 +56,65 @@
         "traceability_gap_citation_rate": 0.2
       }
     },
+    "eu_digital_governance_services_moldova_grounded_strict": {
+      "donor_id": "eu",
+      "metrics": {
+        "toc_schema_valid": true,
+        "has_toc_draft": true,
+        "has_logframe_draft": true,
+        "needs_revision": false,
+        "quality_score": 6.5,
+        "critic_score": 6.5,
+        "citations_total": 10,
+        "retrieval_grounded_citation_rate": 0.65,
+        "fatal_flaw_count": 4,
+        "high_severity_fatal_flaw_count": 1,
+        "error_count": 0,
+        "fallback_namespace_citation_count": 0,
+        "non_retrieval_citation_rate": 0.35,
+        "traceability_gap_citation_rate": 0.2
+      }
+    },
     "worldbank_public_sector_performance_uzbekistan_grounded_strict": {
       "donor_id": "worldbank",
+      "metrics": {
+        "toc_schema_valid": true,
+        "has_toc_draft": true,
+        "has_logframe_draft": true,
+        "needs_revision": false,
+        "quality_score": 6.5,
+        "critic_score": 6.5,
+        "citations_total": 10,
+        "retrieval_grounded_citation_rate": 0.65,
+        "fatal_flaw_count": 4,
+        "high_severity_fatal_flaw_count": 1,
+        "error_count": 0,
+        "fallback_namespace_citation_count": 0,
+        "non_retrieval_citation_rate": 0.35,
+        "traceability_gap_citation_rate": 0.2
+      }
+    },
+    "giz_sme_resilience_jordan_grounded_strict": {
+      "donor_id": "giz",
+      "metrics": {
+        "toc_schema_valid": true,
+        "has_toc_draft": true,
+        "has_logframe_draft": true,
+        "needs_revision": false,
+        "quality_score": 6.5,
+        "critic_score": 6.5,
+        "citations_total": 10,
+        "retrieval_grounded_citation_rate": 0.65,
+        "fatal_flaw_count": 4,
+        "high_severity_fatal_flaw_count": 1,
+        "error_count": 0,
+        "fallback_namespace_citation_count": 0,
+        "non_retrieval_citation_rate": 0.35,
+        "traceability_gap_citation_rate": 0.2
+      }
+    },
+    "state_department_media_georgia_grounded_strict": {
+      "donor_id": "state_department",
       "metrics": {
         "toc_schema_valid": true,
         "has_toc_draft": true,

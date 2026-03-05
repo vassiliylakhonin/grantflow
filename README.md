@@ -529,13 +529,13 @@ One-command variant:
 make eval-llm-sampled
 ```
 
-Strict grounded LLM gate (USAID + World Bank; seeded corpus readiness required before run):
+Strict grounded LLM gate (all specialized donors; seeded corpus readiness required before run):
 
 ```bash
 python -m grantflow.eval.harness \
   --suite-label llm-eval-grounded-strict \
   --cases-file grantflow/eval/cases/llm_grounded_strict_cases.json \
-  --donor-id usaid,worldbank \
+  --donor-id usaid,eu,worldbank,giz,state_department \
   --force-llm \
   --force-architect-rag \
   --seed-rag-manifest docs/rag_seed_corpus/ingest_manifest.jsonl \

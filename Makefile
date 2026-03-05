@@ -21,7 +21,7 @@ GROUNDED_MIN_SEEDED_TOTAL ?= 1
 ALLOW_BASELINE_REFRESH ?= 0
 LLM_EVAL_SAMPLE_MAX_CASES ?= 2
 LLM_EVAL_SAMPLE_SEED ?= 42
-LLM_GROUNDED_STRICT_DONORS ?= usaid,worldbank
+LLM_GROUNDED_STRICT_DONORS ?= usaid,eu,worldbank,giz,state_department
 LLM_GROUNDED_STRICT_MIN_SEED_PER_FAMILY ?= 1
 RBM_SAMPLE_IDS ?= rbm-usaid-ai-civil-service-kazakhstan,rbm-eu-youth-employment-jordan
 

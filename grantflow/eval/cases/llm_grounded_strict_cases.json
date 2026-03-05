@@ -39,6 +39,42 @@
     }
   },
   {
+    "case_id": "eu_digital_governance_services_moldova_grounded_strict",
+    "donor_id": "eu",
+    "expected_doc_families": [
+      "donor_results_guidance",
+      "digital_governance_guidance",
+      "country_context",
+      "municipal_process_guidance"
+    ],
+    "input_context": {
+      "project": "Digital Governance and Public Service Quality Improvement",
+      "country": "Moldova",
+      "problem": "Public services remain fragmented, with inconsistent process standards and unequal citizen access."
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": true,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 6.5,
+      "min_critic_score": 6.5,
+      "min_retrieval_grounded_citation_rate": 0.65,
+      "min_citations_total": 10,
+      "min_architect_claim_citations": 6,
+      "max_fatal_flaws": 4,
+      "max_high_severity_fatal_flaws": 1,
+      "max_non_retrieval_citation_rate": 0.35,
+      "max_traceability_gap_citation_rate": 0.2,
+      "min_doc_id_present_citation_rate": 0.9,
+      "min_retrieval_rank_present_citation_rate": 0.9,
+      "min_retrieval_confidence_present_citation_rate": 0.9,
+      "min_retrieval_metadata_complete_citation_rate": 0.9,
+      "max_errors": 0
+    }
+  },
+  {
     "case_id": "worldbank_public_sector_performance_uzbekistan_grounded_strict",
     "donor_id": "worldbank",
     "expected_doc_families": [
@@ -51,6 +87,78 @@
       "project": "Public Sector Performance and Service Delivery Capacity Strengthening",
       "country": "Uzbekistan",
       "problem": "Agencies have uneven capabilities in performance management and evidence-based delivery improvements."
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": true,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 6.5,
+      "min_critic_score": 6.5,
+      "min_retrieval_grounded_citation_rate": 0.65,
+      "min_citations_total": 10,
+      "min_architect_claim_citations": 6,
+      "max_fatal_flaws": 4,
+      "max_high_severity_fatal_flaws": 1,
+      "max_non_retrieval_citation_rate": 0.35,
+      "max_traceability_gap_citation_rate": 0.2,
+      "min_doc_id_present_citation_rate": 0.9,
+      "min_retrieval_rank_present_citation_rate": 0.9,
+      "min_retrieval_confidence_present_citation_rate": 0.9,
+      "min_retrieval_metadata_complete_citation_rate": 0.9,
+      "max_errors": 0
+    }
+  },
+  {
+    "case_id": "giz_sme_resilience_jordan_grounded_strict",
+    "donor_id": "giz",
+    "expected_doc_families": [
+      "donor_policy",
+      "implementation_reference",
+      "country_context",
+      "sustainability_guidance"
+    ],
+    "input_context": {
+      "project": "SME Resilience and Youth Employment Skills Acceleration",
+      "country": "Jordan",
+      "problem": "SMEs and young jobseekers face weak business support systems and limited practical skills pathways."
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": true,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 6.5,
+      "min_critic_score": 6.5,
+      "min_retrieval_grounded_citation_rate": 0.65,
+      "min_citations_total": 10,
+      "min_architect_claim_citations": 6,
+      "max_fatal_flaws": 4,
+      "max_high_severity_fatal_flaws": 1,
+      "max_non_retrieval_citation_rate": 0.35,
+      "max_traceability_gap_citation_rate": 0.2,
+      "min_doc_id_present_citation_rate": 0.9,
+      "min_retrieval_rank_present_citation_rate": 0.9,
+      "min_retrieval_confidence_present_citation_rate": 0.9,
+      "min_retrieval_metadata_complete_citation_rate": 0.9,
+      "max_errors": 0
+    }
+  },
+  {
+    "case_id": "state_department_media_georgia_grounded_strict",
+    "donor_id": "state_department",
+    "expected_doc_families": [
+      "donor_policy",
+      "implementation_reference",
+      "country_context",
+      "risk_context"
+    ],
+    "input_context": {
+      "project": "Independent Media Resilience and Civic Information Integrity",
+      "country": "Georgia",
+      "problem": "Independent media and civic communicators face sustained disinformation pressure and operational risks."
     },
     "llm_mode": false,
     "architect_rag_enabled": true,

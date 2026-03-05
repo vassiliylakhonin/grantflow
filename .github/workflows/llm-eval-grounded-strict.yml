@@ -6,7 +6,7 @@ on:
       donor_ids:
         description: "Optional donor_id filter(s), comma-separated"
         required: false
-        default: "usaid,worldbank"
+        default: "usaid,eu,worldbank,giz,state_department"
         type: string
       case_ids:
         description: "Optional case_id filter(s), comma-separated"
@@ -60,7 +60,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install .
 
-      - name: Run strict grounded LLM eval harness (USAID + World Bank)
+      - name: Run strict grounded LLM eval harness (all specialized donors)
         env:
           INPUT_DONOR_IDS: ${{ github.event.inputs.donor_ids }}
           INPUT_CASE_IDS: ${{ github.event.inputs.case_ids }}
@@ -78,7 +78,7 @@ jobs:
             exit 0
           fi
 
-          DONOR_IDS="${INPUT_DONOR_IDS:-usaid,worldbank}"
+          DONOR_IDS="${INPUT_DONOR_IDS:-usaid,eu,worldbank,giz,state_department}"
           CASE_IDS="${INPUT_CASE_IDS:-}"
           SEED_MANIFEST="${INPUT_SEED_MANIFEST:-docs/rag_seed_corpus/ingest_manifest.jsonl}"
           MIN_SEED_PER_FAMILY="${INPUT_MIN_SEED_READINESS_PER_FAMILY:-1}"
