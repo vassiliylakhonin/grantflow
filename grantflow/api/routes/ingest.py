@@ -12,8 +12,6 @@ from grantflow.api.app import (
     _list_ingest_events,
     _record_ingest_event,
     _resolve_preflight_request_context,
-    _resolve_tenant_id,
-    _tenant_rag_namespace,
 )
 from grantflow.api.demo_presets import list_ingest_preset_summaries, load_ingest_preset
 from grantflow.api.public_views import public_ingest_inventory_payload, public_ingest_recent_payload
@@ -26,6 +24,7 @@ from grantflow.api.schemas import (
     IngestRecentListPublicResponse,
 )
 from grantflow.api.security import require_api_key_if_configured
+from grantflow.api.tenant import _resolve_tenant_id, _tenant_rag_namespace
 from grantflow.api.routers import ingest_router
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace

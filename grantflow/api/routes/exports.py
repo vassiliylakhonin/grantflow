@@ -10,27 +10,22 @@ from fastapi.responses import StreamingResponse
 from grantflow.api.app import (
     _configured_export_require_grounded_gate_pass,
     _dead_letter_queue_csv_text,
-    _ensure_job_tenant_read_access,
     _evaluate_export_contract_gate,
     _evaluate_export_grounding_policy,
     _extract_export_grounding_gate,
     _extract_export_runtime_grounded_quality_gate,
-    _filter_jobs_by_tenant,
     _get_job,
     _hitl_history_csv_text,
     _hitl_history_payload,
     _ingest_inventory,
     _job_comments_csv_text,
-    _job_donor_id,
     _job_events_csv_text,
-    _job_tenant_id,
     _list_jobs,
     _normalize_critic_fatal_flaws_for_job,
     _normalize_review_comments_for_job,
     _portfolio_export_response,
     _redis_queue_admin_runner,
     _resolve_export_inputs,
-    _resolve_tenant_id,
     _validated_filter_token,
     _xlsx_contract_validation_context,
 )
@@ -73,6 +68,13 @@ from grantflow.api.public_views import (
 )
 from grantflow.api.schemas import ExportRequest, JobExportPayloadPublicResponse
 from grantflow.api.security import require_api_key_if_configured
+from grantflow.api.tenant import (
+    _ensure_job_tenant_read_access,
+    _filter_jobs_by_tenant,
+    _job_donor_id,
+    _job_tenant_id,
+    _resolve_tenant_id,
+)
 from grantflow.api.routers import exports_router
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc

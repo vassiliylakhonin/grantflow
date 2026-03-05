@@ -11,22 +11,17 @@ from grantflow.api.app import (
     _clear_hitl_runtime_state,
     _dispatch_generate_from_preset,
     _dispatch_pipeline_task,
-    _ensure_job_tenant_read_access,
-    _ensure_job_tenant_write_access,
     _get_job,
     _global_idempotency_replay_response,
     _idempotency_fingerprint,
     _idempotency_replay_response,
     _ingest_inventory,
-    _job_donor_id,
     _job_runner_mode,
-    _job_tenant_id,
     _normalize_critic_fatal_flaws_for_job,
     _record_hitl_feedback_in_state,
     _record_job_event,
     _resolve_preflight_request_context,
     _resolve_request_id,
-    _resolve_tenant_id,
     _resume_target_from_checkpoint,
     _run_hitl_pipeline,
     _run_hitl_pipeline_by_job_id,
@@ -67,6 +62,13 @@ from grantflow.api.schemas import (
     JobVersionsPublicResponse,
 )
 from grantflow.api.security import require_api_key_if_configured
+from grantflow.api.tenant import (
+    _ensure_job_tenant_read_access,
+    _ensure_job_tenant_write_access,
+    _job_donor_id,
+    _job_tenant_id,
+    _resolve_tenant_id,
+)
 from grantflow.api.routers import jobs_router
 from grantflow.core.config import config
 from grantflow.core.strategies.factory import DonorFactory

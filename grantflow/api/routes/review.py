@@ -7,11 +7,7 @@ from fastapi import HTTPException, Query, Request
 from grantflow.api.app import (
     _append_review_comment,
     _checkpoint_status_token,
-    _checkpoint_tenant_id,
     _critic_findings_list_payload,
-    _ensure_checkpoint_tenant_write_access,
-    _ensure_job_tenant_read_access,
-    _ensure_job_tenant_write_access,
     _find_critic_fatal_flaw,
     _find_job_by_checkpoint_id,
     _finding_actor_from_request,
@@ -25,7 +21,6 @@ from grantflow.api.app import (
     _recompute_review_workflow_sla,
     _record_job_event,
     _resolve_request_id,
-    _resolve_tenant_id,
     _review_workflow_sla_profile_payload,
     _set_critic_fatal_flaw_status,
     _set_critic_fatal_flaws_status_bulk,
@@ -71,6 +66,13 @@ from grantflow.api.schemas import (
     ReviewWorkflowSLARecomputeRequest,
 )
 from grantflow.api.security import require_api_key_if_configured
+from grantflow.api.tenant import (
+    _checkpoint_tenant_id,
+    _ensure_checkpoint_tenant_write_access,
+    _ensure_job_tenant_read_access,
+    _ensure_job_tenant_write_access,
+    _resolve_tenant_id,
+)
 from grantflow.api.routers import review_router
 from grantflow.swarm.findings import finding_primary_id
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
