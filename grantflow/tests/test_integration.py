@@ -203,6 +203,7 @@ def test_demo_console_page_loads():
     assert "/status/${encodeURIComponent(jobId)}/quality" in body
     assert "/status/${encodeURIComponent(jobId)}/critic" in body
     assert "/status/${encodeURIComponent(jobId)}/export-payload" in body
+    assert "/queue/worker-heartbeat" in body
     assert "/export" in body
     assert "criticSeverityFilter" in body
     assert "criticFindingStatusFilter" in body
@@ -225,6 +226,9 @@ def test_demo_console_page_loads():
     assert "thr " in body
     assert "architect_threshold_hit_rate" in body
     assert "qualityBtn" in body
+    assert "workerHeartbeatBtn" in body
+    assert "workerHeartbeatPill" in body
+    assert "workerHeartbeatJson" in body
     assert "qualityCards" in body
     assert "qualityPreflightMetaLine" in body
     assert "qualityGroundedGatePill" in body

@@ -383,6 +383,22 @@ def render_demo_ui_html() -> str:
         </div>
 
         <div class="card">
+          <h2>Worker Heartbeat</h2>
+          <div class="body">
+            <div class="row">
+              <button id="workerHeartbeatBtn" class="ghost">Load Worker Heartbeat</button>
+              <div id="workerHeartbeatPill" class="pill status-unknown">
+                <span class="dot"></span><span id="workerHeartbeatPillText">policy=- · healthy=-</span>
+              </div>
+            </div>
+            <div id="workerHeartbeatMetaLine" class="footer-note mono">consumer_enabled=- · source=- · age=-</div>
+            <div style="margin-top:10px;">
+              <pre id="workerHeartbeatJson">{}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
           <h2>Quality Summary</h2>
           <div class="body">
             <div class="row">
@@ -1759,6 +1775,11 @@ def render_demo_ui_html() -> str:
         statusPillText: $("statusPillText"),
         statusJson: $("statusJson"),
         metricsJson: $("metricsJson"),
+        workerHeartbeatBtn: $("workerHeartbeatBtn"),
+        workerHeartbeatPill: $("workerHeartbeatPill"),
+        workerHeartbeatPillText: $("workerHeartbeatPillText"),
+        workerHeartbeatMetaLine: $("workerHeartbeatMetaLine"),
+        workerHeartbeatJson: $("workerHeartbeatJson"),
         qualityJson: $("qualityJson"),
         qualityAdvisoryBadgeList: $("qualityAdvisoryBadgeList"),
         qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
@@ -2048,6 +2069,7 @@ def render_demo_ui_html() -> str:
         renderIngestPresetGuidance();
         renderIngestChecklistProgress();
         renderGeneratePresetReadiness();
+        renderWorkerHeartbeat(null);
         renderExportContract(null);
         renderZeroReadinessWarningPreference();
         renderGeneratePreflightAlert(null);
@@ -2834,6 +2856,27 @@ def render_demo_ui_html() -> str:
                 ` · fallback=${fallbackCount} · strategy_ref=${strategyReferenceCount} · retrieval_expected=${retrievalExpected}`
               : `No citations · retrieval_expected=${retrievalExpected}`;
         }
+      }
+
+      function renderWorkerHeartbeat(payload) {
+        const body = payload && typeof payload === "object" ? payload : {};
+        const policy = String((body.policy && body.policy.mode) || "strict").toLowerCase();
+        const heartbeat = body.heartbeat && typeof body.heartbeat === "object" ? body.heartbeat : {};
+        const present = heartbeat.present === true;
+        const healthy = heartbeat.healthy === true;
+        const source = heartbeat.source ? String(heartbeat.source) : "-";
+        const consumerEnabled = typeof body.consumer_enabled === "boolean" ? String(body.consumer_enabled) : "-";
+        const ageRaw = Number(heartbeat.age_seconds);
+        const ageText = Number.isFinite(ageRaw) ? `${ageRaw.toFixed(ageRaw >= 10 ? 1 : 2)}s` : "-";
+
+        let pillClass = "pill status-unknown";
+        if (healthy) pillClass = "pill status-done";
+        else if (policy === "warn") pillClass = "pill status-pending_hitl";
+        else if (policy === "off") pillClass = "pill status-accepted";
+        else pillClass = "pill status-error";
+        els.workerHeartbeatPill.className = pillClass;
+        els.workerHeartbeatPillText.textContent = `policy=${policy} · healthy=${healthy ? "yes" : "no"} · present=${present ? "yes" : "no"}`;
+        els.workerHeartbeatMetaLine.textContent = `consumer_enabled=${consumerEnabled} · source=${source} · age=${ageText}`;
       }
 
       function renderQualityAdvisoryBadge(advisoryDiagnostics) {
@@ -6041,6 +6084,27 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function refreshWorkerHeartbeat() {
+        try {
+          const body = await apiFetch("/queue/worker-heartbeat");
+          renderWorkerHeartbeat(body);
+          setJson(els.workerHeartbeatJson, body);
+          return body;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const fallback = {
+            mode: "unknown",
+            policy: { mode: "strict" },
+            consumer_enabled: null,
+            heartbeat: { present: false, healthy: false },
+            error: message,
+          };
+          renderWorkerHeartbeat(fallback);
+          setJson(els.workerHeartbeatJson, fallback);
+          return fallback;
+        }
+      }
+
       async function refreshQuality() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -6496,6 +6560,7 @@ def render_demo_ui_html() -> str:
         await refreshStatus();
         await Promise.allSettled([
           refreshMetrics(),
+          refreshWorkerHeartbeat(),
           refreshQuality(),
           refreshPortfolioBundle(),
           refreshCritic(),
@@ -7598,6 +7663,7 @@ def render_demo_ui_html() -> str:
           else refreshCritic().catch(showError);
         });
         els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
+        els.workerHeartbeatBtn.addEventListener("click", () => refreshWorkerHeartbeat().catch(showError));
         if (els.qualityGroundedGateExplainBtn) {
           els.qualityGroundedGateExplainBtn.addEventListener("click", toggleQualityGroundedGateExplain);
         }
