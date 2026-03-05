@@ -7,7 +7,6 @@ from fastapi import BackgroundTasks, HTTPException, Query, Request
 
 from grantflow.api import app as api_app_module
 from grantflow.api.app import (
-    _build_generate_preflight,
     _checkpoint_status_token,
     _clear_hitl_runtime_state,
     _dispatch_generate_from_preset,
@@ -91,7 +90,7 @@ def generate_preflight(req: GeneratePreflightRequest, request: Request):
         client_metadata=req.client_metadata,
         input_context=req.input_context,
     )
-    return _build_generate_preflight(
+    return api_app_module._build_generate_preflight(
         donor_id=donor,
         strategy=strategy,
         client_metadata=client_metadata,
@@ -258,7 +257,7 @@ async def generate(
     preflight_client_metadata = dict(client_metadata) if isinstance(client_metadata, dict) else {}
     if isinstance(input_payload, dict) and input_payload:
         preflight_client_metadata["_preflight_input_context"] = dict(input_payload)
-    preflight = _build_generate_preflight(
+    preflight = api_app_module._build_generate_preflight(
         donor_id=donor,
         strategy=strategy,
         client_metadata=preflight_client_metadata or None,

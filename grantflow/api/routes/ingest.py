@@ -8,7 +8,6 @@ from fastapi import File, Form, HTTPException, Query, Request, UploadFile
 
 from grantflow.api import app as api_app_module
 from grantflow.api.app import (
-    _build_generate_preflight,
     _ingest_inventory,
     _list_ingest_events,
     _record_ingest_event,
@@ -67,7 +66,7 @@ def ingest_readiness(req: IngestReadinessRequest, request: Request):
         input_context=req.input_context,
         expected_doc_families=req.expected_doc_families,
     )
-    return _build_generate_preflight(
+    return api_app_module._build_generate_preflight(
         donor_id=donor,
         strategy=strategy,
         client_metadata=client_metadata,
