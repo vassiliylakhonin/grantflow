@@ -33,7 +33,17 @@ def test_mel_deterministic_mode_generates_logframe_and_citations(monkeypatch):
     def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
         return {
             "documents": [["USAID indicator guidance for water service quality"]],
-            "metadatas": [[{"doc_id": "usaid_ads201_p12_c0", "chunk_id": "usaid_ads201_p12_c0", "page": 12}]],
+            "metadatas": [
+                [
+                    {
+                        "doc_id": "usaid_ads201_p12_c0",
+                        "chunk_id": "usaid_ads201_p12_c0",
+                        "page": 12,
+                        "indicator_code": "EG.3.2-27",
+                        "frequency": "quarterly",
+                    }
+                ]
+            ],
             "ids": [["usaid_ads201_p12_c0"]],
             "distances": [[0.05]],
         }
@@ -58,6 +68,8 @@ def test_mel_deterministic_mode_generates_logframe_and_citations(monkeypatch):
     assert citations[0]["citation_type"] in {"rag_result", "rag_low_confidence"}
     assert citations[0]["namespace_normalized"] == "usaid_ads201"
     assert citations[0]["used_for"]
+    assert indicators[0]["indicator_code"] == "EG.3.2-27"
+    assert indicators[0]["frequency"] == "quarterly"
     assert out.get("draft_versions")
 
 

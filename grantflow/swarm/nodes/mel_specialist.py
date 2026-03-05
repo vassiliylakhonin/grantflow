@@ -277,6 +277,31 @@ def _indicator_name_from_toc_statement(statement: str, *, idx: int) -> str:
     return f"{compact[:87].rstrip()}..."
 
 
+def _copy_optional_indicator_fields_from_hit(indicator: Dict[str, Any], hit: Dict[str, Any]) -> Dict[str, Any]:
+    updated = dict(indicator)
+    for key in (
+        "indicator_code",
+        "frequency",
+        "disaggregation",
+        "result_level",
+        "pdo_result_id",
+        "partner_data_source",
+        "line_of_effort",
+    ):
+        value = hit.get(key)
+        if value is None:
+            continue
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                continue
+            updated[key] = cleaned
+            continue
+        if isinstance(value, (int, float, bool, list, dict)):
+            updated[key] = value
+    return updated
+
+
 def _deterministic_indicators_from_toc(
     *,
     toc_payload: Dict[str, Any],
@@ -309,7 +334,8 @@ def _deterministic_indicators_from_toc(
             "Tracks delivery of the causal results chain."
         )
         indicators.append(
-            {
+            _copy_optional_indicator_fields_from_hit(
+                {
                 "indicator_id": str(hit.get("indicator_id") or f"IND_{idx + 1:03d}"),
                 "name": name or f"Results indicator {idx + 1}",
                 "justification": justification,
@@ -318,7 +344,9 @@ def _deterministic_indicators_from_toc(
                 "target": target,
                 "evidence_excerpt": str(hit.get("excerpt") or statement)[:240],
                 "toc_statement_path": statement_path,
-            }
+                },
+                hit,
+            )
         )
     return indicators
 
@@ -463,8 +491,15 @@ def _collect_retrieval_hits(
                 "chunk_id": chunk_id,
                 "indicator_id": meta.get("indicator_id"),
                 "name": meta.get("name"),
+                "indicator_code": meta.get("indicator_code"),
                 "baseline": meta.get("baseline"),
                 "target": meta.get("target"),
+                "frequency": meta.get("frequency"),
+                "disaggregation": meta.get("disaggregation"),
+                "result_level": meta.get("result_level"),
+                "pdo_result_id": meta.get("pdo_result_id"),
+                "partner_data_source": meta.get("partner_data_source"),
+                "line_of_effort": meta.get("line_of_effort"),
                 "source": source,
                 "page": meta.get("page"),
                 "page_start": meta.get("page_start"),
@@ -694,7 +729,7 @@ def _indicator_from_hit(
         input_context=input_context or {},
         idx=idx,
     )
-    return {
+    indicator: Dict[str, Any] = {
         "indicator_id": str(hit.get("indicator_id") or f"IND_{idx + 1:03d}"),
         "name": name,
         "justification": (
@@ -705,6 +740,7 @@ def _indicator_from_hit(
         "target": target,
         "evidence_excerpt": str(hit.get("excerpt") or "")[:240],
     }
+    return _copy_optional_indicator_fields_from_hit(indicator, hit)
 
 
 def _normalize_indicator_item(
