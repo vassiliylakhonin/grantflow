@@ -70,6 +70,9 @@ Development setup (tests/type checks/formatters):
 
 ```bash
 pip install ".[dev]"
+
+# fast pre-push quality gate
+make qa-fast
 ```
 
 Dependency policy:

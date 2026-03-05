@@ -66,6 +66,12 @@ For local development tooling (`pytest`, `mypy`, `ruff`, `black`, pre-commit):
 pip install ".[dev]"
 ```
 
+Fast local quality gate (recommended before push):
+
+```bash
+make qa-fast
+```
+
 Dependency policy:
 - canonical source of truth: `pyproject.toml`
 - compatibility shims: `requirements.txt`, `requirements-dev.txt`, `grantflow/requirements.txt`

@@ -1,4 +1,4 @@
-.PHONY: deps-guard eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-rbm-samples refresh-grounded-baseline
+.PHONY: deps-guard qa-fast eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-rbm-samples refresh-grounded-baseline
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -23,6 +23,12 @@ RBM_SAMPLE_IDS ?= rbm-usaid-ai-civil-service-kazakhstan,rbm-eu-youth-employment-
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
+
+qa-fast:
+	$(PYTHON) -m ruff check grantflow/swarm/nodes/mel_specialist.py grantflow/swarm/nodes/architect_generation.py grantflow/core/strategies grantflow/tests/test_mel.py grantflow/tests/test_strategies.py grantflow/tests/test_contracts.py
+	$(PYTHON) -m pytest grantflow/tests/test_mel.py grantflow/tests/test_strategies.py grantflow/tests/test_contracts.py -q
+	$(PYTHON) -m pytest grantflow/tests/test_integration.py -k "test_quality_summary_endpoint_aggregates_quality_signals" -q
+	$(PYTHON) -m mypy grantflow/api grantflow/core/stores.py grantflow/swarm/versioning.py
 
 eval-grounded-ab:
 	mkdir -p $(EVAL_ARTIFACTS_DIR)
