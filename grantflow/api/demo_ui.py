@@ -2088,6 +2088,7 @@ def render_demo_ui_html() -> str:
         row,
         detail,
         prefix = "",
+        sourceKind = "",
       }) {
         const generatePayload =
           detail && typeof detail.generate_payload === "object" && !Array.isArray(detail.generate_payload)
@@ -2102,16 +2103,21 @@ def render_demo_ui_html() -> str:
         const donorId = String(generatePayload.donor_id || row?.donor_id || "").trim();
         const project = String(inputContext.project || row?.title || presetKey).trim();
         const country = String(inputContext.country || row?.country || "").trim();
+        const presetSourceKind = String(sourceKind || row?.source_kind || "").trim().toLowerCase();
         const donorLabel = donorId ? donorId.toUpperCase() : "RBM";
         const title = String(row?.title || project || presetKey).trim();
         const label = prefix ? `${prefix} (${donorLabel}): ${title}` : `${donorLabel}: ${title}`;
         return {
           preset: {
+            preset_key: String(presetKey || "").trim(),
+            source_kind: presetSourceKind || null,
             donor_id: donorId,
             project,
             country,
             llm_mode: Boolean(generatePayload.llm_mode),
             hitl_enabled: Boolean(generatePayload.hitl_enabled),
+            architect_rag_enabled:
+              generatePayload.architect_rag_enabled == null ? null : Boolean(generatePayload.architect_rag_enabled),
             strict_preflight: Boolean(generatePayload.strict_preflight),
             input_context: inputContext,
           },
@@ -2132,7 +2138,7 @@ def render_demo_ui_html() -> str:
             if (!presetKey) continue;
             try {
               const detail = await apiFetch(`/generate/presets/legacy/${encodeURIComponent(presetKey)}`);
-              const normalized = normalizeGeneratePresetRecord({ presetKey, row, detail });
+              const normalized = normalizeGeneratePresetRecord({ presetKey, row, detail, sourceKind: "legacy" });
               merged[presetKey] = normalized.preset;
               labels[presetKey] = normalized.label;
             } catch (err) {
@@ -2159,6 +2165,7 @@ def render_demo_ui_html() -> str:
                 row,
                 detail,
                 prefix: "RBM",
+                sourceKind: "rbm",
               });
               merged[sampleId] = normalized.preset;
               labels[sampleId] = normalized.label;
@@ -2238,6 +2245,7 @@ def render_demo_ui_html() -> str:
               row,
               detail: { generate_payload: row.generate_payload || {} },
               prefix,
+              sourceKind,
             });
             mergedGenerate[presetKey] = normalized.preset;
             nextGenerateLabels[presetKey] = String(row.label || "").trim() || normalized.label;
@@ -6032,8 +6040,17 @@ def render_demo_ui_html() -> str:
           if (!ok) return;
         }
         const extraContext = parseExtraInputContext();
+        const presetKey = String(els.generatePresetSelect.value || "").trim();
+        const selectedPreset =
+          presetKey && GENERATE_PRESETS && typeof GENERATE_PRESETS[presetKey] === "object"
+            ? GENERATE_PRESETS[presetKey]
+            : null;
+        const usePresetFlow = Boolean(presetKey && selectedPreset);
+        const effectiveDonorId = usePresetFlow
+          ? String(selectedPreset.donor_id || els.donorId.value || "").trim()
+          : String(els.donorId.value || "").trim();
         const payload = {
-          donor_id: els.donorId.value.trim(),
+          donor_id: effectiveDonorId,
           input_context: {
             ...extraContext,
             project: els.project.value.trim(),
@@ -6043,8 +6060,11 @@ def render_demo_ui_html() -> str:
           hitl_enabled: els.hitlEnabled.value === "true",
           strict_preflight: els.strictPreflight.value === "true",
         };
+        if (usePresetFlow && selectedPreset.architect_rag_enabled != null) {
+          payload.architect_rag_enabled = Boolean(selectedPreset.architect_rag_enabled);
+        }
         if (readiness.presetKey) {
-          payload.client_metadata = buildPresetReadinessMetadata(readiness.presetKey, String(els.donorId.value || "").trim());
+          payload.client_metadata = buildPresetReadinessMetadata(readiness.presetKey, payload.donor_id);
         }
         if (els.webhookUrl.value.trim()) payload.webhook_url = els.webhookUrl.value.trim();
         if (els.webhookSecret.value.trim()) payload.webhook_secret = els.webhookSecret.value.trim();
@@ -6107,11 +6127,46 @@ def render_demo_ui_html() -> str:
           if (!ok) return;
         }
 
-        const body = await apiFetch("/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        let body = null;
+        if (usePresetFlow) {
+          const sourceKind = String(selectedPreset.source_kind || "").trim().toLowerCase();
+          const presetType = sourceKind === "legacy" || sourceKind === "rbm" ? sourceKind : "auto";
+          const fromPresetPayload = {
+            preset_key: presetKey,
+            preset_type: presetType,
+            llm_mode: payload.llm_mode,
+            hitl_enabled: payload.hitl_enabled,
+            strict_preflight: payload.strict_preflight,
+            input_context_patch: payload.input_context,
+            client_metadata_patch: payload.client_metadata || {},
+          };
+          if (payload.architect_rag_enabled != null) {
+            fromPresetPayload.architect_rag_enabled = Boolean(payload.architect_rag_enabled);
+          }
+          if (payload.webhook_url) fromPresetPayload.webhook_url = payload.webhook_url;
+          if (payload.webhook_secret) fromPresetPayload.webhook_secret = payload.webhook_secret;
+          try {
+            body = await apiFetch("/generate/from-preset", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(fromPresetPayload),
+            });
+          } catch (err) {
+            const msg = String(err?.message || "");
+            if (!(msg.includes("404") || msg.includes("405"))) throw err;
+            body = await apiFetch("/generate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+          }
+        } else {
+          body = await apiFetch("/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        }
         if (body && body.job_id) {
           els.jobIdInput.value = body.job_id;
           persistBasics();
