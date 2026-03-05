@@ -1012,6 +1012,20 @@ def test_health_endpoint_reports_chroma_port_conflict_warning(monkeypatch):
     assert any(w.get("code") == "CHROMA_PORT_MAY_CONFLICT_WITH_API_DEFAULT" for w in warnings if isinstance(w, dict))
 
 
+def test_health_endpoint_reports_tenant_authz_without_allowlist_warning(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "true")
+    monkeypatch.delenv("GRANTFLOW_ALLOWED_TENANTS", raising=False)
+    monkeypatch.delenv("AIDGRAPH_ALLOWED_TENANTS", raising=False)
+
+    response = client.get("/health")
+    assert response.status_code == 200
+    body = response.json()
+    warnings = body["diagnostics"].get("configuration_warnings") or []
+    assert any(
+        w.get("code") == "TENANT_AUTHZ_ENABLED_WITHOUT_ALLOWLIST" for w in warnings if isinstance(w, dict)
+    )
+
+
 def test_health_endpoint_reports_python_version_warning(monkeypatch):
     monkeypatch.setattr(api_app_module.sys, "version_info", (3, 14, 0, "final", 0))
 
@@ -1076,6 +1090,20 @@ def test_ready_endpoint_reports_chroma_port_conflict_warning(monkeypatch):
     body = response.json()
     warnings = body["checks"].get("configuration_warnings") or []
     assert any(w.get("code") == "CHROMA_PORT_MAY_CONFLICT_WITH_API_DEFAULT" for w in warnings if isinstance(w, dict))
+
+
+def test_ready_endpoint_reports_tenant_authz_without_allowlist_warning(monkeypatch):
+    monkeypatch.setenv("GRANTFLOW_TENANT_AUTHZ_ENABLED", "true")
+    monkeypatch.delenv("GRANTFLOW_ALLOWED_TENANTS", raising=False)
+    monkeypatch.delenv("AIDGRAPH_ALLOWED_TENANTS", raising=False)
+
+    response = client.get("/ready")
+    assert response.status_code == 200
+    body = response.json()
+    warnings = body["checks"].get("configuration_warnings") or []
+    assert any(
+        w.get("code") == "TENANT_AUTHZ_ENABLED_WITHOUT_ALLOWLIST" for w in warnings if isinstance(w, dict)
+    )
 
 
 def test_ready_endpoint_reports_python_version_warning(monkeypatch):

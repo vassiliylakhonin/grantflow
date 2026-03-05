@@ -4176,6 +4176,20 @@ def _configuration_warnings() -> list[dict[str, Any]]:
                 "details": {"chroma_host": chroma_host, "chroma_port": chroma_port},
             }
         )
+    tenant_authz_enabled = _tenant_authz_enabled()
+    allowed_tenant_count = len(_allowed_tenant_tokens())
+    if tenant_authz_enabled and allowed_tenant_count == 0:
+        warnings.append(
+            {
+                "code": "TENANT_AUTHZ_ENABLED_WITHOUT_ALLOWLIST",
+                "severity": "high",
+                "message": (
+                    "Tenant authz is enabled but GRANTFLOW_ALLOWED_TENANTS is empty. "
+                    "Set explicit tenant allowlist to avoid unintended tenant access scope."
+                ),
+                "details": {"tenant_authz_enabled": True, "allowed_tenant_count": 0},
+            }
+        )
     return warnings
 
 

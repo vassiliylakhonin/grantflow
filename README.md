@@ -319,6 +319,7 @@ With tenant authz enabled:
 - read endpoints (`/status/*`, `/portfolio/*`, `/hitl/pending`, `/ingest/*`) are tenant-scoped
 - access is denied (`403`) for cross-tenant reads
 - RAG namespace becomes tenant-aware: `{tenant}/{donor_namespace}` (example: `tenant_a/usaid_ads201`)
+- keep `GRANTFLOW_ALLOWED_TENANTS` non-empty when authz is enabled; `/health` and `/ready` emit warning `TENANT_AUTHZ_ENABLED_WITHOUT_ALLOWLIST` if allowlist is empty
 
 ### 10) Export artifacts
 
