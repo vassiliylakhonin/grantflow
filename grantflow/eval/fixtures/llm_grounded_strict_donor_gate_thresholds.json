@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "notes": "Donor-specific aggregate guardrails for strict grounded LLM lane.",
+  "default": {
+    "min_cases": 1,
+    "max_avg_high_severity_fatal_flaws_per_case": 1.0
+  },
+  "donors": {
+    "usaid": {
+      "min_avg_quality_score": 7.0,
+      "min_avg_critic_score": 7.0,
+      "min_avg_retrieval_grounded_citation_rate": 0.7,
+      "max_avg_non_retrieval_citation_rate": 0.3,
+      "max_avg_traceability_gap_citation_rate": 0.15
+    },
+    "eu": {
+      "min_avg_quality_score": 6.0,
+      "min_avg_critic_score": 6.0,
+      "min_avg_retrieval_grounded_citation_rate": 0.6,
+      "max_avg_non_retrieval_citation_rate": 0.4,
+      "max_avg_traceability_gap_citation_rate": 0.25
+    },
+    "worldbank": {
+      "min_avg_quality_score": 7.0,
+      "min_avg_critic_score": 7.0,
+      "min_avg_retrieval_grounded_citation_rate": 0.7,
+      "max_avg_non_retrieval_citation_rate": 0.3,
+      "max_avg_traceability_gap_citation_rate": 0.15
+    },
+    "giz": {
+      "min_avg_quality_score": 6.5,
+      "min_avg_critic_score": 6.5,
+      "min_avg_retrieval_grounded_citation_rate": 0.65,
+      "max_avg_non_retrieval_citation_rate": 0.35,
+      "max_avg_traceability_gap_citation_rate": 0.2
+    },
+    "state_department": {
+      "min_avg_quality_score": 6.5,
+      "min_avg_critic_score": 6.5,
+      "min_avg_retrieval_grounded_citation_rate": 0.65,
+      "max_avg_non_retrieval_citation_rate": 0.35,
+      "max_avg_traceability_gap_citation_rate": 0.2
+    }
+  }
+}

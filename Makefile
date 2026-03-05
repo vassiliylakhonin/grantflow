@@ -23,6 +23,7 @@ LLM_EVAL_SAMPLE_MAX_CASES ?= 2
 LLM_EVAL_SAMPLE_SEED ?= 42
 LLM_GROUNDED_STRICT_DONORS ?= usaid,eu,worldbank,giz,state_department
 LLM_GROUNDED_STRICT_MIN_SEED_PER_FAMILY ?= 1
+LLM_GROUNDED_STRICT_GATE_THRESHOLDS ?= grantflow/eval/fixtures/llm_grounded_strict_donor_gate_thresholds.json
 RBM_SAMPLE_IDS ?= rbm-usaid-ai-civil-service-kazakhstan,rbm-eu-youth-employment-jordan
 
 deps-guard:
@@ -144,6 +145,13 @@ eval-llm-grounded-strict:
 		--comparison-json-out $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-comparison.json \
 		--text-out $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-report.txt \
 		--json-out $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-report.json
+	$(PYTHON) scripts/check_llm_grounded_strict_donor_gate.py \
+		--report-json $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-report.json \
+		--required-donors $(LLM_GROUNDED_STRICT_DONORS) \
+		--thresholds-json $(LLM_GROUNDED_STRICT_GATE_THRESHOLDS) \
+		--out-json $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-donor-gate.json \
+		--out-text $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-donor-gate.txt \
+		--out-md $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-comment.md
 
 eval-rbm-samples:
 	mkdir -p $(EVAL_ARTIFACTS_DIR)

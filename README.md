@@ -554,6 +554,12 @@ One-command variant:
 make eval-llm-grounded-strict
 ```
 
+`make eval-llm-grounded-strict` also runs donor-specific aggregate quality gate thresholds from
+`grantflow/eval/fixtures/llm_grounded_strict_donor_gate_thresholds.json` and writes:
+- `eval-artifacts/llm-eval-grounded-strict-donor-gate.json`
+- `eval-artifacts/llm-eval-grounded-strict-donor-gate.txt`
+- `eval-artifacts/llm-eval-grounded-strict-comment.md`
+
 `llm_grounded_strict_cases.json` includes explicit `expected_doc_families` per donor.
 When `--require-seed-readiness` is enabled, harness fails before case execution if required
 doc families are missing in seeded corpus.

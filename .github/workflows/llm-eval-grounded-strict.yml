@@ -109,6 +109,40 @@ jobs:
             --text-out llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.txt \
             --json-out llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.json
 
+      - name: Evaluate donor-specific strict gate
+        id: strict_donor_gate
+        if: always()
+        continue-on-error: true
+        env:
+          INPUT_DONOR_IDS: ${{ github.event.inputs.donor_ids }}
+        run: |
+          DONOR_IDS="${INPUT_DONOR_IDS:-usaid,eu,worldbank,giz,state_department}"
+          python scripts/check_llm_grounded_strict_donor_gate.py \
+            --report-json llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.json \
+            --required-donors "$DONOR_IDS" \
+            --thresholds-json grantflow/eval/fixtures/llm_grounded_strict_donor_gate_thresholds.json \
+            --out-json llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-donor-gate.json \
+            --out-text llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-donor-gate.txt \
+            --out-md llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-comment.md
+
+      - name: Publish strict donor summary
+        if: always()
+        run: |
+          if [ -f llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-comment.md ]; then
+            cat llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-comment.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## LLM Grounded Strict Donor Gate" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Summary file was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Enforce strict donor gate
+        if: always()
+        run: |
+          if [ "${{ steps.strict_donor_gate.outcome }}" = "failure" ]; then
+            echo "::error::Donor-specific strict gate failed. Check llm-eval-grounded-strict-comment.md artifact."
+            exit 1
+          fi
+
       - name: Upload grounded strict LLM evaluation report
         uses: actions/upload-artifact@v4
         if: always()
