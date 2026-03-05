@@ -34,6 +34,8 @@ class VectorStore:
         self._collections: Dict[str, Any] = {}
         self._memory_store: Dict[str, Dict[str, Any]] = {}
         self._client_init_error: Optional[str] = None
+        forced_memory_backend = str(os.getenv("GRANTFLOW_FORCE_INMEM_VECTOR_STORE", "")).strip().lower()
+        self._force_inmem = forced_memory_backend in {"1", "true", "yes", "on"}
 
         self._chroma_host = os.getenv("CHROMA_HOST")
         # Keep a non-API default to avoid common localhost conflict with uvicorn (8000).
@@ -45,6 +47,11 @@ class VectorStore:
             or "./chroma_db"
         )
         self.client: Any = None
+
+        if self._force_inmem:
+            self._client_init_error = "vector store backend forced to in-memory via GRANTFLOW_FORCE_INMEM_VECTOR_STORE"
+            self.client = None
+            return
 
         if _CHROMADB_IMPORT_ERROR:
             self._client_init_error = f"chromadb import failed: {_CHROMADB_IMPORT_ERROR}"

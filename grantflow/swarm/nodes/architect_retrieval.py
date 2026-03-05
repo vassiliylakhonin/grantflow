@@ -213,6 +213,36 @@ def _rows(value: Any) -> list[list[Any]]:
     return value
 
 
+def _as_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _distance_confidence(raw_distance: Any, *, rank_index: int, row_distances: list[Any]) -> float:
+    rank_prior = max(0.1, 1.0 - (max(0, rank_index) * 0.18))
+    distance_value = _as_float(raw_distance)
+    if distance_value is None:
+        return round(rank_prior, 4)
+
+    distance = max(0.0, distance_value)
+    absolute_conf = 1.0 / (1.0 + (distance * 0.35))
+
+    numeric_distances = [max(0.0, item) for item in (_as_float(v) for v in row_distances) if item is not None]
+    if not numeric_distances:
+        relative_conf = rank_prior
+    else:
+        min_distance = min(numeric_distances)
+        max_distance = max(numeric_distances)
+        span = max(max_distance - min_distance, 1e-9)
+        relative_conf = 1.0 if span <= 1e-9 else 1.0 - ((distance - min_distance) / span)
+        relative_conf = max(0.0, min(1.0, relative_conf))
+
+    confidence = (absolute_conf * 0.35) + (relative_conf * 0.45) + (rank_prior * 0.2)
+    return round(max(0.0, min(1.0, confidence)), 4)
+
+
 def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     enabled = bool(state.get("architect_rag_enabled", True))
     top_k = _bounded_int(
@@ -299,11 +329,9 @@ def retrieve_architect_evidence(state: Dict[str, Any], namespace: str) -> Tuple[
                 source = str(source or "").strip() or None
                 page = meta.get("page")
                 raw_distance = distances[idx] if idx < len(distances) else None
-                retrieval_distance = round(float(raw_distance), 6) if isinstance(raw_distance, (int, float)) else None
-                if isinstance(raw_distance, (int, float)):
-                    retrieval_confidence = round(max(0.0, min(1.0, 1.0 / (1.0 + float(raw_distance)))), 4)
-                else:
-                    retrieval_confidence = round(max(0.1, 1.0 - (idx * 0.2)), 4)
+                parsed_distance = _as_float(raw_distance)
+                retrieval_distance = round(parsed_distance, 6) if parsed_distance is not None else None
+                retrieval_confidence = _distance_confidence(raw_distance, rank_index=idx, row_distances=distances)
 
                 candidate: Dict[str, Any] = {
                     "rank": retrieval_rank,

@@ -13,8 +13,11 @@ else
   exit 1
 fi
 
+# shellcheck disable=SC2329 # Invoked indirectly via trap.
 cleanup() {
+  # shellcheck disable=SC2317 # Executed via trap on EXIT.
   "${COMPOSE_CMD[@]}" logs api >/tmp/grantflow-docker-compose-api.log 2>&1 || true
+  # shellcheck disable=SC2317 # Executed via trap on EXIT.
   "${COMPOSE_CMD[@]}" down -v --remove-orphans || true
 }
 trap cleanup EXIT
