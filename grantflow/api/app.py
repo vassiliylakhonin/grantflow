@@ -3961,10 +3961,16 @@ def _clear_hitl_runtime_state(state: dict, *, clear_pending: bool) -> None:
 def _configuration_warnings() -> list[dict[str, Any]]:
     warnings: list[dict[str, Any]] = []
     chroma_host = str(getattr(vector_store, "_chroma_host", "") or "").strip()
-    chroma_port_raw = getattr(vector_store, "_chroma_port", None)
-    try:
-        chroma_port = int(chroma_port_raw)
-    except (TypeError, ValueError):
+    chroma_port_raw: object = getattr(vector_store, "_chroma_port", None)
+    chroma_port: Optional[int]
+    if isinstance(chroma_port_raw, int):
+        chroma_port = chroma_port_raw
+    elif isinstance(chroma_port_raw, str):
+        try:
+            chroma_port = int(chroma_port_raw.strip())
+        except ValueError:
+            chroma_port = None
+    else:
         chroma_port = None
 
     local_hosts = {"localhost", "127.0.0.1", "::1"}
