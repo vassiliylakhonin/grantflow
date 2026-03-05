@@ -284,6 +284,7 @@ def seed_rag_corpus_from_manifest(
     errors: list[str] = []
     donor_counts: dict[str, int] = {}
     donor_namespaces: dict[str, str] = {}
+    donor_doc_family_counts: dict[str, dict[str, int]] = {}
     for idx, line in enumerate(lines, start=1):
         try:
             row = json.loads(line)
@@ -308,6 +309,7 @@ def seed_rag_corpus_from_manifest(
         namespace = str(strategy.get_rag_collection() or "").strip() or donor_id
         donor_namespaces[donor_id] = namespace
         metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        doc_family = str(metadata.get("doc_family") or "").strip().lower()
         try:
             file_path = _resolve_manifest_entry_path(manifest_path, row.get("file"))
             if not file_path.exists():
@@ -316,6 +318,9 @@ def seed_rag_corpus_from_manifest(
             ingest_pdf_to_namespace(str(file_path), namespace=namespace, metadata=metadata)
             seeded_total += 1
             donor_counts[donor_id] = int(donor_counts.get(donor_id) or 0) + 1
+            if doc_family:
+                donor_family_counts = donor_doc_family_counts.setdefault(donor_id, {})
+                donor_family_counts[doc_family] = int(donor_family_counts.get(doc_family) or 0) + 1
         except Exception as exc:
             errors.append(f"line {idx}: ingest failed ({exc})")
     return {
@@ -325,6 +330,82 @@ def seed_rag_corpus_from_manifest(
         "errors": errors,
         "donor_counts": donor_counts,
         "donor_namespaces": donor_namespaces,
+        "donor_doc_family_counts": donor_doc_family_counts,
+    }
+
+
+def expected_doc_families_by_donor(cases: list[dict[str, Any]]) -> dict[str, list[str]]:
+    expected: dict[str, list[str]] = {}
+    for case in cases:
+        donor_id = str(case.get("donor_id") or "").strip().lower()
+        if not donor_id:
+            continue
+        raw_expected = case.get("expected_doc_families")
+        rows = raw_expected if isinstance(raw_expected, list) else []
+        if not rows:
+            continue
+        donor_rows = expected.setdefault(donor_id, [])
+        seen = {str(item).strip().lower() for item in donor_rows}
+        for item in rows:
+            token = str(item or "").strip().lower()
+            if not token or token in seen:
+                continue
+            donor_rows.append(token)
+            seen.add(token)
+    return expected
+
+
+def evaluate_seed_readiness(
+    *,
+    seeded_summary: dict[str, Any],
+    expected_doc_families: dict[str, list[str]],
+    min_uploads_per_family: int = 1,
+) -> dict[str, Any]:
+    min_uploads = max(1, int(min_uploads_per_family))
+    donor_family_counts_raw = seeded_summary.get("donor_doc_family_counts")
+    donor_family_counts = donor_family_counts_raw if isinstance(donor_family_counts_raw, dict) else {}
+
+    donor_rows: dict[str, dict[str, Any]] = {}
+    ready_donor_count = 0
+    for donor_id, expected_families in expected_doc_families.items():
+        expected_rows = [str(item).strip().lower() for item in (expected_families or []) if str(item).strip()]
+        counts_raw = donor_family_counts.get(donor_id)
+        counts = counts_raw if isinstance(counts_raw, dict) else {}
+        family_counts: dict[str, int] = {}
+        missing: list[str] = []
+        underfilled: list[str] = []
+        ready: list[str] = []
+        for family in expected_rows:
+            count = _to_int(counts.get(family), default=0)
+            family_counts[family] = count
+            if count <= 0:
+                missing.append(family)
+            elif count < min_uploads:
+                underfilled.append(family)
+            else:
+                ready.append(family)
+        donor_ready = not missing and not underfilled
+        if donor_ready:
+            ready_donor_count += 1
+        donor_rows[donor_id] = {
+            "ready": donor_ready,
+            "expected_doc_families": expected_rows,
+            "ready_doc_families": ready,
+            "missing_doc_families": missing,
+            "underfilled_doc_families": underfilled,
+            "family_counts": family_counts,
+            "coverage_rate": (round(len(ready) / len(expected_rows), 4) if expected_rows else None),
+        }
+
+    expected_donor_count = len(donor_rows)
+    all_ready = expected_donor_count == 0 or ready_donor_count == expected_donor_count
+    return {
+        "enabled": expected_donor_count > 0,
+        "all_ready": all_ready,
+        "expected_donor_count": expected_donor_count,
+        "ready_donor_count": ready_donor_count,
+        "min_uploads_per_family": min_uploads,
+        "donors": donor_rows,
     }
 
 
@@ -577,6 +658,7 @@ def evaluate_expectations(metrics: dict[str, Any], expectations: dict[str, Any])
         ("min_high_severity_fatal_flaws", "high_severity_fatal_flaw_count"),
         ("min_quality_score", "quality_score"),
         ("min_critic_score", "critic_score"),
+        ("min_retrieval_grounded_citation_rate", "retrieval_grounded_citation_rate"),
         ("min_citations_total", "citations_total"),
         ("min_architect_citations", "architect_citation_count"),
         ("min_architect_claim_citations", "architect_claim_citation_count"),
@@ -1403,6 +1485,20 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Do not fail when manifest seeding reports errors.",
     )
     parser.add_argument(
+        "--require-seed-readiness",
+        action="store_true",
+        help=(
+            "Fail before eval run when expected_doc_families (from selected cases) "
+            "are not fully covered by seeded manifest uploads."
+        ),
+    )
+    parser.add_argument(
+        "--seed-readiness-min-per-family",
+        type=int,
+        default=1,
+        help="Minimum number of seeded docs required per expected doc_family when --require-seed-readiness is set.",
+    )
+    parser.add_argument(
         "--json-out",
         type=Path,
         default=None,
@@ -1495,6 +1591,36 @@ def main(argv: list[str] | None = None) -> int:
             for item in seed_errors:
                 print(f"- {item}")
             return 1
+    expected_families = expected_doc_families_by_donor(cases)
+    seed_readiness: dict[str, Any] | None = None
+    if seeded_corpus_summary is not None and expected_families:
+        seed_readiness = evaluate_seed_readiness(
+            seeded_summary=seeded_corpus_summary,
+            expected_doc_families=expected_families,
+            min_uploads_per_family=int(args.seed_readiness_min_per_family or 1),
+        )
+    if bool(args.require_seed_readiness):
+        if args.seed_rag_manifest is None:
+            print("Seed readiness check requires --seed-rag-manifest.", file=sys.stderr)
+            return 2
+        if not expected_families:
+            print("Seed readiness check requires expected_doc_families in selected eval cases.", file=sys.stderr)
+            return 2
+        if not seed_readiness or not bool(seed_readiness.get("all_ready")):
+            print("Seed readiness check failed:")
+            donors = seed_readiness.get("donors") if isinstance(seed_readiness, dict) else {}
+            donor_rows = donors if isinstance(donors, dict) else {}
+            for donor_id in sorted(donor_rows.keys()):
+                row = donor_rows[donor_id] if isinstance(donor_rows.get(donor_id), dict) else {}
+                missing = row.get("missing_doc_families") if isinstance(row.get("missing_doc_families"), list) else []
+                underfilled = (
+                    row.get("underfilled_doc_families") if isinstance(row.get("underfilled_doc_families"), list) else []
+                )
+                if missing:
+                    print(f"- {donor_id}: missing_doc_families={','.join(str(v) for v in missing)}")
+                if underfilled:
+                    print(f"- {donor_id}: underfilled_doc_families={','.join(str(v) for v in underfilled)}")
+            return 1
     suite = run_eval_suite(cases, suite_label=args.suite_label, skip_expectations=bool(args.skip_expectations))
     suite["runtime_overrides"] = {
         "force_llm": bool(args.force_llm),
@@ -1513,8 +1639,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.seed_rag_manifest is not None:
         suite["runtime_overrides"]["seed_rag_manifest"] = str(args.seed_rag_manifest)
         suite["runtime_overrides"]["seed_rag_best_effort"] = bool(args.seed_rag_best_effort)
+        suite["runtime_overrides"]["require_seed_readiness"] = bool(args.require_seed_readiness)
+        suite["runtime_overrides"]["seed_readiness_min_per_family"] = max(1, int(args.seed_readiness_min_per_family))
     if seeded_corpus_summary is not None:
         suite["seeded_corpus"] = seeded_corpus_summary
+    if seed_readiness is not None:
+        suite["seeded_corpus_readiness"] = seed_readiness
     text_report = format_eval_suite_report(suite)
     print(text_report)
     if args.json_out is not None:

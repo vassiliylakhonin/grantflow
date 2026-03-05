@@ -1,9 +1,10 @@
-.PHONY: deps-guard qa-fast qa-hitl eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-rbm-samples refresh-grounded-baseline
+.PHONY: deps-guard qa-fast qa-hitl eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
 GROUNDED_CASES_FILE ?= grantflow/eval/cases/grounded_cases.json
 GROUNDED_TAIL_CASES_FILE ?= grantflow/eval/cases/grounded_tail_cases.json
+LLM_GROUNDED_STRICT_CASES_FILE ?= grantflow/eval/cases/llm_grounded_strict_cases.json
 GROUNDED_SEED_MANIFEST ?= docs/rag_seed_corpus/ingest_manifest.jsonl
 GROUNDED_BASELINE ?= grantflow/eval/fixtures/grounded_regression_snapshot.json
 GROUNDED_TAIL_BASELINE ?= grantflow/eval/fixtures/grounded_tail_regression_snapshot.json
@@ -19,6 +20,8 @@ GROUNDED_MIN_SEEDED_TOTAL ?= 1
 ALLOW_BASELINE_REFRESH ?= 0
 LLM_EVAL_SAMPLE_MAX_CASES ?= 2
 LLM_EVAL_SAMPLE_SEED ?= 42
+LLM_GROUNDED_STRICT_DONORS ?= usaid,worldbank
+LLM_GROUNDED_STRICT_MIN_SEED_PER_FAMILY ?= 1
 RBM_SAMPLE_IDS ?= rbm-usaid-ai-civil-service-kazakhstan,rbm-eu-youth-employment-jordan
 
 deps-guard:
@@ -123,6 +126,20 @@ eval-llm-sampled:
 		--sample-seed $(LLM_EVAL_SAMPLE_SEED) \
 		--text-out $(EVAL_ARTIFACTS_DIR)/llm-eval-sampled.txt \
 		--json-out $(EVAL_ARTIFACTS_DIR)/llm-eval-sampled.json
+
+eval-llm-grounded-strict:
+	mkdir -p $(EVAL_ARTIFACTS_DIR)
+	$(PYTHON) -m grantflow.eval.harness \
+		--suite-label llm-eval-grounded-strict \
+		--cases-file $(LLM_GROUNDED_STRICT_CASES_FILE) \
+		--donor-id $(LLM_GROUNDED_STRICT_DONORS) \
+		--force-llm \
+		--force-architect-rag \
+		--seed-rag-manifest $(GROUNDED_SEED_MANIFEST) \
+		--require-seed-readiness \
+		--seed-readiness-min-per-family $(LLM_GROUNDED_STRICT_MIN_SEED_PER_FAMILY) \
+		--text-out $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-report.txt \
+		--json-out $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-report.json
 
 eval-rbm-samples:
 	mkdir -p $(EVAL_ARTIFACTS_DIR)

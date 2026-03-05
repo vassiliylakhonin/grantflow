@@ -513,6 +513,32 @@ One-command variant:
 make eval-llm-sampled
 ```
 
+Strict grounded LLM gate (USAID + World Bank; seeded corpus readiness required before run):
+
+```bash
+python -m grantflow.eval.harness \
+  --suite-label llm-eval-grounded-strict \
+  --cases-file grantflow/eval/cases/llm_grounded_strict_cases.json \
+  --donor-id usaid,worldbank \
+  --force-llm \
+  --force-architect-rag \
+  --seed-rag-manifest docs/rag_seed_corpus/ingest_manifest.jsonl \
+  --require-seed-readiness \
+  --seed-readiness-min-per-family 1 \
+  --text-out eval-artifacts/llm-eval-grounded-strict-report.txt \
+  --json-out eval-artifacts/llm-eval-grounded-strict-report.json
+```
+
+One-command variant:
+
+```bash
+make eval-llm-grounded-strict
+```
+
+`llm_grounded_strict_cases.json` includes explicit `expected_doc_families` per donor.
+When `--require-seed-readiness` is enabled, harness fails before case execution if required
+doc families are missing in seeded corpus.
+
 Run bundled RBM sample presets (from `docs/samples/*.json`) with explicit sample IDs:
 
 ```bash
@@ -537,6 +563,7 @@ GROUNDED_GUARD_DONORS=usaid,worldbank GROUNDED_MAX_NON_RETRIEVAL=0.25 GROUNDED_M
 ```
 
 CI uploads `eval-report`; grounded tail artifacts (`grounded-tail-eval-report`) are published by nightly workflow `.github/workflows/nightly-grounded-tail.yml` (or manual dispatch).
+Strict grounded LLM gate artifacts (`llm-eval-grounded-strict-report`) are published by `.github/workflows/llm-eval-grounded-strict.yml` (nightly + manual dispatch).
 
 Refresh grounded trend baseline intentionally after expected quality changes:
 

@@ -1,0 +1,77 @@
+[
+  {
+    "case_id": "usaid_ai_civil_service_kazakhstan_grounded_strict",
+    "donor_id": "usaid",
+    "expected_doc_families": [
+      "donor_policy",
+      "responsible_ai_guidance",
+      "country_context",
+      "competency_framework"
+    ],
+    "input_context": {
+      "project": "Responsible AI Skills for Civil Service Modernization",
+      "country": "Kazakhstan",
+      "timeframe": "2026-2027 (24 months)",
+      "problem": "Civil servants have uneven practical skills in safe and effective AI use for public administration.",
+      "target_population": "Civil servants in policy, service delivery, and digital transformation units.",
+      "goal": "Improve public sector efficiency through responsible AI use in government workflows."
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": true,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 6.5,
+      "min_critic_score": 6.5,
+      "min_retrieval_grounded_citation_rate": 0.65,
+      "min_citations_total": 10,
+      "min_architect_claim_citations": 6,
+      "max_fatal_flaws": 4,
+      "max_high_severity_fatal_flaws": 1,
+      "max_non_retrieval_citation_rate": 0.35,
+      "max_traceability_gap_citation_rate": 0.2,
+      "min_doc_id_present_citation_rate": 0.9,
+      "min_retrieval_rank_present_citation_rate": 0.9,
+      "min_retrieval_confidence_present_citation_rate": 0.9,
+      "min_retrieval_metadata_complete_citation_rate": 0.9,
+      "max_errors": 0
+    }
+  },
+  {
+    "case_id": "worldbank_public_sector_performance_uzbekistan_grounded_strict",
+    "donor_id": "worldbank",
+    "expected_doc_families": [
+      "donor_results_guidance",
+      "project_reference_docs",
+      "country_context",
+      "agency_process_docs"
+    ],
+    "input_context": {
+      "project": "Public Sector Performance and Service Delivery Capacity Strengthening",
+      "country": "Uzbekistan",
+      "problem": "Agencies have uneven capabilities in performance management and evidence-based delivery improvements."
+    },
+    "llm_mode": false,
+    "architect_rag_enabled": true,
+    "expectations": {
+      "toc_schema_valid": true,
+      "require_toc_draft": true,
+      "require_logframe_draft": true,
+      "min_quality_score": 6.5,
+      "min_critic_score": 6.5,
+      "min_retrieval_grounded_citation_rate": 0.65,
+      "min_citations_total": 10,
+      "min_architect_claim_citations": 6,
+      "max_fatal_flaws": 4,
+      "max_high_severity_fatal_flaws": 1,
+      "max_non_retrieval_citation_rate": 0.35,
+      "max_traceability_gap_citation_rate": 0.2,
+      "min_doc_id_present_citation_rate": 0.9,
+      "min_retrieval_rank_present_citation_rate": 0.9,
+      "min_retrieval_confidence_present_citation_rate": 0.9,
+      "min_retrieval_metadata_complete_citation_rate": 0.9,
+      "max_errors": 0
+    }
+  }
+]

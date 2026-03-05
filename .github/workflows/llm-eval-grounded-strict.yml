@@ -1,0 +1,112 @@
+name: LLM Eval (Grounded Strict)
+
+on:
+  workflow_dispatch:
+    inputs:
+      donor_ids:
+        description: "Optional donor_id filter(s), comma-separated"
+        required: false
+        default: "usaid,worldbank"
+        type: string
+      case_ids:
+        description: "Optional case_id filter(s), comma-separated"
+        required: false
+        default: ""
+        type: string
+      seed_manifest:
+        description: "Seed manifest JSONL path"
+        required: true
+        default: "docs/rag_seed_corpus/ingest_manifest.jsonl"
+        type: string
+      min_seed_readiness_per_family:
+        description: "Minimum seeded uploads per required doc_family"
+        required: true
+        default: "1"
+        type: string
+      skip_expectations:
+        description: "Exploratory mode (true = metrics-only, strict thresholds disabled)"
+        required: true
+        default: false
+        type: boolean
+  schedule:
+    - cron: "20 2 * * *"
+
+jobs:
+  llm_eval_grounded_strict:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      GRANTFLOW_LLM_BASE_URL: ${{ vars.GRANTFLOW_LLM_BASE_URL }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+      OPENROUTER_HTTP_REFERER: ${{ vars.OPENROUTER_HTTP_REFERER }}
+      OPENROUTER_X_TITLE: ${{ vars.OPENROUTER_X_TITLE }}
+      CHROMA_HOST: ${{ vars.CHROMA_HOST }}
+      CHROMA_PORT: ${{ vars.CHROMA_PORT }}
+      CHROMA_COLLECTION_PREFIX: ${{ vars.CHROMA_COLLECTION_PREFIX }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Run strict grounded LLM eval harness (USAID + World Bank)
+        env:
+          INPUT_DONOR_IDS: ${{ github.event.inputs.donor_ids }}
+          INPUT_CASE_IDS: ${{ github.event.inputs.case_ids }}
+          INPUT_SEED_MANIFEST: ${{ github.event.inputs.seed_manifest }}
+          INPUT_MIN_SEED_READINESS_PER_FAMILY: ${{ github.event.inputs.min_seed_readiness_per_family }}
+          INPUT_SKIP_EXPECTATIONS: ${{ github.event.inputs.skip_expectations }}
+        run: |
+          mkdir -p llm-eval-grounded-strict-artifacts
+          if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
+            echo "OPENAI_API_KEY / OPENROUTER_API_KEY is not configured; skipping grounded strict LLM eval lane." | tee llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.txt
+            python -c 'import json, pathlib, os; skip=(os.getenv("INPUT_SKIP_EXPECTATIONS","false")=="true"); pathlib.Path("llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.json").write_text(json.dumps({"suite_label":"llm-eval-grounded-strict","skipped":True,"reason":"OPENAI_API_KEY / OPENROUTER_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":True,"skip_expectations":skip,"require_seed_readiness":True}}, indent=2, sort_keys=True), encoding="utf-8")'
+            exit 0
+          fi
+
+          DONOR_IDS="${INPUT_DONOR_IDS:-usaid,worldbank}"
+          CASE_IDS="${INPUT_CASE_IDS:-}"
+          SEED_MANIFEST="${INPUT_SEED_MANIFEST:-docs/rag_seed_corpus/ingest_manifest.jsonl}"
+          MIN_SEED_PER_FAMILY="${INPUT_MIN_SEED_READINESS_PER_FAMILY:-1}"
+
+          EXTRA_ARGS=()
+          if [ -n "${DONOR_IDS}" ]; then
+            EXTRA_ARGS+=(--donor-id "$DONOR_IDS")
+          fi
+          if [ -n "${CASE_IDS}" ]; then
+            EXTRA_ARGS+=(--case-id "$CASE_IDS")
+          fi
+          if [ "${INPUT_SKIP_EXPECTATIONS:-false}" = "true" ]; then
+            EXTRA_ARGS+=(--skip-expectations)
+          fi
+
+          python -m grantflow.eval.harness \
+            --suite-label llm-eval-grounded-strict \
+            --cases-file grantflow/eval/cases/llm_grounded_strict_cases.json \
+            --force-llm \
+            --force-architect-rag \
+            --seed-rag-manifest "$SEED_MANIFEST" \
+            --require-seed-readiness \
+            --seed-readiness-min-per-family "$MIN_SEED_PER_FAMILY" \
+            "${EXTRA_ARGS[@]}" \
+            --text-out llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.txt \
+            --json-out llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.json
+
+      - name: Upload grounded strict LLM evaluation report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: llm-eval-grounded-strict-report
+          path: llm-eval-grounded-strict-artifacts/
+          if-no-files-found: error

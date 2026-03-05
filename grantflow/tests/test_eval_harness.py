@@ -10,7 +10,9 @@ from grantflow.eval.harness import (
     build_regression_baseline_snapshot,
     compare_suite_to_baseline,
     compute_state_metrics,
+    evaluate_seed_readiness,
     evaluate_expectations,
+    expected_doc_families_by_donor,
     filter_eval_cases,
     format_eval_comparison_report,
     format_eval_suite_report,
@@ -48,6 +50,7 @@ def test_eval_harness_expectations_detect_regression():
         "low_confidence_citation_count": 1,
         "rag_low_confidence_citation_count": 0,
         "fallback_namespace_citation_count": 0,
+        "retrieval_grounded_citation_rate": 0.5,
         "non_retrieval_citation_rate": 0.5,
         "traceability_gap_citation_rate": 0.5,
         "doc_id_present_citation_rate": 0.6,
@@ -73,6 +76,7 @@ def test_eval_harness_expectations_detect_regression():
             "max_rag_low_confidence_citations": 0,
             "max_architect_fallback_claim_ratio": 0.4,
             "max_fallback_namespace_citations": 0,
+            "min_retrieval_grounded_citation_rate": 0.7,
             "max_non_retrieval_citation_rate": 0.4,
             "max_traceability_gap_citation_rate": 0.4,
             "min_doc_id_present_citation_rate": 0.7,
@@ -86,6 +90,7 @@ def test_eval_harness_expectations_detect_regression():
     assert passed is False
     failing = [c for c in checks if not c["passed"]]
     assert any(c["name"] == "min_quality_score" for c in failing)
+    assert any(c["name"] == "min_retrieval_grounded_citation_rate" for c in failing)
 
 
 def test_eval_harness_cli_writes_json_and_text_reports(tmp_path):
@@ -502,6 +507,45 @@ def test_limit_eval_cases_supports_head_and_seeded_sampling():
     assert [case["case_id"] for case in seeded] == ["c1", "c4"]
 
 
+def test_expected_doc_families_by_donor_merges_and_deduplicates():
+    rows = expected_doc_families_by_donor(
+        [
+            {"case_id": "c1", "donor_id": "usaid", "expected_doc_families": ["donor_policy", "country_context"]},
+            {"case_id": "c2", "donor_id": "usaid", "expected_doc_families": ["country_context", "risk_context"]},
+            {"case_id": "c3", "donor_id": "worldbank"},
+            {"case_id": "c4", "donor_id": "worldbank", "expected_doc_families": ["donor_results_guidance"]},
+        ]
+    )
+    assert rows == {
+        "usaid": ["donor_policy", "country_context", "risk_context"],
+        "worldbank": ["donor_results_guidance"],
+    }
+
+
+def test_evaluate_seed_readiness_reports_missing_doc_families():
+    readiness = evaluate_seed_readiness(
+        seeded_summary={
+            "donor_doc_family_counts": {
+                "usaid": {"donor_policy": 1, "country_context": 0},
+                "worldbank": {"donor_results_guidance": 2, "country_context": 1},
+            }
+        },
+        expected_doc_families={
+            "usaid": ["donor_policy", "country_context"],
+            "worldbank": ["donor_results_guidance", "country_context"],
+        },
+        min_uploads_per_family=1,
+    )
+    assert readiness["enabled"] is True
+    assert readiness["all_ready"] is False
+    assert readiness["expected_donor_count"] == 2
+    assert readiness["ready_donor_count"] == 1
+    usaid = readiness["donors"]["usaid"]
+    assert usaid["ready"] is False
+    assert usaid["missing_doc_families"] == ["country_context"]
+    assert usaid["ready_doc_families"] == ["donor_policy"]
+    assert usaid["coverage_rate"] == 0.5
+
 def test_eval_harness_cli_supports_suite_label_and_runtime_override_flags(tmp_path, monkeypatch):
     json_out = tmp_path / "llm-eval-report.json"
     text_out = tmp_path / "llm-eval-report.txt"
@@ -785,6 +829,154 @@ def test_eval_harness_cli_returns_nonzero_when_filters_match_no_cases(tmp_path):
     assert not text_out.exists()
 
 
+def test_eval_harness_cli_require_seed_readiness_requires_manifest(tmp_path):
+    json_out = tmp_path / "eval-report.json"
+    text_out = tmp_path / "eval-report.txt"
+    exit_code = harness.main(
+        [
+            "--require-seed-readiness",
+            "--json-out",
+            str(json_out),
+            "--text-out",
+            str(text_out),
+        ]
+    )
+    assert exit_code == 2
+    assert not json_out.exists()
+    assert not text_out.exists()
+
+
+def test_eval_harness_cli_require_seed_readiness_fails_on_missing_doc_families(tmp_path, monkeypatch):
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text("{}\n", encoding="utf-8")
+    json_out = tmp_path / "eval-report.json"
+    text_out = tmp_path / "eval-report.txt"
+
+    monkeypatch.setattr(
+        harness,
+        "load_eval_cases",
+        lambda fixtures_dir=None, case_files=None: [
+            {
+                "case_id": "strict-usaid",
+                "donor_id": "usaid",
+                "expected_doc_families": ["donor_policy", "country_context"],
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        harness,
+        "seed_rag_corpus_from_manifest",
+        lambda manifest_path, allowed_donor_ids=None: {
+            "manifest_path": str(manifest_path),
+            "seeded_total": 1,
+            "errors": [],
+            "donor_counts": {"usaid": 1},
+            "donor_doc_family_counts": {"usaid": {"donor_policy": 1}},
+        },
+    )
+
+    run_called = {"value": False}
+
+    def _fake_run_eval_suite(cases, *, suite_label=None, skip_expectations=False):
+        run_called["value"] = True
+        return {
+            "suite_label": suite_label or "baseline",
+            "expectations_skipped": bool(skip_expectations),
+            "case_count": 1,
+            "passed_count": 1,
+            "failed_count": 0,
+            "all_passed": True,
+            "cases": [],
+        }
+
+    monkeypatch.setattr(harness, "run_eval_suite", _fake_run_eval_suite)
+
+    exit_code = harness.main(
+        [
+            "--seed-rag-manifest",
+            str(manifest),
+            "--require-seed-readiness",
+            "--json-out",
+            str(json_out),
+            "--text-out",
+            str(text_out),
+        ]
+    )
+    assert exit_code == 1
+    assert run_called["value"] is False
+    assert not json_out.exists()
+    assert not text_out.exists()
+
+
+def test_eval_harness_cli_require_seed_readiness_passes_and_writes_readiness(tmp_path, monkeypatch):
+    manifest = tmp_path / "manifest.jsonl"
+    manifest.write_text("{}\n", encoding="utf-8")
+    json_out = tmp_path / "eval-report.json"
+    text_out = tmp_path / "eval-report.txt"
+
+    monkeypatch.setattr(
+        harness,
+        "load_eval_cases",
+        lambda fixtures_dir=None, case_files=None: [
+            {
+                "case_id": "strict-usaid",
+                "donor_id": "usaid",
+                "expected_doc_families": ["donor_policy", "country_context"],
+                "llm_mode": False,
+                "architect_rag_enabled": True,
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        harness,
+        "seed_rag_corpus_from_manifest",
+        lambda manifest_path, allowed_donor_ids=None: {
+            "manifest_path": str(manifest_path),
+            "seeded_total": 2,
+            "errors": [],
+            "donor_counts": {"usaid": 2},
+            "donor_doc_family_counts": {"usaid": {"donor_policy": 1, "country_context": 1}},
+        },
+    )
+    monkeypatch.setattr(
+        harness,
+        "run_eval_suite",
+        lambda cases, suite_label=None, skip_expectations=False: {
+            "suite_label": suite_label or "baseline",
+            "expectations_skipped": bool(skip_expectations),
+            "case_count": 1,
+            "passed_count": 1,
+            "failed_count": 0,
+            "all_passed": True,
+            "cases": [],
+        },
+    )
+
+    exit_code = harness.main(
+        [
+            "--suite-label",
+            "llm-eval-grounded-strict",
+            "--force-llm",
+            "--force-architect-rag",
+            "--seed-rag-manifest",
+            str(manifest),
+            "--require-seed-readiness",
+            "--seed-readiness-min-per-family",
+            "1",
+            "--json-out",
+            str(json_out),
+            "--text-out",
+            str(text_out),
+        ]
+    )
+    assert exit_code == 0
+    payload = json.loads(json_out.read_text(encoding="utf-8"))
+    assert payload["runtime_overrides"]["require_seed_readiness"] is True
+    assert payload["runtime_overrides"]["seed_readiness_min_per_family"] == 1
+    assert payload["seeded_corpus_readiness"]["all_ready"] is True
+    assert payload["seeded_corpus_readiness"]["donors"]["usaid"]["missing_doc_families"] == []
+
+
 def test_run_eval_case_can_skip_expectations(monkeypatch):
     monkeypatch.setattr(
         harness,
@@ -968,8 +1160,20 @@ def test_seed_rag_corpus_from_manifest_uses_strategy_rag_namespace(tmp_path, mon
     manifest.write_text(
         "\n".join(
             [
-                json.dumps({"donor_id": "usaid", "file": str(seed_pdf)}),
-                json.dumps({"donor_id": "state_department", "file": str(seed_pdf)}),
+                json.dumps(
+                    {
+                        "donor_id": "usaid",
+                        "file": str(seed_pdf),
+                        "metadata": {"doc_family": "donor_policy"},
+                    }
+                ),
+                json.dumps(
+                    {
+                        "donor_id": "state_department",
+                        "file": str(seed_pdf),
+                        "metadata": {"doc_family": "risk_context"},
+                    }
+                ),
             ]
         )
         + "\n",
@@ -992,6 +1196,8 @@ def test_seed_rag_corpus_from_manifest_uses_strategy_rag_namespace(tmp_path, mon
     assert result["donor_counts"]["state_department"] == 1
     assert result["donor_namespaces"]["usaid"] == "usaid_ads201"
     assert result["donor_namespaces"]["state_department"] == "us_state_department_guidance"
+    assert result["donor_doc_family_counts"]["usaid"]["donor_policy"] == 1
+    assert result["donor_doc_family_counts"]["state_department"]["risk_context"] == 1
     assert {row["namespace"] for row in calls} == {"usaid_ads201", "us_state_department_guidance"}
 
 
