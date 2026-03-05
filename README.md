@@ -561,7 +561,7 @@ make eval-llm-grounded-strict
 - `eval-artifacts/llm-eval-grounded-strict-comment.md`
 
 GitHub workflow `.github/workflows/llm-eval-grounded-strict.yml` enforces strict mode:
-`skip_expectations=true` is treated as policy violation (`skipped_exploratory`) and fails the job.
+it does not expose `skip_expectations` input; strict lane runs with expectations enabled only.
 Local `make eval-llm-grounded-strict` enforces the same policy via donor gate check.
 
 `llm_grounded_strict_cases.json` includes explicit `expected_doc_families` per donor.
