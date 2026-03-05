@@ -10047,6 +10047,30 @@ def test_openapi_declares_api_key_security_scheme():
     portfolio_review_workflow_sla_trends_export_security = (
         ((spec.get("paths") or {}).get("/portfolio/review-workflow/sla/trends/export") or {}).get("get") or {}
     ).get("security")
+    generate_response_schema = (
+        ((((spec.get("paths") or {}).get("/generate") or {}).get("post") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    generate_from_preset_response_schema = (
+        ((((spec.get("paths") or {}).get("/generate/from-preset") or {}).get("post") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
+    generate_from_preset_batch_response_schema = (
+        (
+            (((spec.get("paths") or {}).get("/generate/from-preset/batch") or {}).get("post") or {}).get("responses")
+            or {}
+        )
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     generate_preflight_response_schema = (
         ((((spec.get("paths") or {}).get("/generate/preflight") or {}).get("post") or {}).get("responses") or {})
         .get("200", {})
@@ -10517,6 +10541,13 @@ def test_openapi_declares_api_key_security_scheme():
     assert portfolio_review_workflow_trends_export_security == [{"ApiKeyAuth": []}]
     assert portfolio_review_workflow_sla_trends_security == [{"ApiKeyAuth": []}]
     assert portfolio_review_workflow_sla_trends_export_security == [{"ApiKeyAuth": []}]
+    assert generate_response_schema == {"$ref": "#/components/schemas/GenerateAcceptedPublicResponse"}
+    assert generate_from_preset_response_schema == {
+        "$ref": "#/components/schemas/GenerateFromPresetAcceptedPublicResponse"
+    }
+    assert generate_from_preset_batch_response_schema == {
+        "$ref": "#/components/schemas/GenerateFromPresetBatchPublicResponse"
+    }
     assert generate_preflight_response_schema == {"$ref": "#/components/schemas/GeneratePreflightPublicResponse"}
     assert ingest_readiness_response_schema == {"$ref": "#/components/schemas/GeneratePreflightPublicResponse"}
     assert status_response_schema == {"$ref": "#/components/schemas/JobStatusPublicResponse"}

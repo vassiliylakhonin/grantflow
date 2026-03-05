@@ -83,6 +83,9 @@ from grantflow.api.schemas import (
     DeadLetterQueueListPublicResponse,
     DeadLetterQueueMutationPublicResponse,
     DemoPresetBundlePublicResponse,
+    GenerateAcceptedPublicResponse,
+    GenerateFromPresetAcceptedPublicResponse,
+    GenerateFromPresetBatchPublicResponse,
     GeneratePresetListPublicResponse,
     GeneratePreflightPublicResponse,
     GenerateLegacyPresetDetailPublicResponse,
@@ -5754,7 +5757,11 @@ async def _dispatch_generate_from_preset(
     return generated
 
 
-@app.post("/generate/from-preset")
+@app.post(
+    "/generate/from-preset",
+    response_model=GenerateFromPresetAcceptedPublicResponse,
+    response_model_exclude_none=True,
+)
 async def generate_from_preset(
     req: GenerateFromPresetRequest,
     background_tasks: BackgroundTasks,
@@ -5770,7 +5777,11 @@ async def generate_from_preset(
     )
 
 
-@app.post("/generate/from-preset/batch")
+@app.post(
+    "/generate/from-preset/batch",
+    response_model=GenerateFromPresetBatchPublicResponse,
+    response_model_exclude_none=True,
+)
 async def generate_from_preset_batch(
     req: GenerateFromPresetBatchRequest,
     background_tasks: BackgroundTasks,
@@ -5837,7 +5848,11 @@ async def generate_from_preset_batch(
     }
 
 
-@app.post("/generate")
+@app.post(
+    "/generate",
+    response_model=GenerateAcceptedPublicResponse,
+    response_model_exclude_none=True,
+)
 async def generate(
     req: GenerateRequest,
     background_tasks: BackgroundTasks,

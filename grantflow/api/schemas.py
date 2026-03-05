@@ -1507,6 +1507,57 @@ class GeneratePreflightPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class GenerateAcceptedPublicResponse(BaseModel):
+    status: str
+    job_id: str
+    preflight: Optional[Dict[str, Any]] = None
+    request_id: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class GenerateFromPresetAcceptedPublicResponse(GenerateAcceptedPublicResponse):
+    preset_key: str
+    preset_source: str
+
+    model_config = ConfigDict(extra="allow")
+
+
+class GenerateFromPresetBatchItemAcceptedPublicResponse(BaseModel):
+    index: int
+    status: str
+    job_id: str
+    preset_key: str
+    preset_source: Optional[str] = None
+    preflight: Optional[Dict[str, Any]] = None
+    request_id: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class GenerateFromPresetBatchItemErrorPublicResponse(BaseModel):
+    index: int
+    preset_key: str
+    status: str
+    http_status: int
+    error: Any
+
+    model_config = ConfigDict(extra="allow")
+
+
+class GenerateFromPresetBatchPublicResponse(BaseModel):
+    status: str
+    total: int
+    accepted_count: int
+    error_count: int
+    results: list[
+        GenerateFromPresetBatchItemAcceptedPublicResponse
+        | GenerateFromPresetBatchItemErrorPublicResponse
+    ]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class QueueWorkerHeartbeatPolicyPublicResponse(BaseModel):
     mode: str
 
