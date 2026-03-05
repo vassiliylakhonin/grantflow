@@ -1507,6 +1507,33 @@ class GeneratePreflightPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class QueueWorkerHeartbeatPolicyPublicResponse(BaseModel):
+    mode: str
+
+    model_config = ConfigDict(extra="allow")
+
+
+class QueueWorkerHeartbeatStatusPublicResponse(BaseModel):
+    key: Optional[str] = None
+    ttl_seconds: Optional[float] = None
+    present: bool
+    healthy: bool
+    age_seconds: Optional[float] = None
+    source: Optional[str] = None
+    error: Optional[str] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class QueueWorkerHeartbeatPublicResponse(BaseModel):
+    mode: str
+    policy: QueueWorkerHeartbeatPolicyPublicResponse
+    consumer_enabled: bool
+    heartbeat: QueueWorkerHeartbeatStatusPublicResponse
+
+    model_config = ConfigDict(extra="allow")
+
+
 class DeadLetterQueueItemPublicResponse(BaseModel):
     index: int
     dispatch_id: Optional[str] = None

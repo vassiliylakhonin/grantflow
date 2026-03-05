@@ -106,6 +106,7 @@ from grantflow.api.schemas import (
     PortfolioReviewWorkflowSLAPublicResponse,
     PortfolioReviewWorkflowSLATrendsPublicResponse,
     PortfolioReviewWorkflowTrendsPublicResponse,
+    QueueWorkerHeartbeatPublicResponse,
     ReviewCommentPublicResponse,
 )
 from grantflow.api.security import (
@@ -4260,6 +4261,8 @@ def _redis_queue_admin_runner(required_methods: tuple[str, ...]) -> Any:
 
 @app.get(
     "/queue/worker-heartbeat",
+    response_model=QueueWorkerHeartbeatPublicResponse,
+    response_model_exclude_none=True,
 )
 def get_queue_worker_heartbeat(
     request: Request,

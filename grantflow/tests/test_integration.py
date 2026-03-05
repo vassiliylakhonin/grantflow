@@ -10060,6 +10060,13 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    queue_worker_heartbeat_response_schema = (
+        ((((spec.get("paths") or {}).get("/queue/worker-heartbeat") or {}).get("get") or {}).get("responses") or {})
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     queue_dead_letter_requeue_response_schema = (
         ((((spec.get("paths") or {}).get("/queue/dead-letter/requeue") or {}).get("post") or {}).get("responses") or {})
         .get("200", {})
@@ -10214,6 +10221,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert pending_response_schema == {"$ref": "#/components/schemas/HITLPendingListPublicResponse"}
     assert ingest_recent_response_schema == {"$ref": "#/components/schemas/IngestRecentListPublicResponse"}
     assert ingest_inventory_response_schema == {"$ref": "#/components/schemas/IngestInventoryPublicResponse"}
+    assert queue_worker_heartbeat_response_schema == {"$ref": "#/components/schemas/QueueWorkerHeartbeatPublicResponse"}
     assert queue_dead_letter_response_schema == {"$ref": "#/components/schemas/DeadLetterQueueListPublicResponse"}
     assert queue_dead_letter_requeue_response_schema == {
         "$ref": "#/components/schemas/DeadLetterQueueMutationPublicResponse"
@@ -10294,6 +10302,9 @@ def test_openapi_declares_api_key_security_scheme():
     assert "GeneratePreflightWarningPublicResponse" in schemas
     assert "GeneratePreflightArchitectClaimsPublicResponse" in schemas
     assert "GeneratePreflightGroundingPolicyPublicResponse" in schemas
+    assert "QueueWorkerHeartbeatPublicResponse" in schemas
+    assert "QueueWorkerHeartbeatPolicyPublicResponse" in schemas
+    assert "QueueWorkerHeartbeatStatusPublicResponse" in schemas
     portfolio_quality_params = (((spec.get("paths") or {}).get("/portfolio/quality") or {}).get("get") or {}).get(
         "parameters"
     ) or []
@@ -11812,6 +11823,26 @@ def test_dead_letter_queue_endpoints_use_runner_in_redis_mode(monkeypatch):
     purge_body = purge.json()
     assert purge_body["affected_count"] == 1
     assert purge_body["requested_count"] == 3
+
+
+def test_queue_worker_heartbeat_endpoint_falls_back_on_invalid_payload(monkeypatch):
+    class _InvalidHeartbeatRunner:
+        consumer_enabled = True
+
+        def worker_heartbeat_status(self):
+            return ["invalid"]
+
+    monkeypatch.setattr(api_app_module.config.job_runner, "mode", "redis_queue")
+    monkeypatch.setattr(api_app_module, "JOB_RUNNER", _InvalidHeartbeatRunner())
+
+    response = client.get("/queue/worker-heartbeat")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "redis_queue"
+    assert body["consumer_enabled"] is True
+    assert body["heartbeat"]["present"] is False
+    assert body["heartbeat"]["healthy"] is False
+    assert body["heartbeat"]["error"] == "invalid_worker_heartbeat_payload"
 
 
 def test_resume_returns_503_and_keeps_pending_hitl_when_queue_full(monkeypatch):
