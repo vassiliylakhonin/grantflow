@@ -385,8 +385,20 @@ def render_demo_ui_html() -> str:
         <div class="card">
           <h2>Worker Heartbeat</h2>
           <div class="body">
-            <div class="row">
+            <div class="row3">
               <button id="workerHeartbeatBtn" class="ghost">Load Worker Heartbeat</button>
+              <div>
+                <label for="workerHeartbeatPollSeconds">HB Poll Interval (sec)</label>
+                <select id="workerHeartbeatPollSeconds">
+                  <option value="5">5</option>
+                  <option value="10" selected>10</option>
+                  <option value="15">15</option>
+                  <option value="30">30</option>
+                </select>
+              </div>
+              <button id="workerHeartbeatPollToggleBtn" class="secondary">Stop HB Poll</button>
+            </div>
+            <div class="row" style="margin-top:10px;">
               <div id="workerHeartbeatPill" class="pill status-unknown">
                 <span class="dot"></span><span id="workerHeartbeatPillText">policy=- · healthy=-</span>
               </div>
@@ -1563,6 +1575,7 @@ def render_demo_ui_html() -> str:
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
         ["generatePresetSelect", "grantflow_demo_generate_preset"],
         ["strictPreflight", "grantflow_demo_strict_preflight"],
+        ["workerHeartbeatPollSeconds", "grantflow_demo_worker_heartbeat_poll_seconds"],
         ["inputContextJson", "grantflow_demo_input_context_json"],
         ["ingestPresetSelect", "grantflow_demo_ingest_preset"],
         ["ingestDonorId", "grantflow_demo_ingest_donor_id"],
@@ -1571,6 +1584,8 @@ def render_demo_ui_html() -> str:
       const state = {
         pollTimer: null,
         polling: false,
+        workerHeartbeatPollTimer: null,
+        workerHeartbeatPolling: true,
         lastCritic: null,
         lastCitations: null,
         lastIngestInventory: null,
@@ -1776,6 +1791,8 @@ def render_demo_ui_html() -> str:
         statusJson: $("statusJson"),
         metricsJson: $("metricsJson"),
         workerHeartbeatBtn: $("workerHeartbeatBtn"),
+        workerHeartbeatPollSeconds: $("workerHeartbeatPollSeconds"),
+        workerHeartbeatPollToggleBtn: $("workerHeartbeatPollToggleBtn"),
         workerHeartbeatPill: $("workerHeartbeatPill"),
         workerHeartbeatPillText: $("workerHeartbeatPillText"),
         workerHeartbeatMetaLine: $("workerHeartbeatMetaLine"),
@@ -2069,7 +2086,12 @@ def render_demo_ui_html() -> str:
         renderIngestPresetGuidance();
         renderIngestChecklistProgress();
         renderGeneratePresetReadiness();
+        if (!String(els.workerHeartbeatPollSeconds?.value || "").trim()) {
+          els.workerHeartbeatPollSeconds.value = "10";
+        }
         renderWorkerHeartbeat(null);
+        updateWorkerHeartbeatPollToggleLabel();
+        startWorkerHeartbeatPolling();
         renderExportContract(null);
         renderZeroReadinessWarningPreference();
         renderGeneratePreflightAlert(null);
@@ -6105,6 +6127,50 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function workerHeartbeatPollIntervalMs() {
+        const raw = Number.parseInt(String(els.workerHeartbeatPollSeconds?.value || "10"), 10);
+        if (!Number.isFinite(raw) || raw <= 0) return 10000;
+        return Math.max(2000, raw * 1000);
+      }
+
+      function updateWorkerHeartbeatPollToggleLabel() {
+        if (!els.workerHeartbeatPollToggleBtn) return;
+        els.workerHeartbeatPollToggleBtn.textContent = state.workerHeartbeatPolling ? "Stop HB Poll" : "Start HB Poll";
+      }
+
+      function stopWorkerHeartbeatPolling() {
+        if (state.workerHeartbeatPollTimer) {
+          clearInterval(state.workerHeartbeatPollTimer);
+          state.workerHeartbeatPollTimer = null;
+        }
+      }
+
+      function startWorkerHeartbeatPolling() {
+        stopWorkerHeartbeatPolling();
+        if (!state.workerHeartbeatPolling) {
+          updateWorkerHeartbeatPollToggleLabel();
+          return;
+        }
+        refreshWorkerHeartbeat().catch(showError);
+        state.workerHeartbeatPollTimer = setInterval(() => {
+          refreshWorkerHeartbeat().catch(showError);
+        }, workerHeartbeatPollIntervalMs());
+        updateWorkerHeartbeatPollToggleLabel();
+      }
+
+      function toggleWorkerHeartbeatPolling() {
+        state.workerHeartbeatPolling = !state.workerHeartbeatPolling;
+        persistUiState();
+        startWorkerHeartbeatPolling();
+      }
+
+      function onWorkerHeartbeatPollIntervalChange() {
+        persistUiState();
+        if (state.workerHeartbeatPolling) {
+          startWorkerHeartbeatPolling();
+        }
+      }
+
       async function refreshQuality() {
         const jobId = currentJobId();
         if (!jobId) return;
@@ -7664,6 +7730,8 @@ def render_demo_ui_html() -> str:
         });
         els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
         els.workerHeartbeatBtn.addEventListener("click", () => refreshWorkerHeartbeat().catch(showError));
+        els.workerHeartbeatPollToggleBtn.addEventListener("click", toggleWorkerHeartbeatPolling);
+        els.workerHeartbeatPollSeconds.addEventListener("change", onWorkerHeartbeatPollIntervalChange);
         if (els.qualityGroundedGateExplainBtn) {
           els.qualityGroundedGateExplainBtn.addEventListener("click", toggleQualityGroundedGateExplain);
         }

@@ -227,6 +227,10 @@ def test_demo_console_page_loads():
     assert "architect_threshold_hit_rate" in body
     assert "qualityBtn" in body
     assert "workerHeartbeatBtn" in body
+    assert "workerHeartbeatPollSeconds" in body
+    assert "workerHeartbeatPollToggleBtn" in body
+    assert "HB Poll Interval" in body
+    assert "Stop HB Poll" in body
     assert "workerHeartbeatPill" in body
     assert "workerHeartbeatJson" in body
     assert "qualityCards" in body
