@@ -562,6 +562,7 @@ make eval-llm-grounded-strict
 
 GitHub workflow `.github/workflows/llm-eval-grounded-strict.yml` enforces strict mode:
 `skip_expectations=true` is treated as policy violation (`skipped_exploratory`) and fails the job.
+Local `make eval-llm-grounded-strict` enforces the same policy via donor gate check.
 
 `llm_grounded_strict_cases.json` includes explicit `expected_doc_families` per donor.
 When `--require-seed-readiness` is enabled, harness fails before case execution if required

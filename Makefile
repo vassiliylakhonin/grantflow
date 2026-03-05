@@ -149,6 +149,7 @@ eval-llm-grounded-strict:
 		--report-json $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-report.json \
 		--required-donors $(LLM_GROUNDED_STRICT_DONORS) \
 		--thresholds-json $(LLM_GROUNDED_STRICT_GATE_THRESHOLDS) \
+		--fail-on-skipped-exploratory \
 		--out-json $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-donor-gate.json \
 		--out-text $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-donor-gate.txt \
 		--out-md $(EVAL_ARTIFACTS_DIR)/llm-eval-grounded-strict-comment.md
