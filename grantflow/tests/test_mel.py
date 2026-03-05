@@ -41,6 +41,8 @@ def test_mel_deterministic_mode_generates_logframe_and_citations(monkeypatch):
                         "page": 12,
                         "indicator_code": "EG.3.2-27",
                         "frequency": "quarterly",
+                        "formula": "(Numerator / Denominator) * 100",
+                        "data_source": "PMP indicator tracking dataset",
                     }
                 ]
             ],
@@ -70,6 +72,8 @@ def test_mel_deterministic_mode_generates_logframe_and_citations(monkeypatch):
     assert citations[0]["used_for"]
     assert indicators[0]["indicator_code"] == "EG.3.2-27"
     assert indicators[0]["frequency"] == "quarterly"
+    assert indicators[0]["formula"] == "(Numerator / Denominator) * 100"
+    assert indicators[0]["data_source"] == "PMP indicator tracking dataset"
     assert out.get("draft_versions")
 
 
@@ -145,6 +149,10 @@ def test_mel_deterministic_mode_builds_multiple_indicators_from_toc_results(monk
     assert all(str(item.get("toc_statement_path") or "").startswith("toc.") for item in indicators)
     assert all(str(item.get("result_level") or "") in {"impact", "outcome", "output"} for item in indicators)
     assert all(str(item.get("frequency") or "") for item in indicators)
+    assert all(str(item.get("formula") or "") for item in indicators)
+    assert all(str(item.get("definition") or "") for item in indicators)
+    assert all(str(item.get("data_source") or "") for item in indicators)
+    assert all(isinstance(item.get("disaggregation"), list) for item in indicators)
     assert all(c.get("citation_type") == "strategy_reference" for c in citations)
     assert generation.get("engine") == "deterministic:toc_results_template"
     assert generation.get("deterministic_source") == "toc_results_template"
@@ -606,3 +614,5 @@ def test_mel_donor_aware_default_frequency_profiles():
     assert eu_item is not None
     assert usaid_item["frequency"] == "quarterly"
     assert eu_item["frequency"] == "semiannual"
+    assert str(usaid_item["formula"])
+    assert str(eu_item["data_source"])

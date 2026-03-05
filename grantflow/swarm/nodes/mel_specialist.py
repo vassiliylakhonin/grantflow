@@ -329,6 +329,71 @@ def _default_frequency_for_donor(donor_id: str, *, result_level: str) -> str:
     return base
 
 
+def _default_data_source_for_donor(donor_id: str, *, result_level: str) -> str:
+    donor = str(donor_id or "").strip().lower()
+    level = str(result_level or "outcome").strip().lower() or "outcome"
+    default_sources = {
+        "output": "Program monitoring records and implementer reports",
+        "outcome": "Monitoring database and partner verification records",
+        "impact": "Evaluation studies and administrative datasets",
+    }
+    if donor == "usaid":
+        sources = {
+            "output": "IP performance monitoring records and partner reports",
+            "outcome": "Performance monitoring plan (PMP) datasets and verification records",
+            "impact": "Learning agenda studies and national administrative datasets",
+        }
+        return sources.get(level, sources["outcome"])
+    if donor == "eu":
+        sources = {
+            "output": "Action logframe monitoring records and partner progress reports",
+            "outcome": "Logframe outcome tracking datasets and verification missions",
+            "impact": "External evaluations and national statistics",
+        }
+        return sources.get(level, sources["outcome"])
+    if donor == "worldbank":
+        sources = {
+            "output": "Project implementation support records and agency MIS",
+            "outcome": "Results framework monitoring tables and ISR evidence",
+            "impact": "Project completion evaluations and national administrative data",
+        }
+        return sources.get(level, sources["outcome"])
+    if donor in {"giz", "state_department", "us_state_department"}:
+        sources = {
+            "output": "Implementing partner monitoring records",
+            "outcome": "Partner verification records and periodic outcome reviews",
+            "impact": "Independent assessments and administrative datasets",
+        }
+        return sources.get(level, sources["outcome"])
+    return default_sources.get(level, default_sources["outcome"])
+
+
+def _default_indicator_formula(indicator_name: str, *, result_level: str) -> str:
+    name = str(indicator_name or "").strip().lower()
+    level = str(result_level or "").strip().lower()
+    if any(token in name for token in ("percent", "%", "rate", "coverage", "share")):
+        return "(Numerator / Denominator) * 100"
+    if any(token in name for token in ("time", "days", "duration", "turnaround", "delay", "processing")):
+        return "Average days between service start and completion"
+    if any(token in name for token in ("policy", "regulation", "protocol", "guideline", "sop")):
+        return "Count of approved policies/protocols meeting quality criteria"
+    if any(token in name for token in ("train", "certif", "capacity", "skills", "official", "staff")):
+        return "Count of individuals meeting completion/certification criteria"
+    if level == "impact":
+        return "Change versus baseline at endline"
+    return "Count of verified results achieved in reporting period"
+
+
+def _default_disaggregation(indicator_name: str) -> list[str]:
+    name = str(indicator_name or "").strip().lower()
+    base = ["location"]
+    if any(token in name for token in ("train", "official", "staff", "beneficiar", "participant", "people")):
+        return ["sex", "age", "location"]
+    if any(token in name for token in ("coverage", "rate", "service")):
+        return ["location", "service_type"]
+    return base
+
+
 def _apply_indicator_defaults(
     indicator: Dict[str, Any],
     *,
@@ -348,6 +413,29 @@ def _apply_indicator_defaults(
         out["frequency"] = _default_frequency_for_donor(donor_id, result_level=current_result_level)
     else:
         out["frequency"] = raw_frequency
+
+    raw_formula = str(out.get("formula") or "").strip()
+    if not raw_formula:
+        out["formula"] = _default_indicator_formula(str(out.get("name") or ""), result_level=current_result_level)
+    else:
+        out["formula"] = raw_formula
+
+    raw_definition = str(out.get("definition") or "").strip()
+    if not raw_definition:
+        out["definition"] = (
+            f"{str(out.get('name') or 'Indicator').strip()} tracked at {current_result_level} level."
+        )
+    else:
+        out["definition"] = raw_definition
+
+    raw_data_source = str(out.get("data_source") or "").strip()
+    if not raw_data_source:
+        out["data_source"] = _default_data_source_for_donor(donor_id, result_level=current_result_level)
+    else:
+        out["data_source"] = raw_data_source
+
+    if not isinstance(out.get("disaggregation"), list):
+        out["disaggregation"] = _default_disaggregation(str(out.get("name") or ""))
     return out
 
 
@@ -357,6 +445,9 @@ def _copy_optional_indicator_fields_from_hit(indicator: Dict[str, Any], hit: Dic
         "indicator_code",
         "frequency",
         "disaggregation",
+        "formula",
+        "definition",
+        "data_source",
         "result_level",
         "pdo_result_id",
         "partner_data_source",
@@ -577,6 +668,9 @@ def _collect_retrieval_hits(
                 "target": meta.get("target"),
                 "frequency": meta.get("frequency"),
                 "disaggregation": meta.get("disaggregation"),
+                "formula": meta.get("formula"),
+                "definition": meta.get("definition"),
+                "data_source": meta.get("data_source"),
                 "result_level": meta.get("result_level"),
                 "pdo_result_id": meta.get("pdo_result_id"),
                 "partner_data_source": meta.get("partner_data_source"),
