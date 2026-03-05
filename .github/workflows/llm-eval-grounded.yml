@@ -67,6 +67,9 @@ jobs:
           INPUT_CASES_FILE: ${{ github.event.inputs.cases_file }}
         run: |
           mkdir -p llm-eval-grounded-artifacts
+          export CHROMA_HOST="${CHROMA_HOST:-localhost}"
+          export CHROMA_PORT="${CHROMA_PORT:-8001}"
+          export CHROMA_COLLECTION_PREFIX="${CHROMA_COLLECTION_PREFIX:-grantflow}"
           if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
             echo "OPENAI_API_KEY / OPENROUTER_API_KEY is not configured; skipping grounded LLM eval lane." | tee llm-eval-grounded-artifacts/llm-eval-grounded-report.txt
             python -c 'import json, pathlib, os; skip=(os.getenv("INPUT_ENFORCE_EXPECTATIONS","false")!="true"); pathlib.Path("llm-eval-grounded-artifacts/llm-eval-grounded-report.json").write_text(json.dumps({"suite_label":"llm-eval-grounded","skipped":True,"reason":"OPENAI_API_KEY / OPENROUTER_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":True,"skip_expectations":skip}}, indent=2, sort_keys=True), encoding="utf-8")'
