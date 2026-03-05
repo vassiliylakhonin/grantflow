@@ -72,6 +72,11 @@ jobs:
           export CHROMA_HOST="${CHROMA_HOST:-localhost}"
           export CHROMA_PORT="${CHROMA_PORT:-8001}"
           export CHROMA_COLLECTION_PREFIX="${CHROMA_COLLECTION_PREFIX:-grantflow}"
+          if [ "${INPUT_SKIP_EXPECTATIONS:-false}" = "true" ]; then
+            echo "skip_expectations=true is not allowed in strict gate workflow." | tee llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.txt
+            python -c 'import json, pathlib; pathlib.Path("llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.json").write_text(json.dumps({"suite_label":"llm-eval-grounded-strict","case_count":0,"passed_count":0,"failed_count":0,"all_passed":False,"expectations_skipped":True,"cases":[],"runtime_overrides":{"force_llm":True,"force_architect_rag":True,"skip_expectations":True,"require_seed_readiness":True}}, indent=2, sort_keys=True), encoding="utf-8")'
+            exit 0
+          fi
           if [ -z "${OPENAI_API_KEY:-}" ] && [ -z "${OPENROUTER_API_KEY:-}" ]; then
             echo "OPENAI_API_KEY / OPENROUTER_API_KEY is not configured; skipping grounded strict LLM eval lane." | tee llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.txt
             python -c 'import json, pathlib, os; skip=(os.getenv("INPUT_SKIP_EXPECTATIONS","false")=="true"); pathlib.Path("llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.json").write_text(json.dumps({"suite_label":"llm-eval-grounded-strict","skipped":True,"reason":"OPENAI_API_KEY / OPENROUTER_API_KEY is not configured","runtime_overrides":{"force_llm":True,"force_architect_rag":True,"skip_expectations":skip,"require_seed_readiness":True}}, indent=2, sort_keys=True), encoding="utf-8")'
@@ -121,6 +126,7 @@ jobs:
             --report-json llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-report.json \
             --required-donors "$DONOR_IDS" \
             --thresholds-json grantflow/eval/fixtures/llm_grounded_strict_donor_gate_thresholds.json \
+            --fail-on-skipped-exploratory \
             --out-json llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-donor-gate.json \
             --out-text llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-donor-gate.txt \
             --out-md llm-eval-grounded-strict-artifacts/llm-eval-grounded-strict-comment.md

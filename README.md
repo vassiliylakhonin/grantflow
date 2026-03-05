@@ -560,6 +560,9 @@ make eval-llm-grounded-strict
 - `eval-artifacts/llm-eval-grounded-strict-donor-gate.txt`
 - `eval-artifacts/llm-eval-grounded-strict-comment.md`
 
+GitHub workflow `.github/workflows/llm-eval-grounded-strict.yml` enforces strict mode:
+`skip_expectations=true` is treated as policy violation (`skipped_exploratory`) and fails the job.
+
 `llm_grounded_strict_cases.json` includes explicit `expected_doc_families` per donor.
 When `--require-seed-readiness` is enabled, harness fails before case execution if required
 doc families are missing in seeded corpus.

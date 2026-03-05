@@ -40,6 +40,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Evaluate/fail donor gate even when report expectations were skipped.",
     )
+    parser.add_argument(
+        "--fail-on-skipped-exploratory",
+        action="store_true",
+        help="Return non-zero when gate status is skipped_exploratory.",
+    )
     parser.add_argument("--out-json", type=Path, default=None, help="Optional output gate payload JSON path.")
     parser.add_argument("--out-text", type=Path, default=None, help="Optional output plain text summary path.")
     parser.add_argument("--out-md", type=Path, default=None, help="Optional output markdown summary path.")
@@ -86,7 +91,11 @@ def main() -> int:
 
     print(text_summary, end="")
     status = str(gate_payload.get("status") or "")
-    return 1 if status == "fail" else 0
+    if status == "fail":
+        return 1
+    if status == "skipped_exploratory" and bool(args.fail_on_skipped_exploratory):
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
