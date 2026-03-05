@@ -197,6 +197,7 @@ def test_demo_console_page_loads():
     assert "grantflow_demo_ingest_checklist_progress" in body
     assert "doc_family=" in body
     assert "/demo/presets" in body
+    assert "/generate/presets" in body
     assert "/generate/presets/legacy" in body
     assert "/generate/presets/rbm" in body
     assert "/generate/from-preset" in body
@@ -1046,6 +1047,29 @@ def test_get_demo_presets_bundle():
     )
     assert isinstance(sample_ingest.get("metadata"), dict)
     assert isinstance(sample_ingest.get("checklist_items"), list)
+
+
+def test_list_generate_presets():
+    response = client.get("/generate/presets")
+    assert response.status_code == 200
+    body = response.json()
+    presets = body.get("presets")
+    assert isinstance(presets, list) and presets
+    preset_keys = {str(item.get("preset_key") or "") for item in presets if isinstance(item, dict)}
+    assert "usaid_gov_ai_kazakhstan" in preset_keys
+    assert "rbm-usaid-ai-civil-service-kazakhstan" in preset_keys
+    legacy_row = next(
+        item for item in presets if isinstance(item, dict) and item.get("preset_key") == "usaid_gov_ai_kazakhstan"
+    )
+    assert legacy_row.get("source_kind") == "legacy"
+    assert isinstance(legacy_row.get("generate_payload"), dict)
+    rbm_row = next(
+        item
+        for item in presets
+        if isinstance(item, dict) and item.get("preset_key") == "rbm-usaid-ai-civil-service-kazakhstan"
+    )
+    assert rbm_row.get("source_kind") == "rbm"
+    assert isinstance(rbm_row.get("generate_payload"), dict)
 
 
 def test_list_ingest_presets():

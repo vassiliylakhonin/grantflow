@@ -335,6 +335,9 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
 ## Core API
 
 - `GET /health`, `GET /ready`, `GET /donors`
+- `GET /generate/presets`
+  - unified generate preset catalog (`legacy` + `rbm`) with ready-to-send `generate_payload`
+  - Demo Console loads generate presets from this endpoint first, with fallback to split endpoints
 - `GET /generate/presets/rbm`, `GET /generate/presets/rbm/{sample_id}`
   - optional query flags on detail endpoint: `llm_mode`, `hitl_enabled`, `architect_rag_enabled`, `strict_preflight`
   - Demo Console loads RBM generate presets from these endpoints at runtime

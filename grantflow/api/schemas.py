@@ -1643,6 +1643,12 @@ class DemoGeneratePresetPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class GeneratePresetListPublicResponse(BaseModel):
+    presets: list[DemoGeneratePresetPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
 class DemoIngestPresetPublicResponse(BaseModel):
     preset_key: str
     donor_id: Optional[str] = None

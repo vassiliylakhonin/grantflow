@@ -83,6 +83,7 @@ from grantflow.api.schemas import (
     DeadLetterQueueListPublicResponse,
     DeadLetterQueueMutationPublicResponse,
     DemoPresetBundlePublicResponse,
+    GeneratePresetListPublicResponse,
     GeneratePreflightPublicResponse,
     GenerateLegacyPresetDetailPublicResponse,
     GenerateLegacyPresetListPublicResponse,
@@ -4410,7 +4411,7 @@ def list_donors():
     return {"donors": DonorFactory.list_supported()}
 
 
-def _demo_preset_bundle_payload() -> dict[str, Any]:
+def _generate_preset_rows_for_public() -> list[dict[str, Any]]:
     generate_presets: list[dict[str, Any]] = []
     for item in list_generate_legacy_preset_details():
         donor_id = str(item.get("donor_id") or "").strip().lower() or None
@@ -4456,6 +4457,11 @@ def _demo_preset_bundle_payload() -> dict[str, Any]:
                 "generate_payload": generate_payload,
             }
         )
+    return generate_presets
+
+
+def _demo_preset_bundle_payload() -> dict[str, Any]:
+    generate_presets = _generate_preset_rows_for_public()
     ingest_presets: list[dict[str, Any]] = []
     for item in list_ingest_preset_details():
         donor_id = str(item.get("donor_id") or "").strip().lower() or None
@@ -4485,6 +4491,15 @@ def _demo_preset_bundle_payload() -> dict[str, Any]:
 )
 def get_demo_presets():
     return _demo_preset_bundle_payload()
+
+
+@app.get(
+    "/generate/presets",
+    response_model=GeneratePresetListPublicResponse,
+    response_model_exclude_none=True,
+)
+def list_generate_presets():
+    return {"presets": _generate_preset_rows_for_public()}
 
 
 @app.get(

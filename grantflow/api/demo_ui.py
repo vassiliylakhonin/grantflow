@@ -2130,6 +2130,46 @@ def render_demo_ui_html() -> str:
         const labels = {};
 
         try {
+          const bundledGenerate = await apiFetch("/generate/presets");
+          const rows = Array.isArray(bundledGenerate?.presets) ? bundledGenerate.presets : [];
+          for (const row of rows) {
+            if (!row || typeof row !== "object") continue;
+            const presetKey = String(row.preset_key || "").trim();
+            if (!presetKey) continue;
+            const sourceKind = String(row.source_kind || "").trim().toLowerCase();
+            const prefix = sourceKind === "rbm" ? "RBM" : "";
+            const normalized = normalizeGeneratePresetRecord({
+              presetKey,
+              row,
+              detail: { generate_payload: row.generate_payload || {} },
+              prefix,
+              sourceKind,
+            });
+            merged[presetKey] = normalized.preset;
+            labels[presetKey] = String(row.label || "").trim() || normalized.label;
+          }
+        } catch (err) {
+          // Fallback to legacy/rbm split endpoints for older servers.
+        }
+
+        if (Object.keys(merged).length) {
+          GENERATE_PRESETS = merged;
+          for (const key of Object.keys(SERVER_GENERATE_PRESET_LABELS)) {
+            delete SERVER_GENERATE_PRESET_LABELS[key];
+          }
+          for (const [key, value] of Object.entries(labels)) {
+            SERVER_GENERATE_PRESET_LABELS[key] = value;
+          }
+          const storedPreset = localStorage.getItem("grantflow_demo_generate_preset") || "";
+          const preferredValue =
+            String(els.generatePresetSelect.value || "").trim() || String(storedPreset || "").trim();
+          renderGeneratePresetOptions({ preferredValue });
+          renderGeneratePresetReadiness();
+          renderZeroReadinessWarningPreference();
+          return;
+        }
+
+        try {
           const legacyListBody = await apiFetch("/generate/presets/legacy");
           const legacyRows = Array.isArray(legacyListBody?.presets) ? legacyListBody.presets : [];
           for (const row of legacyRows) {
