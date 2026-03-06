@@ -9,6 +9,7 @@ exports_router = APIRouter(tags=["exports"])
 queue_router = APIRouter(tags=["queue"])
 presets_router = APIRouter(tags=["presets"])
 portfolio_router = APIRouter(tags=["portfolio"])
+system_router = APIRouter(tags=["system"])
 
 
 def include_api_routers(app: FastAPI) -> None:
@@ -19,3 +20,4 @@ def include_api_routers(app: FastAPI) -> None:
     app.include_router(queue_router)
     app.include_router(presets_router)
     app.include_router(portfolio_router)
+    app.include_router(system_router)

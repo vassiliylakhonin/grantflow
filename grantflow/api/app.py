@@ -1581,21 +1581,6 @@ def _vector_store_readiness() -> dict[str, Any]:
     return _impl()
 
 
-@app.get("/health")
-def health_check():
-    return {"status": "healthy", "version": __version__, "diagnostics": _health_diagnostics()}
-
-
-@app.get("/ready")
-def readiness_check():
-    from grantflow.api.readiness_service import _build_readiness_payload
-
-    payload = _build_readiness_payload()
-    if str(payload.get("status") or "").strip().lower() != "ready":
-        raise HTTPException(status_code=503, detail=payload)
-    return payload
-
-
 def _redis_queue_admin_runner(required_methods: tuple[str, ...]) -> Any:
     if not _uses_redis_queue_runner():
         raise HTTPException(
@@ -1879,6 +1864,7 @@ def _load_route_modules() -> None:
     from grantflow.api.routes import presets as _presets_routes
     from grantflow.api.routes import queue_admin as _queue_admin_routes
     from grantflow.api.routes import review as _review_routes
+    from grantflow.api.routes import system as _system_routes
 
     _ = (
         _exports_routes,
@@ -1888,6 +1874,7 @@ def _load_route_modules() -> None:
         _presets_routes,
         _queue_admin_routes,
         _review_routes,
+        _system_routes,
     )
 
 
