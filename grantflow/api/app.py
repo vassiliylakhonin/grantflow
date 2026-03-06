@@ -1,223 +1,59 @@
 from __future__ import annotations
 
-# ruff: noqa: F401
-
-import csv
-import gzip
 import io
-import json
-import os
-import sys
-import tempfile
-import uuid
-import zipfile
+import sys  # noqa: F401
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncIterator, Callable, Dict, Literal, Optional
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from openpyxl import load_workbook
-from pydantic import ValidationError
 
 from grantflow.api.constants import (
     CRITIC_FINDING_SLA_HOURS,
-    CRITIC_FINDING_STATUSES,
     GROUNDING_POLICY_MODES,
     REVIEW_COMMENT_DEFAULT_SLA_HOURS,
-    REVIEW_COMMENT_SECTIONS,
 )
-from grantflow.api.demo_ui import render_demo_ui_html
-from grantflow.api.demo_presets import (
-    list_generate_legacy_preset_details,
-    list_generate_legacy_preset_summaries,
-    list_ingest_preset_details,
-    list_ingest_preset_summaries,
-    load_generate_legacy_preset,
-    load_ingest_preset,
-)
+from grantflow.api.export_helpers import _resolve_export_inputs  # noqa: F401
 from grantflow.api.public_views import (
-    REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
-    REVIEW_WORKFLOW_STATE_FILTER_VALUES,
-    public_checkpoint_payload,
-    public_ingest_inventory_csv_text,
-    public_ingest_recent_payload,
-    public_job_citations_payload,
-    public_job_comments_payload,
-    public_job_critic_payload,
-    public_job_diff_payload,
-    public_job_events_payload,
-    public_job_export_payload,
-    public_job_grounding_gate_payload,
-    public_job_metrics_payload,
     public_job_payload,
-    public_job_quality_payload,
-    public_job_review_workflow_csv_text,
-    public_job_review_workflow_payload,
-    public_job_review_workflow_sla_csv_text,
-    public_job_review_workflow_sla_hotspots_csv_text,
-    public_job_review_workflow_sla_hotspots_payload,
-    public_job_review_workflow_sla_hotspots_trends_csv_text,
-    public_job_review_workflow_sla_hotspots_trends_payload,
-    public_job_review_workflow_sla_payload,
-    public_job_review_workflow_sla_trends_csv_text,
-    public_job_review_workflow_sla_trends_payload,
-    public_job_review_workflow_trends_csv_text,
-    public_job_review_workflow_trends_payload,
-    public_job_versions_payload,
-    public_portfolio_metrics_csv_text,
-    public_portfolio_metrics_payload,
-    public_portfolio_quality_csv_text,
-    public_portfolio_quality_payload,
-    public_portfolio_review_workflow_csv_text,
-    public_portfolio_review_workflow_payload,
-    public_portfolio_review_workflow_sla_csv_text,
-    public_portfolio_review_workflow_sla_hotspots_csv_text,
-    public_portfolio_review_workflow_sla_hotspots_payload,
-    public_portfolio_review_workflow_sla_hotspots_trends_csv_text,
-    public_portfolio_review_workflow_sla_hotspots_trends_payload,
-    public_portfolio_review_workflow_sla_payload,
-    public_portfolio_review_workflow_sla_trends_csv_text,
-    public_portfolio_review_workflow_sla_trends_payload,
-    public_portfolio_review_workflow_trends_csv_text,
-    public_portfolio_review_workflow_trends_payload,
 )
-from grantflow.api.export_helpers import (
-    _dead_letter_queue_csv_text,
-    _extract_export_grounding_gate,
-    _extract_export_runtime_grounded_quality_gate,
-    _hitl_history_csv_text,
-    _job_comments_csv_text,
-    _job_events_csv_text,
-    _portfolio_export_response,
-    _resolve_export_inputs,
-)
-from grantflow.api.filters import _validated_filter_token
 from grantflow.api.review_helpers import (
-    _critic_findings_list_payload,
     _normalize_comment_sla_hours,
     _normalize_finding_sla_profile,
-    _review_workflow_sla_profile_payload,
 )
 from grantflow.api.routers import include_api_routers
 from grantflow.api.schemas import (
-    CriticFindingsBulkStatusRequest,
-    CriticFatalFlawPublicResponse,
-    CriticFatalFlawStatusUpdatePublicResponse,
-    CriticFindingsBulkStatusPublicResponse,
-    CriticFindingsListPublicResponse,
-    DemoGeneratePresetPublicResponse,
-    DeadLetterQueueListPublicResponse,
-    DeadLetterQueueMutationPublicResponse,
-    DemoPresetBundlePublicResponse,
-    ExportRequest,
-    GenerateAcceptedPublicResponse,
-    GenerateFromPresetBatchRequest,
-    GenerateFromPresetAcceptedPublicResponse,
-    GenerateFromPresetBatchPublicResponse,
+    ExportRequest,  # noqa: F401
     GenerateFromPresetRequest,
-    GeneratePreflightRequest,
-    GeneratePresetListPublicResponse,
-    GeneratePreflightPublicResponse,
-    GenerateLegacyPresetDetailPublicResponse,
-    GenerateLegacyPresetListPublicResponse,
     GenerateRequest,
-    HITLApprovalRequest,
-    HITLPendingListPublicResponse,
-    IngestInventoryPublicResponse,
-    IngestReadinessRequest,
-    IngestPresetDetailPublicResponse,
-    IngestPresetListPublicResponse,
-    IngestRecentListPublicResponse,
-    JobCitationsPublicResponse,
-    JobCommentCreateRequest,
-    JobCommentsPublicResponse,
-    JobCriticPublicResponse,
-    JobDiffPublicResponse,
-    JobEventsPublicResponse,
-    JobExportPayloadPublicResponse,
-    JobGroundingGatePublicResponse,
-    JobHITLHistoryPublicResponse,
-    JobMetricsPublicResponse,
-    JobQualitySummaryPublicResponse,
-    JobReviewWorkflowPublicResponse,
-    JobReviewWorkflowSLAHotspotsPublicResponse,
-    JobReviewWorkflowSLAHotspotsTrendsPublicResponse,
-    JobReviewWorkflowSLAProfilePublicResponse,
-    JobReviewWorkflowSLAPublicResponse,
-    JobReviewWorkflowSLARecomputePublicResponse,
-    JobReviewWorkflowSLATrendsPublicResponse,
-    JobReviewWorkflowTrendsPublicResponse,
-    JobStatusPublicResponse,
-    JobVersionsPublicResponse,
-    PortfolioMetricsPublicResponse,
-    PortfolioQualityPublicResponse,
-    PortfolioReviewWorkflowPublicResponse,
-    PortfolioReviewWorkflowSLAHotspotsPublicResponse,
-    PortfolioReviewWorkflowSLAHotspotsTrendsPublicResponse,
-    PortfolioReviewWorkflowSLAPublicResponse,
-    PortfolioReviewWorkflowSLATrendsPublicResponse,
-    PortfolioReviewWorkflowTrendsPublicResponse,
-    QueueWorkerHeartbeatPublicResponse,
-    RBMSamplePresetDetailPublicResponse,
-    RBMSamplePresetListPublicResponse,
-    ReviewWorkflowSLARecomputeRequest,
-    ReviewCommentPublicResponse,
 )
 from grantflow.api.security import (
-    api_key_configured,
     install_openapi_api_key_security,
-    require_api_key_if_configured,
-)
-from grantflow.api.tenant import (
-    _allowed_tenant_tokens,
-    _checkpoint_tenant_id,
-    _default_tenant_token,
-    _ensure_checkpoint_tenant_write_access,
-    _ensure_job_tenant_read_access,
-    _ensure_job_tenant_write_access,
-    _filter_jobs_by_tenant,
-    _job_donor_id,
-    _job_tenant_id,
-    _normalize_tenant_candidate,
-    _resolve_tenant_id,
-    _tenant_authz_enabled,
-    _tenant_from_namespace,
-    _tenant_rag_namespace,
 )
 from grantflow.api.webhooks import send_job_webhook_event
 from grantflow.core.config import config
-from grantflow.core.job_runner import InMemoryJobRunner, RedisJobRunner
 from grantflow.core.stores import create_ingest_audit_store_from_env, create_job_store_from_env
-from grantflow.core.strategies.factory import DonorFactory
 from grantflow.core.version import __version__
-from grantflow.eval.sample_presets import (
-    available_sample_ids,
-    build_generate_payload as build_sample_generate_payload,
-    list_sample_preset_summaries,
-    load_sample_payload,
-)
 from grantflow.exporters.donor_contracts import (
     DONOR_XLSX_PRIMARY_SHEET,
     evaluate_export_contract_gate,
     normalize_export_contract_policy_mode,
 )
-from grantflow.exporters.excel_builder import build_xlsx_from_logframe
+from grantflow.exporters.excel_builder import build_xlsx_from_logframe  # noqa: F401
 from grantflow.exporters.template_profile import normalize_export_template_key
-from grantflow.exporters.word_builder import build_docx_from_toc
-from grantflow.memory_bank.ingest import ingest_pdf_to_namespace
-from grantflow.memory_bank.vector_store import vector_store
+from grantflow.exporters.word_builder import build_docx_from_toc  # noqa: F401
+from grantflow.memory_bank.ingest import ingest_pdf_to_namespace  # noqa: F401
+from grantflow.memory_bank.vector_store import vector_store  # noqa: F401
 from grantflow.swarm.findings import (
-    canonicalize_findings,
     finding_primary_id,
     state_critic_findings,
     write_state_critic_findings,
 )
-from grantflow.swarm.graph import grantflow_graph
+from grantflow.swarm.graph import grantflow_graph  # noqa: F401
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
 from grantflow.swarm.state_contract import (
     normalize_state_contract,
-    normalized_state_copy,
     state_donor_id,
 )
 
@@ -225,7 +61,6 @@ JOB_STORE = create_job_store_from_env()
 INGEST_AUDIT_STORE = create_ingest_audit_store_from_env()
 HITLStartAt = Literal["start", "architect", "mel", "critic"]
 TERMINAL_JOB_STATUSES = {"done", "error", "canceled"}
-JOB_RUNNER_MODES = {"background_tasks", "inmemory_queue", "redis_queue"}
 STATUS_WEBHOOK_EVENTS = {
     "running": "job.started",
     "pending_hitl": "job.pending_hitl",
@@ -246,26 +81,30 @@ HITL_HISTORY_EVENT_TYPES = {
     "hitl_checkpoint_decision",
     "hitl_checkpoint_canceled",
 }
-PRODUCTION_ENV_TOKENS = {"prod", "production"}
 
 
 def _job_runner_mode() -> str:
-    raw_mode = str(getattr(config.job_runner, "mode", "background_tasks") or "background_tasks").strip().lower()
-    if raw_mode not in JOB_RUNNER_MODES:
-        return "background_tasks"
-    return raw_mode
+    from grantflow.api.runtime_service import _job_runner_mode as _impl
+
+    return _impl()
 
 
 def _uses_inmemory_queue_runner() -> bool:
-    return _job_runner_mode() == "inmemory_queue"
+    from grantflow.api.runtime_service import _uses_inmemory_queue_runner as _impl
+
+    return _impl()
 
 
 def _uses_redis_queue_runner() -> bool:
-    return _job_runner_mode() == "redis_queue"
+    from grantflow.api.runtime_service import _uses_redis_queue_runner as _impl
+
+    return _impl()
 
 
 def _uses_queue_runner() -> bool:
-    return _uses_inmemory_queue_runner() or _uses_redis_queue_runner()
+    from grantflow.api.runtime_service import _uses_queue_runner as _impl
+
+    return _impl()
 
 
 def _dead_letter_alert_threshold() -> int:
@@ -287,135 +126,80 @@ def _dispatcher_worker_heartbeat_policy_mode() -> str:
 
 
 def _build_job_runner():
-    worker_count = int(getattr(config.job_runner, "worker_count", 2) or 2)
-    queue_maxsize = int(getattr(config.job_runner, "queue_maxsize", 200) or 200)
-    consumer_enabled = bool(getattr(config.job_runner, "consumer_enabled", True))
-    if _uses_redis_queue_runner():
-        return RedisJobRunner(
-            worker_count=worker_count,
-            queue_maxsize=queue_maxsize,
-            redis_url=str(getattr(config.job_runner, "redis_url", "redis://127.0.0.1:6379/0") or ""),
-            queue_name=str(getattr(config.job_runner, "redis_queue_name", "grantflow:jobs") or ""),
-            pop_timeout_seconds=float(getattr(config.job_runner, "redis_pop_timeout_seconds", 1.0) or 1.0),
-            max_attempts=int(getattr(config.job_runner, "redis_max_attempts", 3) or 3),
-            dead_letter_queue_name=str(getattr(config.job_runner, "redis_dead_letter_queue_name", "") or ""),
-            worker_heartbeat_key=str(getattr(config.job_runner, "redis_worker_heartbeat_key", "") or ""),
-            worker_heartbeat_ttl_seconds=float(
-                getattr(config.job_runner, "redis_worker_heartbeat_ttl_seconds", 45.0) or 45.0
-            ),
-            consumer_enabled=consumer_enabled,
-        )
-    return InMemoryJobRunner(worker_count=worker_count, queue_maxsize=queue_maxsize)
+    from grantflow.api.runtime_service import _build_job_runner as _impl
+
+    return _impl()
 
 
 JOB_RUNNER = _build_job_runner()
 
 
 def _job_store_mode() -> str:
-    return "sqlite" if getattr(JOB_STORE, "db_path", None) else "inmem"
+    from grantflow.api.runtime_service import _job_store_mode as _impl
+
+    return _impl()
 
 
 def _hitl_store_mode() -> str:
-    return "sqlite" if bool(getattr(hitl_manager, "_use_sqlite", False)) else "inmem"
+    from grantflow.api.runtime_service import _hitl_store_mode as _impl
+
+    return _impl()
 
 
 def _ingest_store_mode() -> str:
-    return "sqlite" if getattr(INGEST_AUDIT_STORE, "db_path", None) else "inmem"
+    from grantflow.api.runtime_service import _ingest_store_mode as _impl
+
+    return _impl()
 
 
 def _validate_store_backend_alignment() -> None:
-    job_store_mode = _job_store_mode()
-    hitl_store_mode = _hitl_store_mode()
-    if job_store_mode == hitl_store_mode:
-        return
-    raise RuntimeError(
-        "Store backend mismatch: "
-        f"JOB_STORE={job_store_mode} while HITL_STORE={hitl_store_mode}. "
-        "Use matching backends for GRANTFLOW_JOB_STORE and GRANTFLOW_HITL_STORE."
-    )
+    from grantflow.api.runtime_service import _validate_store_backend_alignment as _impl
+
+    _impl()
 
 
 def _validate_tenant_authz_configuration() -> None:
-    status = _tenant_authz_configuration_status()
-    policy_mode = str(status.get("policy_mode") or "warn")
-    enabled = bool(status.get("enabled"))
-    allowed_tenant_count = int(status.get("allowed_tenant_count") or 0)
-    default_tenant = str(status.get("default_tenant") or "").strip()
-    issues = {str(item).strip().lower() for item in (status.get("issues") or []) if str(item).strip()}
-    valid = bool(status.get("valid"))
-    if policy_mode != "strict":
-        return
-    if valid:
-        return
-    if enabled and "allowlist_empty" in issues:
-        raise RuntimeError(
-            "Tenant authz misconfiguration: GRANTFLOW_TENANT_AUTHZ_ENABLED=true but tenant allowlist is empty. "
-            "Set GRANTFLOW_ALLOWED_TENANTS or disable strict policy "
-            "(GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE=warn|off)."
-        )
-    if enabled and "default_tenant_not_in_allowlist" in issues:
-        raise RuntimeError(
-            "Tenant authz misconfiguration: GRANTFLOW_DEFAULT_TENANT is not included in GRANTFLOW_ALLOWED_TENANTS "
-            f"(default={default_tenant}, allowed_count={allowed_tenant_count}). "
-            "Set a matching default tenant or disable strict policy "
-            "(GRANTFLOW_TENANT_AUTHZ_CONFIGURATION_POLICY_MODE=warn|off)."
-        )
+    from grantflow.api.runtime_service import _validate_tenant_authz_configuration as _impl
+
+    _impl()
 
 
 def _validate_runtime_compatibility_configuration() -> None:
-    status = _python_runtime_compatibility_status()
-    policy_mode = _configured_runtime_compatibility_policy_mode()
-    supported = bool(status.get("supported"))
-    if policy_mode != "strict":
-        return
-    if supported:
-        return
-    raise RuntimeError(
-        "Runtime compatibility misconfiguration: Python "
-        f"{status.get('python_version')} is outside validated range {status.get('supported_range')}. "
-        "Use Python 3.11-3.13 or set GRANTFLOW_RUNTIME_COMPATIBILITY_POLICY_MODE=warn|off."
-    )
+    from grantflow.api.runtime_service import _validate_runtime_compatibility_configuration as _impl
+
+    _impl()
 
 
 def _deployment_environment() -> str:
-    return str(os.getenv("GRANTFLOW_ENV", "dev") or "dev").strip().lower()
+    from grantflow.api.runtime_service import _deployment_environment as _impl
+
+    return _impl()
 
 
 def _is_production_environment() -> bool:
-    return _deployment_environment() in PRODUCTION_ENV_TOKENS
+    from grantflow.api.runtime_service import _is_production_environment as _impl
+
+    return _impl()
 
 
 def _require_api_key_on_startup() -> bool:
-    explicit = os.getenv("GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP")
-    if explicit is None or not str(explicit).strip():
-        return _is_production_environment()
-    return str(explicit).strip().lower() == "true"
+    from grantflow.api.runtime_service import _require_api_key_on_startup as _impl
+
+    return _impl()
 
 
 def _validate_api_key_startup_security() -> None:
-    if not _require_api_key_on_startup():
-        return
-    if api_key_configured():
-        return
-    raise RuntimeError(
-        "Security defaults violation: API key auth is required at startup but GRANTFLOW_API_KEY is not set. "
-        "Set GRANTFLOW_API_KEY or disable this guard with GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP=false."
-    )
+    from grantflow.api.runtime_service import _validate_api_key_startup_security as _impl
+
+    _impl()
 
 
 @asynccontextmanager
 async def _app_lifespan(_: FastAPI) -> AsyncIterator[None]:
-    _validate_store_backend_alignment()
-    _validate_tenant_authz_configuration()
-    _validate_runtime_compatibility_configuration()
-    _validate_api_key_startup_security()
-    if _uses_queue_runner():
-        JOB_RUNNER.start()
-    try:
+    from grantflow.api.runtime_service import _app_lifespan as _impl
+
+    async with _impl(_):
         yield
-    finally:
-        if _uses_queue_runner():
-            JOB_RUNNER.stop()
 
 
 app = FastAPI(
