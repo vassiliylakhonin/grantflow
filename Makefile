@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-smoke
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-smoke
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -89,6 +89,8 @@ CI_DEMO_SMOKE_ROOT ?= build/ci-demo-smoke
 CI_DEMO_SMOKE_PRESET_KEY ?= usaid_gov_ai_kazakhstan
 SEND_BUNDLE_INDEX_BUILD_DIR ?= build
 SEND_BUNDLE_INDEX_OUT ?= build/send-bundle-index.md
+OPEN_LATEST_SEND_BUILD_DIR ?= build
+OPEN_LATEST_SEND_MODE ?= print
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -424,6 +426,14 @@ send-bundle-index:
 
 send-bundle-index-refresh: release-demo-bundle-fast
 	$(MAKE) send-bundle-index SEND_BUNDLE_INDEX_BUILD_DIR=$(SEND_BUNDLE_INDEX_BUILD_DIR) SEND_BUNDLE_INDEX_OUT=$(SEND_BUNDLE_INDEX_OUT)
+
+open-latest-send:
+	$(PYTHON) scripts/open_latest_send.py \
+		--build-dir $(OPEN_LATEST_SEND_BUILD_DIR) \
+		--mode $(OPEN_LATEST_SEND_MODE)
+
+open-latest-send-refresh: send-bundle-index-refresh
+	$(MAKE) open-latest-send OPEN_LATEST_SEND_BUILD_DIR=$(OPEN_LATEST_SEND_BUILD_DIR) OPEN_LATEST_SEND_MODE=$(OPEN_LATEST_SEND_MODE)
 
 buyer-demo-open:
 	$(PYTHON) scripts/buyer_demo_open.py \
