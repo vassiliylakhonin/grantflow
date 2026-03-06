@@ -15,9 +15,7 @@ DIRECTORY_PATTERNS = (
     "pilot-archive*",
 )
 
-FILE_PATTERNS = (
-    "diligence-index.md",
-)
+FILE_PATTERNS = ("diligence-index.md",)
 
 
 def _dedupe(paths: list[Path]) -> list[Path]:
