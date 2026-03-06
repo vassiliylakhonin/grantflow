@@ -754,6 +754,8 @@ make eval-grounded-target-live \
 
 `seed-live-corpus` uses `docs/rag_seed_corpus/bulk_ingest_seed_corpus.sh` and respects `LIVE_SEED_DONORS` as a comma-separated donor filter. `eval-grounded-target-live` writes `eval-artifacts/grounded-target-live.txt` and `.json` by default using the actual container runtime rather than the local Python environment.
 
+A compact live verification summary for the currently checked donor paths is in `docs/grounded-donor-scoreboard.md`.
+
 `--seed-rag-manifest` resolves each manifest `donor_id` via `DonorFactory` and ingests into the donor strategy RAG namespace (for example, `usaid -> usaid_ads201`, `state_department -> us_state_department_guidance`).
 Use `scripts/check_seeded_corpus.py` to fail fast when seeded artifacts are missing:
 
