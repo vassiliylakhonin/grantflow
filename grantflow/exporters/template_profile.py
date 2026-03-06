@@ -9,6 +9,13 @@ DONOR_TEMPLATE_ALIASES: dict[str, str] = {
     "eu": "eu",
     "worldbank": "worldbank",
     "giz": "giz",
+    "un_agencies": "un_agencies",
+    "undp": "un_agencies",
+    "unicef": "un_agencies",
+    "unhcr": "un_agencies",
+    "wfp": "un_agencies",
+    "unwomen": "un_agencies",
+    "unfpa": "un_agencies",
     "state_department": "state_department",
     "us_state_department": "state_department",
     "u.s. department of state": "state_department",
@@ -20,6 +27,7 @@ TEMPLATE_DISPLAY_NAMES: dict[str, str] = {
     "eu": "EU Intervention Logic",
     "worldbank": "World Bank Results Framework",
     "giz": "GIZ Results & Sustainability Logic",
+    "un_agencies": "UN Agency Program Logic",
     "state_department": "U.S. Department of State Program Logic",
     "generic": "Generic Proposal Template",
 }
@@ -29,6 +37,7 @@ TEMPLATE_REQUIRED_SECTIONS: dict[str, list[str]] = {
     "eu": ["overall_objective", "specific_objectives", "expected_outcomes"],
     "worldbank": ["project_development_objective", "objectives", "results_chain"],
     "giz": ["programme_objective", "outcomes"],
+    "un_agencies": ["brief", "objectives"],
     "state_department": ["program_goal", "objectives"],
 }
 

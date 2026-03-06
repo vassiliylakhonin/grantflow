@@ -472,7 +472,10 @@ def _render_worldbank_toc(
         doc.add_paragraph("No World Bank objectives found in draft.")
 
 
-def _render_giz_toc(doc: Document, toc: Dict[str, Any]) -> None:
+def _render_giz_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Optional[Dict[str, Any]] = None) -> None:
+    indicators = _normalized_indicator_rows(logframe_draft)
+    outcome_focus = _indicator_focus_rows(indicators, result_level="outcome", limit=2)
+    output_focus = _indicator_focus_rows(indicators, result_level="output", limit=2)
     doc.add_heading("GIZ Results & Sustainability Logic", level=1)
     rendered = False
 
@@ -480,6 +483,11 @@ def _render_giz_toc(doc: Document, toc: Dict[str, Any]) -> None:
     if programme_objective:
         doc.add_heading("Programme Objective", level=2)
         doc.add_paragraph(programme_objective)
+        _add_indicator_focus_block(
+            doc,
+            indicators=outcome_focus[:1],
+            label="Suggested implementation monitoring focus",
+        )
         rendered = True
 
     outputs = toc.get("outputs")
@@ -487,6 +495,11 @@ def _render_giz_toc(doc: Document, toc: Dict[str, Any]) -> None:
         doc.add_heading("Outputs", level=2)
         for output in outputs:
             doc.add_paragraph(str(output), style="List Bullet")
+        _add_indicator_focus_block(
+            doc,
+            indicators=output_focus[:1] or outcome_focus[:1],
+            label="Suggested delivery verification focus",
+        )
         rendered = True
 
     outcomes = toc.get("outcomes")
@@ -504,6 +517,11 @@ def _render_giz_toc(doc: Document, toc: Dict[str, Any]) -> None:
             if partner_role:
                 p = doc.add_paragraph()
                 p.add_run(f"Partner role: {partner_role}").italic = True
+            _add_indicator_focus_block(
+                doc,
+                indicators=outcome_focus[:1],
+                label="Suggested sustainability monitoring focus",
+            )
         rendered = True
 
     sustainability_factors = toc.get("sustainability_factors")
@@ -522,6 +540,69 @@ def _render_giz_toc(doc: Document, toc: Dict[str, Any]) -> None:
 
     if not rendered:
         doc.add_paragraph("No GIZ-specific ToC structure found in draft.")
+
+
+def _render_un_agencies_toc(
+    doc: Document, toc: Dict[str, Any], *, logframe_draft: Optional[Dict[str, Any]] = None
+) -> None:
+    indicators = _normalized_indicator_rows(logframe_draft)
+    outcome_focus = _indicator_focus_rows(indicators, result_level="outcome", limit=2)
+    impact_focus = _indicator_focus_rows(indicators, result_level="impact", limit=1)
+    doc.add_heading("UN Agency Program Logic", level=1)
+
+    brief = str(toc.get("brief") or "").strip()
+    if brief:
+        doc.add_heading("Overview", level=2)
+        doc.add_paragraph(brief)
+        _add_indicator_focus_block(
+            doc,
+            indicators=impact_focus or outcome_focus[:1],
+            label="Suggested results focus",
+        )
+
+    objectives = toc.get("objectives")
+    if isinstance(objectives, list) and objectives:
+        doc.add_heading("Development Objectives", level=2)
+        for row in objectives:
+            if not isinstance(row, dict):
+                continue
+            title = str(row.get("title") or "Untitled").strip()
+            description = str(row.get("description") or "").strip()
+            doc.add_heading(title, level=3)
+            if description:
+                doc.add_paragraph(description)
+            _add_indicator_focus_block(
+                doc,
+                indicators=outcome_focus[:1] or impact_focus,
+                label="Suggested monitoring focus",
+            )
+            citation = str(row.get("citation") or "").strip()
+            if citation:
+                p = doc.add_paragraph()
+                p.add_run(f"Citation: {citation}").italic = True
+
+    outcomes = toc.get("outcomes")
+    if isinstance(outcomes, list) and outcomes:
+        doc.add_heading("Expected Outcomes", level=2)
+        for row in outcomes:
+            if not isinstance(row, dict):
+                continue
+            title = str(row.get("title") or row.get("name") or "Outcome").strip()
+            description = str(row.get("description") or row.get("expected_change") or "").strip()
+            doc.add_paragraph(title, style="List Bullet")
+            if description:
+                doc.add_paragraph(description)
+
+    toc_indicators = toc.get("indicators")
+    if isinstance(toc_indicators, list) and toc_indicators:
+        doc.add_heading("Key Indicators", level=2)
+        for ind in toc_indicators:
+            if not isinstance(ind, dict):
+                continue
+            doc.add_paragraph(f"• {ind.get('name', 'Unknown')}", style="List Bullet")
+            justification = str(ind.get("justification") or "").strip()
+            if justification:
+                doc.add_paragraph(f"  Justification: {justification}", style="Intense Quote")
 
 
 def _render_state_department_toc(
@@ -760,7 +841,9 @@ def build_docx_from_toc(
     elif donor_key == "worldbank":
         _render_worldbank_toc(doc, toc_content, logframe_draft=logframe_draft)
     elif donor_key == "giz":
-        _render_giz_toc(doc, toc_content)
+        _render_giz_toc(doc, toc_content, logframe_draft=logframe_draft)
+    elif donor_key == "un_agencies":
+        _render_un_agencies_toc(doc, toc_content, logframe_draft=logframe_draft)
     elif donor_key in {"state_department", "us_state_department", "u.s. department of state", "us department of state"}:
         _render_state_department_toc(doc, toc_content, logframe_draft=logframe_draft)
     else:

@@ -297,7 +297,26 @@ def test_word_export_uses_donor_specific_sections_for_giz_and_state_department()
         }
     }
 
-    giz_doc = Document(BytesIO(build_docx_from_toc(giz_toc, "giz")))
+    giz_logframe = {
+        "indicators": [
+            {
+                "indicator_id": "IND_GIZ_1",
+                "name": "SME continuity adoption score",
+                "result_level": "outcome",
+                "means_of_verification": "Partner coaching records and SME verification visits",
+                "owner": "Programme M&E lead and chamber focal points",
+            },
+            {
+                "indicator_id": "IND_GIZ_2",
+                "name": "Coaching completion rate",
+                "result_level": "output",
+                "means_of_verification": "Attendance registers and delivery logs",
+                "owner": "Technical assistance team lead",
+            },
+        ]
+    }
+
+    giz_doc = Document(BytesIO(build_docx_from_toc(giz_toc, "giz", logframe_draft=giz_logframe)))
     state_logframe = {
         "indicators": [
             {
@@ -318,11 +337,55 @@ def test_word_export_uses_donor_specific_sections_for_giz_and_state_department()
     assert "Programme Objective" in giz_text
     assert "Sustainability Factors" in giz_text
     assert "Assumptions & Risks" in giz_text
+    assert "Suggested implementation monitoring focus:" in giz_text
+    assert "Suggested delivery verification focus:" in giz_text
+    assert "Partner coaching records and SME verification visits" in giz_text
     assert "U.S. Department of State Program Logic" in state_text
     assert "Strategic Context" in state_text
     assert "Risk Mitigation" in state_text
     assert "Suggested strategic monitoring focus:" in state_text
     assert "Editorial risk logs and resilience reviews" in state_text
+
+
+def test_word_export_uses_un_agencies_template_and_focus_bridge():
+    un_toc = {
+        "toc": {
+            "brief": "Inclusive education access remains uneven across target districts.",
+            "objectives": [
+                {
+                    "title": "Improve inclusive education system readiness",
+                    "description": "District education actors adopt inclusive planning and referral practices.",
+                    "citation": "UNICEF education note",
+                }
+            ],
+            "outcomes": [
+                {
+                    "title": "More children with disabilities access adapted services",
+                    "description": "Referral and classroom support pathways operate consistently.",
+                }
+            ],
+        }
+    }
+    un_logframe = {
+        "indicators": [
+            {
+                "indicator_id": "IND_UN_1",
+                "name": "Inclusive service readiness score",
+                "result_level": "outcome",
+                "means_of_verification": "Partner monitoring records and school support checklists",
+                "owner": "Programme manager and inclusion focal points",
+            }
+        ]
+    }
+
+    un_doc = Document(BytesIO(build_docx_from_toc(un_toc, "un_agencies", logframe_draft=un_logframe)))
+    un_text = "\n".join(p.text for p in un_doc.paragraphs)
+
+    assert "UN Agency Program Logic" in un_text
+    assert "Overview" in un_text
+    assert "Development Objectives" in un_text
+    assert "Suggested monitoring focus:" in un_text
+    assert "Partner monitoring records and school support checklists" in un_text
 
 
 def test_word_export_includes_template_profile_and_missing_sections_summary():
@@ -807,7 +870,54 @@ def test_excel_export_includes_donor_specific_sheets():
     }
 
     wb_wb = load_workbook(BytesIO(build_xlsx_from_logframe(donor_focus_logframe, "worldbank", toc_draft=wb_toc)))
-    giz_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "giz", toc_draft=giz_toc)))
+    giz_focus_logframe = {
+        "indicators": [
+            {
+                "indicator_id": "IND_GIZ_1",
+                "name": "SME continuity adoption score",
+                "result_level": "outcome",
+                "means_of_verification": "Partner coaching records and SME verification visits",
+                "owner": "Programme M&E lead and chamber focal points",
+            },
+            {
+                "indicator_id": "IND_GIZ_2",
+                "name": "Coaching completion rate",
+                "result_level": "output",
+                "means_of_verification": "Attendance registers and delivery logs",
+                "owner": "Technical assistance team lead",
+            },
+        ]
+    }
+    un_toc = {
+        "toc": {
+            "brief": "Inclusive education access remains uneven across target districts.",
+            "objectives": [
+                {
+                    "title": "Improve inclusive education system readiness",
+                    "description": "District education actors adopt inclusive planning and referral practices.",
+                }
+            ],
+            "outcomes": [
+                {
+                    "title": "More children with disabilities access adapted services",
+                    "description": "Referral and classroom support pathways operate consistently.",
+                }
+            ],
+        }
+    }
+    un_focus_logframe = {
+        "indicators": [
+            {
+                "indicator_id": "IND_UN_1",
+                "name": "Inclusive service readiness score",
+                "result_level": "outcome",
+                "means_of_verification": "Partner monitoring records and school support checklists",
+                "owner": "Programme manager and inclusion focal points",
+            }
+        ]
+    }
+    giz_wb = load_workbook(BytesIO(build_xlsx_from_logframe(giz_focus_logframe, "giz", toc_draft=giz_toc)))
+    un_wb = load_workbook(BytesIO(build_xlsx_from_logframe(un_focus_logframe, "un_agencies", toc_draft=un_toc)))
     state_wb = load_workbook(
         BytesIO(build_xlsx_from_logframe(donor_focus_logframe, "state_department", toc_draft=state_toc))
     )
@@ -817,6 +927,7 @@ def test_excel_export_includes_donor_specific_sheets():
     assert "EU_Assumptions_Risks" in eu_wb.sheetnames
     assert "WB_Results" in wb_wb.sheetnames
     assert "GIZ_Results" in giz_wb.sheetnames
+    assert "UN_Results" in un_wb.sheetnames
     assert "StateDept_Results" in state_wb.sheetnames
 
     usaid_rows = list(usaid_wb["USAID_RF"].iter_rows(values_only=True))
@@ -843,6 +954,18 @@ def test_excel_export_includes_donor_specific_sheets():
     giz_rows = list(giz_wb["GIZ_Results"].iter_rows(values_only=True))
     assert any(row[0] == "Programme Objective" for row in giz_rows[1:])
     assert any(row[0] == "Outcome" for row in giz_rows[1:])
+    assert "Suggested Monitoring Focus" in giz_rows[0]
+    assert "Suggested Means of Verification" in giz_rows[0]
+    assert "Suggested Owner" in giz_rows[0]
+    assert any("Partner coaching records and SME verification visits" in str(row) for row in giz_rows[1:])
+
+    un_rows = list(un_wb["UN_Results"].iter_rows(values_only=True))
+    assert un_rows[0][:4] == ("Level", "Title", "Description", "Suggested Monitoring Focus")
+    assert any(row[0] == "Overview" for row in un_rows[1:])
+    assert any(
+        row[0] == "Objective" and row[1] == "Improve inclusive education system readiness" for row in un_rows[1:]
+    )
+    assert any("Partner monitoring records and school support checklists" in str(row) for row in un_rows[1:])
 
     state_rows = list(state_wb["StateDept_Results"].iter_rows(values_only=True))
     assert any(row[0] == "Strategic Context" for row in state_rows[1:])

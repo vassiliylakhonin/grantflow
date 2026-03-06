@@ -18,24 +18,36 @@ DONOR_DOCX_EXPECTED_HEADINGS: dict[str, list[str]] = {
         "Objectives",
         "Results Chain",
     ],
+    "giz": ["GIZ Results & Sustainability Logic", "Programme Objective", "Outcomes", "Sustainability Factors"],
+    "un_agencies": ["UN Agency Program Logic", "Overview", "Development Objectives"],
+    "state_department": ["U.S. Department of State Program Logic", "Program Goal", "Objectives", "Risk Mitigation"],
 }
 
 DONOR_XLSX_REQUIRED_SHEETS: dict[str, list[str]] = {
     "usaid": ["LogFrame", "USAID_RF", "Template Meta"],
     "eu": ["LogFrame", "EU_Intervention", "EU_Assumptions_Risks", "Template Meta"],
     "worldbank": ["LogFrame", "WB_Results", "Template Meta"],
+    "giz": ["LogFrame", "GIZ_Results", "Template Meta"],
+    "un_agencies": ["LogFrame", "UN_Results", "Template Meta"],
+    "state_department": ["LogFrame", "StateDept_Results", "Template Meta"],
 }
 
 DONOR_XLSX_PRIMARY_SHEET: dict[str, str] = {
     "usaid": "USAID_RF",
     "eu": "EU_Intervention",
     "worldbank": "WB_Results",
+    "giz": "GIZ_Results",
+    "un_agencies": "UN_Results",
+    "state_department": "StateDept_Results",
 }
 
 DONOR_XLSX_PRIMARY_HEADERS: dict[str, list[str]] = {
     "usaid": ["DO ID", "DO Description", "IR ID", "IR Description"],
     "eu": ["Level", "ID", "Title", "Description"],
     "worldbank": ["Level", "ID", "Title", "Description"],
+    "giz": ["Level", "Title", "Description", "Partner Role"],
+    "un_agencies": ["Level", "Title", "Description", "Suggested Monitoring Focus"],
+    "state_department": ["Level", "Objective / Title", "Line of Effort", "Description"],
 }
 EXPORT_CONTRACT_POLICY_MODES = {"off", "warn", "strict"}
 
