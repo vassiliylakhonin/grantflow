@@ -46,6 +46,8 @@ make diligence-index
 make diligence-index-refresh
 make baseline-fill-template
 make baseline-fill-template-refresh
+make clean-demo-artifacts-dry-run
+make clean-demo-artifacts
 ```
 
 This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
@@ -68,6 +70,8 @@ This writes a ready-to-review bundle to `build/demo-pack/` using live API runs a
 `make diligence-index-refresh` rebuilds the full chain first, then writes the index.
 `make baseline-fill-template` writes a fillable baseline worksheet from `pilot-metrics.csv`.
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
+`make clean-demo-artifacts-dry-run` lists generated bundles slated for cleanup.
+`make clean-demo-artifacts` removes generated bundles and leaves unrelated files alone.
 
 ## 3) Operator Demo Flow (API-first)
 
@@ -207,4 +211,6 @@ make diligence-index DILIGENCE_INDEX_BUILD_DIR=build DILIGENCE_INDEX_OUT=build/d
 make diligence-index-refresh CASE_STUDY_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1 PILOT_ARCHIVE_NAME=grantflow-pilot
 make baseline-fill-template BASELINE_TEMPLATE_PILOT_DIR=build/pilot-pack-smoke
 make baseline-fill-template-refresh BASELINE_TEMPLATE_PILOT_DIR=build/pilot-pack-smoke
+make clean-demo-artifacts-dry-run CLEAN_DEMO_ARTIFACTS_BUILD_DIR=build
+make clean-demo-artifacts CLEAN_DEMO_ARTIFACTS_BUILD_DIR=build
 ```

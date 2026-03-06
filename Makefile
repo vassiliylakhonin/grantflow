@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -68,6 +68,7 @@ BASELINE_TEMPLATE_PILOT_DIR ?= $(PILOT_PACK_DIR)
 BASELINE_TEMPLATE_METRICS_CSV ?=
 BASELINE_TEMPLATE_CSV_OUT ?=
 BASELINE_TEMPLATE_MD_OUT ?=
+CLEAN_DEMO_ARTIFACTS_BUILD_DIR ?= build
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -329,3 +330,12 @@ baseline-fill-template:
 
 baseline-fill-template-refresh: pilot-metrics-refresh
 	$(MAKE) baseline-fill-template BASELINE_TEMPLATE_PILOT_DIR=$(PILOT_PACK_DIR) BASELINE_TEMPLATE_METRICS_CSV=$(BASELINE_TEMPLATE_METRICS_CSV) BASELINE_TEMPLATE_CSV_OUT=$(BASELINE_TEMPLATE_CSV_OUT) BASELINE_TEMPLATE_MD_OUT=$(BASELINE_TEMPLATE_MD_OUT)
+
+clean-demo-artifacts:
+	$(PYTHON) scripts/clean_demo_artifacts.py \
+		--build-dir $(CLEAN_DEMO_ARTIFACTS_BUILD_DIR)
+
+clean-demo-artifacts-dry-run:
+	$(PYTHON) scripts/clean_demo_artifacts.py \
+		--build-dir $(CLEAN_DEMO_ARTIFACTS_BUILD_DIR) \
+		--dry-run

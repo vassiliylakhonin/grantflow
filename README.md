@@ -188,6 +188,8 @@ make diligence-index
 make diligence-index-refresh
 make baseline-fill-template
 make baseline-fill-template-refresh
+make clean-demo-artifacts-dry-run
+make clean-demo-artifacts
 ```
 
 Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xlsx` / ZIP artifacts. The target expects a running local API at `http://127.0.0.1:8000`.
@@ -210,6 +212,8 @@ Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xl
 `make diligence-index-refresh` rebuilds the full chain first, then writes the index.
 `make baseline-fill-template` builds a fillable baseline worksheet from an existing `pilot-metrics.csv`.
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
+`make clean-demo-artifacts-dry-run` lists generated demo/commercial bundles that would be removed from `build/`.
+`make clean-demo-artifacts` removes only those generated bundles via an allowlist.
 
 ## Quick Start
 
