@@ -785,6 +785,27 @@ def _pick_best_mel_evidence_hit(statement: str, hits: Iterable[Dict[str, Any]]) 
     return best_hit, round(min(1.0, best_score), 4)
 
 
+def _mel_grounded_confidence_bonus(hit: Dict[str, Any], *, traceability_status: str) -> float:
+    if not hit or traceability_status != "complete":
+        return 0.0
+    bonus = 0.0
+    retrieval_rank = hit.get("retrieval_rank") or hit.get("rank")
+    try:
+        retrieval_rank_int = int(retrieval_rank)
+    except (TypeError, ValueError):
+        retrieval_rank_int = 999
+    retrieval_confidence = float(hit.get("retrieval_confidence") or 0.0)
+    if retrieval_rank_int <= 1:
+        bonus += 0.05
+    if retrieval_confidence >= 0.4:
+        bonus += 0.02
+    if retrieval_confidence >= 0.45:
+        bonus += 0.02
+    if hit.get("doc_id") and hit.get("chunk_id"):
+        bonus += 0.01
+    return min(0.1, round(bonus, 4))
+
+
 def _is_placeholder_baseline_target(value: Any) -> bool:
     text = str(value or "").strip().lower()
     return text in MEL_PLACEHOLDER_BASELINE_TARGET_VALUES
@@ -1289,6 +1310,14 @@ def _build_mel_citations(
             traceability_status = "complete"
         else:
             traceability_status = "missing"
+        if hit:
+            confidence = round(
+                min(
+                    1.0,
+                    float(confidence) + _mel_grounded_confidence_bonus(hit, traceability_status=traceability_status),
+                ),
+                4,
+            )
         if hit and traceability_status == "complete" and confidence >= threshold:
             citation_type = "rag_result"
         elif hit:

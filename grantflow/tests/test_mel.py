@@ -29,6 +29,20 @@ def _base_state(*, llm_mode: bool) -> dict:
     }
 
 
+def test_mel_grounded_confidence_bonus_rewards_complete_rank1_hits():
+    bonus = mel_module._mel_grounded_confidence_bonus(
+        {
+            "rank": 1,
+            "retrieval_rank": 1,
+            "retrieval_confidence": 0.46,
+            "doc_id": "doc-1",
+            "chunk_id": "chunk-1",
+        },
+        traceability_status="complete",
+    )
+    assert 0.0 < bonus <= 0.1
+
+
 def test_mel_deterministic_mode_generates_logframe_and_citations(monkeypatch):
     def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
         return {

@@ -5,6 +5,7 @@ from grantflow.swarm.nodes import architect_generation as architect_generation_m
 from grantflow.swarm.nodes import architect_retrieval as architect_retrieval_module
 from grantflow.swarm.nodes.architect import draft_toc
 from grantflow.swarm.nodes.architect_generation import (
+    _architect_grounded_confidence_bonus,
     _extract_claim_strings,
     _fallback_structured_toc,
     build_architect_claim_citations,
@@ -276,6 +277,20 @@ def test_architect_claim_support_requires_traceable_hit_even_when_overlap_is_hig
     assert citation["citation_type"] == "rag_low_confidence"
     assert citation["traceability_complete"] is False
     assert citation["traceability_status"] == "missing"
+
+
+def test_architect_grounded_confidence_bonus_rewards_complete_rank1_hits():
+    bonus = _architect_grounded_confidence_bonus(
+        {
+            "rank": 1,
+            "retrieval_rank": 1,
+            "retrieval_confidence": 0.87,
+            "doc_id": "doc-1",
+            "chunk_id": "chunk-1",
+        },
+        traceability_status="complete",
+    )
+    assert 0.0 < bonus <= 0.06
 
 
 def test_extract_claim_strings_skips_identifier_fields():

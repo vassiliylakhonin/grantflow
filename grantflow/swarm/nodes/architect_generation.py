@@ -613,6 +613,27 @@ def _architect_result_level(statement_path: str) -> str:
     return "general"
 
 
+def _architect_grounded_confidence_bonus(hit: Dict[str, Any], *, traceability_status: str) -> float:
+    if not hit or traceability_status != "complete":
+        return 0.0
+    bonus = 0.0
+    retrieval_rank = hit.get("retrieval_rank") or hit.get("rank")
+    try:
+        retrieval_rank_int = int(retrieval_rank)
+    except (TypeError, ValueError):
+        retrieval_rank_int = 999
+    retrieval_confidence = float(hit.get("retrieval_confidence") or 0.0)
+    if retrieval_rank_int <= 1:
+        bonus += 0.02
+    if retrieval_confidence >= 0.8:
+        bonus += 0.015
+    if retrieval_confidence >= 0.85:
+        bonus += 0.015
+    if hit.get("doc_id") and hit.get("chunk_id"):
+        bonus += 0.01
+    return min(0.06, round(bonus, 4))
+
+
 def extract_architect_claim_records(
     toc_payload: Dict[str, Any],
     *,
@@ -907,17 +928,21 @@ def build_architect_claim_citations(
         )
         retrieval_confidence = float(hit.get("retrieval_confidence") or 0.0) if hit else 0.0
         rerank_score = float(hit.get("rerank_score") or 0.0) if hit else 0.0
+        traceability_status = citation_traceability_status(hit) if hit else "missing"
         confidence = round(
-            max(
-                raw_claim_confidence,
-                min(
-                    1.0,
-                    (raw_claim_confidence * 0.7) + (retrieval_confidence * 0.2) + (rerank_score * 0.1),
-                ),
+            min(
+                1.0,
+                max(
+                    raw_claim_confidence,
+                    min(
+                        1.0,
+                        (raw_claim_confidence * 0.7) + (retrieval_confidence * 0.2) + (rerank_score * 0.1),
+                    ),
+                )
+                + _architect_grounded_confidence_bonus(hit, traceability_status=traceability_status),
             ),
             4,
         )
-        traceability_status = citation_traceability_status(hit) if hit else "missing"
         confidence_threshold = architect_claim_confidence_threshold(donor_id=donor_id, statement_path=statement_path)
         if hit and traceability_status == "complete" and confidence >= confidence_threshold:
             citation_type = "rag_claim_support"
