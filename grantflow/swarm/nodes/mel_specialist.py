@@ -404,6 +404,8 @@ def _default_indicator_formula(indicator_name: str, *, result_level: str) -> str
         return "(Numerator / Denominator) * 100"
     if any(token in name for token in ("time", "days", "duration", "turnaround", "delay", "processing")):
         return "Average days between service start and completion"
+    if _is_institution_indicator(name) or _is_organization_indicator(name):
+        return "Count of institutions/organizations meeting defined performance or adoption criteria"
     if any(token in name for token in ("policy", "regulation", "protocol", "guideline", "sop")):
         return "Count of approved policies/protocols meeting quality criteria"
     if any(token in name for token in ("train", "certif", "capacity", "skills", "official", "staff")):
@@ -411,6 +413,28 @@ def _default_indicator_formula(indicator_name: str, *, result_level: str) -> str
     if level == "impact":
         return "Change versus baseline at endline"
     return "Count of verified results achieved in reporting period"
+
+
+def _deterministic_indicator_justification(*, donor_id: str, statement_path: str) -> str:
+    donor = str(donor_id or "").strip().lower()
+    if donor == "eu":
+        return (
+            f"Maps ToC result '{statement_path}' into an EU intervention-logic indicator with monitoring and "
+            "verification intent."
+        )
+    if donor == "worldbank":
+        return (
+            f"Maps ToC result '{statement_path}' into a World Bank-style results framework indicator for verified "
+            "implementation tracking."
+        )
+    if donor in {"state_department", "us_state_department"}:
+        return (
+            f"Maps ToC result '{statement_path}' into a State Department-style program indicator for monitored "
+            "delivery and resilience review."
+        )
+    if donor == "usaid":
+        return f"Maps ToC result '{statement_path}' into a performance indicator aligned with donor monitoring logic."
+    return f"Deterministic MEL mapping for ToC result '{statement_path}'. Tracks delivery of the causal results chain."
 
 
 def _default_disaggregation(indicator_name: str, *, donor_id: str, result_level: str) -> list[str]:
@@ -604,9 +628,9 @@ def _deterministic_indicators_from_toc(
             result_level=str(hit.get("result_level") or "").strip() or None,
         )
         citation = str(hit.get("label") or hit.get("source") or hit.get("doc_id") or namespace)
-        justification = (
-            f"Deterministic MEL mapping for ToC result '{statement_path}'. "
-            "Tracks delivery of the causal results chain."
+        justification = _deterministic_indicator_justification(
+            donor_id=donor_id,
+            statement_path=statement_path,
         )
         indicators.append(
             _apply_indicator_defaults(

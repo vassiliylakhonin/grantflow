@@ -180,6 +180,30 @@ def test_mel_deterministic_mode_builds_multiple_indicators_from_toc_results(monk
     assert generation.get("deterministic_source") == "toc_results_template"
 
 
+def test_mel_formula_prefers_institution_logic_over_people_logic():
+    assert (
+        mel_module._default_indicator_formula(
+            "Strengthen institutional capacity for youth employment and SME skills delivery",
+            result_level="outcome",
+        )
+        == "Count of institutions/organizations meeting defined performance or adoption criteria"
+    )
+
+
+def test_mel_deterministic_justification_is_donor_shaped():
+    eu_text = mel_module._deterministic_indicator_justification(
+        donor_id="eu",
+        statement_path="toc.specific_objectives[0].title",
+    )
+    wb_text = mel_module._deterministic_indicator_justification(
+        donor_id="worldbank",
+        statement_path="toc.objectives[0].title",
+    )
+
+    assert "eu intervention-logic indicator" in eu_text.lower()
+    assert "world bank-style results framework indicator" in wb_text.lower()
+
+
 def test_mel_llm_mode_uses_structured_output_when_available(monkeypatch):
     monkeypatch.setattr(mel_module, "openai_compatible_llm_available", lambda: True)
 
