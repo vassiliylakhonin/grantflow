@@ -180,7 +180,8 @@ app = FastAPI(
 install_openapi_api_key_security(app)
 
 
-def _load_route_modules() -> None:
+def _import_route_modules_for_registration() -> None:
+    """Import route modules for their router side effects before include_api_routers()."""
     from grantflow.api.routes import exports as _exports_routes
     from grantflow.api.routes import ingest as _ingest_routes
     from grantflow.api.routes import jobs as _jobs_routes
@@ -202,7 +203,7 @@ def _load_route_modules() -> None:
     )
 
 
-_load_route_modules()
+_import_route_modules_for_registration()
 include_api_routers(app)
 
 

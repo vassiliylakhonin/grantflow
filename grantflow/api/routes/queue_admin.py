@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from fastapi import HTTPException, Query, Request
 
-from grantflow.api.app import _dispatcher_worker_heartbeat_policy_mode, _redis_queue_admin_runner
+from grantflow.api.diagnostics_service import _dispatcher_worker_heartbeat_policy_mode
+from grantflow.api.queue_admin_service import _redis_queue_admin_runner
 from grantflow.api.routers import queue_router
 from grantflow.api.schemas import (
     DeadLetterQueueListPublicResponse,

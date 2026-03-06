@@ -158,6 +158,7 @@ def _is_production_environment() -> bool:
 
 
 def _require_api_key_on_startup() -> bool:
+    """Resolve whether startup must fail when API key auth is not configured."""
     explicit = os.getenv("GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP")
     if explicit is None or not str(explicit).strip():
         return _is_production_environment()
@@ -165,6 +166,7 @@ def _require_api_key_on_startup() -> bool:
 
 
 def _require_persistent_stores_on_startup() -> bool:
+    """Resolve whether startup must fail when non-persistent stores are configured."""
     explicit = os.getenv("GRANTFLOW_REQUIRE_PERSISTENT_STORES_ON_STARTUP")
     if explicit is None or not str(explicit).strip():
         return _is_production_environment()
@@ -172,6 +174,7 @@ def _require_persistent_stores_on_startup() -> bool:
 
 
 def _validate_api_key_startup_security() -> None:
+    """Enforce API auth startup guardrails for secure-by-default deployments."""
     if not _require_api_key_on_startup():
         return
     if api_key_configured():
@@ -183,6 +186,7 @@ def _validate_api_key_startup_security() -> None:
 
 
 def _validate_persistent_store_startup_security() -> None:
+    """Enforce persistent-state startup guardrails in production-oriented environments."""
     if not _require_persistent_stores_on_startup():
         return
     store_modes = {

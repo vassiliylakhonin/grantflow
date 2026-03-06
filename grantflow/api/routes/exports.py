@@ -17,7 +17,6 @@ from grantflow.api.app import (
     _list_jobs,
     _normalize_critic_fatal_flaws_for_job,
     _normalize_review_comments_for_job,
-    _redis_queue_admin_runner,
     _xlsx_contract_validation_context,
 )
 from grantflow.api.export_helpers import (
@@ -78,6 +77,7 @@ from grantflow.api.tenant import (
     _resolve_tenant_id,
 )
 from grantflow.api.routers import exports_router
+from grantflow.api.queue_admin_service import _redis_queue_admin_runner
 
 
 def _app_module():

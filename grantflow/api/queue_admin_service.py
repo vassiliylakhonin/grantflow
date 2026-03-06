@@ -14,6 +14,7 @@ def _job_runner():
 
 
 def _redis_queue_admin_runner(required_methods: tuple[str, ...]) -> Any:
+    """Return redis-backed runner with required admin capabilities or raise HTTP 409."""
     if not _uses_redis_queue_runner():
         raise HTTPException(
             status_code=409,
