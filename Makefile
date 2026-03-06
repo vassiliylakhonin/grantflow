@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -51,6 +51,11 @@ EXECUTIVE_PACK_CASE_STUDY_DIR ?= $(CASE_STUDY_OUT_DIR)
 EXECUTIVE_PACK_CASE_DIR ?= $(CASE_STUDY_CASE_DIR)
 EXECUTIVE_PACK_PRESET_KEY ?= $(CASE_STUDY_PRESET_KEY)
 EXECUTIVE_PACK_OUT_DIR ?= build/executive-pack
+OEM_PACK_PILOT_DIR ?= $(PILOT_PACK_DIR)
+OEM_PACK_EXECUTIVE_DIR ?= $(EXECUTIVE_PACK_OUT_DIR)
+OEM_PACK_CASE_DIR ?= $(EXECUTIVE_PACK_CASE_DIR)
+OEM_PACK_PRESET_KEY ?= $(EXECUTIVE_PACK_PRESET_KEY)
+OEM_PACK_OUT_DIR ?= build/oem-pack
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -271,3 +276,14 @@ executive-pack:
 
 executive-pack-refresh: case-study-pack-refresh
 	$(MAKE) executive-pack EXECUTIVE_PACK_PILOT_DIR=$(PILOT_PACK_DIR) EXECUTIVE_PACK_CASE_STUDY_DIR=$(CASE_STUDY_OUT_DIR) EXECUTIVE_PACK_CASE_DIR=$(CASE_STUDY_CASE_DIR) EXECUTIVE_PACK_PRESET_KEY=$(CASE_STUDY_PRESET_KEY) EXECUTIVE_PACK_OUT_DIR=$(EXECUTIVE_PACK_OUT_DIR)
+
+oem-pack:
+	$(PYTHON) scripts/oem_pack.py \
+		--pilot-pack-dir $(OEM_PACK_PILOT_DIR) \
+		--executive-pack-dir $(OEM_PACK_EXECUTIVE_DIR) \
+		$(if $(strip $(OEM_PACK_CASE_DIR)),--case-dir $(OEM_PACK_CASE_DIR),) \
+		$(if $(strip $(OEM_PACK_PRESET_KEY)),--preset-key $(OEM_PACK_PRESET_KEY),) \
+		--output-dir $(OEM_PACK_OUT_DIR)
+
+oem-pack-refresh: executive-pack-refresh
+	$(MAKE) oem-pack OEM_PACK_PILOT_DIR=$(PILOT_PACK_DIR) OEM_PACK_EXECUTIVE_DIR=$(EXECUTIVE_PACK_OUT_DIR) OEM_PACK_CASE_DIR=$(EXECUTIVE_PACK_CASE_DIR) OEM_PACK_PRESET_KEY=$(EXECUTIVE_PACK_PRESET_KEY) OEM_PACK_OUT_DIR=$(OEM_PACK_OUT_DIR)

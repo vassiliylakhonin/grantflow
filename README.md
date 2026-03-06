@@ -180,6 +180,8 @@ make case-study-pack
 make case-study-pack-refresh
 make executive-pack
 make executive-pack-refresh
+make oem-pack
+make oem-pack-refresh
 ```
 
 Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xlsx` / ZIP artifacts. The target expects a running local API at `http://127.0.0.1:8000`.
@@ -194,6 +196,8 @@ Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xl
 `make case-study-pack-refresh` rebuilds the pilot pack, metrics, brief, and scorecard first, then writes the case pack.
 `make executive-pack` builds a short send-ready folder from an existing pilot pack plus one case-study pack.
 `make executive-pack-refresh` rebuilds the full chain first, then writes the executive pack.
+`make oem-pack` builds a technical partner diligence folder from an existing pilot pack and executive pack.
+`make oem-pack-refresh` rebuilds the full chain first, then writes the OEM pack.
 
 ## Quick Start
 
