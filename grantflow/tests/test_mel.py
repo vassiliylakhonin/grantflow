@@ -677,3 +677,59 @@ def test_mel_donor_aware_default_frequency_profiles():
     assert eu_item["frequency"] == "semiannual"
     assert str(usaid_item["formula"])
     assert str(eu_item["data_source"])
+
+
+def test_mel_donor_aware_indicator_governance_defaults():
+    eu_item = mel_module._normalize_indicator_item(
+        {
+            "indicator_id": "IND_010",
+            "name": "Service coverage rate",
+            "justification": "Tracks service performance.",
+            "citation": "eu_intpa",
+            "baseline": "0%",
+            "target": "20%",
+            "result_level": "outcome",
+        },
+        idx=0,
+        namespace="eu_intpa",
+        donor_id="eu",
+        input_context={},
+    )
+    wb_item = mel_module._normalize_indicator_item(
+        {
+            "indicator_id": "IND_011",
+            "name": "Institutional performance score",
+            "justification": "Tracks agency results performance.",
+            "citation": "worldbank_ads301",
+            "baseline": "0",
+            "target": "8",
+            "result_level": "impact",
+        },
+        idx=0,
+        namespace="worldbank_ads301",
+        donor_id="worldbank",
+        input_context={},
+    )
+
+    assert eu_item is not None
+    assert wb_item is not None
+    assert "means of verification" in str(eu_item["definition"]).lower()
+    assert eu_item["owner"] == "Project M&E manager and partner focal points"
+    assert "means of verification annexes" in str(eu_item["means_of_verification"]).lower()
+    assert eu_item["disaggregation"] == ["location", "service_type"]
+    assert wb_item["owner"] == "PIU M&E specialist and implementing agency focal points"
+    assert "results framework" in str(wb_item["definition"]).lower()
+    assert "national administrative statistics" in str(wb_item["means_of_verification"]).lower()
+
+
+def test_mel_copies_owner_and_means_of_verification_from_retrieval_hit():
+    enriched = mel_module._copy_optional_indicator_fields_from_hit(
+        {"indicator_id": "IND_100", "name": "Indicator"},
+        {
+            "owner": "Custom MEL owner",
+            "means_of_verification": "Verified registry extract",
+        },
+    )
+
+    assert enriched["owner"] == "Custom MEL owner"
+    assert enriched["means_of_verification"] == "Verified registry extract"

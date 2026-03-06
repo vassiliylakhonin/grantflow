@@ -377,6 +377,8 @@ def test_excel_export_logframe_sheet_includes_smart_indicator_columns():
                 "definition": "Share of target beneficiaries receiving digital service.",
                 "data_source": "PMP indicator tracking dataset",
                 "disaggregation": ["sex", "age", "location"],
+                "means_of_verification": "Verified PMP records and spot-check files",
+                "owner": "MEL lead and implementing partner M&E team",
             }
         ]
     }
@@ -397,6 +399,8 @@ def test_excel_export_logframe_sheet_includes_smart_indicator_columns():
         "Definition",
         "Data Source",
         "Disaggregation",
+        "Means of Verification",
+        "Owner",
     )
     assert rows[1][0] == "IND_001"
     assert rows[1][2] == "outcome"
@@ -404,6 +408,8 @@ def test_excel_export_logframe_sheet_includes_smart_indicator_columns():
     assert rows[1][8] == "(Numerator / Denominator) * 100"
     assert rows[1][10] == "PMP indicator tracking dataset"
     assert rows[1][11] == "sex, age, location"
+    assert rows[1][12] == "Verified PMP records and spot-check files"
+    assert rows[1][13] == "MEL lead and implementing partner M&E team"
 
 
 def test_excel_export_includes_template_meta_sheet():

@@ -368,6 +368,35 @@ def _default_data_source_for_donor(donor_id: str, *, result_level: str) -> str:
     return default_sources.get(level, default_sources["outcome"])
 
 
+def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: str, result_level: str) -> str:
+    donor = str(donor_id or "").strip().lower()
+    level = str(result_level or "outcome").strip().lower() or "outcome"
+    label = str(indicator_name or "Indicator").strip() or "Indicator"
+    if donor == "usaid":
+        return (
+            f"{label} measured at {level} level using USAID-style performance monitoring definitions and "
+            "documented verification criteria."
+        )
+    if donor == "eu":
+        return (
+            f"{label} measured at {level} level in the intervention logic with explicit means of verification "
+            "and periodic partner validation."
+        )
+    if donor == "worldbank":
+        return (
+            f"{label} measured at {level} level in the results framework using verified implementation evidence "
+            "and results reporting."
+        )
+    if donor == "giz":
+        return f"{label} measured at {level} level with partner delivery evidence and sustainability-oriented review."
+    if donor in {"state_department", "us_state_department"}:
+        return (
+            f"{label} measured at {level} level using program management evidence, verification checks, and "
+            "periodic risk review."
+        )
+    return f"{label} tracked at {level} level."
+
+
 def _default_indicator_formula(indicator_name: str, *, result_level: str) -> str:
     name = str(indicator_name or "").strip().lower()
     level = str(result_level or "").strip().lower()
@@ -384,14 +413,69 @@ def _default_indicator_formula(indicator_name: str, *, result_level: str) -> str
     return "Count of verified results achieved in reporting period"
 
 
-def _default_disaggregation(indicator_name: str) -> list[str]:
+def _default_disaggregation(indicator_name: str, *, donor_id: str, result_level: str) -> list[str]:
     name = str(indicator_name or "").strip().lower()
+    donor = str(donor_id or "").strip().lower()
+    level = str(result_level or "").strip().lower()
     base = ["location"]
+    if donor == "eu" and level == "outcome":
+        base = ["location", "partner_type"]
+    elif donor == "worldbank" and level in {"outcome", "impact"}:
+        base = ["location", "institution_type"]
+    elif donor in {"state_department", "us_state_department"}:
+        base = ["location", "participant_group"]
     if any(token in name for token in ("train", "official", "staff", "beneficiar", "participant", "people")):
         return ["sex", "age", "location"]
     if any(token in name for token in ("coverage", "rate", "service")):
         return ["location", "service_type"]
     return base
+
+
+def _default_owner_for_donor(donor_id: str, *, result_level: str) -> str:
+    donor = str(donor_id or "").strip().lower()
+    level = str(result_level or "outcome").strip().lower() or "outcome"
+    if donor == "usaid":
+        return "MEL lead and implementing partner M&E team" if level != "impact" else "CLA/MEL lead"
+    if donor == "eu":
+        return "Project M&E manager and partner focal points"
+    if donor == "worldbank":
+        return "PIU M&E specialist and implementing agency focal points"
+    if donor == "giz":
+        return "Programme M&E advisor and delivery partners"
+    if donor in {"state_department", "us_state_department"}:
+        return "Program manager and partner MEL focal point"
+    return "MEL lead"
+
+
+def _default_means_of_verification_for_donor(donor_id: str, *, result_level: str) -> str:
+    donor = str(donor_id or "").strip().lower()
+    level = str(result_level or "outcome").strip().lower() or "outcome"
+    if donor == "usaid":
+        mapping = {
+            "output": "Partner delivery records, attendance sheets, and activity reports",
+            "outcome": "Verified PMP datasets, spot checks, and partner evidence files",
+            "impact": "Evaluation reports and validated administrative datasets",
+        }
+        return mapping.get(level, mapping["outcome"])
+    if donor == "eu":
+        mapping = {
+            "output": "Logframe monitoring tables, partner reports, and verification files",
+            "outcome": "Outcome tracking tables, means of verification annexes, and field validation notes",
+            "impact": "External evaluations and official statistics",
+        }
+        return mapping.get(level, mapping["outcome"])
+    if donor == "worldbank":
+        mapping = {
+            "output": "Implementation support records and agency management information systems",
+            "outcome": "ISR evidence, results framework tables, and agency verification records",
+            "impact": "ICR evidence and national administrative statistics",
+        }
+        return mapping.get(level, mapping["outcome"])
+    if donor == "giz":
+        return "Partner monitoring records, validation meetings, and sustainability review notes"
+    if donor in {"state_department", "us_state_department"}:
+        return "Program monitoring records, partner verification notes, and risk review documentation"
+    return "Monitoring records and verification documents"
 
 
 def _apply_indicator_defaults(
@@ -422,7 +506,11 @@ def _apply_indicator_defaults(
 
     raw_definition = str(out.get("definition") or "").strip()
     if not raw_definition:
-        out["definition"] = f"{str(out.get('name') or 'Indicator').strip()} tracked at {current_result_level} level."
+        out["definition"] = _default_indicator_definition_for_donor(
+            str(out.get("name") or ""),
+            donor_id=donor_id,
+            result_level=current_result_level,
+        )
     else:
         out["definition"] = raw_definition
 
@@ -433,7 +521,26 @@ def _apply_indicator_defaults(
         out["data_source"] = raw_data_source
 
     if not isinstance(out.get("disaggregation"), list):
-        out["disaggregation"] = _default_disaggregation(str(out.get("name") or ""))
+        out["disaggregation"] = _default_disaggregation(
+            str(out.get("name") or ""),
+            donor_id=donor_id,
+            result_level=current_result_level,
+        )
+
+    raw_owner = str(out.get("owner") or "").strip()
+    if not raw_owner:
+        out["owner"] = _default_owner_for_donor(donor_id, result_level=current_result_level)
+    else:
+        out["owner"] = raw_owner
+
+    raw_mov = str(out.get("means_of_verification") or "").strip()
+    if not raw_mov:
+        out["means_of_verification"] = _default_means_of_verification_for_donor(
+            donor_id,
+            result_level=current_result_level,
+        )
+    else:
+        out["means_of_verification"] = raw_mov
     return out
 
 
@@ -446,6 +553,8 @@ def _copy_optional_indicator_fields_from_hit(indicator: Dict[str, Any], hit: Dic
         "formula",
         "definition",
         "data_source",
+        "owner",
+        "means_of_verification",
         "result_level",
         "pdo_result_id",
         "partner_data_source",

@@ -622,6 +622,8 @@ def build_xlsx_from_logframe(
         "Definition",
         "Data Source",
         "Disaggregation",
+        "Means of Verification",
+        "Owner",
     ]
     thin_border = _apply_table_header(ws, headers)
 
@@ -647,6 +649,8 @@ def build_xlsx_from_logframe(
         ws.cell(row=row, column=10, value=_cell_text(ind.get("definition", ""))).border = thin_border
         ws.cell(row=row, column=11, value=_cell_text(ind.get("data_source", ""))).border = thin_border
         ws.cell(row=row, column=12, value=_cell_text(ind.get("disaggregation", ""))).border = thin_border
+        ws.cell(row=row, column=13, value=_cell_text(ind.get("means_of_verification", ""))).border = thin_border
+        ws.cell(row=row, column=14, value=_cell_text(ind.get("owner", ""))).border = thin_border
 
     toc_payload_raw = toc_draft if isinstance(toc_draft, dict) else {}
     if not toc_payload_raw:
