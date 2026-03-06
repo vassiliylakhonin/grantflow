@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle buyer-demo-open buyer-demo-open-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -81,6 +81,8 @@ VERIFY_LATEST_STACK_BUILD_DIR ?= build
 RELEASE_DEMO_BUNDLE_BUILD_DIR ?= build
 RELEASE_DEMO_BUNDLE_OUT_DIR ?= build/release-demo-bundle
 RELEASE_DEMO_BUNDLE_NAME ?= grantflow-demo-bundle
+BUYER_DEMO_OPEN_BUILD_DIR ?= build
+BUYER_DEMO_OPEN_MODE ?= print
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -399,3 +401,11 @@ release-demo-bundle: verify-latest-stack-refresh
 		--build-dir $(RELEASE_DEMO_BUNDLE_BUILD_DIR) \
 		--output-dir $(RELEASE_DEMO_BUNDLE_OUT_DIR) \
 		--bundle-name $(RELEASE_DEMO_BUNDLE_NAME)
+
+buyer-demo-open:
+	$(PYTHON) scripts/buyer_demo_open.py \
+		--build-dir $(BUYER_DEMO_OPEN_BUILD_DIR) \
+		--mode $(BUYER_DEMO_OPEN_MODE)
+
+buyer-demo-open-refresh: pilot-refresh-fast
+	$(MAKE) buyer-demo-open BUYER_DEMO_OPEN_BUILD_DIR=$(BUYER_DEMO_OPEN_BUILD_DIR) BUYER_DEMO_OPEN_MODE=$(BUYER_DEMO_OPEN_MODE)
