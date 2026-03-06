@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -70,6 +70,11 @@ BASELINE_TEMPLATE_CSV_OUT ?=
 BASELINE_TEMPLATE_MD_OUT ?=
 CLEAN_DEMO_ARTIFACTS_BUILD_DIR ?= build
 LATEST_LINKS_BUILD_DIR ?= build
+PILOT_HANDOUT_PILOT_DIR ?= $(PILOT_PACK_DIR)
+PILOT_HANDOUT_EXECUTIVE_DIR ?= $(EXECUTIVE_PACK_OUT_DIR)
+PILOT_HANDOUT_PRESET_KEY ?= $(CASE_STUDY_PRESET_KEY)
+PILOT_HANDOUT_CASE_DIR ?= $(CASE_STUDY_CASE_DIR)
+PILOT_HANDOUT_OUT ?= build/pilot-handout.md
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -347,3 +352,14 @@ latest-links:
 
 latest-links-refresh: diligence-index-refresh
 	$(MAKE) latest-links LATEST_LINKS_BUILD_DIR=$(LATEST_LINKS_BUILD_DIR)
+
+pilot-handout:
+	$(PYTHON) scripts/pilot_handout.py \
+		--pilot-pack-dir $(PILOT_HANDOUT_PILOT_DIR) \
+		--executive-pack-dir $(PILOT_HANDOUT_EXECUTIVE_DIR) \
+		$(if $(strip $(PILOT_HANDOUT_PRESET_KEY)),--preset-key $(PILOT_HANDOUT_PRESET_KEY),) \
+		$(if $(strip $(PILOT_HANDOUT_CASE_DIR)),--case-dir $(PILOT_HANDOUT_CASE_DIR),) \
+		--output $(PILOT_HANDOUT_OUT)
+
+pilot-handout-refresh: latest-links-refresh
+	$(MAKE) pilot-handout PILOT_HANDOUT_PILOT_DIR=$(PILOT_PACK_DIR) PILOT_HANDOUT_EXECUTIVE_DIR=$(EXECUTIVE_PACK_OUT_DIR) PILOT_HANDOUT_PRESET_KEY=$(PILOT_HANDOUT_PRESET_KEY) PILOT_HANDOUT_CASE_DIR=$(PILOT_HANDOUT_CASE_DIR) PILOT_HANDOUT_OUT=$(PILOT_HANDOUT_OUT)
