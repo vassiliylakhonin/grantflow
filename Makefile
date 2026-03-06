@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -75,6 +75,8 @@ PILOT_HANDOUT_EXECUTIVE_DIR ?= $(EXECUTIVE_PACK_OUT_DIR)
 PILOT_HANDOUT_PRESET_KEY ?= $(CASE_STUDY_PRESET_KEY)
 PILOT_HANDOUT_CASE_DIR ?= $(CASE_STUDY_CASE_DIR)
 PILOT_HANDOUT_OUT ?= build/pilot-handout.md
+LATEST_OPEN_ORDER_BUILD_DIR ?= build
+LATEST_OPEN_ORDER_OUT ?= build/latest-open-order.md
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -366,3 +368,11 @@ pilot-handout-refresh: latest-links-refresh
 
 smoke-demo-refresh: pilot-handout-refresh
 	@echo "smoke demo refresh complete"
+
+latest-open-order:
+	$(PYTHON) scripts/latest_open_order.py \
+		--build-dir $(LATEST_OPEN_ORDER_BUILD_DIR) \
+		--output $(LATEST_OPEN_ORDER_OUT)
+
+latest-open-order-refresh: latest-links-refresh
+	$(MAKE) latest-open-order LATEST_OPEN_ORDER_BUILD_DIR=$(LATEST_OPEN_ORDER_BUILD_DIR) LATEST_OPEN_ORDER_OUT=$(LATEST_OPEN_ORDER_OUT)
