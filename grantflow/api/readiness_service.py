@@ -2,38 +2,67 @@ from __future__ import annotations
 
 from typing import Any
 
+from grantflow.api.diagnostics_service import (
+    _configuration_warnings,
+    _configured_runtime_compatibility_policy_mode,
+    _configured_tenant_authz_configuration_policy_mode,
+    _dead_letter_alert_blocking,
+    _dead_letter_alert_threshold,
+    _dispatcher_worker_heartbeat_policy_mode,
+    _python_runtime_compatibility_status,
+    _tenant_authz_configuration_status,
+    _vector_store_readiness,
+)
+from grantflow.api.orchestrator_service import (
+    _configured_export_contract_policy_mode,
+    _configured_export_grounding_policy_mode,
+    _configured_export_require_grounded_gate_pass,
+    _configured_mel_grounding_policy_mode,
+    _configured_preflight_grounding_policy_mode,
+    _configured_runtime_grounded_quality_gate_mode,
+    _export_grounding_policy_thresholds,
+    _mel_grounding_policy_thresholds,
+    _preflight_grounding_policy_thresholds,
+    _runtime_grounded_quality_gate_thresholds,
+)
+from grantflow.api.runtime_service import _job_runner_mode, _uses_inmemory_queue_runner, _uses_redis_queue_runner
 
-def _build_readiness_payload() -> dict[str, Any]:
+
+def _job_runner():
     from grantflow.api import app as api_app_module
 
-    vector_ready = api_app_module._vector_store_readiness()
-    job_runner_mode = api_app_module._job_runner_mode()
-    job_runner_diag = api_app_module.JOB_RUNNER.diagnostics()
-    runtime_compatibility_policy_mode = api_app_module._configured_runtime_compatibility_policy_mode()
-    runtime_compatibility_status = api_app_module._python_runtime_compatibility_status()
-    tenant_authz_status = api_app_module._tenant_authz_configuration_status()
-    tenant_authz_policy_mode = api_app_module._configured_tenant_authz_configuration_policy_mode()
+    return api_app_module.JOB_RUNNER
+
+
+def _build_readiness_payload() -> dict[str, Any]:
+    vector_ready = _vector_store_readiness()
+    job_runner_mode = _job_runner_mode()
+    job_runner_diag = _job_runner().diagnostics()
+    runtime_compatibility_policy_mode = _configured_runtime_compatibility_policy_mode()
+    runtime_compatibility_status = _python_runtime_compatibility_status()
+    tenant_authz_status = _tenant_authz_configuration_status()
+    tenant_authz_policy_mode = _configured_tenant_authz_configuration_policy_mode()
     dispatcher_heartbeat_status = (
         job_runner_diag.get("worker_heartbeat") if isinstance(job_runner_diag.get("worker_heartbeat"), dict) else None
     )
-    dispatcher_heartbeat_policy_mode = api_app_module._dispatcher_worker_heartbeat_policy_mode()
+    dispatcher_heartbeat_policy_mode = _dispatcher_worker_heartbeat_policy_mode()
     alerts: list[dict[str, Any]] = []
-    dead_letter_threshold = api_app_module._dead_letter_alert_threshold()
+    dead_letter_threshold = _dead_letter_alert_threshold()
     dead_letter_queue_size_raw = job_runner_diag.get("dead_letter_queue_size")
     try:
         dead_letter_queue_size = int(dead_letter_queue_size_raw)
     except (TypeError, ValueError):
         dead_letter_queue_size = -1
     dead_letter_alert_triggered = (
-        api_app_module._uses_redis_queue_runner()
+        _uses_redis_queue_runner()
         and dead_letter_threshold > 0
         and dead_letter_queue_size >= 0
         and dead_letter_queue_size >= dead_letter_threshold
     )
     job_runner_ready = True
-    if api_app_module._uses_inmemory_queue_runner():
+    if _uses_inmemory_queue_runner():
         job_runner_ready = bool(job_runner_diag.get("running"))
-    elif api_app_module._uses_redis_queue_runner():
+    elif _uses_redis_queue_runner():
         consumer_enabled = bool(job_runner_diag.get("consumer_enabled", True))
         running_ok = bool(job_runner_diag.get("running")) if consumer_enabled else True
         job_runner_ready = running_ok and bool(job_runner_diag.get("redis_available"))
@@ -58,7 +87,7 @@ def _build_readiness_payload() -> dict[str, Any]:
                 )
                 if blocking:
                     job_runner_ready = False
-    if dead_letter_alert_triggered and api_app_module._dead_letter_alert_blocking():
+    if dead_letter_alert_triggered and _dead_letter_alert_blocking():
         job_runner_ready = False
     runtime_compatibility_supported = bool(runtime_compatibility_status.get("supported"))
     runtime_compatibility_blocking = (
@@ -106,27 +135,27 @@ def _build_readiness_payload() -> dict[str, Any]:
         and not runtime_compatibility_blocking
         and not tenant_authz_blocking
     )
-    preflight_grounding_thresholds = api_app_module._preflight_grounding_policy_thresholds()
-    runtime_grounded_quality_gate_thresholds = api_app_module._runtime_grounded_quality_gate_thresholds()
-    mel_grounding_thresholds = api_app_module._mel_grounding_policy_thresholds()
-    export_grounding_thresholds = api_app_module._export_grounding_policy_thresholds()
+    preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
+    runtime_grounded_quality_gate_thresholds = _runtime_grounded_quality_gate_thresholds()
+    mel_grounding_thresholds = _mel_grounding_policy_thresholds()
+    export_grounding_thresholds = _export_grounding_policy_thresholds()
     dead_letter_alert = {
-        "enabled": bool(api_app_module._uses_redis_queue_runner() and dead_letter_threshold > 0),
+        "enabled": bool(_uses_redis_queue_runner() and dead_letter_threshold > 0),
         "threshold": dead_letter_threshold,
         "queue_size": dead_letter_queue_size,
         "triggered": bool(dead_letter_alert_triggered),
-        "blocking": bool(api_app_module._dead_letter_alert_blocking()),
+        "blocking": bool(_dead_letter_alert_blocking()),
     }
     if dead_letter_alert_triggered:
         alerts.append(
             {
                 "code": "DEAD_LETTER_QUEUE_THRESHOLD_EXCEEDED",
-                "severity": "high" if api_app_module._dead_letter_alert_blocking() else "medium",
+                "severity": "high" if _dead_letter_alert_blocking() else "medium",
                 "message": (
                     "Dead-letter queue size exceeded configured alert threshold "
                     f"({dead_letter_queue_size}/{dead_letter_threshold})."
                 ),
-                "blocking": bool(api_app_module._dead_letter_alert_blocking()),
+                "blocking": bool(_dead_letter_alert_blocking()),
             }
         )
     return {
@@ -145,26 +174,26 @@ def _build_readiness_payload() -> dict[str, Any]:
                 "alerts": alerts,
             },
             "preflight_grounding_policy": {
-                "mode": api_app_module._configured_preflight_grounding_policy_mode(),
+                "mode": _configured_preflight_grounding_policy_mode(),
                 "thresholds": preflight_grounding_thresholds,
             },
             "runtime_grounded_quality_gate": {
-                "mode": api_app_module._configured_runtime_grounded_quality_gate_mode(),
+                "mode": _configured_runtime_grounded_quality_gate_mode(),
                 "thresholds": runtime_grounded_quality_gate_thresholds,
             },
             "mel_grounding_policy": {
-                "mode": api_app_module._configured_mel_grounding_policy_mode(),
+                "mode": _configured_mel_grounding_policy_mode(),
                 "thresholds": mel_grounding_thresholds,
             },
             "export_grounding_policy": {
-                "mode": api_app_module._configured_export_grounding_policy_mode(),
+                "mode": _configured_export_grounding_policy_mode(),
                 "thresholds": export_grounding_thresholds,
             },
             "export_contract_policy": {
-                "mode": api_app_module._configured_export_contract_policy_mode(),
+                "mode": _configured_export_contract_policy_mode(),
             },
             "export_runtime_grounded_gate_policy": {
-                "require_pass": api_app_module._configured_export_require_grounded_gate_pass(),
+                "require_pass": _configured_export_require_grounded_gate_pass(),
             },
             "runtime_compatibility_policy": {
                 "mode": runtime_compatibility_policy_mode,
@@ -178,6 +207,6 @@ def _build_readiness_payload() -> dict[str, Any]:
                 "blocking": tenant_authz_blocking,
                 "alerts": tenant_authz_alerts,
             },
-            "configuration_warnings": api_app_module._configuration_warnings(),
+            "configuration_warnings": _configuration_warnings(),
         },
     }

@@ -3,8 +3,29 @@ from __future__ import annotations
 import uuid
 from typing import Any, Dict, Optional
 
-from grantflow.api import app as api_app_module
 from grantflow.api.idempotency import _normalize_request_id
+from grantflow.api.review_runtime_helpers import _utcnow_iso
+from grantflow.swarm.state_contract import normalize_state_contract
+
+
+def _job_store():
+    from grantflow.api import app as api_app_module
+
+    return api_app_module.JOB_STORE
+
+
+def _ingest_audit_store():
+    from grantflow.api import app as api_app_module
+
+    return api_app_module.INGEST_AUDIT_STORE
+
+
+def _dispatch_status_webhook(
+    job_id: str, previous: Optional[Dict[str, Any]], current: Optional[Dict[str, Any]]
+) -> None:
+    from grantflow.api.review_service import _dispatch_job_webhook_for_status_change
+
+    _dispatch_job_webhook_for_status_change(job_id, previous, current)
 
 
 def _append_job_event_records(
@@ -26,7 +47,7 @@ def _append_job_event_records(
         events.append(
             {
                 "event_id": str(uuid.uuid4()),
-                "ts": api_app_module._utcnow_iso(),
+                "ts": _utcnow_iso(),
                 "type": "status_changed",
                 "from_status": None if prev_status is None else str(prev_status),
                 "to_status": str(next_status),
@@ -40,7 +61,8 @@ def _append_job_event_records(
 
 
 def _record_job_event(job_id: str, event_type: str, **fields: Any) -> None:
-    job = api_app_module.JOB_STORE.get(job_id)
+    store = _job_store()
+    job = store.get(job_id)
     if not job:
         return
     existing = job.get("job_events")
@@ -57,14 +79,14 @@ def _record_job_event(job_id: str, event_type: str, **fields: Any) -> None:
             return
     event: Dict[str, Any] = {
         "event_id": str(uuid.uuid4()),
-        "ts": api_app_module._utcnow_iso(),
+        "ts": _utcnow_iso(),
         "type": event_type,
         "status": str(job.get("status") or ""),
     }
     for key, value in fields.items():
         event[str(key)] = value
     events.append(event)
-    api_app_module.JOB_STORE.update(job_id, job_events=events[-200:])
+    store.update(job_id, job_events=events[-200:])
 
 
 def _record_ingest_event(
@@ -78,7 +100,7 @@ def _record_ingest_event(
 ) -> None:
     row: Dict[str, Any] = {
         "event_id": str(uuid.uuid4()),
-        "ts": api_app_module._utcnow_iso(),
+        "ts": _utcnow_iso(),
         "donor_id": str(donor_id or ""),
         "namespace": str(namespace or ""),
         "filename": str(filename or ""),
@@ -86,7 +108,7 @@ def _record_ingest_event(
         "metadata": dict(metadata or {}),
         "result": dict(result or {}),
     }
-    api_app_module.INGEST_AUDIT_STORE.append(row)
+    _ingest_audit_store().append(row)
 
 
 def _list_ingest_events(
@@ -95,11 +117,11 @@ def _list_ingest_events(
     tenant_id: Optional[str] = None,
     limit: int = 50,
 ) -> list[Dict[str, Any]]:
-    return api_app_module.INGEST_AUDIT_STORE.list_recent(donor_id=donor_id, tenant_id=tenant_id, limit=limit)
+    return _ingest_audit_store().list_recent(donor_id=donor_id, tenant_id=tenant_id, limit=limit)
 
 
 def _ingest_inventory(*, donor_id: Optional[str] = None, tenant_id: Optional[str] = None) -> list[Dict[str, Any]]:
-    inventory_fn = getattr(api_app_module.INGEST_AUDIT_STORE, "inventory", None)
+    inventory_fn = getattr(_ingest_audit_store(), "inventory", None)
     if callable(inventory_fn):
         rows = inventory_fn(donor_id=donor_id, tenant_id=tenant_id)
         return rows if isinstance(rows, list) else []
@@ -132,11 +154,12 @@ def _ingest_inventory(*, donor_id: Optional[str] = None, tenant_id: Optional[str
 
 
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
-    previous = api_app_module.JOB_STORE.get(job_id)
+    store = _job_store()
+    previous = store.get(job_id)
     next_payload = dict(payload)
     state_payload = next_payload.get("state")
     if isinstance(state_payload, dict):
-        api_app_module.normalize_state_contract(state_payload)
+        normalize_state_contract(state_payload)
 
     if previous and previous.get("status") == "canceled" and next_payload.get("status") != "canceled":
         return
@@ -153,34 +176,35 @@ def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
             next_payload[key] = previous.get(key)
 
     next_payload = _append_job_event_records(previous, next_payload)
-    api_app_module.JOB_STORE.set(job_id, next_payload)
-    api_app_module._dispatch_job_webhook_for_status_change(job_id, previous, next_payload)
+    store.set(job_id, next_payload)
+    _dispatch_status_webhook(job_id, previous, next_payload)
 
 
 def _update_job(job_id: str, **patch: Any) -> Dict[str, Any]:
-    previous = api_app_module.JOB_STORE.get(job_id)
+    store = _job_store()
+    previous = store.get(job_id)
     if previous and previous.get("status") == "canceled" and "status" in patch and patch.get("status") != "canceled":
         return previous
     next_patch = dict(patch)
     state_patch = next_patch.get("state")
     if isinstance(state_patch, dict):
-        api_app_module.normalize_state_contract(state_patch)
+        normalize_state_contract(state_patch)
     merged_preview = dict(previous or {})
     merged_preview.update(next_patch)
     merged_preview = _append_job_event_records(previous, merged_preview)
     if "job_events" in merged_preview:
         next_patch["job_events"] = merged_preview["job_events"]
-    updated = api_app_module.JOB_STORE.update(job_id, **next_patch)
-    api_app_module._dispatch_job_webhook_for_status_change(job_id, previous, updated)
+    updated = store.update(job_id, **next_patch)
+    _dispatch_status_webhook(job_id, previous, updated)
     return updated
 
 
 def _get_job(job_id: str) -> Optional[Dict[str, Any]]:
-    return api_app_module.JOB_STORE.get(job_id)
+    return _job_store().get(job_id)
 
 
 def _list_jobs() -> Dict[str, Dict[str, Any]]:
-    list_fn = getattr(api_app_module.JOB_STORE, "list", None)
+    list_fn = getattr(_job_store(), "list", None)
     if callable(list_fn):
         result = list_fn()
         if isinstance(result, dict):

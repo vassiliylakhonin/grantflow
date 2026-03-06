@@ -5,10 +5,61 @@ import sys
 from typing import Any, Dict, Optional
 
 from grantflow.api.constants import GROUNDING_POLICY_MODES
+from grantflow.api.orchestrator_service import (
+    _configured_export_contract_policy_mode,
+    _configured_export_grounding_policy_mode,
+    _configured_export_require_grounded_gate_pass,
+    _configured_mel_grounding_policy_mode,
+    _configured_preflight_grounding_policy_mode,
+    _configured_runtime_grounded_quality_gate_mode,
+    _export_grounding_policy_thresholds,
+    _mel_grounding_policy_thresholds,
+    _preflight_grounding_policy_thresholds,
+    _runtime_grounded_quality_gate_thresholds,
+)
 from grantflow.api.security import api_key_configured, read_auth_required
 from grantflow.api.tenant import _allowed_tenant_tokens, _default_tenant_token, _tenant_authz_enabled
 from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
+
+_JOB_RUNNER_MODES = {"background_tasks", "inmemory_queue", "redis_queue"}
+
+
+def _app_module():
+    from grantflow.api import app as api_app_module
+
+    return api_app_module
+
+
+def _runtime_sys():
+    return getattr(_app_module(), "sys", sys)
+
+
+def _job_runner():
+    return _app_module().JOB_RUNNER
+
+
+def _job_store():
+    return _app_module().JOB_STORE
+
+
+def _ingest_audit_store():
+    return _app_module().INGEST_AUDIT_STORE
+
+
+def _hitl_manager():
+    return _app_module().hitl_manager
+
+
+def _job_runner_mode() -> str:
+    raw_mode = str(getattr(config.job_runner, "mode", "background_tasks") or "background_tasks").strip().lower()
+    if raw_mode not in _JOB_RUNNER_MODES:
+        return "background_tasks"
+    return raw_mode
+
+
+def _uses_queue_runner() -> bool:
+    return _job_runner_mode() in {"inmemory_queue", "redis_queue"}
 
 
 def _normalize_grounding_policy_mode(raw_mode: Any) -> str:
@@ -74,9 +125,7 @@ def _configured_runtime_compatibility_policy_mode() -> str:
 
 
 def _python_runtime_compatibility_status() -> Dict[str, Any]:
-    from grantflow.api import app as api_app_module
-
-    runtime_sys = getattr(api_app_module, "sys", sys)
+    runtime_sys = _runtime_sys()
     version_info = getattr(runtime_sys, "version_info", sys.version_info)
     python_major = int(version_info[0])
     python_minor = int(version_info[1])
@@ -90,9 +139,7 @@ def _python_runtime_compatibility_status() -> Dict[str, Any]:
 
 def _configuration_warnings() -> list[dict[str, Any]]:
     warnings: list[dict[str, Any]] = []
-    from grantflow.api import app as api_app_module
-
-    runtime_sys = getattr(api_app_module, "sys", sys)
+    runtime_sys = _runtime_sys()
     version_info = getattr(runtime_sys, "version_info", sys.version_info)
     python_major = int(version_info[0])
     python_minor = int(version_info[1])
@@ -175,25 +222,23 @@ def _configuration_warnings() -> list[dict[str, Any]]:
 
 
 def _health_diagnostics() -> dict[str, Any]:
-    from grantflow.api import app as api_app_module
-
-    job_store_mode = api_app_module._job_store_mode()
-    hitl_store_mode = api_app_module._hitl_store_mode()
-    ingest_store_mode = api_app_module._ingest_store_mode()
-    sqlite_path = getattr(api_app_module.JOB_STORE, "db_path", None) or (
-        getattr(api_app_module.hitl_manager, "_sqlite_path", None) if hitl_store_mode == "sqlite" else None
+    job_store_mode = "sqlite" if getattr(_job_store(), "db_path", None) else "inmem"
+    hitl_store_mode = "sqlite" if bool(getattr(_hitl_manager(), "_use_sqlite", False)) else "inmem"
+    ingest_store_mode = "sqlite" if getattr(_ingest_audit_store(), "db_path", None) else "inmem"
+    sqlite_path = getattr(_job_store(), "db_path", None) or (
+        getattr(_hitl_manager(), "_sqlite_path", None) if hitl_store_mode == "sqlite" else None
     )
     if not sqlite_path and ingest_store_mode == "sqlite":
-        sqlite_path = getattr(api_app_module.INGEST_AUDIT_STORE, "db_path", None)
+        sqlite_path = getattr(_ingest_audit_store(), "db_path", None)
 
     vector_backend = "chroma" if getattr(vector_store, "client", None) is not None else "memory"
-    preflight_grounding_thresholds = api_app_module._preflight_grounding_policy_thresholds()
-    runtime_grounded_quality_gate_thresholds = api_app_module._runtime_grounded_quality_gate_thresholds()
-    mel_grounding_thresholds = api_app_module._mel_grounding_policy_thresholds()
-    export_grounding_thresholds = api_app_module._export_grounding_policy_thresholds()
+    preflight_grounding_thresholds = _preflight_grounding_policy_thresholds()
+    runtime_grounded_quality_gate_thresholds = _runtime_grounded_quality_gate_thresholds()
+    mel_grounding_thresholds = _mel_grounding_policy_thresholds()
+    export_grounding_thresholds = _export_grounding_policy_thresholds()
     runtime_compatibility_status = _python_runtime_compatibility_status()
     tenant_authz_status = _tenant_authz_configuration_status()
-    job_runner_diag = api_app_module.JOB_RUNNER.diagnostics()
+    job_runner_diag = _job_runner().diagnostics()
     dispatcher_heartbeat_status = (
         job_runner_diag.get("worker_heartbeat") if isinstance(job_runner_diag.get("worker_heartbeat"), dict) else None
     )
@@ -202,8 +247,8 @@ def _health_diagnostics() -> dict[str, Any]:
         "hitl_store": {"mode": hitl_store_mode},
         "ingest_store": {"mode": ingest_store_mode},
         "job_runner": {
-            "mode": api_app_module._job_runner_mode(),
-            "queue_enabled": api_app_module._uses_queue_runner(),
+            "mode": _job_runner_mode(),
+            "queue_enabled": _uses_queue_runner(),
             "queue": job_runner_diag,
             "dispatcher_worker_heartbeat_policy": {
                 "mode": _dispatcher_worker_heartbeat_policy_mode(),
@@ -225,26 +270,26 @@ def _health_diagnostics() -> dict[str, Any]:
             "collection_prefix": getattr(vector_store, "prefix", "grantflow"),
         },
         "preflight_grounding_policy": {
-            "mode": api_app_module._configured_preflight_grounding_policy_mode(),
+            "mode": _configured_preflight_grounding_policy_mode(),
             "thresholds": preflight_grounding_thresholds,
         },
         "runtime_grounded_quality_gate": {
-            "mode": api_app_module._configured_runtime_grounded_quality_gate_mode(),
+            "mode": _configured_runtime_grounded_quality_gate_mode(),
             "thresholds": runtime_grounded_quality_gate_thresholds,
         },
         "mel_grounding_policy": {
-            "mode": api_app_module._configured_mel_grounding_policy_mode(),
+            "mode": _configured_mel_grounding_policy_mode(),
             "thresholds": mel_grounding_thresholds,
         },
         "export_grounding_policy": {
-            "mode": api_app_module._configured_export_grounding_policy_mode(),
+            "mode": _configured_export_grounding_policy_mode(),
             "thresholds": export_grounding_thresholds,
         },
         "export_contract_policy": {
-            "mode": api_app_module._configured_export_contract_policy_mode(),
+            "mode": _configured_export_contract_policy_mode(),
         },
         "export_runtime_grounded_gate_policy": {
-            "require_pass": api_app_module._configured_export_require_grounded_gate_pass(),
+            "require_pass": _configured_export_require_grounded_gate_pass(),
         },
         "runtime_compatibility_policy": {
             "mode": _configured_runtime_compatibility_policy_mode(),
