@@ -236,7 +236,7 @@ def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> N
 
 
 def _checkpoint_status_token(checkpoint: Dict[str, Any]) -> str:
-    from grantflow.api.pipeline_jobs import _checkpoint_status_token as _impl
+    from grantflow.api.review_runtime_helpers import _checkpoint_status_token as _impl
 
     return _impl(checkpoint)
 
@@ -532,7 +532,7 @@ def _resume_target_from_checkpoint(checkpoint: Dict[str, Any], default_resume_fr
 
 
 def _clear_hitl_runtime_state(state: dict, *, clear_pending: bool) -> None:
-    from grantflow.api.pipeline_jobs import _clear_hitl_runtime_state as _impl
+    from grantflow.api.review_runtime_helpers import _clear_hitl_runtime_state as _impl
 
     _impl(state, clear_pending=clear_pending)
 

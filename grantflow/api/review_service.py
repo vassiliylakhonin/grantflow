@@ -8,13 +8,19 @@ from grantflow.api.constants import (
     CRITIC_FINDING_SLA_HOURS,
     HITL_HISTORY_EVENT_TYPES,
     REVIEW_COMMENT_DEFAULT_SLA_HOURS,
-    RUNTIME_PIPELINE_STATE_KEYS,
     STATUS_WEBHOOK_EVENTS,
 )
 from grantflow.api.idempotency_store_facade import _get_job, _list_jobs, _record_job_event, _set_job, _update_job
 from grantflow.api.public_views import public_job_payload
 from grantflow.api.review_helpers import _normalize_comment_sla_hours, _normalize_finding_sla_profile
-from grantflow.api.review_runtime_helpers import _comment_sla_hours, _finding_sla_hours, _iso_plus_hours, _utcnow_iso
+from grantflow.api.review_runtime_helpers import (
+    _checkpoint_status_token,
+    _clear_hitl_runtime_state,
+    _comment_sla_hours,
+    _finding_sla_hours,
+    _iso_plus_hours,
+    _utcnow_iso,
+)
 from grantflow.api.webhooks import send_job_webhook_event
 from grantflow.swarm.findings import finding_primary_id, state_critic_findings, write_state_critic_findings
 from grantflow.swarm.hitl import HITLStatus, hitl_manager
@@ -369,15 +375,3 @@ def _pause_for_hitl(job_id: str, state: dict, stage: Literal["toc", "logframe"],
         checkpoint_stage=stage,
         resume_from=resume_from,
     )
-
-
-def _checkpoint_status_token(checkpoint: Dict[str, Any]) -> str:
-    raw = checkpoint.get("status")
-    return str(getattr(raw, "value", raw) or "").strip().lower()
-
-
-def _clear_hitl_runtime_state(state: dict, *, clear_pending: bool) -> None:
-    for key in RUNTIME_PIPELINE_STATE_KEYS:
-        state.pop(key, None)
-    if clear_pending:
-        state["hitl_pending"] = False

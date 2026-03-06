@@ -11,8 +11,6 @@ from grantflow.api.compat_exports import (  # noqa: F401
     _attach_export_contract_gate,
     _build_generate_request_from_preset,
     _build_job_runner,
-    _checkpoint_status_token,
-    _clear_hitl_runtime_state,
     _comment_sla_hours,
     _configuration_warnings,
     _configured_tenant_authz_configuration_policy_mode,
@@ -22,7 +20,6 @@ from grantflow.api.compat_exports import (  # noqa: F401
     _deployment_environment,
     _dispatch_generate_from_preset,
     _dispatch_job_webhook_for_status_change,
-    _dispatch_pipeline_task,
     _dispatcher_worker_heartbeat_policy_mode,
     _ensure_comment_due_at,
     _ensure_finding_due_at,
@@ -49,7 +46,6 @@ from grantflow.api.compat_exports import (  # noqa: F401
     _normalize_review_comments_for_job,
     _parse_iso_utc,
     _pause_for_hitl,
-    _record_hitl_feedback_in_state,
     _recompute_review_workflow_sla,
     _redis_queue_admin_runner,
     _require_api_key_on_startup,
@@ -57,11 +53,6 @@ from grantflow.api.compat_exports import (  # noqa: F401
     _resolve_generate_payload_from_preset,
     _resolve_preflight_request_context,
     _resolve_sla_profile_for_recompute,
-    _resume_target_from_checkpoint,
-    _run_hitl_pipeline,
-    _run_hitl_pipeline_by_job_id,
-    _run_pipeline_to_completion,
-    _run_pipeline_to_completion_by_job_id,
     _runtime_grounded_quality_gate_block_reason,
     _set_critic_fatal_flaw_status,
     _set_critic_fatal_flaws_status_bulk,
@@ -79,6 +70,19 @@ from grantflow.api.compat_exports import (  # noqa: F401
     _validate_store_backend_alignment,
     _validate_tenant_authz_configuration,
     _vector_store_readiness,
+)
+from grantflow.api.pipeline_jobs import (  # noqa: F401
+    _dispatch_pipeline_task,
+    _record_hitl_feedback_in_state,
+    _resume_target_from_checkpoint,
+    _run_hitl_pipeline,
+    _run_hitl_pipeline_by_job_id,
+    _run_pipeline_to_completion,
+    _run_pipeline_to_completion_by_job_id,
+)
+from grantflow.api.review_runtime_helpers import (  # noqa: F401
+    _checkpoint_status_token,
+    _clear_hitl_runtime_state,
 )
 from grantflow.api.constants import (  # noqa: F401
     HITL_HISTORY_EVENT_TYPES,

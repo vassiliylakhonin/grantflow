@@ -8,6 +8,7 @@ from grantflow.api.constants import RUNTIME_PIPELINE_STATE_KEYS, TERMINAL_JOB_ST
 from grantflow.api.idempotency_store_facade import _get_job, _record_job_event, _set_job
 from grantflow.api.orchestrator_service import _evaluate_runtime_grounded_quality_gate_from_state
 from grantflow.api.review_service import _job_is_canceled, _pause_for_hitl
+from grantflow.api.review_runtime_helpers import _checkpoint_status_token, _clear_hitl_runtime_state
 from grantflow.api.runtime_gate_helpers import (
     _append_runtime_grounded_quality_gate_finding,
     _attach_export_contract_gate,
@@ -59,11 +60,6 @@ def _record_hitl_feedback_in_state(state: dict, checkpoint: Dict[str, Any]) -> N
     )
     state["hitl_feedback_history"] = history
     state["hitl_feedback"] = feedback
-
-
-def _checkpoint_status_token(checkpoint: Dict[str, Any]) -> str:
-    raw = checkpoint.get("status")
-    return str(getattr(raw, "value", raw) or "").strip().lower()
 
 
 def _run_pipeline_to_completion(job_id: str, initial_state: dict) -> None:
@@ -304,10 +300,3 @@ def _resume_target_from_checkpoint(checkpoint: Dict[str, Any], default_resume_fr
         return default_resume_from  # type: ignore[return-value]
 
     raise ValueError("Checkpoint must be approved or rejected before resume")
-
-
-def _clear_hitl_runtime_state(state: dict, *, clear_pending: bool) -> None:
-    for key in RUNTIME_PIPELINE_STATE_KEYS:
-        state.pop(key, None)
-    if clear_pending:
-        state["hitl_pending"] = False

@@ -7,13 +7,17 @@ from typing import Any, Dict, Optional
 
 from fastapi import HTTPException, Request
 
-from grantflow.api import app as api_app_module
-
 REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{1,120}$")
 MAX_IDEMPOTENCY_RECORDS = 300
 MAX_GLOBAL_IDEMPOTENCY_RECORDS = 1000
 GLOBAL_IDEMPOTENCY_RECORDS: Dict[str, Dict[str, Any]] = {}
 GLOBAL_IDEMPOTENCY_LOCK = threading.Lock()
+
+
+def _app_module():
+    from grantflow.api import app as api_app_module
+
+    return api_app_module
 
 
 def _normalize_request_id(value: Any) -> Optional[str]:
@@ -100,7 +104,7 @@ def _store_idempotency_response(
     token = _normalize_request_id(request_id)
     if not token:
         return
-    job = api_app_module._get_job(job_id)
+    job = _app_module()._get_job(job_id)
     if not job:
         return
     records = _idempotency_records(job)
@@ -113,13 +117,13 @@ def _store_idempotency_response(
         "request_id": token,
         "fingerprint": fingerprint,
         "persisted": bool(persisted),
-        "ts": api_app_module._utcnow_iso(),
+        "ts": _app_module()._utcnow_iso(),
         "response": stored_response,
     }
     while len(records) > MAX_IDEMPOTENCY_RECORDS:
         oldest_key = next(iter(records))
         records.pop(oldest_key, None)
-    api_app_module._update_job(job_id, idempotency_records=records)
+    _app_module()._update_job(job_id, idempotency_records=records)
 
 
 def _global_idempotency_record_key(scope: str, request_id: str) -> str:
@@ -183,7 +187,7 @@ def _store_global_idempotency_response(
             "request_id": token,
             "fingerprint": fingerprint,
             "persisted": bool(persisted),
-            "ts": api_app_module._utcnow_iso(),
+            "ts": _app_module()._utcnow_iso(),
             "response": stored_response,
         }
         while len(GLOBAL_IDEMPOTENCY_RECORDS) > MAX_GLOBAL_IDEMPOTENCY_RECORDS:

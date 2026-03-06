@@ -5,7 +5,11 @@ from typing import Any, Dict, Optional
 
 from fastapi import Request
 
-from grantflow.api.constants import CRITIC_FINDING_SLA_HOURS, REVIEW_COMMENT_DEFAULT_SLA_HOURS
+from grantflow.api.constants import (
+    CRITIC_FINDING_SLA_HOURS,
+    REVIEW_COMMENT_DEFAULT_SLA_HOURS,
+    RUNTIME_PIPELINE_STATE_KEYS,
+)
 
 
 def _utcnow_iso() -> str:
@@ -54,3 +58,15 @@ def _finding_actor_from_request(request: Request) -> str:
         if value:
             return value[:120]
     return "api_user"
+
+
+def _checkpoint_status_token(checkpoint: Dict[str, Any]) -> str:
+    raw = checkpoint.get("status")
+    return str(getattr(raw, "value", raw) or "").strip().lower()
+
+
+def _clear_hitl_runtime_state(state: Dict[str, Any], *, clear_pending: bool) -> None:
+    for key in RUNTIME_PIPELINE_STATE_KEYS:
+        state.pop(key, None)
+    if clear_pending:
+        state["hitl_pending"] = False
