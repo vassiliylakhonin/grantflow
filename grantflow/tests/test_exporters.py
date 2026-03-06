@@ -221,7 +221,26 @@ def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
 
     usaid_doc = Document(BytesIO(build_docx_from_toc(usaid_toc, "usaid", logframe_draft=donor_logframe)))
     eu_doc = Document(BytesIO(build_docx_from_toc(eu_toc, "eu", logframe_draft=donor_logframe)))
-    wb_doc = Document(BytesIO(build_docx_from_toc(wb_toc, "worldbank")))
+    state_logframe = {
+        "indicators": [
+            {
+                "indicator_id": "IND_003",
+                "name": "Independent media resilience score",
+                "result_level": "impact",
+                "means_of_verification": "Editorial risk logs and resilience reviews",
+                "owner": "Program manager and media partner leads",
+            },
+            {
+                "indicator_id": "IND_004",
+                "name": "Agency performance monitoring score",
+                "result_level": "outcome",
+                "means_of_verification": "ISR aide-memoires and results framework updates",
+                "owner": "PIU results lead",
+            },
+        ]
+    }
+
+    wb_doc = Document(BytesIO(build_docx_from_toc(wb_toc, "worldbank", logframe_draft=state_logframe)))
     usaid_text = "\n".join(p.text for p in usaid_doc.paragraphs)
     eu_text = "\n".join(p.text for p in eu_doc.paragraphs)
     wb_text = "\n".join(p.text for p in wb_doc.paragraphs)
@@ -242,6 +261,8 @@ def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
     assert "Project Development Objective (PDO)" in wb_text
     assert "PDO1" in wb_text
     assert "Results Chain" in wb_text
+    assert "Suggested PDO monitoring focus:" in wb_text
+    assert "ISR aide-memoires and results framework updates" in wb_text
 
 
 def test_word_export_uses_donor_specific_sections_for_giz_and_state_department():
@@ -277,7 +298,19 @@ def test_word_export_uses_donor_specific_sections_for_giz_and_state_department()
     }
 
     giz_doc = Document(BytesIO(build_docx_from_toc(giz_toc, "giz")))
-    state_doc = Document(BytesIO(build_docx_from_toc(state_toc, "state_department")))
+    state_logframe = {
+        "indicators": [
+            {
+                "indicator_id": "IND_005",
+                "name": "Media resilience score",
+                "result_level": "impact",
+                "means_of_verification": "Editorial risk logs and resilience reviews",
+                "owner": "Program manager and media partner leads",
+            }
+        ]
+    }
+
+    state_doc = Document(BytesIO(build_docx_from_toc(state_toc, "state_department", logframe_draft=state_logframe)))
     giz_text = "\n".join(p.text for p in giz_doc.paragraphs)
     state_text = "\n".join(p.text for p in state_doc.paragraphs)
 
@@ -288,6 +321,8 @@ def test_word_export_uses_donor_specific_sections_for_giz_and_state_department()
     assert "U.S. Department of State Program Logic" in state_text
     assert "Strategic Context" in state_text
     assert "Risk Mitigation" in state_text
+    assert "Suggested strategic monitoring focus:" in state_text
+    assert "Editorial risk logs and resilience reviews" in state_text
 
 
 def test_word_export_includes_template_profile_and_missing_sections_summary():
@@ -752,10 +787,29 @@ def test_excel_export_includes_donor_specific_sheets():
 
     usaid_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "usaid", toc_draft=usaid_toc)))
     eu_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "eu", toc_draft=eu_toc)))
-    wb_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "worldbank", toc_draft=wb_toc)))
+    donor_focus_logframe = {
+        "indicators": [
+            {
+                "indicator_id": "IND_WB_1",
+                "name": "Agency performance monitoring score",
+                "result_level": "outcome",
+                "means_of_verification": "ISR aide-memoires and results framework updates",
+                "owner": "PIU results lead",
+            },
+            {
+                "indicator_id": "IND_STATE_1",
+                "name": "Media resilience score",
+                "result_level": "impact",
+                "means_of_verification": "Editorial risk logs and resilience reviews",
+                "owner": "Program manager and media partner leads",
+            },
+        ]
+    }
+
+    wb_wb = load_workbook(BytesIO(build_xlsx_from_logframe(donor_focus_logframe, "worldbank", toc_draft=wb_toc)))
     giz_wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "giz", toc_draft=giz_toc)))
     state_wb = load_workbook(
-        BytesIO(build_xlsx_from_logframe({"indicators": []}, "state_department", toc_draft=state_toc))
+        BytesIO(build_xlsx_from_logframe(donor_focus_logframe, "state_department", toc_draft=state_toc))
     )
 
     assert "USAID_RF" in usaid_wb.sheetnames
@@ -781,6 +835,10 @@ def test_excel_export_includes_donor_specific_sheets():
     assert wb_rows[0][0] == "Level"
     assert any(row[0] == "PDO" for row in wb_rows[1:])
     assert any(row[0] == "Result" and row[1] == "R1" for row in wb_rows[1:])
+    assert "Suggested Monitoring Focus" in wb_rows[0]
+    assert "Suggested Means of Verification" in wb_rows[0]
+    assert "Suggested Owner" in wb_rows[0]
+    assert any("ISR aide-memoires and results framework updates" in str(row) for row in wb_rows[1:])
 
     giz_rows = list(giz_wb["GIZ_Results"].iter_rows(values_only=True))
     assert any(row[0] == "Programme Objective" for row in giz_rows[1:])
@@ -789,6 +847,10 @@ def test_excel_export_includes_donor_specific_sheets():
     state_rows = list(state_wb["StateDept_Results"].iter_rows(values_only=True))
     assert any(row[0] == "Strategic Context" for row in state_rows[1:])
     assert any(row[0] == "Objective" for row in state_rows[1:])
+    assert "Suggested Monitoring Focus" in state_rows[0]
+    assert "Suggested Means of Verification" in state_rows[0]
+    assert "Suggested Owner" in state_rows[0]
+    assert any("Editorial risk logs and resilience reviews" in str(row) for row in state_rows[1:])
 
 
 def test_export_contract_normalizes_usaid_alias_payload_keys():

@@ -395,13 +395,21 @@ def _render_eu_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Option
         doc.add_paragraph("Overall objective is not provided in EU schema draft.")
 
 
-def _render_worldbank_toc(doc: Document, toc: Dict[str, Any]) -> None:
+def _render_worldbank_toc(
+    doc: Document, toc: Dict[str, Any], *, logframe_draft: Optional[Dict[str, Any]] = None
+) -> None:
+    indicators = _normalized_indicator_rows(logframe_draft)
+    outcome_focus = _indicator_focus_rows(indicators, result_level="outcome", limit=2)
+    impact_focus = _indicator_focus_rows(indicators, result_level="impact", limit=1)
     doc.add_heading("World Bank Results Framework", level=1)
     rendered = False
     pdo = str(toc.get("project_development_objective") or "").strip()
     if pdo:
         doc.add_heading("Project Development Objective (PDO)", level=2)
         doc.add_paragraph(pdo)
+        _add_indicator_focus_block(
+            doc, indicators=impact_focus or outcome_focus[:1], label="Suggested PDO monitoring focus"
+        )
         rendered = True
 
     objectives = toc.get("objectives")
@@ -414,6 +422,11 @@ def _render_worldbank_toc(doc: Document, toc: Dict[str, Any]) -> None:
             title = str(obj.get("title") or "").strip()
             description = str(obj.get("description") or "").strip()
             doc.add_heading(f"{objective_id or 'Objective'} — {title or '-'}", level=3)
+            _add_indicator_focus_block(
+                doc,
+                indicators=outcome_focus[:1] or impact_focus,
+                label="Suggested results monitoring focus",
+            )
             if description:
                 doc.add_paragraph(description)
         rendered = True
@@ -434,6 +447,11 @@ def _render_worldbank_toc(doc: Document, toc: Dict[str, Any]) -> None:
             if indicator_focus:
                 p = doc.add_paragraph()
                 p.add_run(f"Indicator focus: {indicator_focus}").italic = True
+            _add_indicator_focus_block(
+                doc,
+                indicators=outcome_focus[:1] or impact_focus,
+                label="Suggested verification focus",
+            )
         rendered = True
 
     assumptions = toc.get("assumptions")
@@ -506,7 +524,12 @@ def _render_giz_toc(doc: Document, toc: Dict[str, Any]) -> None:
         doc.add_paragraph("No GIZ-specific ToC structure found in draft.")
 
 
-def _render_state_department_toc(doc: Document, toc: Dict[str, Any]) -> None:
+def _render_state_department_toc(
+    doc: Document, toc: Dict[str, Any], *, logframe_draft: Optional[Dict[str, Any]] = None
+) -> None:
+    indicators = _normalized_indicator_rows(logframe_draft)
+    outcome_focus = _indicator_focus_rows(indicators, result_level="outcome", limit=2)
+    impact_focus = _indicator_focus_rows(indicators, result_level="impact", limit=1)
     doc.add_heading("U.S. Department of State Program Logic", level=1)
     rendered = False
 
@@ -520,6 +543,11 @@ def _render_state_department_toc(doc: Document, toc: Dict[str, Any]) -> None:
     if program_goal:
         doc.add_heading("Program Goal", level=2)
         doc.add_paragraph(program_goal)
+        _add_indicator_focus_block(
+            doc,
+            indicators=impact_focus or outcome_focus[:1],
+            label="Suggested strategic monitoring focus",
+        )
         rendered = True
 
     objectives = toc.get("objectives")
@@ -535,6 +563,11 @@ def _render_state_department_toc(doc: Document, toc: Dict[str, Any]) -> None:
             if line_of_effort:
                 title += f" ({line_of_effort})"
             doc.add_paragraph(title, style="List Bullet")
+            _add_indicator_focus_block(
+                doc,
+                indicators=outcome_focus[:1] or impact_focus,
+                label="Suggested delivery monitoring focus",
+            )
             if expected_change:
                 doc.add_paragraph(expected_change)
         rendered = True
@@ -725,11 +758,11 @@ def build_docx_from_toc(
     elif donor_key == "eu":
         _render_eu_toc(doc, toc_content, logframe_draft=logframe_draft)
     elif donor_key == "worldbank":
-        _render_worldbank_toc(doc, toc_content)
+        _render_worldbank_toc(doc, toc_content, logframe_draft=logframe_draft)
     elif donor_key == "giz":
         _render_giz_toc(doc, toc_content)
     elif donor_key in {"state_department", "us_state_department", "u.s. department of state", "us department of state"}:
-        _render_state_department_toc(doc, toc_content)
+        _render_state_department_toc(doc, toc_content, logframe_draft=logframe_draft)
     else:
         _render_generic_toc(doc, toc_content)
 
