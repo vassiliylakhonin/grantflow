@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -37,6 +37,9 @@ PILOT_PACK_DEMO_DIR ?= $(DEMO_PACK_DIR)
 PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO ?= 0
 BUYER_BRIEF_PILOT_DIR ?= $(PILOT_PACK_DIR)
 BUYER_BRIEF_OUT ?=
+PILOT_METRICS_PILOT_DIR ?= $(PILOT_PACK_DIR)
+PILOT_METRICS_CSV_OUT ?=
+PILOT_METRICS_MD_OUT ?=
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -219,3 +222,12 @@ buyer-brief:
 
 buyer-brief-refresh: pilot-pack
 	$(MAKE) buyer-brief BUYER_BRIEF_PILOT_DIR=$(PILOT_PACK_DIR) BUYER_BRIEF_OUT=$(BUYER_BRIEF_OUT)
+
+pilot-metrics:
+	$(PYTHON) scripts/pilot_metrics.py \
+		--pilot-pack-dir $(PILOT_METRICS_PILOT_DIR) \
+		$(if $(strip $(PILOT_METRICS_CSV_OUT)),--csv-out $(PILOT_METRICS_CSV_OUT),) \
+		$(if $(strip $(PILOT_METRICS_MD_OUT)),--md-out $(PILOT_METRICS_MD_OUT),)
+
+pilot-metrics-refresh: pilot-pack
+	$(MAKE) pilot-metrics PILOT_METRICS_PILOT_DIR=$(PILOT_PACK_DIR) PILOT_METRICS_CSV_OUT=$(PILOT_METRICS_CSV_OUT) PILOT_METRICS_MD_OUT=$(PILOT_METRICS_MD_OUT)

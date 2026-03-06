@@ -30,12 +30,16 @@ make demo-pack
 make pilot-pack
 make buyer-brief
 make buyer-brief-refresh
+make pilot-metrics
+make pilot-metrics-refresh
 ```
 
 This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
 `make pilot-pack` additionally assembles a stakeholder-facing folder in `build/pilot-pack/` with the live run evidence plus buyer and pilot evaluation docs.
 `make buyer-brief` writes a concise executive summary markdown from an existing pilot pack.
 `make buyer-brief-refresh` rebuilds the pilot pack first, then writes the brief.
+`make pilot-metrics` writes metric tables from an existing pilot pack.
+`make pilot-metrics-refresh` rebuilds the pilot pack first, then writes the metric tables.
 
 ## 3) Operator Demo Flow (API-first)
 
@@ -159,4 +163,6 @@ make demo-pack DEMO_PACK_API_KEY=change-me
 make pilot-pack PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
 make buyer-brief BUYER_BRIEF_OUT=build/pilot-pack/buyer-brief-custom.md
 make buyer-brief-refresh PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
+make pilot-metrics PILOT_METRICS_PILOT_DIR=build/pilot-pack-smoke
+make pilot-metrics-refresh PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
 ```
