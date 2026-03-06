@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-smoke
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-smoke
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -100,6 +100,10 @@ GROUNDED_TARGET_CASES_FILE ?= grantflow/eval/cases/grounded_cases.json
 GROUNDED_TARGET_CASE_IDS ?= state_department_media_georgia_grounded
 GROUNDED_TARGET_SUITE_LABEL ?= grounded-target-live
 GROUNDED_TARGET_ARTIFACT_PREFIX ?= $(EVAL_ARTIFACTS_DIR)/grounded-target-live
+EXPORT_TARGET_CONTAINER ?= grantflow_api
+EXPORT_TARGET_CASE_SPECS ?= grantflow/eval/cases/grounded_cases.json:state_department_media_georgia_grounded
+EXPORT_TARGET_ARTIFACT_PREFIX ?= $(EVAL_ARTIFACTS_DIR)/export-target-live
+EXPORT_TARGET_ARTIFACT_DIR ?= $(EVAL_ARTIFACTS_DIR)/export-target-live-artifacts
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -273,6 +277,21 @@ eval-grounded-target-live:
 	docker cp $(LIVE_EVAL_CONTAINER):/tmp/$${tmp_prefix}.json $(GROUNDED_TARGET_ARTIFACT_PREFIX).json && \
 	docker cp $(LIVE_EVAL_CONTAINER):/tmp/$${tmp_prefix}.txt $(GROUNDED_TARGET_ARTIFACT_PREFIX).txt && \
 	cat $(GROUNDED_TARGET_ARTIFACT_PREFIX).txt
+
+export-target-live:
+	mkdir -p $(EVAL_ARTIFACTS_DIR) $(EXPORT_TARGET_ARTIFACT_DIR)
+	@tmp_prefix=$$(printf '%s' "$(EXPORT_TARGET_ARTIFACT_PREFIX)" | tr '/.' '__'); \
+	docker cp scripts/export_target_live.py $(EXPORT_TARGET_CONTAINER):/tmp/export_target_live.py && \
+	docker exec $(EXPORT_TARGET_CONTAINER) python /tmp/export_target_live.py \
+		$(foreach spec,$(EXPORT_TARGET_CASE_SPECS),--case-spec $(spec)) \
+		--json-out /tmp/$${tmp_prefix}.json \
+		--md-out /tmp/$${tmp_prefix}.md \
+		--artifact-dir /tmp/$${tmp_prefix}_artifacts && \
+	docker cp $(EXPORT_TARGET_CONTAINER):/tmp/$${tmp_prefix}.json $(EXPORT_TARGET_ARTIFACT_PREFIX).json && \
+	docker cp $(EXPORT_TARGET_CONTAINER):/tmp/$${tmp_prefix}.md $(EXPORT_TARGET_ARTIFACT_PREFIX).md && \
+	rm -rf $(EXPORT_TARGET_ARTIFACT_DIR)/* && \
+	docker cp $(EXPORT_TARGET_CONTAINER):/tmp/$${tmp_prefix}_artifacts/. $(EXPORT_TARGET_ARTIFACT_DIR) && \
+	cat $(EXPORT_TARGET_ARTIFACT_PREFIX).md
 
 demo-pack:
 	mkdir -p $(DEMO_PACK_DIR)
