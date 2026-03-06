@@ -2,6 +2,8 @@
 
 This runbook is for operators of GrantFlow API and worker processes.
 
+For code-specific error catalog entries, see `docs/troubleshooting.md`.
+
 ## 1) Startup Checklist
 
 Before startup, verify:
@@ -17,6 +19,13 @@ Before startup, verify:
    - production baseline: `GRANTFLOW_JOB_STORE=sqlite`, `GRANTFLOW_HITL_STORE=sqlite`, `GRANTFLOW_INGEST_STORE=sqlite`
 5. API auth posture is explicit:
    - production baseline: `GRANTFLOW_API_KEY` set
+
+Optional fast pre-check before boot:
+
+```bash
+make preflight-prod-api
+make preflight-prod-worker
+```
 
 Startup guards already enforce critical misconfigurations:
 - job/hitl store mismatch blocks startup

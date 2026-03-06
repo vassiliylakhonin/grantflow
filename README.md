@@ -19,6 +19,8 @@ Institutional proposal operating system: compliance-aware, agentic workflow engi
   - API key auth enabled (`GRANTFLOW_API_KEY`)
 - Operator docs:
   - `docs/operations-runbook.md`
+  - `docs/troubleshooting.md`
+  - `docs/architecture.md`
   - `docs/contributor-map.md`
   - `SECURITY.md`
 
@@ -698,6 +700,13 @@ docker-compose up --build
 
 By default, compose starts `api + worker + redis + chroma`.
 
+Production preflight checks:
+
+```bash
+make preflight-prod-api
+make preflight-prod-worker
+```
+
 ## Reality Check
 
 GrantFlow is production-oriented backend infrastructure, but not a “one-click donor submission” system.
@@ -720,6 +729,8 @@ Current constraints:
 ## Documentation
 
 - Full guide: `docs/full-guide.md`
+- Architecture overview: `docs/architecture.md`
+- Troubleshooting guide: `docs/troubleshooting.md`
 - Contributor map: `docs/contributor-map.md`
 - Operator runbook: `docs/operations-runbook.md`
 - Security policy: `SECURITY.md`

@@ -88,6 +88,13 @@ pip install ".[dev]"
 make qa-fast
 ```
 
+Production preflight helpers:
+
+```bash
+make preflight-prod-api
+make preflight-prod-worker
+```
+
 Dependency policy:
 - canonical source of truth: `pyproject.toml`
 - compatibility shims: `requirements.txt`, `requirements-dev.txt`, `grantflow/requirements.txt`
@@ -338,6 +345,9 @@ mypy grantflow/api grantflow/core/stores.py grantflow/swarm/versioning.py
 - Release process: `docs/release-process.md`
 - API stability policy: `docs/api-stability-policy.md`
 - PR/commit conventions: `CONTRIBUTING.md`
+- Architecture overview: `docs/architecture.md`
+- Troubleshooting: `docs/troubleshooting.md`
+- Operations runbook: `docs/operations-runbook.md`
 
 ## 14) Known Limits
 
