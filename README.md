@@ -169,9 +169,11 @@ One-command local bundle generation:
 
 ```bash
 make demo-pack
+make pilot-pack
 ```
 
 Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xlsx` / ZIP artifacts. The target expects a running local API at `http://127.0.0.1:8000`.
+`make pilot-pack` wraps the live demo evidence into `build/pilot-pack/` with a top-level pilot README plus buyer/demo guidance docs.
 
 ## Quick Start
 

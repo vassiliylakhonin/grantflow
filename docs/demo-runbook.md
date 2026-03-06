@@ -27,9 +27,11 @@ Fastest reproducible bundle path:
 
 ```bash
 make demo-pack
+make pilot-pack
 ```
 
 This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
+`make pilot-pack` additionally assembles a stakeholder-facing folder in `build/pilot-pack/` with the live run evidence plus buyer and pilot evaluation docs.
 
 ## 3) Operator Demo Flow (API-first)
 
@@ -150,4 +152,5 @@ Useful overrides:
 make demo-pack DEMO_PACK_DIR=build/demo-pack-llm DEMO_PACK_LLM_MODE=1 DEMO_PACK_ARCHITECT_RAG_ENABLED=1
 make demo-pack DEMO_PACK_PRESET_KEYS=usaid_gov_ai_kazakhstan,worldbank_public_sector_uzbekistan
 make demo-pack DEMO_PACK_API_KEY=change-me
+make pilot-pack PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
 ```

@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -32,6 +32,9 @@ DEMO_PACK_PRESET_KEYS ?= usaid_gov_ai_kazakhstan,eu_digital_governance_moldova,w
 DEMO_PACK_HITL_PRESET_KEY ?= usaid_gov_ai_kazakhstan
 DEMO_PACK_LLM_MODE ?= 0
 DEMO_PACK_ARCHITECT_RAG_ENABLED ?= 0
+PILOT_PACK_DIR ?= build/pilot-pack
+PILOT_PACK_DEMO_DIR ?= $(DEMO_PACK_DIR)
+PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO ?= 0
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -199,3 +202,10 @@ demo-pack:
 		--hitl-preset-key $(DEMO_PACK_HITL_PRESET_KEY) \
 		$(if $(filter 1 true TRUE yes YES,$(DEMO_PACK_LLM_MODE)),--llm-mode,) \
 		$(if $(filter 1 true TRUE yes YES,$(DEMO_PACK_ARCHITECT_RAG_ENABLED)),--architect-rag-enabled,)
+
+pilot-pack: demo-pack
+	mkdir -p $(PILOT_PACK_DIR)
+	$(PYTHON) scripts/pilot_pack.py \
+		--demo-pack-dir $(PILOT_PACK_DEMO_DIR) \
+		--output-dir $(PILOT_PACK_DIR) \
+		$(if $(filter 1 true TRUE yes YES,$(PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO)),--include-productization-memo,)
