@@ -752,13 +752,17 @@ def _add_giz_results_sheet(
         "Suggested Monitoring Focus",
         "Suggested Means of Verification",
         "Suggested Owner",
+        "Suggested Baseline -> Target",
+        "Suggested Frequency",
+        "Suggested Formula",
     ]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
 
     programme_objective = str(toc.get("programme_objective") or "").strip() if isinstance(toc, dict) else ""
     if programme_objective:
-        focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1])
+        focus_name, focus_mov, focus_owner = _indicator_focus_cells(output_focus[:1] or outcome_focus[:1])
+        baseline_target, frequency, formulas = _indicator_summary_cells(output_focus[:1] or outcome_focus[:1])
         ws.append(
             [
                 "Programme Objective",
@@ -768,6 +772,9 @@ def _add_giz_results_sheet(
                 focus_name,
                 focus_mov,
                 focus_owner,
+                baseline_target,
+                frequency,
+                formulas,
             ]
         )
         for col in range(1, len(headers) + 1):
@@ -778,7 +785,21 @@ def _add_giz_results_sheet(
     if isinstance(outputs, list):
         for output in outputs:
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(output_focus[:1] or outcome_focus[:1])
-            ws.append(["Output", str(output), "", "", focus_name, focus_mov, focus_owner])
+            baseline_target, frequency, formulas = _indicator_summary_cells(output_focus[:1] or outcome_focus[:1])
+            ws.append(
+                [
+                    "Output",
+                    str(output),
+                    "",
+                    "",
+                    focus_name,
+                    focus_mov,
+                    focus_owner,
+                    baseline_target,
+                    frequency,
+                    formulas,
+                ]
+            )
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
@@ -788,7 +809,8 @@ def _add_giz_results_sheet(
         for outcome in outcomes:
             if not isinstance(outcome, dict):
                 continue
-            focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1])
+            focus_name, focus_mov, focus_owner = _indicator_focus_cells(output_focus[:1] or outcome_focus[:1])
+            baseline_target, frequency, formulas = _indicator_summary_cells(output_focus[:1] or outcome_focus[:1])
             ws.append(
                 [
                     "Outcome",
@@ -798,6 +820,9 @@ def _add_giz_results_sheet(
                     focus_name,
                     focus_mov,
                     focus_owner,
+                    baseline_target,
+                    frequency,
+                    formulas,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -807,7 +832,7 @@ def _add_giz_results_sheet(
     sustainability_factors = toc.get("sustainability_factors") if isinstance(toc, dict) else None
     if isinstance(sustainability_factors, list):
         for item in sustainability_factors:
-            ws.append(["Sustainability", str(item), "", "", "", "", ""])
+            ws.append(["Sustainability", str(item), "", "", "", "", "", "", "", ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
@@ -815,13 +840,13 @@ def _add_giz_results_sheet(
     assumptions_risks = toc.get("assumptions_risks") if isinstance(toc, dict) else None
     if isinstance(assumptions_risks, list):
         for item in assumptions_risks:
-            ws.append(["Assumption/Risk", str(item), "", "", "", "", ""])
+            ws.append(["Assumption/Risk", str(item), "", "", "", "", "", "", "", ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
 
     if row_idx == 2:
-        ws.append(["", "", "", "", "", "", ""])
+        ws.append(["", "", "", "", "", "", "", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=2, column=col).border = thin_border
     _autosize_columns(ws)
@@ -845,6 +870,9 @@ def _add_un_results_sheet(
         "Suggested Monitoring Focus",
         "Suggested Means of Verification",
         "Suggested Owner",
+        "Suggested Baseline -> Target",
+        "Suggested Frequency",
+        "Suggested Formula",
     ]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
@@ -852,7 +880,20 @@ def _add_un_results_sheet(
     brief = str(toc.get("brief") or "").strip() if isinstance(toc, dict) else ""
     if brief:
         focus_name, focus_mov, focus_owner = _indicator_focus_cells(impact_focus or outcome_focus[:1])
-        ws.append(["Overview", "Overview", brief, focus_name, focus_mov, focus_owner])
+        baseline_target, frequency, formulas = _indicator_summary_cells(impact_focus or outcome_focus[:1])
+        ws.append(
+            [
+                "Overview",
+                "Overview",
+                brief,
+                focus_name,
+                focus_mov,
+                focus_owner,
+                baseline_target,
+                frequency,
+                formulas,
+            ]
+        )
         for col in range(1, len(headers) + 1):
             ws.cell(row=row_idx, column=col).border = thin_border
         row_idx += 1
@@ -863,6 +904,7 @@ def _add_un_results_sheet(
             if not isinstance(obj, dict):
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1] or impact_focus)
+            baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus[:1] or impact_focus)
             ws.append(
                 [
                     "Objective",
@@ -871,6 +913,9 @@ def _add_un_results_sheet(
                     focus_name,
                     focus_mov,
                     focus_owner,
+                    baseline_target,
+                    frequency,
+                    formulas,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -883,6 +928,7 @@ def _add_un_results_sheet(
             if not isinstance(row, dict):
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1])
+            baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus[:1])
             ws.append(
                 [
                     "Outcome",
@@ -891,6 +937,9 @@ def _add_un_results_sheet(
                     focus_name,
                     focus_mov,
                     focus_owner,
+                    baseline_target,
+                    frequency,
+                    formulas,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -898,7 +947,7 @@ def _add_un_results_sheet(
             row_idx += 1
 
     if row_idx == 2:
-        ws.append(["", "", "", "", "", ""])
+        ws.append(["", "", "", "", "", "", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=2, column=col).border = thin_border
     _autosize_columns(ws)

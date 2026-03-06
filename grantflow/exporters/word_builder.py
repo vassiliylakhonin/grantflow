@@ -537,8 +537,13 @@ def _render_giz_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Optio
         doc.add_paragraph(programme_objective)
         _add_indicator_focus_block(
             doc,
-            indicators=outcome_focus[:1],
+            indicators=output_focus[:1] or outcome_focus[:1],
             label="Suggested implementation monitoring focus",
+        )
+        _add_indicator_logframe_block(
+            doc,
+            indicators=output_focus[:1] or outcome_focus[:1],
+            label="Suggested programme-objective indicator rows",
         )
         rendered = True
 
@@ -551,6 +556,11 @@ def _render_giz_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Optio
             doc,
             indicators=output_focus[:1] or outcome_focus[:1],
             label="Suggested delivery verification focus",
+        )
+        _add_indicator_logframe_block(
+            doc,
+            indicators=output_focus[:1] or outcome_focus[:1],
+            label="Suggested output indicator rows",
         )
         rendered = True
 
@@ -571,8 +581,13 @@ def _render_giz_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Optio
                 p.add_run(f"Partner role: {partner_role}").italic = True
             _add_indicator_focus_block(
                 doc,
-                indicators=outcome_focus[:1],
+                indicators=output_focus[:1] or outcome_focus[:1],
                 label="Suggested sustainability monitoring focus",
+            )
+            _add_indicator_logframe_block(
+                doc,
+                indicators=output_focus[:1] or outcome_focus[:1],
+                label="Suggested outcome indicator rows",
             )
         rendered = True
 
@@ -611,6 +626,11 @@ def _render_un_agencies_toc(
             indicators=impact_focus or outcome_focus[:1],
             label="Suggested results focus",
         )
+        _add_indicator_logframe_block(
+            doc,
+            indicators=impact_focus or outcome_focus[:1],
+            label="Suggested overview indicator rows",
+        )
 
     objectives = toc.get("objectives")
     if isinstance(objectives, list) and objectives:
@@ -628,6 +648,11 @@ def _render_un_agencies_toc(
                 indicators=outcome_focus[:1] or impact_focus,
                 label="Suggested monitoring focus",
             )
+            _add_indicator_logframe_block(
+                doc,
+                indicators=outcome_focus[:1] or impact_focus,
+                label="Suggested objective indicator rows",
+            )
             citation = str(row.get("citation") or "").strip()
             if citation:
                 p = doc.add_paragraph()
@@ -644,6 +669,11 @@ def _render_un_agencies_toc(
             doc.add_paragraph(title, style="List Bullet")
             if description:
                 doc.add_paragraph(description)
+            _add_indicator_logframe_block(
+                doc,
+                indicators=outcome_focus[:1],
+                label="Suggested outcome indicator rows",
+            )
 
     toc_indicators = toc.get("indicators")
     if isinstance(toc_indicators, list) and toc_indicators:

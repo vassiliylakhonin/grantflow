@@ -22,7 +22,7 @@ DOCX_EXPECTED_HEADINGS: dict[str, list[str]] = {
     "worldbank": ["World Bank Results Framework", "Project Development Objective (PDO)", "Results Chain"],
     "giz": ["GIZ Results & Sustainability Logic", "Programme Objective", "Sustainability Factors"],
     "state_department": ["U.S. Department of State Program Logic", "Strategic Context", "Risk Mitigation"],
-    "un_agencies": ["Theory of Change", "MEL Indicator Summary"],
+    "un_agencies": ["UN Agency Program Logic", "Development Objectives", "MEL Indicator Summary"],
 }
 
 XLSX_EXPECTED_SHEETS: dict[str, list[str]] = {
@@ -31,7 +31,7 @@ XLSX_EXPECTED_SHEETS: dict[str, list[str]] = {
     "worldbank": ["LogFrame", "WB_Results", "Quality Summary", "Citations"],
     "giz": ["LogFrame", "GIZ_Results", "Quality Summary", "Citations"],
     "state_department": ["LogFrame", "StateDept_Results", "Quality Summary", "Citations"],
-    "un_agencies": ["LogFrame", "Quality Summary", "Citations"],
+    "un_agencies": ["LogFrame", "UN_Results", "Quality Summary", "Citations"],
 }
 
 

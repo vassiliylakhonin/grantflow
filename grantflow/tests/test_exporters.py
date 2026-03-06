@@ -315,6 +315,10 @@ def test_word_export_uses_donor_specific_sections_for_giz_and_state_department()
                 "indicator_id": "IND_GIZ_1",
                 "name": "SME continuity adoption score",
                 "result_level": "outcome",
+                "baseline": "0 SMEs",
+                "target": "40 SMEs",
+                "frequency": "semiannual",
+                "formula": "Count of SMEs meeting continuity adoption criteria",
                 "means_of_verification": "Partner coaching records and SME verification visits",
                 "owner": "Programme M&E lead and chamber focal points",
             },
@@ -322,6 +326,10 @@ def test_word_export_uses_donor_specific_sections_for_giz_and_state_department()
                 "indicator_id": "IND_GIZ_2",
                 "name": "Coaching completion rate",
                 "result_level": "output",
+                "baseline": "0 firms",
+                "target": "60 firms",
+                "frequency": "quarterly",
+                "formula": "Count of firms completing coaching package",
                 "means_of_verification": "Attendance registers and delivery logs",
                 "owner": "Technical assistance team lead",
             },
@@ -351,6 +359,10 @@ def test_word_export_uses_donor_specific_sections_for_giz_and_state_department()
     assert "Assumptions & Risks" in giz_text
     assert "Suggested implementation monitoring focus:" in giz_text
     assert "Suggested delivery verification focus:" in giz_text
+    assert "Suggested programme-objective indicator rows:" in giz_text
+    assert "Suggested output indicator rows:" in giz_text
+    assert "Suggested outcome indicator rows:" in giz_text
+    assert "Baseline/Target: 0 SMEs -> 40 SMEs" in giz_text
     assert "Partner coaching records and SME verification visits" in giz_text
     assert "U.S. Department of State Program Logic" in state_text
     assert "Strategic Context" in state_text
@@ -384,6 +396,10 @@ def test_word_export_uses_un_agencies_template_and_focus_bridge():
                 "indicator_id": "IND_UN_1",
                 "name": "Inclusive service readiness score",
                 "result_level": "outcome",
+                "baseline": "0 districts",
+                "target": "12 districts",
+                "frequency": "annual",
+                "formula": "Count of districts meeting inclusive service readiness criteria",
                 "means_of_verification": "Partner monitoring records and school support checklists",
                 "owner": "Programme manager and inclusion focal points",
             }
@@ -397,6 +413,10 @@ def test_word_export_uses_un_agencies_template_and_focus_bridge():
     assert "Overview" in un_text
     assert "Development Objectives" in un_text
     assert "Suggested monitoring focus:" in un_text
+    assert "Suggested overview indicator rows:" in un_text
+    assert "Suggested objective indicator rows:" in un_text
+    assert "Suggested outcome indicator rows:" in un_text
+    assert "Baseline/Target: 0 districts -> 12 districts" in un_text
     assert "Partner monitoring records and school support checklists" in un_text
 
 
@@ -895,6 +915,10 @@ def test_excel_export_includes_donor_specific_sheets():
                 "indicator_id": "IND_GIZ_1",
                 "name": "SME continuity adoption score",
                 "result_level": "outcome",
+                "baseline": "0 SMEs",
+                "target": "40 SMEs",
+                "frequency": "semiannual",
+                "formula": "Count of SMEs meeting continuity adoption criteria",
                 "means_of_verification": "Partner coaching records and SME verification visits",
                 "owner": "Programme M&E lead and chamber focal points",
             },
@@ -902,6 +926,10 @@ def test_excel_export_includes_donor_specific_sheets():
                 "indicator_id": "IND_GIZ_2",
                 "name": "Coaching completion rate",
                 "result_level": "output",
+                "baseline": "0 firms",
+                "target": "60 firms",
+                "frequency": "quarterly",
+                "formula": "Count of firms completing coaching package",
                 "means_of_verification": "Attendance registers and delivery logs",
                 "owner": "Technical assistance team lead",
             },
@@ -930,6 +958,10 @@ def test_excel_export_includes_donor_specific_sheets():
                 "indicator_id": "IND_UN_1",
                 "name": "Inclusive service readiness score",
                 "result_level": "outcome",
+                "baseline": "0 districts",
+                "target": "12 districts",
+                "frequency": "annual",
+                "formula": "Count of districts meeting inclusive service readiness criteria",
                 "means_of_verification": "Partner monitoring records and school support checklists",
                 "owner": "Programme manager and inclusion focal points",
             }
@@ -980,15 +1012,23 @@ def test_excel_export_includes_donor_specific_sheets():
     assert "Suggested Monitoring Focus" in giz_rows[0]
     assert "Suggested Means of Verification" in giz_rows[0]
     assert "Suggested Owner" in giz_rows[0]
-    assert any("Partner coaching records and SME verification visits" in str(row) for row in giz_rows[1:])
+    assert "Suggested Baseline -> Target" in giz_rows[0]
+    assert "Suggested Frequency" in giz_rows[0]
+    assert "Suggested Formula" in giz_rows[0]
+    assert any("Attendance registers and delivery logs" in str(row) for row in giz_rows[1:])
+    assert any("0 firms -> 60 firms" in str(row) for row in giz_rows[1:])
 
     un_rows = list(un_wb["UN_Results"].iter_rows(values_only=True))
     assert un_rows[0][:4] == ("Level", "Title", "Description", "Suggested Monitoring Focus")
+    assert "Suggested Baseline -> Target" in un_rows[0]
+    assert "Suggested Frequency" in un_rows[0]
+    assert "Suggested Formula" in un_rows[0]
     assert any(row[0] == "Overview" for row in un_rows[1:])
     assert any(
         row[0] == "Objective" and row[1] == "Improve inclusive education system readiness" for row in un_rows[1:]
     )
     assert any("Partner monitoring records and school support checklists" in str(row) for row in un_rows[1:])
+    assert any("0 districts -> 12 districts" in str(row) for row in un_rows[1:])
 
     state_rows = list(state_wb["StateDept_Results"].iter_rows(values_only=True))
     assert any(row[0] == "Strategic Context" for row in state_rows[1:])
