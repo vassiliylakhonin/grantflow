@@ -11,9 +11,9 @@ from grantflow.api.app import (
     _ingest_inventory,
     _list_ingest_events,
     _record_ingest_event,
-    _resolve_preflight_request_context,
 )
 from grantflow.api.demo_presets import list_ingest_preset_summaries, load_ingest_preset
+from grantflow.api.presets_service import _resolve_preflight_request_context
 from grantflow.api.public_views import public_ingest_inventory_payload, public_ingest_recent_payload
 from grantflow.api.schemas import (
     GeneratePreflightPublicResponse,

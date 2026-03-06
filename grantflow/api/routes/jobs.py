@@ -9,7 +9,6 @@ from grantflow.api import app as api_app_module
 from grantflow.api.app import (
     _checkpoint_status_token,
     _clear_hitl_runtime_state,
-    _dispatch_generate_from_preset,
     _dispatch_pipeline_task,
     _get_job,
     _ingest_inventory,
@@ -17,7 +16,6 @@ from grantflow.api.app import (
     _normalize_critic_fatal_flaws_for_job,
     _record_hitl_feedback_in_state,
     _record_job_event,
-    _resolve_preflight_request_context,
     _resume_target_from_checkpoint,
     _run_hitl_pipeline_by_job_id,
     _run_pipeline_to_completion_by_job_id,
@@ -43,6 +41,7 @@ from grantflow.api.public_views import (
     public_job_quality_payload,
     public_job_versions_payload,
 )
+from grantflow.api.presets_service import _dispatch_generate_from_preset, _resolve_preflight_request_context
 from grantflow.api.schemas import (
     GenerateAcceptedPublicResponse,
     GenerateFromPresetAcceptedPublicResponse,

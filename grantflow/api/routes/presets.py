@@ -5,12 +5,12 @@ from typing import Optional
 from fastapi import HTTPException, Query
 from fastapi.responses import HTMLResponse
 
-from grantflow.api.app import _demo_preset_bundle_payload, _generate_preset_rows_for_public
 from grantflow.api.demo_presets import (
     list_generate_legacy_preset_summaries,
     load_generate_legacy_preset,
 )
 from grantflow.api.demo_ui import render_demo_ui_html
+from grantflow.api.presets_service import _demo_preset_bundle_payload, _generate_preset_rows_for_public
 from grantflow.api.routers import presets_router
 from grantflow.api.schemas import (
     DemoGeneratePresetPublicResponse,
