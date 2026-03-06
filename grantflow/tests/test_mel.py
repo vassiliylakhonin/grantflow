@@ -204,6 +204,42 @@ def test_mel_deterministic_justification_is_donor_shaped():
     assert "world bank-style results framework indicator" in wb_text.lower()
 
 
+def test_mel_worldbank_defaults_are_results_framework_shaped():
+    indicator = mel_module._apply_indicator_defaults(
+        {
+            "indicator_id": "IND_001",
+            "name": "Improve public sector service performance across pilot agencies",
+            "justification": "stub",
+            "citation": "stub",
+        },
+        donor_id="worldbank",
+        toc_statement_path="toc.project_development_objective",
+    )
+
+    assert "world bank-style results framework" in str(indicator["definition"]).lower()
+    assert "isr" in str(indicator["means_of_verification"]).lower()
+    assert "results lead" in str(indicator["owner"]).lower()
+    assert "results framework updates" in str(indicator["data_source"]).lower()
+
+
+def test_mel_state_department_defaults_are_media_resilience_shaped():
+    indicator = mel_module._apply_indicator_defaults(
+        {
+            "indicator_id": "IND_001",
+            "name": "Strengthen independent media resilience among local newsrooms",
+            "justification": "stub",
+            "citation": "stub",
+        },
+        donor_id="state_department",
+        toc_statement_path="toc.project_goal",
+    )
+
+    assert "independent-media resilience evidence" in str(indicator["definition"]).lower()
+    assert "editorial risk logs" in str(indicator["means_of_verification"]).lower()
+    assert "media partner leads" in str(indicator["owner"]).lower()
+    assert "partner risk reviews" in str(indicator["data_source"]).lower()
+
+
 def test_mel_llm_mode_uses_structured_output_when_available(monkeypatch):
     monkeypatch.setattr(mel_module, "openai_compatible_llm_available", lambda: True)
 
@@ -782,9 +818,9 @@ def test_mel_donor_aware_indicator_governance_defaults():
     assert eu_item["owner"] == "Project M&E manager and partner focal points"
     assert "means of verification annexes" in str(eu_item["means_of_verification"]).lower()
     assert eu_item["disaggregation"] == ["location", "service_type"]
-    assert wb_item["owner"] == "PIU M&E specialist and implementing agency focal points"
-    assert "results framework" in str(wb_item["definition"]).lower()
-    assert "national administrative statistics" in str(wb_item["means_of_verification"]).lower()
+    assert wb_item["owner"] == "PIU results lead and implementing agency performance focal points"
+    assert "project development objective-style result" in str(wb_item["definition"]).lower()
+    assert "administrative performance statistics" in str(wb_item["means_of_verification"]).lower()
 
 
 def test_mel_worldbank_and_state_department_defaults_shape_indicator_targets():

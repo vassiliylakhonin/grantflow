@@ -329,9 +329,10 @@ def _default_frequency_for_donor(donor_id: str, *, result_level: str) -> str:
     return base
 
 
-def _default_data_source_for_donor(donor_id: str, *, result_level: str) -> str:
+def _default_data_source_for_donor(donor_id: str, *, result_level: str, indicator_name: str = "") -> str:
     donor = str(donor_id or "").strip().lower()
     level = str(result_level or "outcome").strip().lower() or "outcome"
+    name = str(indicator_name or "").strip().lower()
     default_sources = {
         "output": "Program monitoring records and implementer reports",
         "outcome": "Monitoring database and partner verification records",
@@ -352,6 +353,15 @@ def _default_data_source_for_donor(donor_id: str, *, result_level: str) -> str:
         }
         return sources.get(level, sources["outcome"])
     if donor == "worldbank":
+        if any(
+            token in name for token in ("service", "performance", "adoption", "institutional capacity", "public sector")
+        ):
+            sources = {
+                "output": "PIU implementation trackers, agency MIS extracts, and supervision aide-memoires",
+                "outcome": "Results framework updates, ISR evidence, and agency verification records",
+                "impact": "ICR evidence, administrative performance datasets, and sector review findings",
+            }
+            return sources.get(level, sources["outcome"])
         sources = {
             "output": "Project implementation support records and agency MIS",
             "outcome": "Results framework monitoring tables and ISR evidence",
@@ -359,6 +369,15 @@ def _default_data_source_for_donor(donor_id: str, *, result_level: str) -> str:
         }
         return sources.get(level, sources["outcome"])
     if donor in {"giz", "state_department", "us_state_department"}:
+        if donor in {"state_department", "us_state_department"} and any(
+            token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")
+        ):
+            sources = {
+                "output": "Partner activity records, newsroom support logs, and verification notes",
+                "outcome": "Partner monitoring records, resilience reviews, and media support verification files",
+                "impact": "Independent assessments, partner risk reviews, and sector monitoring datasets",
+            }
+            return sources.get(level, sources["outcome"])
         sources = {
             "output": "Implementing partner monitoring records",
             "outcome": "Partner verification records and periodic outcome reviews",
@@ -372,6 +391,7 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
     donor = str(donor_id or "").strip().lower()
     level = str(result_level or "outcome").strip().lower() or "outcome"
     label = str(indicator_name or "Indicator").strip() or "Indicator"
+    name = label.lower()
     if donor == "usaid":
         return (
             f"{label} measured at {level} level using USAID-style performance monitoring definitions and "
@@ -383,6 +403,18 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
             "and periodic partner validation."
         )
     if donor == "worldbank":
+        if any(
+            token in name for token in ("service", "performance", "adoption", "institutional capacity", "public sector")
+        ):
+            if level == "impact":
+                return (
+                    f"{label} measured at impact level as a Project Development Objective-style result using "
+                    "verified government performance evidence and completion-stage review."
+                )
+            return (
+                f"{label} measured at {level} level in a World Bank-style results framework using ISR-ready "
+                "implementation evidence and agency verification."
+            )
         return (
             f"{label} measured at {level} level in the results framework using verified implementation evidence "
             "and results reporting."
@@ -390,6 +422,11 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
     if donor == "giz":
         return f"{label} measured at {level} level with partner delivery evidence and sustainability-oriented review."
     if donor in {"state_department", "us_state_department"}:
+        if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
+            return (
+                f"{label} measured at {level} level using independent-media resilience evidence, partner "
+                "verification checks, and periodic risk review."
+            )
         return (
             f"{label} measured at {level} level using program management evidence, verification checks, and "
             "periodic risk review."
@@ -455,25 +492,33 @@ def _default_disaggregation(indicator_name: str, *, donor_id: str, result_level:
     return base
 
 
-def _default_owner_for_donor(donor_id: str, *, result_level: str) -> str:
+def _default_owner_for_donor(donor_id: str, *, result_level: str, indicator_name: str = "") -> str:
     donor = str(donor_id or "").strip().lower()
     level = str(result_level or "outcome").strip().lower() or "outcome"
+    name = str(indicator_name or "").strip().lower()
     if donor == "usaid":
         return "MEL lead and implementing partner M&E team" if level != "impact" else "CLA/MEL lead"
     if donor == "eu":
         return "Project M&E manager and partner focal points"
     if donor == "worldbank":
+        if any(
+            token in name for token in ("service", "performance", "adoption", "institutional capacity", "public sector")
+        ):
+            return "PIU results lead and implementing agency performance focal points"
         return "PIU M&E specialist and implementing agency focal points"
     if donor == "giz":
         return "Programme M&E advisor and delivery partners"
     if donor in {"state_department", "us_state_department"}:
+        if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
+            return "Program manager, partner MEL focal point, and media partner leads"
         return "Program manager and partner MEL focal point"
     return "MEL lead"
 
 
-def _default_means_of_verification_for_donor(donor_id: str, *, result_level: str) -> str:
+def _default_means_of_verification_for_donor(donor_id: str, *, result_level: str, indicator_name: str = "") -> str:
     donor = str(donor_id or "").strip().lower()
     level = str(result_level or "outcome").strip().lower() or "outcome"
+    name = str(indicator_name or "").strip().lower()
     if donor == "usaid":
         mapping = {
             "output": "Partner delivery records, attendance sheets, and activity reports",
@@ -489,6 +534,15 @@ def _default_means_of_verification_for_donor(donor_id: str, *, result_level: str
         }
         return mapping.get(level, mapping["outcome"])
     if donor == "worldbank":
+        if any(
+            token in name for token in ("service", "performance", "adoption", "institutional capacity", "public sector")
+        ):
+            mapping = {
+                "output": "Supervision mission records, PIU progress trackers, and agency MIS extracts",
+                "outcome": "ISR aide-memoires, results framework updates, and agency verification records",
+                "impact": "ICR evidence, administrative performance statistics, and validation notes",
+            }
+            return mapping.get(level, mapping["outcome"])
         mapping = {
             "output": "Implementation support records and agency management information systems",
             "outcome": "ISR evidence, results framework tables, and agency verification records",
@@ -498,6 +552,8 @@ def _default_means_of_verification_for_donor(donor_id: str, *, result_level: str
     if donor == "giz":
         return "Partner monitoring records, validation meetings, and sustainability review notes"
     if donor in {"state_department", "us_state_department"}:
+        if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
+            return "Partner monitoring records, editorial risk logs, and resilience review documentation"
         return "Program monitoring records, partner verification notes, and risk review documentation"
     return "Monitoring records and verification documents"
 
@@ -540,7 +596,11 @@ def _apply_indicator_defaults(
 
     raw_data_source = str(out.get("data_source") or "").strip()
     if not raw_data_source:
-        out["data_source"] = _default_data_source_for_donor(donor_id, result_level=current_result_level)
+        out["data_source"] = _default_data_source_for_donor(
+            donor_id,
+            result_level=current_result_level,
+            indicator_name=str(out.get("name") or ""),
+        )
     else:
         out["data_source"] = raw_data_source
 
@@ -553,7 +613,11 @@ def _apply_indicator_defaults(
 
     raw_owner = str(out.get("owner") or "").strip()
     if not raw_owner:
-        out["owner"] = _default_owner_for_donor(donor_id, result_level=current_result_level)
+        out["owner"] = _default_owner_for_donor(
+            donor_id,
+            result_level=current_result_level,
+            indicator_name=str(out.get("name") or ""),
+        )
     else:
         out["owner"] = raw_owner
 
@@ -562,6 +626,7 @@ def _apply_indicator_defaults(
         out["means_of_verification"] = _default_means_of_verification_for_donor(
             donor_id,
             result_level=current_result_level,
+            indicator_name=str(out.get("name") or ""),
         )
     else:
         out["means_of_verification"] = raw_mov
