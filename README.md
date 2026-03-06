@@ -203,6 +203,7 @@ make verify-latest-stack-refresh
 make release-demo-bundle
 make buyer-demo-open
 make buyer-demo-open-refresh
+make ci-demo-smoke
 ```
 
 Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xlsx` / ZIP artifacts. The target expects a running local API at `http://127.0.0.1:8000`.
@@ -240,6 +241,7 @@ Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xl
 `make release-demo-bundle` rebuilds and packages the current latest stack into a send-ready folder plus zip.
 `make buyer-demo-open` prints the buyer-facing file open order from the current `build/latest-*` stack. Set `BUYER_DEMO_OPEN_MODE=open` on macOS to open them directly.
 `make buyer-demo-open-refresh` rebuilds the fast buyer path first, then prints or opens that stack.
+`make ci-demo-smoke` runs a one-preset buyer-chain smoke check and verifies the expected demo artifacts exist. It expects a local API on `http://127.0.0.1:8000`.
 
 ## Quick Start
 

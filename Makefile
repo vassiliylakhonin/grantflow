@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle buyer-demo-open buyer-demo-open-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle buyer-demo-open buyer-demo-open-refresh ci-demo-smoke
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -83,6 +83,8 @@ RELEASE_DEMO_BUNDLE_OUT_DIR ?= build/release-demo-bundle
 RELEASE_DEMO_BUNDLE_NAME ?= grantflow-demo-bundle
 BUYER_DEMO_OPEN_BUILD_DIR ?= build
 BUYER_DEMO_OPEN_MODE ?= print
+CI_DEMO_SMOKE_ROOT ?= build/ci-demo-smoke
+CI_DEMO_SMOKE_PRESET_KEY ?= usaid_gov_ai_kazakhstan
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -409,3 +411,33 @@ buyer-demo-open:
 
 buyer-demo-open-refresh: pilot-refresh-fast
 	$(MAKE) buyer-demo-open BUYER_DEMO_OPEN_BUILD_DIR=$(BUYER_DEMO_OPEN_BUILD_DIR) BUYER_DEMO_OPEN_MODE=$(BUYER_DEMO_OPEN_MODE)
+
+ci-demo-smoke:
+	$(MAKE) buyer-demo-open-refresh \
+		DEMO_PACK_DIR=$(CI_DEMO_SMOKE_ROOT)/demo-pack \
+		DEMO_PACK_PRESET_KEYS=$(CI_DEMO_SMOKE_PRESET_KEY) \
+		DEMO_PACK_HITL_PRESET_KEY=$(CI_DEMO_SMOKE_PRESET_KEY) \
+		PILOT_PACK_DIR=$(CI_DEMO_SMOKE_ROOT)/pilot-pack \
+		BUYER_BRIEF_PILOT_DIR=$(CI_DEMO_SMOKE_ROOT)/pilot-pack \
+		PILOT_METRICS_PILOT_DIR=$(CI_DEMO_SMOKE_ROOT)/pilot-pack \
+		PILOT_SCORECARD_PILOT_DIR=$(CI_DEMO_SMOKE_ROOT)/pilot-pack \
+		CASE_STUDY_PILOT_DIR=$(CI_DEMO_SMOKE_ROOT)/pilot-pack \
+		CASE_STUDY_PRESET_KEY=$(CI_DEMO_SMOKE_PRESET_KEY) \
+		CASE_STUDY_OUT_DIR=$(CI_DEMO_SMOKE_ROOT)/case-study-pack \
+		EXECUTIVE_PACK_PILOT_DIR=$(CI_DEMO_SMOKE_ROOT)/pilot-pack \
+		EXECUTIVE_PACK_CASE_STUDY_DIR=$(CI_DEMO_SMOKE_ROOT)/case-study-pack \
+		EXECUTIVE_PACK_PRESET_KEY=$(CI_DEMO_SMOKE_PRESET_KEY) \
+		EXECUTIVE_PACK_OUT_DIR=$(CI_DEMO_SMOKE_ROOT)/executive-pack \
+		PILOT_HANDOUT_PILOT_DIR=$(CI_DEMO_SMOKE_ROOT)/pilot-pack \
+		PILOT_HANDOUT_EXECUTIVE_DIR=$(CI_DEMO_SMOKE_ROOT)/executive-pack \
+		PILOT_HANDOUT_PRESET_KEY=$(CI_DEMO_SMOKE_PRESET_KEY) \
+		PILOT_HANDOUT_OUT=$(CI_DEMO_SMOKE_ROOT)/pilot-handout.md \
+		BUYER_DEMO_OPEN_BUILD_DIR=build \
+		BUYER_DEMO_OPEN_MODE=print
+	test -f "$(CI_DEMO_SMOKE_ROOT)/demo-pack/summary.md"
+	test -f "$(CI_DEMO_SMOKE_ROOT)/pilot-pack/README.md"
+	test -f "$(CI_DEMO_SMOKE_ROOT)/pilot-pack/pilot-scorecard.md"
+	test -f "$(CI_DEMO_SMOKE_ROOT)/executive-pack/README.md"
+	test -f "$(CI_DEMO_SMOKE_ROOT)/pilot-handout.md"
+	$(MAKE) verify-latest-stack VERIFY_LATEST_STACK_BUILD_DIR=build
+	@echo "ci demo smoke complete"

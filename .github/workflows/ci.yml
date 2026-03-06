@@ -369,6 +369,57 @@ jobs:
           path: grounded-smoke-artifacts/
           if-no-files-found: error
 
+  demo-smoke:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      GRANTFLOW_FORCE_INMEM_VECTOR_STORE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run demo smoke chain
+        run: |
+          mkdir -p demo-smoke-artifacts
+          python -m uvicorn grantflow.api.app:app --host 127.0.0.1 --port 8000 > demo-smoke-artifacts/api.log 2>&1 &
+          API_PID=$!
+          cleanup() {
+            kill "$API_PID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          for _ in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/health >/dev/null
+
+          make ci-demo-smoke CI_DEMO_SMOKE_ROOT=build/ci-demo-smoke | tee demo-smoke-artifacts/ci-demo-smoke.log
+
+      - name: Upload demo smoke artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-smoke-artifacts
+          path: |
+            demo-smoke-artifacts/
+            build/ci-demo-smoke/
+            build/latest-open-order.md
+          if-no-files-found: error
+
   docker-compose-smoke:
     runs-on: ubuntu-latest
     steps:
