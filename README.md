@@ -202,6 +202,8 @@ make verify-latest-stack
 make verify-latest-stack-refresh
 make release-demo-bundle
 make release-demo-bundle-fast
+make send-bundle-index
+make send-bundle-index-refresh
 make buyer-demo-open
 make buyer-demo-open-refresh
 make ci-demo-smoke
@@ -241,6 +243,8 @@ Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xl
 `make verify-latest-stack-refresh` rebuilds the chain first, then verifies the latest stack.
 `make release-demo-bundle` rebuilds and packages the current latest stack into a send-ready folder plus zip.
 `make release-demo-bundle-fast` rebuilds only the fast buyer path, then packages `pilot-handout`, `latest-open-order`, and the current `executive-pack` into a lighter send-ready folder plus zip.
+`make send-bundle-index` writes a short markdown telling you which current bundle to send in which scenario.
+`make send-bundle-index-refresh` rebuilds the fast send bundle first, then writes that send index.
 `make buyer-demo-open` prints the buyer-facing file open order from the current `build/latest-*` stack. Set `BUYER_DEMO_OPEN_MODE=open` on macOS to open them directly.
 `make buyer-demo-open-refresh` rebuilds the fast buyer path first, then prints or opens that stack.
 `make ci-demo-smoke` runs a one-preset buyer-chain smoke check and verifies the expected demo artifacts exist. It expects a local API on `http://127.0.0.1:8000`.
