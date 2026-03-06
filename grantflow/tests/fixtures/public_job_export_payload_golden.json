@@ -1,30 +1,98 @@
 {
   "job_id": "job-1",
+  "status": "done",
   "payload": {
+    "state": {
+      "donor_id": "usaid",
+      "toc_draft": {
+        "toc": {
+          "brief": "Sample"
+        }
+      },
+      "critic_notes": {
+        "fatal_flaws": [
+          {
+            "finding_id": "finding-1",
+            "status": "open",
+            "severity": "high",
+            "section": "toc",
+            "code": "TOC_GAP",
+            "message": "Missing output chain",
+            "source": "rules"
+          }
+        ]
+      }
+    },
+    "quality_summary": {
+      "quality_score": null,
+      "critic_score": null,
+      "needs_revision": null,
+      "engine": null,
+      "rule_score": null,
+      "llm_score": null,
+      "fatal_flaw_count": 1,
+      "citation_count": 0
+    },
     "critic_findings": [
       {
-        "code": "TOC_GAP",
         "finding_id": "finding-1",
-        "fix_hint": null,
-        "fix_suggestion": null,
+        "status": "open",
+        "severity": "high",
+        "section": "toc",
+        "code": "TOC_GAP",
+        "message": "Missing output chain",
+        "source": "rules",
         "id": "finding-1",
+        "rationale": null,
+        "fix_suggestion": null,
+        "fix_hint": null,
+        "version_id": null,
         "linked_comment_ids": [
           "comment-1"
-        ],
-        "message": "Missing output chain",
-        "rationale": null,
-        "section": "toc",
-        "severity": "high",
-        "source": "rules",
-        "status": "open",
-        "version_id": null
+        ]
       }
     ],
+    "review_comments": [
+      {
+        "comment_id": "comment-1",
+        "status": "open",
+        "section": "toc",
+        "author": "rev",
+        "message": "Need details",
+        "linked_finding_id": "finding-1",
+        "version_id": "toc_v1",
+        "ts": "2026-02-27T00:00:00Z"
+      }
+    ],
+    "readiness": null,
+    "review_readiness_summary": {
+      "needs_revision": null,
+      "open_critic_findings": 1,
+      "high_severity_open_findings": 1,
+      "open_review_comments": 1,
+      "low_confidence_citations": 0,
+      "fallback_strategy_citations": 0
+    },
     "export_contract": {
-      "actual_primary_sheet_headers": [],
-      "actual_sheets": [],
-      "blocking": false,
       "donor_id": "usaid",
+      "template_key": "usaid",
+      "template_display_name": "USAID Results Framework",
+      "required_sections": [
+        "project_goal",
+        "development_objectives"
+      ],
+      "present_sections": [],
+      "missing_required_sections": [
+        "project_goal",
+        "development_objectives"
+      ],
+      "required_sheets": [
+        "LogFrame",
+        "USAID_RF",
+        "Template Meta"
+      ],
+      "actual_sheets": [],
+      "missing_required_sheets": [],
       "expected_docx_headings": [
         "USAID Results Framework",
         "Project Goal",
@@ -38,72 +106,22 @@
         "IR ID",
         "IR Description"
       ],
-      "go_ahead": true,
+      "actual_primary_sheet_headers": [],
       "missing_required_primary_sheet_headers": [],
-      "missing_required_sections": [
-        "project_goal",
-        "development_objectives"
-      ],
-      "missing_required_sheets": [],
-      "mode": "warn",
-      "passed": false,
-      "present_sections": [],
-      "reasons": [
-        "missing_required_toc_sections"
-      ],
-      "required_sections": [
-        "project_goal",
-        "development_objectives"
-      ],
-      "required_sheets": [
-        "LogFrame",
-        "USAID_RF",
-        "Template Meta"
-      ],
-      "risk_level": "high",
+      "workbook_validation_enabled": false,
       "status": "warning",
-      "summary": "missing_required_toc_sections",
-      "template_display_name": "USAID Results Framework",
-      "template_key": "usaid",
       "warnings": [
         "missing_required_toc_sections"
       ],
-      "workbook_validation_enabled": false
-    },
-    "readiness": null,
-    "review_comments": [
-      {
-        "author": "rev",
-        "comment_id": "comment-1",
-        "linked_finding_id": "finding-1",
-        "message": "Need details",
-        "section": "toc",
-        "status": "open",
-        "ts": "2026-02-27T00:00:00Z",
-        "version_id": "toc_v1"
-      }
-    ],
-    "state": {
-      "critic_notes": {
-        "fatal_flaws": [
-          {
-            "code": "TOC_GAP",
-            "finding_id": "finding-1",
-            "message": "Missing output chain",
-            "section": "toc",
-            "severity": "high",
-            "source": "rules",
-            "status": "open"
-          }
-        ]
-      },
-      "donor_id": "usaid",
-      "toc_draft": {
-        "toc": {
-          "brief": "Sample"
-        }
-      }
+      "mode": "warn",
+      "passed": false,
+      "blocking": false,
+      "go_ahead": true,
+      "summary": "missing_required_toc_sections",
+      "reasons": [
+        "missing_required_toc_sections"
+      ],
+      "risk_level": "high"
     }
-  },
-  "status": "done"
+  }
 }

@@ -1698,6 +1698,13 @@ def public_job_export_payload(
     if not isinstance(review_comments, list):
         review_comments = []
     readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
+    citations_for_summary = state_payload.get("citations") if isinstance(state_payload.get("citations"), list) else []
+    review_readiness_summary = _review_readiness_summary_payload(
+        needs_revision=critic.get("needs_revision"),
+        citations=[item for item in citations_for_summary if isinstance(item, dict)],
+        critic_findings=[item for item in critic_findings if isinstance(item, dict)],
+        review_comments=[item for item in review_comments if isinstance(item, dict)],
+    )
 
     return {
         "job_id": str(job_id),
@@ -1719,6 +1726,7 @@ def public_job_export_payload(
             "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
             "review_comments": [item for item in review_comments if isinstance(item, dict)],
             "readiness": readiness_payload,
+            "review_readiness_summary": review_readiness_summary,
             "export_contract": sanitize_for_public_response(export_contract_gate),
         },
     }
@@ -2152,6 +2160,49 @@ def _public_job_quality_readiness_payload(
     }
 
 
+def _review_readiness_summary_payload(
+    *,
+    needs_revision: Any,
+    citations: list[Dict[str, Any]],
+    critic_findings: list[Dict[str, Any]],
+    review_comments: list[Dict[str, Any]],
+) -> Dict[str, Any]:
+    open_findings = [
+        item
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "open").strip().lower() not in {"resolved", "closed"}
+    ]
+    high_severity_open_findings = [
+        item
+        for item in open_findings
+        if str(item.get("severity") or "").strip().lower() in {"high", "critical", "fatal"}
+    ]
+    open_review_comments = [
+        item
+        for item in review_comments
+        if isinstance(item, dict) and str(item.get("status") or "open").strip().lower() not in {"resolved", "closed"}
+    ]
+    low_confidence_citations = [
+        item
+        for item in citations
+        if isinstance(item, dict) and str(item.get("citation_type") or "").strip().lower() == "rag_low_confidence"
+    ]
+    fallback_strategy_citations = [
+        item
+        for item in citations
+        if isinstance(item, dict)
+        and str(item.get("citation_type") or "").strip().lower() in {"fallback_namespace", "strategy_reference"}
+    ]
+    return {
+        "needs_revision": sanitize_for_public_response(needs_revision),
+        "open_critic_findings": len(open_findings),
+        "high_severity_open_findings": len(high_severity_open_findings),
+        "open_review_comments": len(open_review_comments),
+        "low_confidence_citations": len(low_confidence_citations),
+        "fallback_strategy_citations": len(fallback_strategy_citations),
+    }
+
+
 def _public_job_preflight_payload(job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     preflight = job.get("generate_preflight")
     if not isinstance(preflight, dict):
@@ -2558,6 +2609,16 @@ def public_job_quality_payload(
     readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
     preflight_payload = _public_job_preflight_payload(job)
     export_contract_gate = _state_export_contract_gate(state_dict)
+    comments_payload = public_job_comments_payload(job_id, job)
+    review_comments = comments_payload.get("comments") if isinstance(comments_payload, dict) else []
+    if not isinstance(review_comments, list):
+        review_comments = []
+    review_readiness_summary = _review_readiness_summary_payload(
+        needs_revision=critic_payload.get("needs_revision"),
+        citations=[row for row in citations if isinstance(row, dict)],
+        critic_findings=[row for row in critic_flaws if isinstance(row, dict)],
+        review_comments=[row for row in review_comments if isinstance(row, dict)],
+    )
     toc_text_quality = _toc_text_quality_summary(
         [row for row in rule_checks if isinstance(row, dict)],
         [row for row in critic_flaws if isinstance(row, dict)],
@@ -3016,6 +3077,7 @@ def public_job_quality_payload(
         "export_contract": sanitize_for_public_response(export_contract_gate),
         "preflight": preflight_payload,
         "readiness": readiness_payload,
+        "review_readiness_summary": review_readiness_summary,
         "toc_text_quality": toc_text_quality,
     }
     if grounded_gate:

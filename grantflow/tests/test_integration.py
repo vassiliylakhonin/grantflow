@@ -4346,6 +4346,9 @@ def test_status_export_payload_endpoint_returns_review_ready_payload():
     assert payload["readiness"]["present_doc_families"] == ["donor_policy"]
     assert payload["readiness"]["missing_doc_families"] == ["country_context"]
     assert payload["readiness"]["coverage_rate"] == 0.5
+    assert payload["review_readiness_summary"]["open_critic_findings"] == 1
+    assert payload["review_readiness_summary"]["open_review_comments"] == 1
+    assert payload["review_readiness_summary"]["fallback_strategy_citations"] == 0
     export_contract = payload["export_contract"]
     assert export_contract["template_key"] == "usaid"
     assert export_contract["status"] == "warning"
@@ -7158,6 +7161,8 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["readiness"]["coverage_rate"] == 0.6667
     assert body["readiness"]["inventory_total_uploads"] == 2
     assert body["readiness"]["inventory_family_count"] == 2
+    assert body["review_readiness_summary"]["open_critic_findings"] >= 1
+    assert body["review_readiness_summary"]["high_severity_open_findings"] >= 1
 
 
 def test_status_grounding_gate_endpoint_returns_runtime_and_preflight_policies():

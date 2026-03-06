@@ -191,6 +191,10 @@ def test_mel_formula_prefers_institution_logic_over_people_logic():
 
 
 def test_mel_deterministic_justification_is_donor_shaped():
+    usaid_text = mel_module._deterministic_indicator_justification(
+        donor_id="usaid",
+        statement_path="toc.development_objectives[0].description",
+    )
     eu_text = mel_module._deterministic_indicator_justification(
         donor_id="eu",
         statement_path="toc.specific_objectives[0].title",
@@ -200,7 +204,10 @@ def test_mel_deterministic_justification_is_donor_shaped():
         statement_path="toc.objectives[0].title",
     )
 
+    assert "usaid-style performance indicator" in usaid_text.lower()
+    assert "pmp-oriented" in usaid_text.lower()
     assert "eu intervention-logic indicator" in eu_text.lower()
+    assert "implementation-evidence intent" in eu_text.lower()
     assert "world bank-style results framework indicator" in wb_text.lower()
 
 

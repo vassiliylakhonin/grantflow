@@ -480,8 +480,8 @@ def _deterministic_indicator_justification(*, donor_id: str, statement_path: str
     donor = str(donor_id or "").strip().lower()
     if donor == "eu":
         return (
-            f"Maps ToC result '{statement_path}' into an EU intervention-logic indicator with monitoring and "
-            "verification intent."
+            f"Maps ToC result '{statement_path}' into an EU intervention-logic indicator with monitoring, "
+            "verification, and implementation-evidence intent."
         )
     if donor == "worldbank":
         return (
@@ -494,7 +494,10 @@ def _deterministic_indicator_justification(*, donor_id: str, statement_path: str
             "delivery and resilience review."
         )
     if donor == "usaid":
-        return f"Maps ToC result '{statement_path}' into a performance indicator aligned with donor monitoring logic."
+        return (
+            f"Maps ToC result '{statement_path}' into a USAID-style performance indicator aligned with PMP-oriented "
+            "monitoring, disaggregation, and verification logic."
+        )
     return f"Deterministic MEL mapping for ToC result '{statement_path}'. Tracks delivery of the causal results chain."
 
 
