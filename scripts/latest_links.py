@@ -23,6 +23,17 @@ FILE_LINK_SPECS = (
     ("latest-full-send-bundle.zip", "release-demo-bundle/*.zip"),
 )
 
+PREFERRED_TARGETS = {
+    "latest-demo-pack": "demo-pack",
+    "latest-pilot-pack": "pilot-pack",
+    "latest-case-study-pack": "case-study-pack",
+    "latest-executive-pack": "executive-pack",
+    "latest-oem-pack": "oem-pack",
+    "latest-pilot-archive": "pilot-archive",
+    "latest-diligence-index.md": "diligence-index.md",
+    "latest-send-bundle-index.md": "send-bundle-index.md",
+}
+
 
 def _is_generated_pack(path: Path, *, link_name: str, expect_file: bool) -> bool:
     if path.name == link_name or path.name.startswith("latest-"):
@@ -33,6 +44,12 @@ def _is_generated_pack(path: Path, *, link_name: str, expect_file: bool) -> bool
 
 
 def _pick_latest(build_dir: Path, pattern: str, *, link_name: str, expect_file: bool) -> Path | None:
+    preferred_name = PREFERRED_TARGETS.get(link_name)
+    if preferred_name:
+        preferred_path = build_dir / preferred_name
+        if preferred_path.exists() and _is_generated_pack(preferred_path, link_name=link_name, expect_file=expect_file):
+            return preferred_path
+
     candidates = [
         path
         for path in build_dir.glob(pattern)
