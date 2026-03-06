@@ -200,6 +200,7 @@ make latest-open-order-refresh
 make pilot-refresh-fast
 make verify-latest-stack
 make verify-latest-stack-refresh
+make release-demo-bundle
 ```
 
 Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xlsx` / ZIP artifacts. The target expects a running local API at `http://127.0.0.1:8000`.
@@ -234,6 +235,7 @@ Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xl
 `make pilot-refresh-fast` rebuilds the buyer-facing chain quickly without OEM pack, archive, or diligence index.
 `make verify-latest-stack` verifies that `build/latest-*` links and key files are present.
 `make verify-latest-stack-refresh` rebuilds the chain first, then verifies the latest stack.
+`make release-demo-bundle` rebuilds and packages the current latest stack into a send-ready folder plus zip.
 
 ## Quick Start
 

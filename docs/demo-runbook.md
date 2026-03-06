@@ -58,6 +58,7 @@ make latest-open-order-refresh
 make pilot-refresh-fast
 make verify-latest-stack
 make verify-latest-stack-refresh
+make release-demo-bundle
 ```
 
 This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
@@ -92,6 +93,7 @@ This writes a ready-to-review bundle to `build/demo-pack/` using live API runs a
 `make pilot-refresh-fast` runs the buyer-facing refresh path without OEM pack, archive, or diligence index.
 `make verify-latest-stack` verifies that `build/latest-*` symlinks and key files exist.
 `make verify-latest-stack-refresh` rebuilds the chain first, then verifies the latest stack.
+`make release-demo-bundle` rebuilds and packages the latest stack into a send-ready folder plus zip.
 
 ## 3) Operator Demo Flow (API-first)
 
@@ -243,4 +245,5 @@ make latest-open-order-refresh LATEST_OPEN_ORDER_BUILD_DIR=build LATEST_OPEN_ORD
 make pilot-refresh-fast PILOT_HANDOUT_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_HANDOUT_OUT=build/pilot-handout.md
 make verify-latest-stack VERIFY_LATEST_STACK_BUILD_DIR=build
 make verify-latest-stack-refresh VERIFY_LATEST_STACK_BUILD_DIR=build
+make release-demo-bundle RELEASE_DEMO_BUNDLE_BUILD_DIR=build RELEASE_DEMO_BUNDLE_OUT_DIR=build/release-demo-bundle RELEASE_DEMO_BUNDLE_NAME=grantflow-demo-bundle
 ```

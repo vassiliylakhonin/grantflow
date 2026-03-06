@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -78,6 +78,9 @@ PILOT_HANDOUT_OUT ?= build/pilot-handout.md
 LATEST_OPEN_ORDER_BUILD_DIR ?= build
 LATEST_OPEN_ORDER_OUT ?= build/latest-open-order.md
 VERIFY_LATEST_STACK_BUILD_DIR ?= build
+RELEASE_DEMO_BUNDLE_BUILD_DIR ?= build
+RELEASE_DEMO_BUNDLE_OUT_DIR ?= build/release-demo-bundle
+RELEASE_DEMO_BUNDLE_NAME ?= grantflow-demo-bundle
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -390,3 +393,9 @@ verify-latest-stack:
 
 verify-latest-stack-refresh: latest-open-order-refresh
 	$(MAKE) verify-latest-stack VERIFY_LATEST_STACK_BUILD_DIR=$(VERIFY_LATEST_STACK_BUILD_DIR)
+
+release-demo-bundle: verify-latest-stack-refresh
+	$(PYTHON) scripts/release_demo_bundle.py \
+		--build-dir $(RELEASE_DEMO_BUNDLE_BUILD_DIR) \
+		--output-dir $(RELEASE_DEMO_BUNDLE_OUT_DIR) \
+		--bundle-name $(RELEASE_DEMO_BUNDLE_NAME)
