@@ -206,6 +206,8 @@ make send-bundle-index
 make send-bundle-index-refresh
 make open-latest-send
 make open-latest-send-refresh
+make open-latest-send-fast
+make open-latest-send-fast-refresh
 make buyer-demo-open
 make buyer-demo-open-refresh
 make ci-demo-smoke
@@ -249,6 +251,8 @@ Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xl
 `make send-bundle-index-refresh` rebuilds the fast send bundle first, then writes that send index.
 `make open-latest-send` prints the current send-oriented open order from the latest fast/full bundle links. Set `OPEN_LATEST_SEND_MODE=open` on macOS to open them directly.
 `make open-latest-send-refresh` rebuilds the fast send layer first, then prints or opens those artifacts.
+`make open-latest-send-fast` prints only the fast send path artifacts.
+`make open-latest-send-fast-refresh` rebuilds the fast send layer first, then prints or opens only those fast artifacts.
 `make buyer-demo-open` prints the buyer-facing file open order from the current `build/latest-*` stack. Set `BUYER_DEMO_OPEN_MODE=open` on macOS to open them directly.
 `make buyer-demo-open-refresh` rebuilds the fast buyer path first, then prints or opens that stack.
 `make ci-demo-smoke` runs a one-preset buyer-chain smoke check and verifies the expected demo artifacts exist. It expects a local API on `http://127.0.0.1:8000`.

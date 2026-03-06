@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-OPEN_ORDER = (
+FULL_OPEN_ORDER = (
     (("latest-send-bundle-index.md", "send-bundle-index.md"), "Send bundle index"),
     (("latest-fast-send-bundle/README.md",), "Fast send bundle overview"),
     (("latest-fast-send-bundle/pilot-handout.md",), "Fast send pilot handout"),
@@ -15,11 +15,20 @@ OPEN_ORDER = (
     (("latest-full-send-bundle/README.md",), "Full send bundle overview"),
 )
 
+FAST_OPEN_ORDER = (
+    (("latest-send-bundle-index.md", "send-bundle-index.md"), "Send bundle index"),
+    (("latest-fast-send-bundle/README.md",), "Fast send bundle overview"),
+    (("latest-fast-send-bundle/pilot-handout.md",), "Fast send pilot handout"),
+    (("latest-fast-send-bundle/executive-pack/README.md",), "Fast send executive pack"),
+    (("latest-fast-send-bundle/executive-pack/buyer-brief.md",), "Fast send buyer brief"),
+)
 
-def _resolve_targets(build_dir: Path) -> list[tuple[str, Path]]:
+
+def _resolve_targets(build_dir: Path, *, profile: str) -> list[tuple[str, Path]]:
+    open_order = FAST_OPEN_ORDER if profile == "fast" else FULL_OPEN_ORDER
     targets: list[tuple[str, Path]] = []
     missing: list[str] = []
-    for candidate_paths, label in OPEN_ORDER:
+    for candidate_paths, label in open_order:
         resolved_path: Path | None = None
         for relative_path in candidate_paths:
             path = (build_dir / relative_path).resolve()
@@ -55,10 +64,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Print or open the latest GrantFlow send artifacts.")
     parser.add_argument("--build-dir", default="build")
     parser.add_argument("--mode", choices=("print", "open"), default="print")
+    parser.add_argument("--profile", choices=("fast", "full"), default="full")
     args = parser.parse_args()
 
     build_dir = Path(str(args.build_dir)).resolve()
-    targets = _resolve_targets(build_dir)
+    targets = _resolve_targets(build_dir, profile=str(args.profile))
     _print_targets(targets)
     if args.mode == "open":
         _open_targets(targets)

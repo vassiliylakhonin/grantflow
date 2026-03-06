@@ -64,6 +64,8 @@ make send-bundle-index
 make send-bundle-index-refresh
 make open-latest-send
 make open-latest-send-refresh
+make open-latest-send-fast
+make open-latest-send-fast-refresh
 make buyer-demo-open
 make buyer-demo-open-refresh
 make ci-demo-smoke
@@ -107,6 +109,8 @@ This writes a ready-to-review bundle to `build/demo-pack/` using live API runs a
 `make send-bundle-index-refresh` rebuilds the fast send bundle first, then writes that send index.
 `make open-latest-send` prints the current send-oriented open order from the latest fast/full bundle links. Set `OPEN_LATEST_SEND_MODE=open` on macOS to open the files directly.
 `make open-latest-send-refresh` rebuilds the fast send layer first, then prints or opens those artifacts.
+`make open-latest-send-fast` prints only the fast send path artifacts.
+`make open-latest-send-fast-refresh` rebuilds the fast send layer first, then prints or opens only those fast artifacts.
 `make buyer-demo-open` prints the buyer-facing open order from the current `build/latest-*` stack. Set `BUYER_DEMO_OPEN_MODE=open` on macOS to open the files directly.
 `make buyer-demo-open-refresh` rebuilds the fast buyer path first, then prints or opens that stack.
 `make ci-demo-smoke` runs the minimal buyer-chain smoke path on a single preset and asserts that the key demo artifacts exist.
@@ -267,6 +271,8 @@ make send-bundle-index SEND_BUNDLE_INDEX_BUILD_DIR=build SEND_BUNDLE_INDEX_OUT=b
 make send-bundle-index-refresh SEND_BUNDLE_INDEX_BUILD_DIR=build SEND_BUNDLE_INDEX_OUT=build/send-bundle-index.md
 make open-latest-send OPEN_LATEST_SEND_BUILD_DIR=build OPEN_LATEST_SEND_MODE=print
 make open-latest-send-refresh OPEN_LATEST_SEND_BUILD_DIR=build OPEN_LATEST_SEND_MODE=open
+make open-latest-send-fast OPEN_LATEST_SEND_BUILD_DIR=build OPEN_LATEST_SEND_MODE=print
+make open-latest-send-fast-refresh OPEN_LATEST_SEND_BUILD_DIR=build OPEN_LATEST_SEND_MODE=open
 make buyer-demo-open BUYER_DEMO_OPEN_BUILD_DIR=build BUYER_DEMO_OPEN_MODE=print
 make buyer-demo-open-refresh BUYER_DEMO_OPEN_BUILD_DIR=build BUYER_DEMO_OPEN_MODE=open
 make ci-demo-smoke CI_DEMO_SMOKE_ROOT=build/ci-demo-smoke CI_DEMO_SMOKE_PRESET_KEY=usaid_gov_ai_kazakhstan
