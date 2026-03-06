@@ -48,6 +48,8 @@ make baseline-fill-template
 make baseline-fill-template-refresh
 make clean-demo-artifacts-dry-run
 make clean-demo-artifacts
+make latest-links
+make latest-links-refresh
 ```
 
 This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
@@ -72,6 +74,8 @@ This writes a ready-to-review bundle to `build/demo-pack/` using live API runs a
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
 `make clean-demo-artifacts-dry-run` lists generated bundles slated for cleanup.
 `make clean-demo-artifacts` removes generated bundles and leaves unrelated files alone.
+`make latest-links` writes stable `build/latest-*` symlinks to the newest generated bundles.
+`make latest-links-refresh` rebuilds the full chain first, then refreshes those symlinks.
 
 ## 3) Operator Demo Flow (API-first)
 
@@ -213,4 +217,6 @@ make baseline-fill-template BASELINE_TEMPLATE_PILOT_DIR=build/pilot-pack-smoke
 make baseline-fill-template-refresh BASELINE_TEMPLATE_PILOT_DIR=build/pilot-pack-smoke
 make clean-demo-artifacts-dry-run CLEAN_DEMO_ARTIFACTS_BUILD_DIR=build
 make clean-demo-artifacts CLEAN_DEMO_ARTIFACTS_BUILD_DIR=build
+make latest-links LATEST_LINKS_BUILD_DIR=build
+make latest-links-refresh LATEST_LINKS_BUILD_DIR=build
 ```

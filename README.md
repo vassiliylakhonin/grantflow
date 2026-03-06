@@ -190,6 +190,8 @@ make baseline-fill-template
 make baseline-fill-template-refresh
 make clean-demo-artifacts-dry-run
 make clean-demo-artifacts
+make latest-links
+make latest-links-refresh
 ```
 
 Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xlsx` / ZIP artifacts. The target expects a running local API at `http://127.0.0.1:8000`.
@@ -214,6 +216,8 @@ Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xl
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
 `make clean-demo-artifacts-dry-run` lists generated demo/commercial bundles that would be removed from `build/`.
 `make clean-demo-artifacts` removes only those generated bundles via an allowlist.
+`make latest-links` creates stable `build/latest-*` symlinks to the newest generated packs.
+`make latest-links-refresh` rebuilds the full chain first, then refreshes those symlinks.
 
 ## Quick Start
 

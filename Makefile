@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -69,6 +69,7 @@ BASELINE_TEMPLATE_METRICS_CSV ?=
 BASELINE_TEMPLATE_CSV_OUT ?=
 BASELINE_TEMPLATE_MD_OUT ?=
 CLEAN_DEMO_ARTIFACTS_BUILD_DIR ?= build
+LATEST_LINKS_BUILD_DIR ?= build
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -339,3 +340,10 @@ clean-demo-artifacts-dry-run:
 	$(PYTHON) scripts/clean_demo_artifacts.py \
 		--build-dir $(CLEAN_DEMO_ARTIFACTS_BUILD_DIR) \
 		--dry-run
+
+latest-links:
+	$(PYTHON) scripts/latest_links.py \
+		--build-dir $(LATEST_LINKS_BUILD_DIR)
+
+latest-links-refresh: diligence-index-refresh
+	$(MAKE) latest-links LATEST_LINKS_BUILD_DIR=$(LATEST_LINKS_BUILD_DIR)
