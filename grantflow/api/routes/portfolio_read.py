@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import HTTPException, Query, Request
 
-from grantflow.api.app import _list_jobs
+from grantflow.api.idempotency_store_facade import _list_jobs
 from grantflow.api.filters import _validated_filter_token
 from grantflow.api.public_views import (
     REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,

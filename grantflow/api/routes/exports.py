@@ -7,17 +7,21 @@ from typing import Optional
 from fastapi import HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
-from grantflow.api.app import (
+from grantflow.api.idempotency_store_facade import (
+    _get_job,
+    _ingest_inventory,
+    _list_jobs,
+)
+from grantflow.api.orchestrator_service import (
     _configured_export_require_grounded_gate_pass,
     _evaluate_export_contract_gate,
     _evaluate_export_grounding_policy,
-    _get_job,
+    _xlsx_contract_validation_context,
+)
+from grantflow.api.review_service import (
     _hitl_history_payload,
-    _ingest_inventory,
-    _list_jobs,
     _normalize_critic_fatal_flaws_for_job,
     _normalize_review_comments_for_job,
-    _xlsx_contract_validation_context,
 )
 from grantflow.api.export_helpers import (
     _dead_letter_queue_csv_text,

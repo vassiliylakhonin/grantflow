@@ -4,17 +4,16 @@ from typing import Optional
 
 from fastapi import HTTPException, Query, Request
 
-from grantflow.api.app import (
+from grantflow.api.idempotency_store_facade import _get_job, _record_job_event
+from grantflow.api.review_runtime_helpers import _finding_actor_from_request
+from grantflow.api.review_service import (
     _checkpoint_status_token,
     _find_critic_fatal_flaw,
     _find_job_by_checkpoint_id,
-    _finding_actor_from_request,
-    _get_job,
     _hitl_history_payload,
     _job_draft_version_exists_for_section,
     _normalize_critic_fatal_flaws_for_job,
     _normalize_review_comments_for_job,
-    _record_job_event,
 )
 from grantflow.api.constants import CRITIC_FINDING_STATUSES, REVIEW_COMMENT_SECTIONS
 from grantflow.api.filters import _validated_filter_token

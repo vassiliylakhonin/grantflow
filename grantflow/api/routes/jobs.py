@@ -5,21 +5,23 @@ from typing import Any, Dict, Optional
 
 from fastapi import BackgroundTasks, HTTPException, Query, Request
 
-from grantflow.api.app import (
+from grantflow.api.idempotency_store_facade import (
+    _get_job,
+    _ingest_inventory,
+    _record_job_event,
+    _set_job,
+    _update_job,
+)
+from grantflow.api.pipeline_jobs import (
     _checkpoint_status_token,
     _clear_hitl_runtime_state,
     _dispatch_pipeline_task,
-    _get_job,
-    _ingest_inventory,
-    _job_runner_mode,
-    _normalize_critic_fatal_flaws_for_job,
     _record_hitl_feedback_in_state,
-    _record_job_event,
     _resume_target_from_checkpoint,
-    _run_hitl_pipeline_by_job_id,
-    _run_pipeline_to_completion_by_job_id,
-    _set_job,
-    _update_job,
+)
+from grantflow.api.review_service import _normalize_critic_fatal_flaws_for_job
+from grantflow.api.runtime_service import (
+    _job_runner_mode,
     _uses_redis_queue_runner,
 )
 from grantflow.api.idempotency import (
@@ -371,14 +373,18 @@ async def generate(
         queue_backend = "background_tasks"
         if req.hitl_enabled:
             if _uses_redis_queue_runner():
-                queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline_by_job_id, job_id, "start")
+                queue_backend = _dispatch_pipeline_task(
+                    background_tasks, _app_module()._run_hitl_pipeline_by_job_id, job_id, "start"
+                )
             else:
                 queue_backend = _dispatch_pipeline_task(
                     background_tasks, _app_module()._run_hitl_pipeline, job_id, initial_state, "start"
                 )
         else:
             if _uses_redis_queue_runner():
-                queue_backend = _dispatch_pipeline_task(background_tasks, _run_pipeline_to_completion_by_job_id, job_id)
+                queue_backend = _dispatch_pipeline_task(
+                    background_tasks, _app_module()._run_pipeline_to_completion_by_job_id, job_id
+                )
             else:
                 queue_backend = _dispatch_pipeline_task(
                     background_tasks, _app_module()._run_pipeline_to_completion, job_id, initial_state
@@ -571,7 +577,9 @@ async def resume_job(
     )
     try:
         if _uses_redis_queue_runner():
-            queue_backend = _dispatch_pipeline_task(background_tasks, _run_hitl_pipeline_by_job_id, job_id, start_at)
+            queue_backend = _dispatch_pipeline_task(
+                background_tasks, _app_module()._run_hitl_pipeline_by_job_id, job_id, start_at
+            )
         else:
             queue_backend = _dispatch_pipeline_task(
                 background_tasks,

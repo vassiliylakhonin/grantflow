@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import File, Form, HTTPException, Query, Request, UploadFile
 
-from grantflow.api.app import (
+from grantflow.api.idempotency_store_facade import (
     _ingest_inventory,
     _list_ingest_events,
     _record_ingest_event,
