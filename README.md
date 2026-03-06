@@ -194,6 +194,7 @@ make latest-links
 make latest-links-refresh
 make pilot-handout
 make pilot-handout-refresh
+make smoke-demo-refresh
 ```
 
 Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xlsx` / ZIP artifacts. The target expects a running local API at `http://127.0.0.1:8000`.
@@ -222,6 +223,7 @@ Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xl
 `make latest-links-refresh` rebuilds the full chain first, then refreshes those symlinks.
 `make pilot-handout` builds a short one-file summary from an existing pilot pack and executive pack.
 `make pilot-handout-refresh` rebuilds the full chain first, then writes the handout.
+`make smoke-demo-refresh` runs the full default smoke demo chain through handout generation.
 
 ## Quick Start
 

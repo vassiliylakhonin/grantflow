@@ -52,6 +52,7 @@ make latest-links
 make latest-links-refresh
 make pilot-handout
 make pilot-handout-refresh
+make smoke-demo-refresh
 ```
 
 This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
@@ -80,6 +81,7 @@ This writes a ready-to-review bundle to `build/demo-pack/` using live API runs a
 `make latest-links-refresh` rebuilds the full chain first, then refreshes those symlinks.
 `make pilot-handout` writes a short single-file pilot summary.
 `make pilot-handout-refresh` rebuilds the full chain first, then writes the handout.
+`make smoke-demo-refresh` runs the default full smoke chain through handout generation.
 
 ## 3) Operator Demo Flow (API-first)
 
@@ -225,4 +227,5 @@ make latest-links LATEST_LINKS_BUILD_DIR=build
 make latest-links-refresh LATEST_LINKS_BUILD_DIR=build
 make pilot-handout PILOT_HANDOUT_PILOT_DIR=build/pilot-pack-smoke PILOT_HANDOUT_EXECUTIVE_DIR=build/executive-pack-smoke PILOT_HANDOUT_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_HANDOUT_OUT=build/pilot-handout-smoke.md
 make pilot-handout-refresh PILOT_HANDOUT_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_HANDOUT_OUT=build/pilot-handout.md
+make smoke-demo-refresh PILOT_HANDOUT_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_ARCHIVE_NAME=grantflow-pilot
 ```

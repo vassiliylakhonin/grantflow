@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -363,3 +363,6 @@ pilot-handout:
 
 pilot-handout-refresh: latest-links-refresh
 	$(MAKE) pilot-handout PILOT_HANDOUT_PILOT_DIR=$(PILOT_PACK_DIR) PILOT_HANDOUT_EXECUTIVE_DIR=$(EXECUTIVE_PACK_OUT_DIR) PILOT_HANDOUT_PRESET_KEY=$(PILOT_HANDOUT_PRESET_KEY) PILOT_HANDOUT_CASE_DIR=$(PILOT_HANDOUT_CASE_DIR) PILOT_HANDOUT_OUT=$(PILOT_HANDOUT_OUT)
+
+smoke-demo-refresh: pilot-handout-refresh
+	@echo "smoke demo refresh complete"
