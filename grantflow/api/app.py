@@ -1,18 +1,45 @@
 from __future__ import annotations
 
-import io
 import sys  # noqa: F401
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any, AsyncIterator, Callable, Dict, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
-from openpyxl import load_workbook
-
-from grantflow.api.constants import (
-    GROUNDING_POLICY_MODES,
+from grantflow.api.diagnostics_service import (  # noqa: F401
+    _configured_runtime_compatibility_policy_mode,
+    _python_runtime_compatibility_status,
 )
 from grantflow.api.export_helpers import _resolve_export_inputs  # noqa: F401
+from grantflow.api.orchestrator_service import (  # noqa: F401
+    _build_generate_preflight,
+    _build_preflight_grounding_policy,
+    _configured_export_contract_policy_mode,
+    _configured_export_grounding_policy_mode,
+    _configured_export_require_grounded_gate_pass,
+    _configured_mel_grounding_policy_mode,
+    _configured_preflight_grounding_policy_mode,
+    _configured_runtime_grounded_quality_gate_mode,
+    _dedupe_doc_families,
+    _estimate_preflight_architect_claims,
+    _evaluate_export_contract_gate,
+    _evaluate_export_grounding_policy,
+    _evaluate_mel_grounding_policy_from_state,
+    _evaluate_runtime_grounded_quality_gate_from_state,
+    _export_grounding_policy_thresholds,
+    _mel_grounding_policy_thresholds,
+    _normalize_grounding_policy_mode,
+    _preflight_doc_family_depth_profile,
+    _preflight_doc_family_min_uploads_map,
+    _preflight_expected_doc_families,
+    _preflight_grounding_policy_thresholds,
+    _preflight_input_context,
+    _preflight_severity_max,
+    _runtime_grounded_gate_evidence_row,
+    _runtime_grounded_gate_section,
+    _runtime_grounded_quality_gate_thresholds,
+    _xlsx_contract_validation_context,
+)
 from grantflow.api.routers import include_api_routers
 from grantflow.api.schemas import (
     ExportRequest,  # noqa: F401
@@ -26,13 +53,7 @@ from grantflow.api.webhooks import send_job_webhook_event  # noqa: F401
 from grantflow.core.config import config
 from grantflow.core.stores import create_ingest_audit_store_from_env, create_job_store_from_env
 from grantflow.core.version import __version__
-from grantflow.exporters.donor_contracts import (
-    DONOR_XLSX_PRIMARY_SHEET,
-    evaluate_export_contract_gate,
-    normalize_export_contract_policy_mode,
-)
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe  # noqa: F401
-from grantflow.exporters.template_profile import normalize_export_template_key
 from grantflow.exporters.word_builder import build_docx_from_toc  # noqa: F401
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace  # noqa: F401
 from grantflow.memory_bank.vector_store import vector_store  # noqa: F401
@@ -410,277 +431,10 @@ def _ingest_inventory(*, donor_id: Optional[str] = None, tenant_id: Optional[str
     return _impl(donor_id=donor_id, tenant_id=tenant_id)
 
 
-def _dedupe_doc_families(values: list[Any]) -> list[str]:
-    from grantflow.api.preflight_service import _dedupe_doc_families as _impl
-
-    return _impl(values)
-
-
-def _preflight_expected_doc_families(
-    *,
-    donor_id: str,
-    client_metadata: Optional[Dict[str, Any]],
-) -> list[str]:
-    from grantflow.api.preflight_service import _preflight_expected_doc_families as _impl
-
-    return _impl(donor_id=donor_id, client_metadata=client_metadata)
-
-
-def _preflight_doc_family_min_uploads_map(
-    *,
-    expected_doc_families: list[str],
-    client_metadata: Optional[Dict[str, Any]],
-) -> Dict[str, int]:
-    from grantflow.api.preflight_service import _preflight_doc_family_min_uploads_map as _impl
-
-    return _impl(
-        expected_doc_families=expected_doc_families,
-        client_metadata=client_metadata,
-    )
-
-
-def _preflight_doc_family_depth_profile(
-    *,
-    expected_doc_families: list[str],
-    doc_family_counts: Dict[str, Any],
-    min_uploads_by_family: Dict[str, int],
-) -> Dict[str, Any]:
-    from grantflow.api.preflight_service import _preflight_doc_family_depth_profile as _impl
-
-    return _impl(
-        expected_doc_families=expected_doc_families,
-        doc_family_counts=doc_family_counts,
-        min_uploads_by_family=min_uploads_by_family,
-    )
-
-
-def _preflight_input_context(client_metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    from grantflow.api.preflight_service import _preflight_input_context as _impl
-
-    return _impl(client_metadata)
-
-
-def _preflight_severity_max(severities: list[str]) -> str:
-    from grantflow.api.preflight_service import _preflight_severity_max as _impl
-
-    return _impl(severities)
-
-
-def _normalize_grounding_policy_mode(raw_mode: Any) -> str:
-    mode = str(raw_mode or "warn").strip().lower()
-    if mode not in GROUNDING_POLICY_MODES:
-        return "warn"
-    return mode
-
-
-def _configured_runtime_compatibility_policy_mode() -> str:
-    from grantflow.api.diagnostics_service import _configured_runtime_compatibility_policy_mode as _impl
-
-    return _impl()
-
-
-def _python_runtime_compatibility_status() -> Dict[str, Any]:
-    from grantflow.api.diagnostics_service import _python_runtime_compatibility_status as _impl
-
-    return _impl()
-
-
-def _configured_preflight_grounding_policy_mode() -> str:
-    from grantflow.api.preflight_service import _configured_preflight_grounding_policy_mode as _impl
-
-    return _impl()
-
-
-def _configured_runtime_grounded_quality_gate_mode() -> str:
-    from grantflow.api.runtime_grounded_gate_service import _configured_runtime_grounded_quality_gate_mode as _impl
-
-    return _impl()
-
-
-def _runtime_grounded_quality_gate_thresholds() -> Dict[str, Any]:
-    from grantflow.api.runtime_grounded_gate_service import _runtime_grounded_quality_gate_thresholds as _impl
-
-    return _impl()
-
-
-def _runtime_grounded_gate_section(citation: Dict[str, Any]) -> str:
-    from grantflow.api.runtime_grounded_gate_service import _runtime_grounded_gate_section as _impl
-
-    return _impl(citation)
-
-
-def _runtime_grounded_gate_evidence_row(citation: Dict[str, Any]) -> Dict[str, Any]:
-    from grantflow.api.runtime_grounded_gate_service import _runtime_grounded_gate_evidence_row as _impl
-
-    return _impl(citation)
-
-
-def _evaluate_runtime_grounded_quality_gate_from_state(state: Any) -> Dict[str, Any]:
-    from grantflow.api.runtime_grounded_gate_service import (
-        _evaluate_runtime_grounded_quality_gate_from_state as _impl,
-    )
-
-    return _impl(state)
-
-
-def _configured_mel_grounding_policy_mode() -> str:
-    from grantflow.api.grounding_policy_service import _configured_mel_grounding_policy_mode as _impl
-
-    return _impl()
-
-
-def _mel_grounding_policy_thresholds() -> Dict[str, Any]:
-    from grantflow.api.grounding_policy_service import _mel_grounding_policy_thresholds as _impl
-
-    return _impl()
-
-
-def _evaluate_mel_grounding_policy_from_state(state: Any) -> Dict[str, Any]:
-    from grantflow.api.grounding_policy_service import _evaluate_mel_grounding_policy_from_state as _impl
-
-    return _impl(state)
-
-
-def _configured_export_grounding_policy_mode() -> str:
-    from grantflow.api.grounding_policy_service import _configured_export_grounding_policy_mode as _impl
-
-    return _impl()
-
-
-def _configured_export_require_grounded_gate_pass() -> bool:
-    from grantflow.api.grounding_policy_service import _configured_export_require_grounded_gate_pass as _impl
-
-    return _impl()
-
-
-def _export_grounding_policy_thresholds() -> Dict[str, Any]:
-    from grantflow.api.grounding_policy_service import _export_grounding_policy_thresholds as _impl
-
-    return _impl()
-
-
-def _evaluate_export_grounding_policy(citations: list[dict[str, Any]]) -> Dict[str, Any]:
-    from grantflow.api.grounding_policy_service import _evaluate_export_grounding_policy as _impl
-
-    return _impl(citations)
-
-
-def _configured_export_contract_policy_mode() -> str:
-    contract_mode = getattr(config.graph, "export_contract_policy_mode", None)
-    if str(contract_mode or "").strip():
-        return normalize_export_contract_policy_mode(contract_mode)
-    return _configured_export_grounding_policy_mode()
-
-
-def _evaluate_export_contract_gate(
-    *,
-    donor_id: str,
-    toc_draft: dict[str, Any],
-    workbook_sheetnames: Optional[list[str]] = None,
-    workbook_primary_sheet_headers: Optional[list[str]] = None,
-) -> Dict[str, Any]:
-    return evaluate_export_contract_gate(
-        donor_id=donor_id,
-        toc_payload=toc_draft,
-        policy_mode=_configured_export_contract_policy_mode(),
-        workbook_sheetnames=workbook_sheetnames,
-        workbook_primary_sheet_headers=workbook_primary_sheet_headers,
-    )
-
-
-def _xlsx_contract_validation_context(
-    xlsx_payload: bytes,
-    *,
-    donor_id: str,
-) -> tuple[list[str], list[str]]:
-    workbook = load_workbook(io.BytesIO(xlsx_payload), data_only=True, read_only=True)
-    try:
-        sheetnames = list(workbook.sheetnames)
-        donor_key = normalize_export_template_key(donor_id)
-        primary_sheet = DONOR_XLSX_PRIMARY_SHEET.get(donor_key)
-        if not primary_sheet or primary_sheet not in workbook.sheetnames:
-            return sheetnames, []
-        sheet = workbook[primary_sheet]
-        header_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), ())
-        headers = [str(value).strip() for value in header_row if str(value or "").strip()]
-        return sheetnames, headers
-    finally:
-        workbook.close()
-
-
 def _attach_export_contract_gate(state: Any) -> Dict[str, Any]:
     from grantflow.api.runtime_gate_helpers import _attach_export_contract_gate as _impl
 
     return _impl(state)
-
-
-def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
-    from grantflow.api.preflight_service import _preflight_grounding_policy_thresholds as _impl
-
-    return _impl()
-
-
-def _estimate_preflight_architect_claims(
-    *,
-    donor_id: str,
-    strategy: Any,
-    namespace: str,
-    input_context: Optional[Dict[str, Any]],
-    tenant_id: Optional[str] = None,
-    architect_rag_enabled: bool = True,
-) -> Dict[str, Any]:
-    from grantflow.api.preflight_service import _estimate_preflight_architect_claims as _impl
-
-    return _impl(
-        donor_id=donor_id,
-        strategy=strategy,
-        namespace=namespace,
-        input_context=input_context,
-        tenant_id=tenant_id,
-        architect_rag_enabled=architect_rag_enabled,
-    )
-
-
-def _build_preflight_grounding_policy(
-    *,
-    coverage_rate: Optional[float],
-    depth_coverage_rate: Optional[float],
-    namespace_empty: bool,
-    inventory_total_uploads: int,
-    missing_doc_families: list[str],
-    depth_gap_doc_families: list[str],
-    architect_claims: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    from grantflow.api.preflight_service import _build_preflight_grounding_policy as _impl
-
-    return _impl(
-        coverage_rate=coverage_rate,
-        depth_coverage_rate=depth_coverage_rate,
-        namespace_empty=namespace_empty,
-        inventory_total_uploads=inventory_total_uploads,
-        missing_doc_families=missing_doc_families,
-        depth_gap_doc_families=depth_gap_doc_families,
-        architect_claims=architect_claims,
-    )
-
-
-def _build_generate_preflight(
-    *,
-    donor_id: str,
-    strategy: Any,
-    client_metadata: Optional[Dict[str, Any]],
-    tenant_id: Optional[str] = None,
-    architect_rag_enabled: bool = True,
-) -> Dict[str, Any]:
-    from grantflow.api.preflight_service import _build_generate_preflight as _impl
-
-    return _impl(
-        donor_id=donor_id,
-        strategy=strategy,
-        client_metadata=client_metadata,
-        tenant_id=tenant_id,
-        architect_rag_enabled=architect_rag_enabled,
-    )
 
 
 def _set_job(job_id: str, payload: Dict[str, Any]) -> None:
