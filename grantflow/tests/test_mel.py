@@ -70,6 +70,9 @@ def test_mel_deterministic_mode_generates_logframe_and_citations(monkeypatch):
     assert citations[0]["citation_type"] in {"rag_result", "rag_low_confidence"}
     assert citations[0]["namespace_normalized"] == "usaid_ads201"
     assert citations[0]["used_for"]
+    assert str(citations[0]["toc_statement_path"]).startswith("toc.")
+    assert str(citations[0]["statement_path"]).startswith("toc.")
+    assert str(citations[0]["result_level"]) in {"impact", "outcome", "output"}
     assert indicators[0]["indicator_code"] == "EG.3.2-27"
     assert indicators[0]["frequency"] == "quarterly"
     assert indicators[0]["formula"] == "(Numerator / Denominator) * 100"
@@ -118,6 +121,8 @@ def test_mel_deterministic_no_hits_uses_strategy_reference_citations(monkeypatch
     assert all(str(c.get("doc_id") or "").startswith("strategy::") for c in citations)
     assert all(str(c.get("source") or "").startswith("strategy::") for c in citations)
     assert all(float(c.get("citation_confidence") or 0.0) >= 0.7 for c in citations)
+    assert all(str(c.get("toc_statement_path") or "").startswith("toc.") for c in citations)
+    assert all(str(c.get("statement_path") or "").startswith("toc.") for c in citations)
 
 
 def test_mel_deterministic_mode_builds_multiple_indicators_from_toc_results(monkeypatch):
@@ -154,6 +159,9 @@ def test_mel_deterministic_mode_builds_multiple_indicators_from_toc_results(monk
     assert all(str(item.get("data_source") or "") for item in indicators)
     assert all(isinstance(item.get("disaggregation"), list) for item in indicators)
     assert all(c.get("citation_type") == "strategy_reference" for c in citations)
+    assert all(str(c.get("toc_statement_path") or "").startswith("toc.") for c in citations)
+    assert all(str(c.get("statement_path") or "").startswith("toc.") for c in citations)
+    assert all(str(c.get("result_level") or "") in {"impact", "outcome", "output"} for c in citations)
     assert generation.get("engine") == "deterministic:toc_results_template"
     assert generation.get("deterministic_source") == "toc_results_template"
 

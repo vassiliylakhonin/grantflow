@@ -1238,6 +1238,8 @@ def _build_mel_citations(
         indicator_id = str(indicator.get("indicator_id") or f"IND_{idx + 1:03d}")
         name = str(indicator.get("name") or "")
         justification = str(indicator.get("justification") or "")
+        toc_statement_path = str(indicator.get("toc_statement_path") or "").strip() or None
+        result_level = str(indicator.get("result_level") or "").strip() or None
         statement = f"{name}. {justification}".strip()
         hit: Dict[str, Any]
         confidence: float
@@ -1310,6 +1312,9 @@ def _build_mel_citations(
                 ),
                 "label": label,
                 "used_for": indicator_id,
+                "statement_path": toc_statement_path,
+                "toc_statement_path": toc_statement_path,
+                "result_level": result_level,
                 "statement": statement[:240] or None,
                 "excerpt": str(hit.get("excerpt") or indicator.get("evidence_excerpt") or "")[:240] or None,
                 "citation_confidence": round(confidence, 4),
