@@ -3155,6 +3155,14 @@ def public_portfolio_metrics_payload(
     mel_risk_counts: Dict[str, int] = {}
     total_pause_count = 0
     total_resume_count = 0
+    review_readiness_totals = {
+        "needs_revision_job_count": 0,
+        "open_critic_findings": 0,
+        "high_severity_open_findings": 0,
+        "open_review_comments": 0,
+        "low_confidence_citations": 0,
+        "fallback_strategy_citations": 0,
+    }
     metrics_rows: list[Dict[str, Any]] = []
 
     for job_id, job in filtered:
@@ -3173,6 +3181,30 @@ def public_portfolio_metrics_payload(
         metrics_rows.append(m)
         total_pause_count += int(m.get("pause_count") or 0)
         total_resume_count += int(m.get("resume_count") or 0)
+        state_dict = _job_state_dict(job)
+        raw_citations = state_dict.get("citations")
+        citations = [row for row in raw_citations if isinstance(row, dict)] if isinstance(raw_citations, list) else []
+        raw_comments = job.get("review_comments")
+        review_comments = (
+            [row for row in raw_comments if isinstance(row, dict)] if isinstance(raw_comments, list) else []
+        )
+        review_summary = _review_readiness_summary_payload(
+            needs_revision=state_dict.get("needs_revision"),
+            citations=citations,
+            critic_findings=state_critic_findings(state_dict, default_source="rules"),
+            review_comments=review_comments,
+        )
+        if bool(review_summary.get("needs_revision")):
+            review_readiness_totals["needs_revision_job_count"] += 1
+        review_readiness_totals["open_critic_findings"] += int(review_summary.get("open_critic_findings") or 0)
+        review_readiness_totals["high_severity_open_findings"] += int(
+            review_summary.get("high_severity_open_findings") or 0
+        )
+        review_readiness_totals["open_review_comments"] += int(review_summary.get("open_review_comments") or 0)
+        review_readiness_totals["low_confidence_citations"] += int(review_summary.get("low_confidence_citations") or 0)
+        review_readiness_totals["fallback_strategy_citations"] += int(
+            review_summary.get("fallback_strategy_citations") or 0
+        )
 
     def _avg(key: str) -> Optional[float]:
         values = [float(m[key]) for m in metrics_rows if isinstance(m.get(key), (int, float))]
@@ -3225,6 +3257,21 @@ def public_portfolio_metrics_payload(
         "avg_time_to_first_draft_seconds": _avg("time_to_first_draft_seconds"),
         "avg_time_to_terminal_seconds": _avg("time_to_terminal_seconds"),
         "avg_time_in_pending_hitl_seconds": _avg("time_in_pending_hitl_seconds"),
+        "review_readiness_summary": {
+            **review_readiness_totals,
+            "needs_revision_rate": (
+                round(review_readiness_totals["needs_revision_job_count"] / job_count, 4) if job_count else None
+            ),
+            "open_critic_findings_per_job_avg": (
+                round(review_readiness_totals["open_critic_findings"] / job_count, 4) if job_count else None
+            ),
+            "high_severity_open_findings_per_job_avg": (
+                round(review_readiness_totals["high_severity_open_findings"] / job_count, 4) if job_count else None
+            ),
+            "open_review_comments_per_job_avg": (
+                round(review_readiness_totals["open_review_comments"] / job_count, 4) if job_count else None
+            ),
+        },
     }
 
 
@@ -3327,6 +3374,7 @@ def public_portfolio_quality_payload(
     finding_severity_counts: Dict[str, int] = {}
     donor_needs_revision_counts: Dict[str, int] = {}
     donor_open_findings_counts: Dict[str, int] = {}
+    donor_review_readiness_breakdown: Dict[str, Dict[str, Any]] = {}
     donor_weighted_risk_breakdown: Dict[str, Dict[str, Any]] = {}
     donor_grounded_gate_breakdown: Dict[str, Dict[str, Any]] = {}
     grounded_gate_section_fail_counts = _grounded_gate_section_counts_template()
@@ -3353,6 +3401,11 @@ def public_portfolio_quality_payload(
         critic_summary: Dict[str, Any] = (
             cast(Dict[str, Any], q.get("critic")) if isinstance(q.get("critic"), dict) else {}
         )
+        review_summary: Dict[str, Any] = (
+            cast(Dict[str, Any], q.get("review_readiness_summary"))
+            if isinstance(q.get("review_readiness_summary"), dict)
+            else {}
+        )
         if bool(q.get("needs_revision")):
             donor_needs_revision_counts[job_donor] = donor_needs_revision_counts.get(job_donor, 0) + 1
         open_findings = int(critic_summary.get("open_finding_count") or 0)
@@ -3374,6 +3427,31 @@ def public_portfolio_quality_payload(
         finding_severity_counts["low"] = int(finding_severity_counts.get("low", 0)) + int(
             critic_summary.get("low_severity_fatal_flaw_count") or 0
         )
+        donor_readiness_row = donor_review_readiness_breakdown.setdefault(
+            job_donor,
+            {
+                "job_count": 0,
+                "needs_revision_job_count": 0,
+                "open_critic_findings": 0,
+                "high_severity_open_findings": 0,
+                "open_review_comments": 0,
+                "low_confidence_citations": 0,
+                "fallback_strategy_citations": 0,
+            },
+        )
+        donor_readiness_row["job_count"] = int(donor_readiness_row.get("job_count") or 0) + 1
+        if bool(review_summary.get("needs_revision")):
+            donor_readiness_row["needs_revision_job_count"] = (
+                int(donor_readiness_row.get("needs_revision_job_count") or 0) + 1
+            )
+        for field in (
+            "open_critic_findings",
+            "high_severity_open_findings",
+            "open_review_comments",
+            "low_confidence_citations",
+            "fallback_strategy_citations",
+        ):
+            donor_readiness_row[field] = int(donor_readiness_row.get(field) or 0) + int(review_summary.get(field) or 0)
 
     def _avg(rows: list[Dict[str, Any]], key: str) -> Optional[float]:
         values = [float(row[key]) for row in rows if isinstance(row.get(key), (int, float))]
@@ -4529,6 +4607,40 @@ def public_portfolio_quality_payload(
             round(donor_passed_job_count / donor_present_job_count, 4) if donor_present_job_count else None
         )
         donor_grounded_gate_breakdown[donor_token] = donor_gate_row
+    review_readiness_summary = {
+        "needs_revision_job_count": needs_revision_job_count,
+        "needs_revision_rate": round(needs_revision_job_count / job_count, 4) if job_count else None,
+        "open_critic_findings": critic_open_findings_total,
+        "open_critic_findings_per_job_avg": round(critic_open_findings_total / job_count, 4) if job_count else None,
+        "high_severity_open_findings": critic_high_severity_total,
+        "high_severity_open_findings_per_job_avg": (
+            round(critic_high_severity_total / job_count, 4) if job_count else None
+        ),
+        "open_review_comments": sum(
+            int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("open_review_comments") or 0))
+            for row in quality_rows
+            if isinstance(row.get("review_readiness_summary"), dict)
+        ),
+        "low_confidence_citations": low_confidence_citation_count,
+        "fallback_strategy_citations": fallback_namespace_citation_count + strategy_reference_citation_count,
+    }
+    for donor_token, donor_row in donor_review_readiness_breakdown.items():
+        donor_job_count = int(donor_row.get("job_count") or 0)
+        donor_row["needs_revision_rate"] = (
+            round(int(donor_row.get("needs_revision_job_count") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_row["open_critic_findings_per_job_avg"] = (
+            round(int(donor_row.get("open_critic_findings") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_row["high_severity_open_findings_per_job_avg"] = (
+            round(int(donor_row.get("high_severity_open_findings") or 0) / donor_job_count, 4)
+            if donor_job_count
+            else None
+        )
+        donor_row["open_review_comments_per_job_avg"] = (
+            round(int(donor_row.get("open_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_review_readiness_breakdown[donor_token] = donor_row
 
     return {
         "job_count": job_count,
@@ -4632,6 +4744,8 @@ def public_portfolio_quality_payload(
         "avg_critic_score": _avg(quality_rows, "critic_score"),
         "severity_weighted_risk_score": severity_weighted_risk_score,
         "high_priority_signal_count": high_priority_signal_count,
+        "review_readiness_summary": review_readiness_summary,
+        "donor_review_readiness_breakdown": donor_review_readiness_breakdown,
         "critic": {
             "open_findings_total": critic_open_findings_total,
             "open_findings_per_job_avg": round(critic_open_findings_total / job_count, 4) if job_count else None,

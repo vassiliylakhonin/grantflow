@@ -7574,6 +7574,11 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert body["total_pause_count"] >= 1
     assert body["total_resume_count"] >= 1
     assert body["avg_time_to_terminal_seconds"] is not None
+    assert "review_readiness_summary" in body
+    assert body["review_readiness_summary"]["needs_revision_job_count"] >= 0
+    assert body["review_readiness_summary"]["open_critic_findings"] >= 0
+    assert body["review_readiness_summary"]["open_review_comments"] >= 0
+    assert "open_critic_findings_per_job_avg" in body["review_readiness_summary"]
 
     filtered = client.get("/portfolio/metrics", params={"donor_id": "usaid", "status": "done", "hitl_enabled": "true"})
     assert filtered.status_code == 200
@@ -7924,6 +7929,13 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["critic"]["high_severity_findings_total"] >= 1
     assert body["critic"]["needs_revision_job_count"] >= 1
     assert body["critic"]["needs_revision_rate"] is not None
+    assert "review_readiness_summary" in body
+    assert body["review_readiness_summary"]["needs_revision_job_count"] >= 0
+    assert body["review_readiness_summary"]["open_critic_findings"] >= 0
+    assert body["review_readiness_summary"]["high_severity_open_findings"] >= 0
+    assert body["review_readiness_summary"]["open_review_comments"] >= 0
+    assert body["donor_review_readiness_breakdown"]["usaid"]["job_count"] >= 1
+    assert "open_critic_findings_per_job_avg" in body["donor_review_readiness_breakdown"]["usaid"]
     assert body["critic"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
     assert body["critic"]["llm_finding_label_counts"]["BASELINE_TARGET_MISSING"] >= 1
     assert body["critic"]["llm_advisory_diagnostics_job_count"] >= 2
