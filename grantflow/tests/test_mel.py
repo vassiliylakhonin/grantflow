@@ -639,6 +639,32 @@ def test_mel_donor_aware_placeholder_target_profiles():
     assert eu_target == "20%"
 
 
+def test_mel_donor_aware_institution_and_organization_targets():
+    wb_baseline, wb_target = mel_module._resolve_baseline_target(
+        baseline_raw="TBD",
+        target_raw="TBD",
+        indicator_name="Institutional performance score",
+        input_context={},
+        idx=0,
+        donor_id="worldbank",
+        result_level="impact",
+    )
+    state_baseline, state_target = mel_module._resolve_baseline_target(
+        baseline_raw="TBD",
+        target_raw="TBD",
+        indicator_name="Independent media organizations adopting safety protocols",
+        input_context={},
+        idx=0,
+        donor_id="state_department",
+        result_level="outcome",
+    )
+
+    assert wb_baseline == "0 institutions"
+    assert wb_target == "8 institutions"
+    assert state_baseline == "0 organizations"
+    assert state_target == "6 organizations"
+
+
 def test_mel_donor_aware_default_frequency_profiles():
     usaid_item = mel_module._normalize_indicator_item(
         {
@@ -720,6 +746,46 @@ def test_mel_donor_aware_indicator_governance_defaults():
     assert wb_item["owner"] == "PIU M&E specialist and implementing agency focal points"
     assert "results framework" in str(wb_item["definition"]).lower()
     assert "national administrative statistics" in str(wb_item["means_of_verification"]).lower()
+
+
+def test_mel_worldbank_and_state_department_defaults_shape_indicator_targets():
+    wb_item = mel_module._normalize_indicator_item(
+        {
+            "indicator_id": "IND_020",
+            "name": "Institutional performance score",
+            "justification": "Tracks agency performance improvements.",
+            "citation": "worldbank_ads301",
+            "baseline": "TBD",
+            "target": "TBD",
+            "result_level": "impact",
+        },
+        idx=0,
+        namespace="worldbank_ads301",
+        donor_id="worldbank",
+        input_context={},
+    )
+    state_item = mel_module._normalize_indicator_item(
+        {
+            "indicator_id": "IND_021",
+            "name": "Independent media organizations adopting safety protocols",
+            "justification": "Tracks resilience adoption.",
+            "citation": "us_state_department_guidance",
+            "baseline": "TBD",
+            "target": "TBD",
+            "result_level": "outcome",
+        },
+        idx=0,
+        namespace="us_state_department_guidance",
+        donor_id="state_department",
+        input_context={},
+    )
+
+    assert wb_item is not None
+    assert state_item is not None
+    assert wb_item["baseline"] == "0 institutions"
+    assert wb_item["target"] == "8 institutions"
+    assert state_item["baseline"] == "0 organizations"
+    assert state_item["target"] == "6 organizations"
 
 
 def test_mel_copies_owner_and_means_of_verification_from_retrieval_hit():

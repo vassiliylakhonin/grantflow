@@ -960,6 +960,7 @@ def _donor_target_profile(donor_id: str) -> Dict[str, int]:
         "percent_target": 25,
         "policy_target": 3,
         "institution_target": 5,
+        "organization_target": 4,
         "time_improvement_percent": 30,
         "people_floor": 120,
     }
@@ -968,6 +969,7 @@ def _donor_target_profile(donor_id: str) -> Dict[str, int]:
             "percent_target": 30,
             "policy_target": 4,
             "institution_target": 6,
+            "organization_target": 5,
             "time_improvement_percent": 35,
             "people_floor": 150,
         },
@@ -975,6 +977,7 @@ def _donor_target_profile(donor_id: str) -> Dict[str, int]:
             "percent_target": 20,
             "policy_target": 3,
             "institution_target": 4,
+            "organization_target": 4,
             "time_improvement_percent": 25,
             "people_floor": 100,
         },
@@ -982,6 +985,7 @@ def _donor_target_profile(donor_id: str) -> Dict[str, int]:
             "percent_target": 20,
             "policy_target": 2,
             "institution_target": 8,
+            "organization_target": 5,
             "time_improvement_percent": 25,
             "people_floor": 130,
         },
@@ -989,6 +993,7 @@ def _donor_target_profile(donor_id: str) -> Dict[str, int]:
             "percent_target": 22,
             "policy_target": 3,
             "institution_target": 5,
+            "organization_target": 4,
             "time_improvement_percent": 25,
             "people_floor": 120,
         },
@@ -996,6 +1001,7 @@ def _donor_target_profile(donor_id: str) -> Dict[str, int]:
             "percent_target": 25,
             "policy_target": 4,
             "institution_target": 5,
+            "organization_target": 6,
             "time_improvement_percent": 30,
             "people_floor": 110,
         },
@@ -1003,6 +1009,7 @@ def _donor_target_profile(donor_id: str) -> Dict[str, int]:
             "percent_target": 25,
             "policy_target": 4,
             "institution_target": 5,
+            "organization_target": 6,
             "time_improvement_percent": 30,
             "people_floor": 110,
         },
@@ -1011,6 +1018,28 @@ def _donor_target_profile(donor_id: str) -> Dict[str, int]:
     out = dict(base)
     out.update(selected)
     return out
+
+
+def _is_people_indicator(name: str) -> bool:
+    return any(token in name for token in ("train", "certif", "capacity", "skills", "official", "staff", "participant"))
+
+
+def _is_policy_indicator(name: str) -> bool:
+    return any(token in name for token in ("policy", "regulation", "protocol", "sop", "guideline"))
+
+
+def _is_institution_indicator(name: str) -> bool:
+    return any(
+        token in name
+        for token in ("institution", "agency", "ministry", "municipal", "department", "government", "service center")
+    )
+
+
+def _is_organization_indicator(name: str) -> bool:
+    return any(
+        token in name
+        for token in ("organization", "organisation", "media outlet", "newsroom", "cso", "ngo", "civil society")
+    )
 
 
 def _suggest_baseline_target(
@@ -1028,12 +1057,14 @@ def _suggest_baseline_target(
     percent_target = int(profile.get("percent_target") or 25)
     policy_target = int(profile.get("policy_target") or 3)
     institution_target = int(profile.get("institution_target") or 5)
+    organization_target = int(profile.get("organization_target") or 4)
     time_improvement_percent = int(profile.get("time_improvement_percent") or 30)
     people_floor = int(profile.get("people_floor") or 120)
     level = str(result_level or "").strip().lower()
     if level == "impact":
         percent_target = min(40, percent_target + 5)
         institution_target = max(institution_target, 6)
+        organization_target = max(organization_target, 5)
     elif level == "output":
         percent_target = max(15, percent_target - 5)
     if any(token in name for token in ("time", "days", "duration", "delay", "processing", "turnaround")):
@@ -1041,12 +1072,20 @@ def _suggest_baseline_target(
         return "90 days", f"{target_days} days"
     if any(token in name for token in ("percent", "%", "rate", "share", "coverage")):
         return "0%", f"{percent_target}%"
-    if any(token in name for token in ("policy", "regulation", "protocol", "sop", "guideline")):
+    if donor_id in {"state_department", "us_state_department"} and _is_organization_indicator(name):
+        return "0 organizations", f"{organization_target} organizations"
+    if _is_policy_indicator(name):
         return "0 policies", f"{policy_target} policies"
-    if any(token in name for token in ("institution", "agency", "ministry", "municipal", "department")):
+    if _is_institution_indicator(name):
         return "0 institutions", f"{institution_target} institutions"
-    if any(token in name for token in ("train", "certif", "capacity", "skills", "official", "staff")):
+    if donor_id in {"eu", "worldbank"} and any(
+        token in name for token in ("performance score", "governance score", "service quality", "adoption")
+    ):
+        return "0 institutions", f"{institution_target} institutions"
+    if _is_people_indicator(name):
         return "0 people", f"{max(seed, people_floor)} people"
+    if _is_organization_indicator(name):
+        return "0 organizations", f"{organization_target} organizations"
 
     if existing_baseline:
         baseline_l = existing_baseline.lower()
