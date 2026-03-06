@@ -222,8 +222,77 @@ def _text_for_field(
     index: int = 0,
 ) -> str:
     lname = field_name.lower()
+    lower_path = str(path or "").lower()
+    donor_key = str(donor_id or "").strip().lower()
     base_project = project or "Project"
     suffix = f" {index + 1}" if index >= 0 else ""
+
+    if donor_key == "eu":
+        if lower_path.endswith("overall_objective.title"):
+            return f"Improve {base_project.lower()} performance and accountability in {country or 'target locations'}"
+        if lower_path.endswith("overall_objective.rationale"):
+            return (
+                f"Addresses implementation bottlenecks in {country or 'the target context'} and aligns the action "
+                f"with EU intervention logic for measurable service improvement and institutional accountability."
+            )[:420]
+        if any(
+            token in lower_path for token in ("specific_objectives[", "specific_objective[")
+        ) and lower_path.endswith(".title"):
+            eu_titles = [
+                f"Strengthen institutional capacity for {base_project.lower()} delivery",
+                f"Improve adoption of {base_project.lower()} workflows by frontline actors",
+            ]
+            return eu_titles[index % len(eu_titles)]
+        if any(
+            token in lower_path for token in ("specific_objectives[", "specific_objective[")
+        ) and lower_path.endswith(".rationale"):
+            return (
+                "Supports the overall objective by improving implementation systems, coordination routines, "
+                "and accountability for results."
+            )[:420]
+        if any(token in lower_path for token in ("expected_outcomes[", "expected_outcome[")) and lower_path.endswith(
+            ".title"
+        ):
+            eu_outcomes = [
+                f"Target institutions apply improved {base_project.lower()} practices",
+                f"Beneficiaries experience more reliable {base_project.lower()} services",
+            ]
+            return eu_outcomes[index % len(eu_outcomes)]
+        if any(token in lower_path for token in ("expected_outcomes[", "expected_outcome[")) and lower_path.endswith(
+            ".expected_change"
+        ):
+            return (
+                f"By the end of implementation, target institutions in {country or 'the target context'} demonstrate "
+                f"measurable improvements in delivery quality, timeliness, and accountability related to {base_project.lower()}."
+            )[:420]
+
+    if donor_key == "worldbank":
+        if lname == "project_development_objective":
+            return f"Improve {base_project.lower()} service delivery performance in {country or 'target locations'}."
+        if any(token in lower_path for token in ("objectives[", "objective[")) and lower_path.endswith(".title"):
+            wb_titles = [
+                f"Strengthen institutional performance for {base_project.lower()} delivery",
+                f"Improve operational execution and accountability in {base_project.lower()} systems",
+            ]
+            return wb_titles[index % len(wb_titles)]
+        if any(token in lower_path for token in ("objectives[", "objective[")) and lower_path.endswith(".description"):
+            return (
+                f"Improve implementation reliability, coordination, and service responsiveness for {base_project.lower()} "
+                f"priorities in {country or 'the target context'}."
+            )[:420]
+        if "results_chain[" in lower_path and lower_path.endswith(".title"):
+            wb_results = [
+                f"Agencies adopt operational improvements for {base_project.lower()}",
+                f"Service delivery workflows for {base_project.lower()} are executed more consistently",
+            ]
+            return wb_results[index % len(wb_results)]
+        if "results_chain[" in lower_path and lower_path.endswith(".description"):
+            return (
+                f"Participating agencies implement workflow, supervision, and accountability improvements that reduce "
+                f"delays and increase the quality of {base_project.lower()} delivery."
+            )[:420]
+        if lower_path.endswith("indicator_focus"):
+            return "Processing time, service completion rate, and institutional compliance"
 
     if lname.endswith("_id") or lname == "id":
         prefix = field_name.replace("_id", "").replace("_", " ").strip().title() or "Item"

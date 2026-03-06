@@ -670,3 +670,45 @@ def test_architect_llm_soft_quality_repair_retries_once(monkeypatch):
     assert hints[0] is None
     assert isinstance(hints[1], str)
     assert "Soft quality issues detected" in str(hints[1])
+
+
+def test_fallback_structured_toc_uses_eu_specific_intervention_logic_phrasing():
+    strategy = DonorFactory.get_strategy("eu")
+    payload, engine = _fallback_structured_toc(
+        strategy.get_toc_schema(),
+        donor_id="eu",
+        project="Digital Governance",
+        country="Moldova",
+        revision_hint="",
+        evidence_hits=[],
+    )
+
+    assert engine == "contract_synthesizer"
+    assert "digital governance" in payload["overall_objective"]["title"].lower()
+    assert "eu intervention logic" in payload["overall_objective"]["rationale"].lower()
+    assert payload["specific_objectives"]
+    assert any("institutional capacity" in row["title"].lower() for row in payload["specific_objectives"])
+    assert payload["expected_outcomes"]
+    assert any("measurable improvements" in row["expected_change"].lower() for row in payload["expected_outcomes"])
+
+
+def test_fallback_structured_toc_uses_worldbank_specific_results_chain_phrasing():
+    strategy = DonorFactory.get_strategy("worldbank")
+    payload, engine = _fallback_structured_toc(
+        strategy.get_toc_schema(),
+        donor_id="worldbank",
+        project="Public Sector Performance",
+        country="Uzbekistan",
+        revision_hint="",
+        evidence_hits=[],
+    )
+
+    assert engine == "contract_synthesizer"
+    assert "service delivery performance" in payload["project_development_objective"].lower()
+    assert payload["objectives"]
+    assert any("institutional performance" in row["title"].lower() for row in payload["objectives"])
+    assert payload["results_chain"]
+    assert any(
+        "participating agencies implement workflow" in row["description"].lower() for row in payload["results_chain"]
+    )
+    assert any("processing time" in row["indicator_focus"].lower() for row in payload["results_chain"])
