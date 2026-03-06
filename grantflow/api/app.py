@@ -3,16 +3,14 @@ from __future__ import annotations
 import io
 import sys  # noqa: F401
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from typing import Any, AsyncIterator, Callable, Dict, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from openpyxl import load_workbook
 
 from grantflow.api.constants import (
-    CRITIC_FINDING_SLA_HOURS,
     GROUNDING_POLICY_MODES,
-    REVIEW_COMMENT_DEFAULT_SLA_HOURS,
 )
 from grantflow.api.export_helpers import _resolve_export_inputs  # noqa: F401
 from grantflow.api.routers import include_api_routers
@@ -39,14 +37,9 @@ from grantflow.exporters.word_builder import build_docx_from_toc  # noqa: F401
 from grantflow.memory_bank.ingest import ingest_pdf_to_namespace  # noqa: F401
 from grantflow.memory_bank.vector_store import vector_store  # noqa: F401
 from grantflow.swarm.hitl import hitl_manager  # noqa: F401
-from grantflow.swarm.findings import (
-    state_critic_findings,
-    write_state_critic_findings,
-)
 from grantflow.swarm.graph import grantflow_graph  # noqa: F401
 from grantflow.swarm.state_contract import (
     normalize_state_contract,  # noqa: F401
-    state_donor_id,
 )
 
 JOB_STORE = create_job_store_from_env()
@@ -203,7 +196,9 @@ app = FastAPI(
 
 
 def _utcnow_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    from grantflow.api.review_runtime_helpers import _utcnow_iso as _impl
+
+    return _impl()
 
 
 def _dispatch_pipeline_task(background_tasks: BackgroundTasks, fn: Callable[..., None], *args: Any) -> str:
@@ -213,26 +208,21 @@ def _dispatch_pipeline_task(background_tasks: BackgroundTasks, fn: Callable[...,
 
 
 def _parse_iso_utc(value: Any) -> Optional[datetime]:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+    from grantflow.api.review_runtime_helpers import _parse_iso_utc as _impl
+
+    return _impl(value)
 
 
 def _iso_plus_hours(base_ts: Optional[str], hours: int) -> str:
-    base_dt = _parse_iso_utc(base_ts) or datetime.now(timezone.utc)
-    return (base_dt + timedelta(hours=max(1, int(hours)))).isoformat()
+    from grantflow.api.review_runtime_helpers import _iso_plus_hours as _impl
+
+    return _impl(base_ts, hours)
 
 
 def _finding_sla_hours(severity: Any, *, finding_sla_hours_override: Optional[Dict[str, int]] = None) -> int:
-    token = str(severity or "").strip().lower()
-    source = finding_sla_hours_override if isinstance(finding_sla_hours_override, dict) else CRITIC_FINDING_SLA_HOURS
-    return int(source.get(token, source.get("medium", CRITIC_FINDING_SLA_HOURS["medium"])))
+    from grantflow.api.review_runtime_helpers import _finding_sla_hours as _impl
+
+    return _impl(severity, finding_sla_hours_override=finding_sla_hours_override)
 
 
 def _comment_sla_hours(
@@ -241,19 +231,19 @@ def _comment_sla_hours(
     finding_sla_hours_override: Optional[Dict[str, int]] = None,
     default_comment_sla_hours: Optional[int] = None,
 ) -> int:
-    if linked_finding_severity:
-        return _finding_sla_hours(linked_finding_severity, finding_sla_hours_override=finding_sla_hours_override)
-    if isinstance(default_comment_sla_hours, int) and default_comment_sla_hours > 0:
-        return int(default_comment_sla_hours)
-    return int(REVIEW_COMMENT_DEFAULT_SLA_HOURS)
+    from grantflow.api.review_runtime_helpers import _comment_sla_hours as _impl
+
+    return _impl(
+        linked_finding_severity=linked_finding_severity,
+        finding_sla_hours_override=finding_sla_hours_override,
+        default_comment_sla_hours=default_comment_sla_hours,
+    )
 
 
 def _finding_actor_from_request(request: Request) -> str:
-    for header in ("x-reviewer", "x-actor", "x-user", "x-user-id", "x-email"):
-        value = str(request.headers.get(header) or "").strip()
-        if value:
-            return value[:120]
-    return "api_user"
+    from grantflow.api.review_runtime_helpers import _finding_actor_from_request as _impl
+
+    return _impl(request)
 
 
 def _normalize_request_id(value: Any) -> Optional[str]:
@@ -619,17 +609,9 @@ def _xlsx_contract_validation_context(
 
 
 def _attach_export_contract_gate(state: Any) -> Dict[str, Any]:
-    state_dict: dict[str, Any] = state if isinstance(state, dict) else {}
-    donor_id = state_donor_id(state_dict, default="grantflow")
-    raw_toc = state_dict.get("toc_draft")
-    toc_draft = raw_toc if isinstance(raw_toc, dict) else {}
-    if not toc_draft:
-        raw_toc_fallback = state_dict.get("toc")
-        if isinstance(raw_toc_fallback, dict):
-            toc_draft = raw_toc_fallback
-    gate = _evaluate_export_contract_gate(donor_id=donor_id, toc_draft=toc_draft)
-    state_dict["export_contract_gate"] = gate
-    return gate
+    from grantflow.api.runtime_gate_helpers import _attach_export_contract_gate as _impl
+
+    return _impl(state)
 
 
 def _preflight_grounding_policy_thresholds() -> Dict[str, Any]:
@@ -762,103 +744,39 @@ def _checkpoint_status_token(checkpoint: Dict[str, Any]) -> str:
 
 
 def _state_grounding_gate(state: Any) -> Dict[str, Any]:
-    if not isinstance(state, dict):
-        return {}
-    gate = state.get("grounding_gate")
-    return gate if isinstance(gate, dict) else {}
+    from grantflow.api.runtime_gate_helpers import _state_grounding_gate as _impl
+
+    return _impl(state)
 
 
 def _state_runtime_grounded_quality_gate(state: Any) -> Dict[str, Any]:
-    if not isinstance(state, dict):
-        return {}
-    gate = state.get("grounded_quality_gate")
-    return gate if isinstance(gate, dict) else {}
+    from grantflow.api.runtime_gate_helpers import _state_runtime_grounded_quality_gate as _impl
+
+    return _impl(state)
 
 
 def _append_runtime_grounded_quality_gate_finding(state: dict, gate: Dict[str, Any]) -> None:
-    if not isinstance(state, dict):
-        return
-    reasons = gate.get("reasons") if isinstance(gate.get("reasons"), list) else []
-    reason_details = gate.get("reason_details") if isinstance(gate.get("reason_details"), list) else []
-    raw_failed_sections = gate.get("failed_sections")
-    failed_sections: list[Any] = raw_failed_sections if isinstance(raw_failed_sections, list) else []
-    related_sections = [
-        token
-        for token in [str(section or "").strip().lower() for section in failed_sections]
-        if token in {"toc", "logframe", "general"}
-    ]
-    primary_section = related_sections[0] if related_sections else "general"
-    thresholds = gate.get("thresholds") if isinstance(gate.get("thresholds"), dict) else {}
-    non_retrieval_rate = gate.get("non_retrieval_citation_rate")
-    retrieval_grounded_count = gate.get("retrieval_grounded_citation_count")
-    citation_count = gate.get("citation_count")
-    summary = str(gate.get("summary") or "").strip() or "runtime grounded quality gate failed"
-    rationale = (
-        f"{summary}; citation_count={citation_count}; "
-        f"non_retrieval_rate={non_retrieval_rate}; "
-        f"retrieval_grounded_count={retrieval_grounded_count}; "
-        f"thresholds={thresholds}; reasons={reasons}; "
-        f"reason_details={reason_details}; failed_sections={failed_sections}"
-    )
-    existing = state_critic_findings(state, default_source="rules")
-    existing_codes = {str(item.get("code") or "").strip().upper() for item in existing if isinstance(item, dict)}
-    if "RUNTIME_GROUNDED_QUALITY_GATE_BLOCK" in existing_codes:
-        return
-    new_finding = {
-        "code": "RUNTIME_GROUNDED_QUALITY_GATE_BLOCK",
-        "severity": "high",
-        "section": primary_section,
-        "related_sections": related_sections,
-        "version_id": None,
-        "message": "Grounded quality gate blocked finalization for LLM generation.",
-        "rationale": rationale,
-        "fix_suggestion": (
-            "Upload additional donor/country evidence and rerun generation to increase retrieval-grounded citations "
-            "and reduce non-retrieval citations."
-        ),
-        "fix_hint": "Use /ingest for relevant policy/context PDFs, then rerun /generate in grounded mode.",
-        "source": "rules",
-    }
-    write_state_critic_findings(
-        state,
-        list(existing) + [new_finding],
-        previous_items=existing,
-        default_source="rules",
-    )
+    from grantflow.api.runtime_gate_helpers import _append_runtime_grounded_quality_gate_finding as _impl
+
+    _impl(state, gate)
 
 
 def _grounding_gate_block_reason(state: Any) -> Optional[str]:
-    gate = _state_grounding_gate(state)
-    if not gate:
-        return None
-    if not bool(gate.get("blocking")):
-        return None
-    if str(gate.get("mode") or "").lower() != "strict":
-        return None
-    summary = str(gate.get("summary") or "").strip() or "weak grounding signals"
-    return f"Grounding gate (strict) blocked finalization: {summary}"
+    from grantflow.api.runtime_gate_helpers import _grounding_gate_block_reason as _impl
+
+    return _impl(state)
 
 
 def _runtime_grounded_quality_gate_block_reason(state: Any) -> Optional[str]:
-    gate = _state_runtime_grounded_quality_gate(state)
-    if not gate:
-        return None
-    if not bool(gate.get("blocking")):
-        return None
-    if str(gate.get("mode") or "").lower() != "strict":
-        return None
-    summary = str(gate.get("summary") or "").strip() or "runtime grounded signals not acceptable"
-    return f"Grounded quality gate (strict) blocked finalization: {summary}"
+    from grantflow.api.runtime_gate_helpers import _runtime_grounded_quality_gate_block_reason as _impl
+
+    return _impl(state)
 
 
 def _mel_grounding_policy_block_reason(state: Any) -> Optional[str]:
-    policy = _evaluate_mel_grounding_policy_from_state(state)
-    state_dict = state if isinstance(state, dict) else {}
-    state_dict["mel_grounding_policy"] = policy
-    if not bool(policy.get("blocking")):
-        return None
-    summary = str(policy.get("summary") or "").strip() or "weak mel grounding signals"
-    return f"MEL grounding policy (strict) blocked finalization: {summary}"
+    from grantflow.api.runtime_gate_helpers import _mel_grounding_policy_block_reason as _impl
+
+    return _impl(state)
 
 
 def _job_draft_version_exists_for_section(job: Dict[str, Any], *, section: str, version_id: str) -> bool:
