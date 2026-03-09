@@ -63,6 +63,8 @@ def _build_readme(
     lines.append("## Included")
     lines.append("- `pilot-handout.md`: single-file buyer summary")
     lines.append("- `latest-open-order.md`: what to open and in which order")
+    lines.append("- `pilot-portfolio-summary.json`: machine-readable portfolio readiness snapshot")
+    lines.append("- `pilot-portfolio-summary.csv`: flat portfolio readiness export")
     if include_diligence_index:
         lines.append("- `diligence-index.md`: index of generated local artifacts")
     if include_executive_pack:
@@ -116,6 +118,11 @@ def main() -> int:
 
     _copy_if_exists(build_dir / "pilot-handout.md", bundle_root / "pilot-handout.md")
     _copy_if_exists(build_dir / "latest-open-order.md", bundle_root / "latest-open-order.md")
+    latest_pilot_pack = build_dir / "latest-pilot-pack"
+    if latest_pilot_pack.exists() or latest_pilot_pack.is_symlink():
+        pilot_pack_dir = latest_pilot_pack.resolve()
+        _copy_if_exists(pilot_pack_dir / "pilot-portfolio-summary.json", bundle_root / "pilot-portfolio-summary.json")
+        _copy_if_exists(pilot_pack_dir / "pilot-portfolio-summary.csv", bundle_root / "pilot-portfolio-summary.csv")
     include_diligence_index = not bool(args.skip_diligence_index)
     if include_diligence_index:
         _copy_if_exists(build_dir / "diligence-index.md", bundle_root / "diligence-index.md")
