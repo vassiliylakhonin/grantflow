@@ -69,6 +69,7 @@ make open-latest-send-fast-refresh
 make buyer-demo-open
 make buyer-demo-open-refresh
 make ci-demo-smoke
+make dev-runtime-refresh
 ```
 
 This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
@@ -114,6 +115,7 @@ This writes a ready-to-review bundle to `build/demo-pack/` using live API runs a
 `make buyer-demo-open` prints the buyer-facing open order from the current `build/latest-*` stack. Set `BUYER_DEMO_OPEN_MODE=open` on macOS to open the files directly.
 `make buyer-demo-open-refresh` rebuilds the fast buyer path first, then prints or opens that stack.
 `make ci-demo-smoke` runs the minimal buyer-chain smoke path on a single preset and asserts that the key demo artifacts exist.
+`make dev-runtime-refresh` rebuilds local Docker `api` and `worker` services when live `/status/*` payloads lag behind the current checkout.
 
 ## 3) Operator Demo Flow (API-first)
 
