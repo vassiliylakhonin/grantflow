@@ -281,6 +281,19 @@ def _statement_to_indicator_phrase(statement: str) -> str:
     compact = " ".join(str(statement or "").split()).strip().rstrip(".")
     if not compact:
         return ""
+    compact = re.sub(r"evidence hint:\s*\w+\.?", "", compact, flags=re.IGNORECASE).strip(" .;:-")
+    compact = re.sub(
+        r"\bintervention delivers measurable change\b",
+        "results delivered",
+        compact,
+        flags=re.IGNORECASE,
+    )
+    compact = re.sub(
+        r"\bthrough structured implementation and review cycles\b",
+        "",
+        compact,
+        flags=re.IGNORECASE,
+    ).strip(" ,;:-")
     normalized = re.sub(r"^[\"'`]+|[\"'`]+$", "", compact)
     replacements = (
         (r"^improve\s+", "Improved "),
@@ -306,6 +319,19 @@ def _statement_focus_phrase(statement: str) -> str:
     text = " ".join(str(statement or "").split()).strip().rstrip(".")
     if not text:
         return "priority result"
+    text = re.sub(r"evidence hint:\s*\w+\.?", "", text, flags=re.IGNORECASE).strip(" .;:-")
+    text = re.sub(
+        r"\bintervention delivers measurable change\b",
+        "results delivery",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"\bthrough structured implementation and review cycles\b",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip(" ,;:-")
     normalized = re.sub(r"^[\"'`]+|[\"'`]+$", "", text)
     normalized = re.sub(
         r"^(improve|strengthen|increase|expand|enhance|reduce|develop|build|support|enable|promote)\s+",
@@ -518,13 +544,28 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
     return f"{label} tracked at {level} level."
 
 
-def _default_indicator_formula(indicator_name: str, *, result_level: str) -> str:
+def _default_indicator_formula(indicator_name: str, *, result_level: str, donor_id: str = "") -> str:
     name = str(indicator_name or "").strip().lower()
     level = str(result_level or "").strip().lower()
+    donor = str(donor_id or "").strip().lower()
     if any(token in name for token in ("percent", "%", "rate", "coverage", "share")):
         return "(Numerator / Denominator) * 100"
     if any(token in name for token in ("time", "days", "duration", "turnaround", "delay", "processing")):
         return "Average days between service start and completion"
+    if donor == "usaid" and any(
+        token in name for token in ("official", "civil servant", "skills", "capacity", "training")
+    ):
+        return "Count of civil servants meeting verified completion or applied-skills criteria"
+    if donor == "eu" and any(token in name for token in ("service quality", "institutional", "adoption", "procedure")):
+        return "Count of institutions adopting verified service quality or administrative procedures"
+    if donor == "worldbank" and any(token in name for token in ("performance", "public sector", "service delivery")):
+        return "Count of institutions achieving verified service-performance improvements"
+    if donor == "giz" and any(token in name for token in ("sme", "enterprise", "resilience", "business continuity")):
+        return "Count of SMEs implementing verified resilience or continuity practices"
+    if donor in {"state_department", "us_state_department"} and any(
+        token in name for token in ("media", "newsroom", "journalist", "civil society", "resilience")
+    ):
+        return "Count of organizations implementing verified resilience or protection practices"
     if _is_institution_indicator(name) or _is_organization_indicator(name):
         return "Count of institutions/organizations meeting defined performance or adoption criteria"
     if any(token in name for token in ("policy", "regulation", "protocol", "guideline", "sop")):
@@ -747,6 +788,11 @@ def _apply_indicator_defaults(
     raw_formula = str(out.get("formula") or "").strip()
     if not raw_formula:
         out["formula"] = _default_indicator_formula(str(out.get("name") or ""), result_level=current_result_level)
+        out["formula"] = _default_indicator_formula(
+            str(out.get("name") or ""),
+            result_level=current_result_level,
+            donor_id=donor_id,
+        )
     else:
         out["formula"] = raw_formula
 

@@ -185,9 +185,26 @@ def test_mel_formula_prefers_institution_logic_over_people_logic():
         mel_module._default_indicator_formula(
             "Strengthen institutional capacity for youth employment and SME skills delivery",
             result_level="outcome",
+            donor_id="eu",
         )
-        == "Count of institutions/organizations meeting defined performance or adoption criteria"
+        == "Count of institutions adopting verified service quality or administrative procedures"
     )
+
+
+def test_mel_formula_is_donor_shaped_for_worldbank_and_state_department():
+    wb_formula = mel_module._default_indicator_formula(
+        "Improve public sector service performance across pilot agencies",
+        result_level="impact",
+        donor_id="worldbank",
+    )
+    state_formula = mel_module._default_indicator_formula(
+        "Improve independent media resilience outcomes in Georgia",
+        result_level="impact",
+        donor_id="state_department",
+    )
+
+    assert wb_formula == "Count of institutions achieving verified service-performance improvements"
+    assert state_formula == "Count of organizations implementing verified resilience or protection practices"
 
 
 def test_mel_deterministic_justification_is_donor_shaped():
@@ -227,6 +244,18 @@ def test_indicator_name_from_toc_statement_prefers_compact_result_label():
     )
 
     assert name == "Impact: Improved digital service quality in municipal agencies"
+
+
+def test_indicator_name_from_toc_statement_strips_boilerplate_narrative():
+    name = mel_module._indicator_name_from_toc_statement(
+        "Responsible AI Skills for Civil Service Modernization intervention delivers measurable change in Kazakhstan through structured implementation and review cycles. Evidence hint: present.",
+        idx=0,
+        result_level="outcome",
+    )
+
+    assert "evidence hint" not in name.lower()
+    assert "structured implementation and review cycles" not in name.lower()
+    assert "results delivered" in name.lower()
 
 
 def test_deterministic_definition_from_statement_is_donor_shaped():
