@@ -200,6 +200,43 @@ def _next_ops_sequence(
     return sequence
 
 
+def _suggested_demo_console_actions(
+    *,
+    queue_next_primary_action: str | None,
+    finding_ack_queue: int | None,
+    comment_ack_queue: int | None,
+    comment_resolve_queue: int | None,
+    comment_reopen_queue: int | None,
+    limit: int = 2,
+) -> list[str]:
+    actions: list[str] = []
+    seen: set[str] = set()
+
+    def add(text: str) -> None:
+        if text not in seen and len(actions) < limit:
+            actions.append(text)
+            seen.add(text)
+
+    primary = str(queue_next_primary_action or "").strip().lower()
+    if primary == "ack_finding" or (finding_ack_queue or 0) > 0:
+        add(
+            "`/demo -> Critic Findings -> Filter Finding Status=open -> Use Suggested Finding Action (ack_finding) -> Preview Acknowledge Findings -> Apply Acknowledge Findings`"
+        )
+    if primary == "ack_comment" or (comment_ack_queue or 0) > 0:
+        add(
+            "`/demo -> Review Comments -> List Filter Status=open -> Use Suggested Comment Action (ack_comment) -> Preview Acknowledge Comments -> Apply Acknowledge Comments`"
+        )
+    if primary == "resolve_comment" or (comment_resolve_queue or 0) > 0:
+        add(
+            "`/demo -> Review Comments -> List Filter Status=acknowledged -> Use Suggested Comment Action (resolve_comment) -> Preview Resolve Comments -> Apply Resolve Comments`"
+        )
+    if primary == "reopen_comment" or (comment_reopen_queue or 0) > 0:
+        add(
+            "`/demo -> Review Comments -> List Filter Status=resolved -> Use Suggested Comment Action (reopen_comment) -> Preview Reopen Comments -> Apply Reopen Comments`"
+        )
+    return actions
+
+
 def _top_blocking_thresholds(conditions: list[str], *, limit: int = 3) -> list[str]:
     priority_tokens = (
         "reviewer workflow resolution rate",
@@ -577,6 +614,18 @@ def _build_summary(
         lines.append("## Next Ops Sequence")
         for index, step in enumerate(next_ops_sequence, start=1):
             lines.append(f"{index}. {step}")
+        lines.append("")
+    suggested_actions = _suggested_demo_console_actions(
+        queue_next_primary_action=str(action_queue.get("next_primary_action") or "").strip() or None,
+        finding_ack_queue=_safe_int(action_queue.get("finding_ack_queue_count")),
+        comment_ack_queue=_safe_int(action_queue.get("comment_ack_queue_count")),
+        comment_resolve_queue=_safe_int(action_queue.get("comment_resolve_queue_count")),
+        comment_reopen_queue=_safe_int(action_queue.get("comment_reopen_queue_count")),
+    )
+    if suggested_actions:
+        lines.append("## Suggested Demo Console Actions")
+        for action in suggested_actions:
+            lines.append(f"- {action}")
         lines.append("")
     if conditional_reasons:
         if top_blocking_thresholds:

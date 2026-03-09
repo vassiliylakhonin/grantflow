@@ -1473,6 +1473,14 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Comment Resolve Queue</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Comment Reopen Queue</div><div class="value mono">-</div></div>
             </div>
+            <div style="margin-top:10px;">
+              <label>Suggested Ops Actions</label>
+              <div class="list" id="reviewWorkflowSuggestedActionsList"></div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <button id="applySuggestedFindingActionBtn" class="ghost">Use Suggested Finding Action</button>
+              <button id="applySuggestedCommentActionBtn" class="ghost">Use Suggested Comment Action</button>
+            </div>
             <div class="row3" style="margin-top:10px;">
               <button id="reviewWorkflowExportJsonBtn" class="ghost">Export Workflow JSON</button>
               <button id="reviewWorkflowExportCsvBtn" class="secondary">Export Workflow CSV</button>
@@ -1721,6 +1729,8 @@ def render_demo_ui_html() -> str:
         lastIngestInventory: null,
         lastQualitySummary: null,
         lastPortfolioWorkflowPolicy: null,
+        lastSuggestedFindingAction: null,
+        lastSuggestedCommentAction: null,
         qualityGroundedGateExplainExpanded: false,
         ingestChecklistProgress: {},
         zeroReadinessWarningPrefs: {},
@@ -1912,6 +1922,9 @@ def render_demo_ui_html() -> str:
         reviewActionQueueCards: $("reviewActionQueueCards"),
         reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
         reviewWorkflowPolicyLine: $("reviewWorkflowPolicyLine"),
+        reviewWorkflowSuggestedActionsList: $("reviewWorkflowSuggestedActionsList"),
+        applySuggestedFindingActionBtn: $("applySuggestedFindingActionBtn"),
+        applySuggestedCommentActionBtn: $("applySuggestedCommentActionBtn"),
         reviewWorkflowJson: $("reviewWorkflowJson"),
         reviewWorkflowTrendsBtn: $("reviewWorkflowTrendsBtn"),
         reviewWorkflowTrendsExportJsonBtn: $("reviewWorkflowTrendsExportJsonBtn"),
@@ -5304,6 +5317,7 @@ def render_demo_ui_html() -> str:
           ? summary.action_queue_summary
           : {};
         renderReviewActionQueueCards(actionQueue);
+        renderSuggestedOpsActions(actionQueue, workflowPolicy);
       }
 
       function sendClassificationForGoNoGo(goNoGo) {
@@ -5388,6 +5402,137 @@ def render_demo_ui_html() -> str:
           const valueEl = card && typeof card.querySelector === "function" ? card.querySelector(".value") : null;
           if (valueEl) valueEl.textContent = values[index] ?? "-";
         });
+      }
+
+      function findingActionPresetFromQueue(summary) {
+        const findingResolve = Number(summary?.finding_resolve_queue_count || 0);
+        const findingAck = Number(summary?.finding_ack_queue_count || 0);
+        if (findingResolve > 0) {
+          return {
+            key: "resolve_finding",
+            title: "Resolve acknowledged findings",
+            targetStatus: "resolved",
+            sourceStatus: "acknowledged",
+            queueLabel: "finding resolve queue",
+            path: "Critic Findings -> Filter Finding Status=acknowledged -> Bulk Target Status=resolved -> Preview -> Apply",
+          };
+        }
+        if (findingAck > 0 || String(summary?.next_primary_action || "").trim().toLowerCase() === "ack_finding") {
+          return {
+            key: "ack_finding",
+            title: "Acknowledge open findings",
+            targetStatus: "acknowledged",
+            sourceStatus: "open",
+            queueLabel: "finding ack queue",
+            path: "Critic Findings -> Filter Finding Status=open -> Bulk Target Status=acknowledged -> Preview -> Apply",
+          };
+        }
+        return null;
+      }
+
+      function commentActionPresetFromQueue(summary) {
+        const commentReopen = Number(summary?.comment_reopen_queue_count || 0);
+        const commentResolve = Number(summary?.comment_resolve_queue_count || 0);
+        const commentAck = Number(summary?.comment_ack_queue_count || 0);
+        if (commentReopen > 0) {
+          return {
+            key: "reopen_comment",
+            title: "Reopen resolved comments",
+            targetStatus: "open",
+            sourceStatus: "resolved",
+            queueLabel: "comment reopen queue",
+            path: "Review Comments -> List Filter Status=resolved -> Bulk Comment Status=open -> Preview -> Apply",
+          };
+        }
+        if (commentResolve > 0) {
+          return {
+            key: "resolve_comment",
+            title: "Resolve acknowledged comments",
+            targetStatus: "resolved",
+            sourceStatus: "acknowledged",
+            queueLabel: "comment resolve queue",
+            path: "Review Comments -> List Filter Status=acknowledged -> Bulk Comment Status=resolved -> Preview -> Apply",
+          };
+        }
+        if (commentAck > 0 || String(summary?.next_primary_action || "").trim().toLowerCase() === "ack_comment") {
+          return {
+            key: "ack_comment",
+            title: "Acknowledge open comments",
+            targetStatus: "acknowledged",
+            sourceStatus: "open",
+            queueLabel: "comment ack queue",
+            path: "Review Comments -> List Filter Status=open -> Bulk Comment Status=acknowledged -> Preview -> Apply",
+          };
+        }
+        return null;
+      }
+
+      function renderSuggestedOpsActions(actionQueue, workflowPolicy) {
+        const findingPreset = findingActionPresetFromQueue(actionQueue);
+        const commentPreset = commentActionPresetFromQueue(actionQueue);
+        state.lastSuggestedFindingAction = findingPreset;
+        state.lastSuggestedCommentAction = commentPreset;
+        const policyNext = String(workflowPolicy?.next_operational_action || "-").trim() || "-";
+        const listEl = els.reviewWorkflowSuggestedActionsList;
+        if (!listEl) return;
+        listEl.innerHTML = "";
+        const cards = [];
+        if (findingPreset) {
+          cards.push({
+            title: `Finding queue · ${findingPreset.title}`,
+            sub: `${findingPreset.path} · queue=${findingPreset.queueLabel} · policy_next=${policyNext}`,
+          });
+        }
+        if (commentPreset) {
+          cards.push({
+            title: `Comment queue · ${commentPreset.title}`,
+            sub: `${commentPreset.path} · queue=${commentPreset.queueLabel} · policy_next=${policyNext}`,
+          });
+        }
+        if (!cards.length) {
+          listEl.innerHTML = `<div class="item"><div class="sub">No suggested queue actions for the current review workflow snapshot.</div></div>`;
+        } else {
+          for (const card of cards) {
+            const div = document.createElement("div");
+            div.className = "item";
+            div.innerHTML = `<div class="title mono">${escapeHtml(card.title)}</div><div class="sub">${escapeHtml(card.sub)}</div>`;
+            listEl.appendChild(div);
+          }
+        }
+        if (els.applySuggestedFindingActionBtn) {
+          els.applySuggestedFindingActionBtn.disabled = !findingPreset;
+          els.applySuggestedFindingActionBtn.textContent = findingPreset
+            ? `Use Suggested Finding Action (${findingPreset.key})`
+            : "Use Suggested Finding Action";
+        }
+        if (els.applySuggestedCommentActionBtn) {
+          els.applySuggestedCommentActionBtn.disabled = !commentPreset;
+          els.applySuggestedCommentActionBtn.textContent = commentPreset
+            ? `Use Suggested Comment Action (${commentPreset.key})`
+            : "Use Suggested Comment Action";
+        }
+      }
+
+      function applySuggestedFindingActionPreset() {
+        const preset = state.lastSuggestedFindingAction;
+        if (!preset) return;
+        els.criticBulkTargetStatus.value = preset.targetStatus;
+        els.criticBulkScope.value = "filtered";
+        if (!String(els.criticFindingStatusFilter?.value || "").trim()) {
+          els.criticFindingStatusFilter.value = preset.sourceStatus;
+        }
+        updateCriticBulkActionUi();
+      }
+
+      function applySuggestedCommentActionPreset() {
+        const preset = state.lastSuggestedCommentAction;
+        if (!preset) return;
+        els.commentBulkTargetStatus.value = preset.targetStatus;
+        els.commentBulkScope.value = "filtered";
+        if (!String(els.commentsFilterStatus?.value || "").trim()) {
+          els.commentsFilterStatus.value = preset.sourceStatus;
+        }
+        updateCommentBulkActionUi();
       }
 
       function renderReviewWorkflowTrends(body) {
@@ -8970,6 +9115,12 @@ def render_demo_ui_html() -> str:
             refreshPortfolioReviewWorkflowTrends(),
             refreshPortfolioReviewWorkflowSlaTrends(),
           ]).catch(showError);
+        });
+        els.applySuggestedFindingActionBtn.addEventListener("click", () => {
+          applySuggestedFindingActionPreset();
+        });
+        els.applySuggestedCommentActionBtn.addEventListener("click", () => {
+          applySuggestedCommentActionPreset();
         });
         els.reviewWorkflowTrendsBtn.addEventListener("click", () => refreshReviewWorkflowTrends().catch(showError));
         els.reviewWorkflowSlaBtn.addEventListener("click", () => refreshReviewWorkflowSla().catch(showError));

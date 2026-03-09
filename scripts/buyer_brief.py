@@ -343,6 +343,43 @@ def _next_ops_sequence(
     return sequence
 
 
+def _suggested_demo_console_actions(
+    *,
+    queue_next_primary_action: str | None,
+    avg_finding_ack_queue: float | None,
+    avg_comment_ack_queue: float | None,
+    avg_comment_resolve_queue: float | None,
+    avg_comment_reopen_queue: float | None,
+    limit: int = 2,
+) -> list[str]:
+    actions: list[str] = []
+    seen: set[str] = set()
+
+    def add(text: str) -> None:
+        if text not in seen and len(actions) < limit:
+            actions.append(text)
+            seen.add(text)
+
+    primary = str(queue_next_primary_action or "").strip().lower()
+    if primary == "ack_finding" or (avg_finding_ack_queue or 0) > 0:
+        add(
+            "`/demo -> Critic Findings -> Filter Finding Status=open -> Use Suggested Finding Action (ack_finding) -> Preview Acknowledge Findings -> Apply Acknowledge Findings`"
+        )
+    if primary == "ack_comment" or (avg_comment_ack_queue or 0) > 0:
+        add(
+            "`/demo -> Review Comments -> List Filter Status=open -> Use Suggested Comment Action (ack_comment) -> Preview Acknowledge Comments -> Apply Acknowledge Comments`"
+        )
+    if primary == "resolve_comment" or (avg_comment_resolve_queue or 0) > 0:
+        add(
+            "`/demo -> Review Comments -> List Filter Status=acknowledged -> Use Suggested Comment Action (resolve_comment) -> Preview Resolve Comments -> Apply Resolve Comments`"
+        )
+    if primary == "reopen_comment" or (avg_comment_reopen_queue or 0) > 0:
+        add(
+            "`/demo -> Review Comments -> List Filter Status=resolved -> Use Suggested Comment Action (reopen_comment) -> Preview Reopen Comments -> Apply Reopen Comments`"
+        )
+    return actions
+
+
 def _build_brief(
     rows: list[dict[str, Any]],
     *,
@@ -450,6 +487,18 @@ def _build_brief(
         lines.append("## Next Ops Sequence")
         for index, step in enumerate(next_ops_sequence, start=1):
             lines.append(f"{index}. {step}")
+        lines.append("")
+    suggested_actions = _suggested_demo_console_actions(
+        queue_next_primary_action=queue_next_primary_action,
+        avg_finding_ack_queue=avg_finding_ack_queue,
+        avg_comment_ack_queue=avg_comment_ack_queue,
+        avg_comment_resolve_queue=avg_comment_resolve_queue,
+        avg_comment_reopen_queue=avg_comment_reopen_queue,
+    )
+    if suggested_actions:
+        lines.append("## Suggested Demo Console Actions")
+        for action in suggested_actions:
+            lines.append(f"- {action}")
         lines.append("")
     lines.append("## What This Demonstrates")
     lines.append("- Structured draft generation through a controlled pipeline, not one-shot text output.")
