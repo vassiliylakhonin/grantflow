@@ -409,6 +409,15 @@ jobs:
 
           make ci-demo-smoke CI_DEMO_SMOKE_ROOT=build/ci-demo-smoke | tee demo-smoke-artifacts/ci-demo-smoke.log
 
+      - name: Publish demo review smoke summary
+        if: always()
+        run: |
+          if [ -f demo-smoke-artifacts/demo-review-smoke-summary.md ]; then
+            cat demo-smoke-artifacts/demo-review-smoke-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Demo review smoke summary not found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload demo smoke artifacts
         uses: actions/upload-artifact@v4
         if: always()
@@ -416,6 +425,7 @@ jobs:
           name: demo-smoke-artifacts
           path: |
             demo-smoke-artifacts/
+            demo-smoke-artifacts/demo-review-smoke-summary.md
             build/ci-demo-smoke/
             build/latest-open-order.md
           if-no-files-found: error
