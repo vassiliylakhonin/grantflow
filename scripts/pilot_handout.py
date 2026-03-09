@@ -159,6 +159,9 @@ def _build_handout(
         lines.append(f"- Resolved review comments: `{featured_review_readiness.get('resolved_review_comments', '-')}`")
         lines.append(f"- Overdue review comments: `{featured_review_readiness.get('overdue_review_comments', '-')}`")
         lines.append(
+            f"- Stale open review comments: `{featured_review_readiness.get('stale_open_review_comments', '-')}`"
+        )
+        lines.append(
             f"- Fallback/strategy citations: `{featured_review_readiness.get('fallback_strategy_citations', '-')}`"
         )
     if featured_triage_summary:
@@ -174,6 +177,8 @@ def _build_handout(
     if comment_triage:
         if str(comment_triage.get("next_comment_section") or "").strip():
             lines.append(f"- Next comment section: `{comment_triage.get('next_comment_section')}`")
+        if str(comment_triage.get("next_comment_bucket") or "").strip():
+            lines.append(f"- Next comment bucket: `{comment_triage.get('next_comment_bucket')}`")
         if str(comment_triage.get("next_recommended_action") or "").strip():
             lines.append(f"- Next comment action: {comment_triage.get('next_recommended_action')}")
     top_finding_titles, top_reviewer_actions = _top_reviewer_items(featured_critic_payload)
@@ -283,6 +288,7 @@ def main() -> int:
         "resolved_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
+        "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
         **featured_review_readiness,
@@ -329,6 +335,7 @@ def main() -> int:
                 "resolved_review_comments": comment_triage.get("resolved_comment_count"),
                 "pending_review_comments": comment_triage.get("pending_comment_count"),
                 "overdue_review_comments": comment_triage.get("overdue_comment_count"),
+                "stale_open_review_comments": comment_triage.get("stale_open_comment_count"),
                 "linked_review_comments": comment_triage.get("linked_comment_count"),
                 "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
                 "comment_triage_summary": comment_triage,

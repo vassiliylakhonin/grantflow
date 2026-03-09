@@ -2542,6 +2542,7 @@ def _review_readiness_summary_payload(
         "resolved_review_comments": int(comment_triage_summary.get("resolved_comment_count") or 0),
         "pending_review_comments": int(comment_triage_summary.get("pending_comment_count") or 0),
         "overdue_review_comments": int(comment_triage_summary.get("overdue_comment_count") or 0),
+        "stale_open_review_comments": int(comment_triage_summary.get("stale_open_comment_count") or 0),
         "linked_review_comments": int(comment_triage_summary.get("linked_comment_count") or 0),
         "orphan_linked_review_comments": int(comment_triage_summary.get("orphan_linked_comment_count") or 0),
         "low_confidence_citations": len(low_confidence_citations),
@@ -2578,13 +2579,16 @@ def _comment_triage_summary_payload(
     resolved_count = 0
     pending_count = 0
     overdue_count = 0
+    stale_open_count = 0
     linked_count = 0
     orphan_linked_count = 0
     high_priority_open_count = 0
     top_comment_ids: list[str] = []
     next_comment_section: Optional[str] = None
+    next_comment_bucket: Optional[str] = None
     next_recommended_action: Optional[str] = None
     comment_status_counts: Dict[str, int] = {}
+    comment_bucket_counts: Dict[str, int] = {}
     ranked_comments: list[tuple[int, datetime, Dict[str, Any]]] = []
 
     donor_phrase = {
@@ -2623,6 +2627,9 @@ def _comment_triage_summary_payload(
 
         linked_finding_severity = str((linked_finding or {}).get("severity") or "").strip().lower()
         linked_finding_status = str((linked_finding or {}).get("status") or "open").strip().lower()
+        review_bucket = _finding_review_bucket(linked_finding) if isinstance(linked_finding, dict) else "general"
+        if status not in {"resolved", "closed"}:
+            comment_bucket_counts[review_bucket] = int(comment_bucket_counts.get(review_bucket, 0)) + 1
         is_high_priority = bool(
             status not in {"resolved", "closed"}
             and (
@@ -2652,6 +2659,9 @@ def _comment_triage_summary_payload(
             or _parse_event_ts(current.get("ts"))
             or datetime.min.replace(tzinfo=timezone.utc)
         )
+        age_hours = max(0.0, (reference_ts - transition_dt).total_seconds() / 3600.0)
+        if status not in {"resolved", "closed"} and age_hours >= 24.0:
+            stale_open_count += 1
         if rank > 0:
             ranked_comments.append((rank, transition_dt, current))
 
@@ -2665,6 +2675,8 @@ def _comment_triage_summary_payload(
         current = ranked_comments[0][2]
         next_comment_section = str(current.get("section") or "").strip() or None
         linked_finding_id = str(current.get("linked_finding_id") or "").strip()
+        linked_finding = finding_by_id.get(linked_finding_id) if linked_finding_id else None
+        next_comment_bucket = _finding_review_bucket(linked_finding) if isinstance(linked_finding, dict) else "general"
         due_dt = _parse_event_ts(current.get("due_at"))
         is_overdue = (
             due_dt is not None
@@ -2681,6 +2693,14 @@ def _comment_triage_summary_payload(
             )
         elif linked_finding_id and linked_finding_id not in finding_by_id:
             next_recommended_action = f"Relink stale reviewer comments to active findings or close them before the next {donor_phrase} review pass."
+        elif next_comment_bucket == "grounding":
+            next_recommended_action = f"Resolve the evidence-grounding comment thread and attach stronger source support in the {donor_phrase} before the next draft review."
+        elif next_comment_bucket == "measurement":
+            next_recommended_action = f"Close the indicator measurement comment thread by tightening baseline, target, owner, or verification details in the {donor_phrase} before the next draft review."
+        elif next_comment_bucket == "logic":
+            next_recommended_action = f"Resolve the results-logic comment thread so the causal chain and assumptions read clearly in the {donor_phrase} before the next draft review."
+        elif next_comment_bucket == "compliance":
+            next_recommended_action = f"Close the donor-compliance comment thread by restoring the required structure in the {donor_phrase} before the next draft review."
         elif linked_finding_id:
             next_recommended_action = f"Address reviewer comments linked to active findings in the {donor_phrase} before the next draft review."
         else:
@@ -2691,12 +2711,15 @@ def _comment_triage_summary_payload(
         "resolved_comment_count": resolved_count,
         "pending_comment_count": pending_count,
         "overdue_comment_count": overdue_count,
+        "stale_open_comment_count": stale_open_count,
         "linked_comment_count": linked_count,
         "orphan_linked_comment_count": orphan_linked_count,
         "high_priority_open_comment_count": high_priority_open_count,
         "comment_status_counts": comment_status_counts,
+        "comment_bucket_counts": comment_bucket_counts,
         "top_comment_ids": top_comment_ids,
         "next_comment_section": next_comment_section,
+        "next_comment_bucket": next_comment_bucket,
         "next_recommended_action": next_recommended_action,
     }
 
@@ -3668,6 +3691,7 @@ def public_portfolio_metrics_payload(
         "resolved_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
+        "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
         "low_confidence_citations": 0,
@@ -3722,6 +3746,9 @@ def public_portfolio_metrics_payload(
         review_readiness_totals["resolved_review_comments"] += int(review_summary.get("resolved_review_comments") or 0)
         review_readiness_totals["pending_review_comments"] += int(review_summary.get("pending_review_comments") or 0)
         review_readiness_totals["overdue_review_comments"] += int(review_summary.get("overdue_review_comments") or 0)
+        review_readiness_totals["stale_open_review_comments"] += int(
+            review_summary.get("stale_open_review_comments") or 0
+        )
         review_readiness_totals["linked_review_comments"] += int(review_summary.get("linked_review_comments") or 0)
         review_readiness_totals["orphan_linked_review_comments"] += int(
             review_summary.get("orphan_linked_review_comments") or 0
@@ -3804,6 +3831,9 @@ def public_portfolio_metrics_payload(
             ),
             "overdue_review_comments_per_job_avg": (
                 round(review_readiness_totals["overdue_review_comments"] / job_count, 4) if job_count else None
+            ),
+            "stale_open_review_comments_per_job_avg": (
+                round(review_readiness_totals["stale_open_review_comments"] / job_count, 4) if job_count else None
             ),
             "linked_review_comments_per_job_avg": (
                 round(review_readiness_totals["linked_review_comments"] / job_count, 4) if job_count else None
@@ -3986,6 +4016,7 @@ def public_portfolio_quality_payload(
                 "resolved_review_comments": 0,
                 "pending_review_comments": 0,
                 "overdue_review_comments": 0,
+                "stale_open_review_comments": 0,
                 "linked_review_comments": 0,
                 "orphan_linked_review_comments": 0,
                 "low_confidence_citations": 0,
@@ -4004,6 +4035,7 @@ def public_portfolio_quality_payload(
             "resolved_review_comments",
             "pending_review_comments",
             "overdue_review_comments",
+            "stale_open_review_comments",
             "linked_review_comments",
             "orphan_linked_review_comments",
             "low_confidence_citations",
@@ -5194,6 +5226,11 @@ def public_portfolio_quality_payload(
             for row in quality_rows
             if isinstance(row.get("review_readiness_summary"), dict)
         ),
+        "stale_open_review_comments": sum(
+            int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("stale_open_review_comments") or 0))
+            for row in quality_rows
+            if isinstance(row.get("review_readiness_summary"), dict)
+        ),
         "linked_review_comments": sum(
             int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("linked_review_comments") or 0))
             for row in quality_rows
@@ -5247,6 +5284,11 @@ def public_portfolio_quality_payload(
         )
         donor_row["overdue_review_comments_per_job_avg"] = (
             round(int(donor_row.get("overdue_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_row["stale_open_review_comments_per_job_avg"] = (
+            round(int(donor_row.get("stale_open_review_comments") or 0) / donor_job_count, 4)
+            if donor_job_count
+            else None
         )
         donor_row["triage_summary"] = _portfolio_triage_summary_payload(
             [(donor_token, donor_triage_rows.get(donor_token) or [])]

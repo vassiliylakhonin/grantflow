@@ -173,6 +173,7 @@ def _build_summary(
     portfolio_open_findings_avg: float | None,
     portfolio_open_comments_avg: float | None,
     portfolio_overdue_comments_avg: float | None,
+    portfolio_stale_comments_avg: float | None,
     portfolio_fallback_avg: float | None,
     portfolio_low_confidence_avg: float | None,
     portfolio_smart_avg: float | None,
@@ -208,6 +209,7 @@ def _build_summary(
     lines.append(f"- Average open critic findings per case: `{_format_num(portfolio_open_findings_avg)}`")
     lines.append(f"- Average open review comments per case: `{_format_num(portfolio_open_comments_avg)}`")
     lines.append(f"- Average overdue review comments per case: `{_format_num(portfolio_overdue_comments_avg)}`")
+    lines.append(f"- Average stale open review comments per case: `{_format_num(portfolio_stale_comments_avg)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_format_num(portfolio_fallback_avg)}`")
     lines.append(f"- Average low-confidence citations per case: `{_format_num(portfolio_low_confidence_avg)}`")
     lines.append(f"- Average SMART coverage: `{_format_num(portfolio_smart_avg)}`")
@@ -230,6 +232,9 @@ def _build_summary(
     )
     lines.append(
         f"- Overdue review comments (featured case): `{featured_review_readiness.get('overdue_review_comments', '-')}`"
+    )
+    lines.append(
+        f"- Stale open review comments (featured case): `{featured_review_readiness.get('stale_open_review_comments', '-')}`"
     )
     lines.append(
         f"- High-severity open findings (featured case): `{featured_review_readiness.get('high_severity_open_findings', '-')}`"
@@ -269,9 +274,12 @@ def _build_summary(
     )
     if comment_triage:
         next_comment_section = str(comment_triage.get("next_comment_section") or "").strip()
+        next_comment_bucket = str(comment_triage.get("next_comment_bucket") or "").strip()
         next_comment_action = str(comment_triage.get("next_recommended_action") or "").strip()
         if next_comment_section:
             lines.append(f"- Next comment section (featured case): `{next_comment_section}`")
+        if next_comment_bucket:
+            lines.append(f"- Next comment bucket (featured case): `{next_comment_bucket}`")
         if next_comment_action:
             lines.append(f"- Next comment action (featured case): {next_comment_action}")
     priority_titles, priority_actions = _top_reviewer_items(featured_critic_payload)
@@ -362,6 +370,7 @@ def main() -> int:
         "resolved_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
+        "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
         **featured_review_readiness,
@@ -410,6 +419,7 @@ def main() -> int:
                 "resolved_review_comments": comment_triage.get("resolved_comment_count"),
                 "pending_review_comments": comment_triage.get("pending_comment_count"),
                 "overdue_review_comments": comment_triage.get("overdue_comment_count"),
+                "stale_open_review_comments": comment_triage.get("stale_open_comment_count"),
                 "linked_review_comments": comment_triage.get("linked_comment_count"),
                 "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
                 "comment_triage_summary": comment_triage,
@@ -435,6 +445,7 @@ def main() -> int:
     portfolio_open_findings_avg = _avg([_safe_int(row.get("open_critic_findings")) for row in metrics_rows])
     portfolio_open_comments_avg = _avg([_safe_int(row.get("open_review_comments")) for row in metrics_rows])
     portfolio_overdue_comments_avg = _avg([_safe_int(row.get("overdue_review_comments")) for row in metrics_rows])
+    portfolio_stale_comments_avg = _avg([_safe_int(row.get("stale_open_review_comments")) for row in metrics_rows])
     portfolio_fallback_avg = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in metrics_rows])
     portfolio_low_confidence_avg = _avg([_safe_int(row.get("low_confidence_citations")) for row in metrics_rows])
     portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
@@ -460,6 +471,7 @@ def main() -> int:
             portfolio_open_findings_avg=portfolio_open_findings_avg,
             portfolio_open_comments_avg=portfolio_open_comments_avg,
             portfolio_overdue_comments_avg=portfolio_overdue_comments_avg,
+            portfolio_stale_comments_avg=portfolio_stale_comments_avg,
             portfolio_fallback_avg=portfolio_fallback_avg,
             portfolio_low_confidence_avg=portfolio_low_confidence_avg,
             portfolio_smart_avg=portfolio_smart_avg,

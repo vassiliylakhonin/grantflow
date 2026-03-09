@@ -296,18 +296,23 @@
   },
   "review_readiness_summary": {
     "comment_triage_summary": {
+      "comment_bucket_counts": {
+        "grounding": 1
+      },
       "comment_status_counts": {
         "open": 1
       },
       "high_priority_open_comment_count": 1,
       "linked_comment_count": 1,
+      "next_comment_bucket": "grounding",
       "next_comment_section": "toc",
-      "next_recommended_action": "Address reviewer comments linked to active findings in the USAID results hierarchy and monitoring package before the next draft review.",
+      "next_recommended_action": "Resolve the evidence-grounding comment thread and attach stronger source support in the USAID results hierarchy and monitoring package before the next draft review.",
       "open_comment_count": 1,
       "orphan_linked_comment_count": 0,
       "overdue_comment_count": 0,
       "pending_comment_count": 1,
       "resolved_comment_count": 0,
+      "stale_open_comment_count": 0,
       "top_comment_ids": [
         "comment-1"
       ]
@@ -322,7 +327,8 @@
     "orphan_linked_review_comments": 0,
     "overdue_review_comments": 0,
     "pending_review_comments": 1,
-    "resolved_review_comments": 0
+    "resolved_review_comments": 0,
+    "stale_open_review_comments": 0
   },
   "status": "done",
   "strict_preflight": true,

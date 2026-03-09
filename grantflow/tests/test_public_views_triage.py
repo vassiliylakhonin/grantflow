@@ -145,8 +145,8 @@ def test_comment_triage_summary_tracks_overdue_and_next_action():
                 "comment_id": "comment-2",
                 "status": "resolved",
                 "section": "logframe",
-                "ts": "2026-03-01T10:00:00+00:00",
-                "resolved_at": "2026-03-01T10:30:00+00:00",
+                "ts": "2026-03-03T10:00:00+00:00",
+                "resolved_at": "2026-03-03T10:30:00+00:00",
             },
         ],
         critic_findings=[
@@ -155,6 +155,7 @@ def test_comment_triage_summary_tracks_overdue_and_next_action():
                 "status": "open",
                 "severity": "high",
                 "section": "toc",
+                "message": "Theory of Change repeats boilerplate narrative across multiple sections.",
             }
         ],
         donor_id="usaid",
@@ -162,5 +163,8 @@ def test_comment_triage_summary_tracks_overdue_and_next_action():
     assert summary["open_comment_count"] == 1
     assert summary["resolved_comment_count"] == 1
     assert summary["overdue_comment_count"] == 1
+    assert summary["stale_open_comment_count"] == 1
     assert summary["next_comment_section"] == "toc"
+    assert summary["next_comment_bucket"] == "logic"
+    assert summary["comment_bucket_counts"]["logic"] == 1
     assert "USAID results hierarchy" in str(summary["next_recommended_action"])

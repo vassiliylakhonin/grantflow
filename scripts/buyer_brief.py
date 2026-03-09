@@ -96,6 +96,7 @@ def _review_readiness_from_payloads(
         "resolved_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
+        "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
     }
@@ -123,6 +124,7 @@ def _review_readiness_from_payloads(
         "resolved_review_comments": comment_triage.get("resolved_comment_count"),
         "pending_review_comments": comment_triage.get("pending_comment_count"),
         "overdue_review_comments": comment_triage.get("overdue_comment_count"),
+        "stale_open_review_comments": comment_triage.get("stale_open_comment_count"),
         "linked_review_comments": comment_triage.get("linked_comment_count"),
         "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
         "comment_triage_summary": comment_triage,
@@ -321,6 +323,9 @@ def main() -> int:
     overdue_comments_avg = _avg(
         [_safe_int(item.get("overdue_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
     )
+    stale_comments_avg = _avg(
+        [_safe_int(item.get("stale_open_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
+    )
     fallback_citations_avg = _avg(
         [_safe_int(item.get("fallback_strategy_citations")) for item in readiness_summaries if isinstance(item, dict)]
     )
@@ -421,6 +426,14 @@ def main() -> int:
         ),
         "",
     )
+    next_comment_bucket = next(
+        (
+            str(item.get("next_comment_bucket") or "").strip()
+            for item in comment_triage_summaries
+            if isinstance(item, dict) and str(item.get("next_comment_bucket") or "").strip()
+        ),
+        "",
+    )
     next_comment_action = next(
         (
             str(item.get("next_recommended_action") or "").strip()
@@ -454,9 +467,11 @@ def main() -> int:
         f"- Open review comments per case: `{_format_num(open_comments_avg)}`",
         f"- Resolved review comments per case: `{_format_num(resolved_comments_avg)}`",
         f"- Overdue review comments per case: `{_format_num(overdue_comments_avg)}`",
+        f"- Stale open review comments per case: `{_format_num(stale_comments_avg)}`",
         f"- Fallback/strategy citations per case: `{_format_num(fallback_citations_avg)}`",
         f"- Low-confidence citations per case: `{_format_num(low_confidence_avg)}`",
         *([f"- Next comment section: `{next_comment_section}`"] if next_comment_section else []),
+        *([f"- Next comment bucket: `{next_comment_bucket}`"] if next_comment_bucket else []),
         *([f"- Next comment action: {next_comment_action}"] if next_comment_action else []),
         "",
         "## LogFrame Readiness Snapshot",

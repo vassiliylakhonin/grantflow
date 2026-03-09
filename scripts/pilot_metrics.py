@@ -84,6 +84,7 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             "resolved_review_comments": comment_triage.get("resolved_comment_count"),
             "pending_review_comments": comment_triage.get("pending_comment_count"),
             "overdue_review_comments": comment_triage.get("overdue_comment_count"),
+            "stale_open_review_comments": comment_triage.get("stale_open_comment_count"),
             "linked_review_comments": comment_triage.get("linked_comment_count"),
             "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
             "comment_triage_summary": comment_triage,
@@ -93,6 +94,7 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "resolved_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
+        "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
     }
@@ -137,6 +139,7 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "resolved_review_comments": readiness.get("resolved_review_comments"),
         "pending_review_comments": readiness.get("pending_review_comments"),
         "overdue_review_comments": readiness.get("overdue_review_comments"),
+        "stale_open_review_comments": readiness.get("stale_open_review_comments"),
         "linked_review_comments": readiness.get("linked_review_comments"),
         "orphan_linked_review_comments": readiness.get("orphan_linked_review_comments"),
         "fallback_strategy_citations": readiness.get("fallback_strategy_citations"),
@@ -145,6 +148,9 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "next_recommended_action": triage.get("next_recommended_action"),
         "next_comment_section": (
             comment_triage.get("next_comment_section") if isinstance(comment_triage, dict) else None
+        ),
+        "next_comment_bucket": (
+            comment_triage.get("next_comment_bucket") if isinstance(comment_triage, dict) else None
         ),
         "next_comment_action": (
             comment_triage.get("next_recommended_action") if isinstance(comment_triage, dict) else None
@@ -187,6 +193,7 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "resolved_review_comments",
         "pending_review_comments",
         "overdue_review_comments",
+        "stale_open_review_comments",
         "linked_review_comments",
         "orphan_linked_review_comments",
         "fallback_strategy_citations",
@@ -194,6 +201,7 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "next_review_bucket",
         "next_recommended_action",
         "next_comment_section",
+        "next_comment_bucket",
         "next_comment_action",
         "smart_field_coverage_rate",
         "means_of_verification_coverage_rate",
@@ -224,6 +232,7 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_open_comments = _avg([_safe_int(row.get("open_review_comments")) for row in rows])
     avg_resolved_comments = _avg([_safe_int(row.get("resolved_review_comments")) for row in rows])
     avg_overdue_comments = _avg([_safe_int(row.get("overdue_review_comments")) for row in rows])
+    avg_stale_comments = _avg([_safe_int(row.get("stale_open_review_comments")) for row in rows])
     avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
     avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
     avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
@@ -249,6 +258,14 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
             str(row.get("next_comment_section") or "").strip()
             for row in rows
             if str(row.get("next_comment_section") or "").strip()
+        ),
+        "",
+    )
+    next_comment_bucket = next(
+        (
+            str(row.get("next_comment_bucket") or "").strip()
+            for row in rows
+            if str(row.get("next_comment_bucket") or "").strip()
         ),
         "",
     )
@@ -279,6 +296,7 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average open review comments per case: `{_fmt(avg_open_comments)}`")
     lines.append(f"- Average resolved review comments per case: `{_fmt(avg_resolved_comments)}`")
     lines.append(f"- Average overdue review comments per case: `{_fmt(avg_overdue_comments)}`")
+    lines.append(f"- Average stale open review comments per case: `{_fmt(avg_stale_comments)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence)}`")
     lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart_coverage)}`")
@@ -291,6 +309,8 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
         lines.append(f"- Portfolio next recommended action: {next_action}")
     if next_comment_section:
         lines.append(f"- Portfolio next comment section: `{next_comment_section}`")
+    if next_comment_bucket:
+        lines.append(f"- Portfolio next comment bucket: `{next_comment_bucket}`")
     if next_comment_action:
         lines.append(f"- Portfolio next comment action: {next_comment_action}")
     lines.append("")
