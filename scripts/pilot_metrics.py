@@ -395,6 +395,24 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     if any(stale_bucket_totals.values()):
         lines.append(f"- Stale comment bucket mix: `{_bucket_mix_text(stale_bucket_totals)}`")
         lines.append(f"- Top stale comment bucket: `{top_stale_bucket}`")
+        donor_stale_bucket_totals: dict[str, dict[str, int]] = {}
+        for row in rows:
+            donor = str(row.get("donor_id") or "").strip() or "unknown"
+            donor_bucket_counts = donor_stale_bucket_totals.setdefault(
+                donor, {"logic": 0, "grounding": 0, "measurement": 0, "compliance": 0, "general": 0}
+            )
+            donor_bucket_counts["logic"] += int(_safe_int(row.get("stale_comment_bucket_logic")) or 0)
+            donor_bucket_counts["grounding"] += int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0)
+            donor_bucket_counts["measurement"] += int(_safe_int(row.get("stale_comment_bucket_measurement")) or 0)
+            donor_bucket_counts["compliance"] += int(_safe_int(row.get("stale_comment_bucket_compliance")) or 0)
+            donor_bucket_counts["general"] += int(_safe_int(row.get("stale_comment_bucket_general")) or 0)
+        donor_mix = "; ".join(
+            f"{donor}: {_bucket_mix_text(bucket_counts)}"
+            for donor, bucket_counts in donor_stale_bucket_totals.items()
+            if _bucket_mix_text(bucket_counts) != "-"
+        )
+        if donor_mix:
+            lines.append(f"- Stale thread donor/bucket mix: `{donor_mix}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence)}`")
     lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart_coverage)}`")

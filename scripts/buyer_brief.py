@@ -54,6 +54,15 @@ def _bucket_mix_text(bucket_counts: dict[str, int]) -> str:
     return ", ".join(parts) if parts else "-"
 
 
+def _donor_bucket_mix_text(donor_bucket_counts: dict[str, dict[str, int]]) -> str:
+    parts: list[str] = []
+    for donor, bucket_counts in donor_bucket_counts.items():
+        mix = _bucket_mix_text(bucket_counts)
+        if mix != "-":
+            parts.append(f"{donor}: {mix}")
+    return "; ".join(parts) if parts else "-"
+
+
 def _load_case_quality(pilot_pack_dir: Path, case_dir: str) -> dict[str, Any]:
     if not case_dir:
         return {}
@@ -515,6 +524,7 @@ def main() -> int:
         "",
     )
     stale_bucket_totals = {"logic": 0, "grounding": 0, "measurement": 0, "compliance": 0, "general": 0}
+    donor_stale_bucket_totals: dict[str, dict[str, int]] = {}
     for item in comment_triage_summaries:
         if not isinstance(item, dict):
             continue
@@ -523,6 +533,18 @@ def main() -> int:
             continue
         for bucket in stale_bucket_totals:
             stale_bucket_totals[bucket] += int(raw.get(bucket) or 0)
+    for row, item in zip(rows, comment_triage_summaries, strict=False):
+        if not isinstance(item, dict):
+            continue
+        raw = item.get("stale_comment_bucket_counts")
+        if not isinstance(raw, dict):
+            continue
+        donor = str(row.get("donor_id") or "").strip() or "unknown"
+        donor_bucket_counts = donor_stale_bucket_totals.setdefault(
+            donor, {"logic": 0, "grounding": 0, "measurement": 0, "compliance": 0, "general": 0}
+        )
+        for bucket in donor_bucket_counts:
+            donor_bucket_counts[bucket] += int(raw.get(bucket) or 0)
     top_stale_bucket = (
         max(stale_bucket_totals.items(), key=lambda pair: pair[1])[0] if any(stale_bucket_totals.values()) else ""
     )
@@ -565,6 +587,11 @@ def main() -> int:
             else []
         ),
         *([f"- Top stale comment bucket: `{top_stale_bucket}`"] if top_stale_bucket else []),
+        *(
+            [f"- Stale thread donor/bucket mix: `{_donor_bucket_mix_text(donor_stale_bucket_totals)}`"]
+            if any(stale_bucket_totals.values())
+            else []
+        ),
         f"- Fallback/strategy citations per case: `{_format_num(fallback_citations_avg)}`",
         f"- Low-confidence citations per case: `{_format_num(low_confidence_avg)}`",
         *([f"- Next comment section: `{next_comment_section}`"] if next_comment_section else []),

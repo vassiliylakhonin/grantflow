@@ -63,6 +63,15 @@ def _bucket_mix_text(bucket_counts: dict[str, int]) -> str:
     return ", ".join(parts) if parts else "-"
 
 
+def _donor_bucket_mix_text(donor_bucket_counts: dict[str, dict[str, int]]) -> str:
+    parts: list[str] = []
+    for donor, bucket_counts in donor_bucket_counts.items():
+        mix = _bucket_mix_text(bucket_counts)
+        if mix != "-":
+            parts.append(f"{donor}: {mix}")
+    return "; ".join(parts) if parts else "-"
+
+
 def _safe_int(value: Any) -> int | None:
     try:
         if value is None or value == "":
@@ -193,6 +202,7 @@ def _build_summary(
     portfolio_comment_age_gt_7d_avg: float | None,
     portfolio_stale_bucket_mix: str,
     portfolio_top_stale_bucket: str,
+    portfolio_donor_stale_bucket_mix: str,
     portfolio_next_bucket: str,
     portfolio_next_action: str,
     conditional_reasons: list[str],
@@ -246,6 +256,8 @@ def _build_summary(
         lines.append(f"- Stale comment bucket mix: `{portfolio_stale_bucket_mix}`")
     if portfolio_top_stale_bucket:
         lines.append(f"- Top stale comment bucket: `{portfolio_top_stale_bucket}`")
+    if portfolio_donor_stale_bucket_mix != "-":
+        lines.append(f"- Stale thread donor/bucket mix: `{portfolio_donor_stale_bucket_mix}`")
     if portfolio_next_bucket:
         lines.append(f"- Portfolio next review bucket: `{portfolio_next_bucket}`")
     if portfolio_next_action:
@@ -529,7 +541,19 @@ def main() -> int:
         "compliance": sum(int(_safe_int(row.get("stale_comment_bucket_compliance")) or 0) for row in metrics_rows),
         "general": sum(int(_safe_int(row.get("stale_comment_bucket_general")) or 0) for row in metrics_rows),
     }
+    portfolio_donor_stale_bucket_totals: dict[str, dict[str, int]] = {}
+    for row in metrics_rows:
+        donor = str(row.get("donor_id") or "").strip() or "unknown"
+        donor_bucket_counts = portfolio_donor_stale_bucket_totals.setdefault(
+            donor, {"logic": 0, "grounding": 0, "measurement": 0, "compliance": 0, "general": 0}
+        )
+        donor_bucket_counts["logic"] += int(_safe_int(row.get("stale_comment_bucket_logic")) or 0)
+        donor_bucket_counts["grounding"] += int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0)
+        donor_bucket_counts["measurement"] += int(_safe_int(row.get("stale_comment_bucket_measurement")) or 0)
+        donor_bucket_counts["compliance"] += int(_safe_int(row.get("stale_comment_bucket_compliance")) or 0)
+        donor_bucket_counts["general"] += int(_safe_int(row.get("stale_comment_bucket_general")) or 0)
     portfolio_stale_bucket_mix = _bucket_mix_text(portfolio_stale_bucket_totals)
+    portfolio_donor_stale_bucket_mix = _donor_bucket_mix_text(portfolio_donor_stale_bucket_totals)
     portfolio_top_stale_bucket = (
         max(portfolio_stale_bucket_totals.items(), key=lambda item: item[1])[0]
         if any(portfolio_stale_bucket_totals.values())
@@ -570,6 +594,7 @@ def main() -> int:
             portfolio_comment_age_gt_7d_avg=portfolio_comment_age_gt_7d_avg,
             portfolio_stale_bucket_mix=portfolio_stale_bucket_mix,
             portfolio_top_stale_bucket=portfolio_top_stale_bucket,
+            portfolio_donor_stale_bucket_mix=portfolio_donor_stale_bucket_mix,
             portfolio_next_bucket=portfolio_next_bucket,
             portfolio_next_action=portfolio_next_action,
             conditional_reasons=conditional_reasons,

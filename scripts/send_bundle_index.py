@@ -84,6 +84,8 @@ def main() -> int:
     next_bucket = _extract_backtick_value(executive_text, "- Next review bucket (featured case): `")
     next_action = _extract_suffix_value(executive_text, "- Next recommended action (featured case): ")
     top_reviewer_action = _extract_suffix_value(executive_text, "- Top reviewer action 1 (featured case): ")
+    stale_bucket_mix = _extract_backtick_value(executive_text, "- Stale comment bucket mix: `")
+    top_stale_bucket = _extract_backtick_value(executive_text, "- Top stale comment bucket: `")
 
     lines: list[str] = []
     lines.append("# GrantFlow Send Bundle Index")
@@ -133,6 +135,10 @@ def main() -> int:
         lines.append(f"- Next recommended action: {next_action}")
         if top_reviewer_action != "-":
             lines.append(f"- Top reviewer action: {top_reviewer_action}")
+        if stale_bucket_mix != "-":
+            lines.append(f"- Stale comment bucket mix: `{stale_bucket_mix}`")
+        if top_stale_bucket != "-":
+            lines.append(f"- Top stale comment bucket: `{top_stale_bucket}`")
         lines.append("")
     lines.append("## Supporting Artifacts")
     lines.append("")

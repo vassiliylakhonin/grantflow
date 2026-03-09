@@ -475,6 +475,24 @@ def _build_scorecard(
     if stale_bucket_mix:
         lines.append(f"- Stale comment bucket mix: `{stale_bucket_mix}`")
         lines.append(f"- Top stale comment bucket: `{top_stale_bucket}`")
+        donor_stale_bucket_totals: dict[str, dict[str, int]] = {}
+        for case in cases:
+            donor = case.donor_id or "unknown"
+            donor_bucket_counts = donor_stale_bucket_totals.setdefault(
+                donor, {"logic": 0, "grounding": 0, "measurement": 0, "compliance": 0, "general": 0}
+            )
+            donor_bucket_counts["logic"] += int(case.stale_comment_bucket_logic or 0)
+            donor_bucket_counts["grounding"] += int(case.stale_comment_bucket_grounding or 0)
+            donor_bucket_counts["measurement"] += int(case.stale_comment_bucket_measurement or 0)
+            donor_bucket_counts["compliance"] += int(case.stale_comment_bucket_compliance or 0)
+            donor_bucket_counts["general"] += int(case.stale_comment_bucket_general or 0)
+        donor_mix = "; ".join(
+            f"{donor}: {', '.join(f'{bucket}={count}' for bucket, count in bucket_counts.items() if count > 0)}"
+            for donor, bucket_counts in donor_stale_bucket_totals.items()
+            if any(bucket_counts.values())
+        )
+        if donor_mix:
+            lines.append(f"- Stale thread donor/bucket mix: `{donor_mix}`")
     lines.append(f"- Average high-severity open findings per case: `{_fmt(avg_high_severity_findings)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence_citations)}`")
