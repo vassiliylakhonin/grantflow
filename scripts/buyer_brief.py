@@ -280,6 +280,11 @@ def _build_brief(
     avg_architect_fallback_count: float | None,
     architect_signal_mix: str,
     top_architect_signal: str | None,
+    avg_mel_hits: float | None,
+    avg_mel_grounded_rate: float | None,
+    avg_mel_fallback_count: float | None,
+    mel_signal_mix: str,
+    top_mel_signal: str | None,
     review_policy_status: str | None,
     review_policy_go_no_go: str | None,
     review_policy_next_operational_action: str | None,
@@ -319,6 +324,13 @@ def _build_brief(
         lines.append(f"- Architect evidence signal mix: `{architect_signal_mix}`")
     if top_architect_signal:
         lines.append(f"- Top architect evidence signal: `{top_architect_signal}`")
+    lines.append(f"- Average MEL retrieval hits per case: `{_format_num(avg_mel_hits)}`")
+    lines.append(f"- Average MEL grounded citation rate: `{_format_num(avg_mel_grounded_rate)}`")
+    lines.append(f"- Average MEL fallback citations per case: `{_format_num(avg_mel_fallback_count)}`")
+    if mel_signal_mix and mel_signal_mix != "-":
+        lines.append(f"- MEL evidence signal mix: `{mel_signal_mix}`")
+    if top_mel_signal:
+        lines.append(f"- Top MEL evidence signal: `{top_mel_signal}`")
     if review_policy_status:
         lines.append(f"- Review workflow policy status: `{review_policy_status}`")
     if review_policy_go_no_go:
@@ -644,6 +656,47 @@ def main() -> int:
     top_architect_signal = (
         max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
     )
+    mel_hits_avg = _avg(
+        [
+            _safe_float(item.get("mel", {}).get("retrieval_hits_count") if isinstance(item.get("mel"), dict) else None)
+            for item in quality_payloads
+            if isinstance(item, dict)
+        ]
+    )
+    mel_grounded_rate_avg = _avg(
+        [
+            _safe_float(
+                item.get("citations", {}).get("mel_retrieval_grounded_citation_rate")
+                if isinstance(item.get("citations"), dict)
+                else None
+            )
+            for item in quality_payloads
+            if isinstance(item, dict)
+        ]
+    )
+    mel_fallback_avg = _avg(
+        [
+            _safe_int(
+                item.get("citations", {}).get("mel_fallback_namespace_citation_count")
+                if isinstance(item.get("citations"), dict)
+                else None
+            )
+            for item in quality_payloads
+            if isinstance(item, dict)
+        ]
+    )
+    mel_signal_totals: dict[str, int] = {}
+    for payload in quality_payloads:
+        if not isinstance(payload, dict):
+            continue
+        citations = payload.get("citations")
+        if not isinstance(citations, dict):
+            continue
+        if int(_safe_int(citations.get("mel_retrieval_grounded_citation_count")) or 0) > 0:
+            mel_signal_totals["retrieved donor evidence"] = mel_signal_totals.get("retrieved donor evidence", 0) + 1
+        elif int(_safe_int(citations.get("mel_strategy_reference_citation_count")) or 0) > 0:
+            mel_signal_totals["strategy reference"] = mel_signal_totals.get("strategy reference", 0) + 1
+    top_mel_signal = max(mel_signal_totals.items(), key=lambda item: item[1])[0] if mel_signal_totals else ""
     low_confidence_avg = _avg(
         [_safe_int(item.get("low_confidence_citations")) for item in readiness_summaries if isinstance(item, dict)]
     )
@@ -838,6 +891,11 @@ def main() -> int:
         avg_architect_fallback_count=architect_fallback_avg,
         architect_signal_mix=_bucket_mix_text(architect_signal_totals),
         top_architect_signal=(top_architect_signal or None),
+        avg_mel_hits=mel_hits_avg,
+        avg_mel_grounded_rate=mel_grounded_rate_avg,
+        avg_mel_fallback_count=mel_fallback_avg,
+        mel_signal_mix=_bucket_mix_text(mel_signal_totals),
+        top_mel_signal=(top_mel_signal or None),
         review_policy_status=(review_policy_status or None),
         review_policy_go_no_go=(review_policy_go_no_go or None),
         review_policy_next_operational_action=(review_policy_next_operational_action or None),

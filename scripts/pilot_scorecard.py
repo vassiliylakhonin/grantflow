@@ -111,6 +111,12 @@ class CaseScorecard:
     means_of_verification_coverage_rate: float | None
     owner_coverage_rate: float | None
     complete_logframe_operational_coverage: bool
+    architect_retrieval_hits_count: float | None
+    architect_retrieval_grounded_citation_rate: float | None
+    architect_fallback_namespace_citation_count: float | None
+    mel_retrieval_hits_count: float | None
+    mel_retrieval_grounded_citation_rate: float | None
+    mel_fallback_namespace_citation_count: float | None
     missing_trace_files: list[str]
     missing_export_files: list[str]
 
@@ -296,6 +302,20 @@ def _load_case_scorecards(
                 complete_logframe_operational_coverage=(
                     str(metrics_row.get("complete_logframe_operational_coverage") or "").strip() == "1"
                 ),
+                architect_retrieval_hits_count=_safe_float(metrics_row.get("architect_retrieval_hits_count")),
+                architect_retrieval_grounded_citation_rate=_safe_float(
+                    metrics_row.get("architect_retrieval_grounded_citation_rate")
+                ),
+                architect_fallback_namespace_citation_count=_safe_float(
+                    metrics_row.get("architect_fallback_namespace_citation_count")
+                ),
+                mel_retrieval_hits_count=_safe_float(metrics_row.get("mel_retrieval_hits_count")),
+                mel_retrieval_grounded_citation_rate=_safe_float(
+                    metrics_row.get("mel_retrieval_grounded_citation_rate")
+                ),
+                mel_fallback_namespace_citation_count=_safe_float(
+                    metrics_row.get("mel_fallback_namespace_citation_count")
+                ),
                 missing_trace_files=missing_trace_files,
                 missing_export_files=missing_export_files,
             )
@@ -419,6 +439,12 @@ def _build_scorecard(
     avg_low_confidence_citations = _avg(
         [float(case.low_confidence_citations) for case in cases if case.low_confidence_citations is not None]
     )
+    avg_architect_hits = _avg([case.architect_retrieval_hits_count for case in cases])
+    avg_architect_grounded_rate = _avg([case.architect_retrieval_grounded_citation_rate for case in cases])
+    avg_architect_fallback = _avg([case.architect_fallback_namespace_citation_count for case in cases])
+    avg_mel_hits = _avg([case.mel_retrieval_hits_count for case in cases])
+    avg_mel_grounded_rate = _avg([case.mel_retrieval_grounded_citation_rate for case in cases])
+    avg_mel_fallback = _avg([case.mel_fallback_namespace_citation_count for case in cases])
     avg_smart = _avg([case.smart_field_coverage_rate for case in cases])
     avg_mov = _avg([case.means_of_verification_coverage_rate for case in cases])
     avg_owner = _avg([case.owner_coverage_rate for case in cases])
@@ -592,6 +618,12 @@ def _build_scorecard(
     lines.append(f"- Average high-severity open findings per case: `{_fmt(avg_high_severity_findings)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence_citations)}`")
+    lines.append(f"- Average architect retrieval hits per case: `{_fmt(avg_architect_hits)}`")
+    lines.append(f"- Average architect grounded citation rate: `{_fmt(avg_architect_grounded_rate)}`")
+    lines.append(f"- Average architect fallback citations per case: `{_fmt(avg_architect_fallback)}`")
+    lines.append(f"- Average MEL retrieval hits per case: `{_fmt(avg_mel_hits)}`")
+    lines.append(f"- Average MEL grounded citation rate: `{_fmt(avg_mel_grounded_rate)}`")
+    lines.append(f"- Average MEL fallback citations per case: `{_fmt(avg_mel_fallback)}`")
     lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart)}`")
     lines.append(f"- Average MoV coverage: `{_fmt(avg_mov)}`")
     lines.append(f"- Average owner coverage: `{_fmt(avg_owner)}`")

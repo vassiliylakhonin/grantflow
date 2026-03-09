@@ -194,6 +194,10 @@ def _build_summary(
     featured_architect_fallback_count: int | None,
     featured_architect_signal_mix: str,
     featured_top_architect_signal: str,
+    featured_mel_hits: float | None,
+    featured_mel_grounded_rate: float | None,
+    featured_mel_fallback_count: float | None,
+    featured_top_mel_signal: str,
     review_ready_cases: str,
     portfolio_open_findings_avg: float | None,
     portfolio_open_comments_avg: float | None,
@@ -209,6 +213,11 @@ def _build_summary(
     portfolio_architect_fallback_avg: float | None,
     portfolio_architect_signal_mix: str,
     portfolio_top_architect_signal: str,
+    portfolio_mel_hits_avg: float | None,
+    portfolio_mel_grounded_rate_avg: float | None,
+    portfolio_mel_fallback_avg: float | None,
+    portfolio_mel_signal_mix: str,
+    portfolio_top_mel_signal: str,
     portfolio_fallback_avg: float | None,
     portfolio_low_confidence_avg: float | None,
     portfolio_smart_avg: float | None,
@@ -289,6 +298,13 @@ def _build_summary(
         lines.append(f"- Architect evidence signal mix: `{portfolio_architect_signal_mix}`")
     if portfolio_top_architect_signal:
         lines.append(f"- Top architect evidence signal: `{portfolio_top_architect_signal}`")
+    lines.append(f"- Average MEL retrieval hits per case: `{_format_num(portfolio_mel_hits_avg)}`")
+    lines.append(f"- Average MEL grounded citation rate: `{_format_num(portfolio_mel_grounded_rate_avg)}`")
+    lines.append(f"- Average MEL fallback citations per case: `{_format_num(portfolio_mel_fallback_avg)}`")
+    if portfolio_mel_signal_mix != "-":
+        lines.append(f"- MEL evidence signal mix: `{portfolio_mel_signal_mix}`")
+    if portfolio_top_mel_signal:
+        lines.append(f"- Top MEL evidence signal: `{portfolio_top_mel_signal}`")
     lines.append(f"- Average finding ack queue per case: `{_format_num(portfolio_finding_ack_queue_avg)}`")
     lines.append(f"- Average finding resolve queue per case: `{_format_num(portfolio_finding_resolve_queue_avg)}`")
     lines.append(f"- Average comment ack queue per case: `{_format_num(portfolio_comment_ack_queue_avg)}`")
@@ -355,6 +371,11 @@ def _build_summary(
         lines.append(f"- Architect evidence signal mix (featured case): `{featured_architect_signal_mix}`")
     if featured_top_architect_signal:
         lines.append(f"- Top architect evidence signal (featured case): `{featured_top_architect_signal}`")
+    lines.append(f"- MEL retrieval hits (featured case): `{_format_num(featured_mel_hits)}`")
+    lines.append(f"- MEL grounded citation rate (featured case): `{_format_num(featured_mel_grounded_rate)}`")
+    lines.append(f"- MEL fallback citations (featured case): `{_format_num(featured_mel_fallback_count)}`")
+    if featured_top_mel_signal:
+        lines.append(f"- Top MEL evidence signal (featured case): `{featured_top_mel_signal}`")
     lines.append(
         f"- SMART coverage (featured case): "
         f"`{_format_num(_safe_float(featured_mel_summary.get('smart_field_coverage_rate')))}"
@@ -671,7 +692,15 @@ def main() -> int:
     portfolio_architect_fallback_avg = _avg(
         [_safe_float(row.get("architect_fallback_namespace_citation_count")) for row in metrics_rows]
     )
+    portfolio_mel_hits_avg = _avg([_safe_float(row.get("mel_retrieval_hits_count")) for row in metrics_rows])
+    portfolio_mel_grounded_rate_avg = _avg(
+        [_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in metrics_rows]
+    )
+    portfolio_mel_fallback_avg = _avg(
+        [_safe_float(row.get("mel_fallback_namespace_citation_count")) for row in metrics_rows]
+    )
     architect_signal_totals: dict[str, int] = {}
+    mel_signal_totals: dict[str, int] = {}
     for row in metrics_rows:
         raw_mix = str(row.get("architect_evidence_signal_mix") or "").strip()
         if not raw_mix or raw_mix == "-":
@@ -685,10 +714,15 @@ def main() -> int:
             count = int(_safe_int(value.strip()) or 0)
             if signal and count > 0:
                 architect_signal_totals[signal] = architect_signal_totals.get(signal, 0) + count
+        mel_signal = str(row.get("mel_primary_evidence_signal") or "").strip()
+        if mel_signal:
+            mel_signal_totals[mel_signal] = mel_signal_totals.get(mel_signal, 0) + 1
     portfolio_architect_signal_mix = _bucket_mix_text(architect_signal_totals)
     portfolio_top_architect_signal = (
         max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
     )
+    portfolio_mel_signal_mix = _bucket_mix_text(mel_signal_totals)
+    portfolio_top_mel_signal = max(mel_signal_totals.items(), key=lambda item: item[1])[0] if mel_signal_totals else ""
     portfolio_fallback_avg = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in metrics_rows])
     portfolio_low_confidence_avg = _avg([_safe_int(row.get("low_confidence_citations")) for row in metrics_rows])
     portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
@@ -772,6 +806,42 @@ def main() -> int:
         if featured_architect_counts
         else ""
     )
+    featured_mel_hits = _safe_float(featured_mel_summary.get("retrieval_hits_count"))
+    featured_mel_grounded_rate = _safe_float(
+        quality_payload.get("citations", {}).get("mel_retrieval_grounded_citation_rate")
+        if isinstance(quality_payload.get("citations"), dict)
+        else None
+    )
+    featured_mel_fallback_count = _safe_float(
+        quality_payload.get("citations", {}).get("mel_fallback_namespace_citation_count")
+        if isinstance(quality_payload.get("citations"), dict)
+        else None
+    )
+    featured_top_mel_signal = (
+        "retrieved donor evidence"
+        if int(
+            _safe_int(
+                quality_payload.get("citations", {}).get("mel_retrieval_grounded_citation_count")
+                if isinstance(quality_payload.get("citations"), dict)
+                else None
+            )
+            or 0
+        )
+        > 0
+        else (
+            "strategy reference"
+            if int(
+                _safe_int(
+                    quality_payload.get("citations", {}).get("mel_strategy_reference_citation_count")
+                    if isinstance(quality_payload.get("citations"), dict)
+                    else None
+                )
+                or 0
+            )
+            > 0
+            else ""
+        )
+    )
     scorecard_text = (pilot_pack_dir / "pilot-scorecard.md").read_text(encoding="utf-8")
     conditional_reasons = _extract_markdown_bullets(scorecard_text, "## Conditions Before Buyer Decision")
     (output_dir / "README.md").write_text(
@@ -790,6 +860,10 @@ def main() -> int:
             featured_architect_fallback_count=featured_architect_fallback_count,
             featured_architect_signal_mix=featured_architect_signal_mix,
             featured_top_architect_signal=featured_top_architect_signal,
+            featured_mel_hits=featured_mel_hits,
+            featured_mel_grounded_rate=featured_mel_grounded_rate,
+            featured_mel_fallback_count=featured_mel_fallback_count,
+            featured_top_mel_signal=featured_top_mel_signal,
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
             portfolio_open_findings_avg=portfolio_open_findings_avg,
             portfolio_open_comments_avg=portfolio_open_comments_avg,
@@ -805,6 +879,11 @@ def main() -> int:
             portfolio_architect_fallback_avg=portfolio_architect_fallback_avg,
             portfolio_architect_signal_mix=portfolio_architect_signal_mix,
             portfolio_top_architect_signal=portfolio_top_architect_signal,
+            portfolio_mel_hits_avg=portfolio_mel_hits_avg,
+            portfolio_mel_grounded_rate_avg=portfolio_mel_grounded_rate_avg,
+            portfolio_mel_fallback_avg=portfolio_mel_fallback_avg,
+            portfolio_mel_signal_mix=portfolio_mel_signal_mix,
+            portfolio_top_mel_signal=portfolio_top_mel_signal,
             portfolio_fallback_avg=portfolio_fallback_avg,
             portfolio_low_confidence_avg=portfolio_low_confidence_avg,
             portfolio_smart_avg=portfolio_smart_avg,

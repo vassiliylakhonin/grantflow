@@ -244,6 +244,16 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         ),
         "",
     )
+    mel_citation_type_counts = (
+        citations.get("mel_citation_type_counts") if isinstance(citations.get("mel_citation_type_counts"), dict) else {}
+    )
+    mel_primary_signal = (
+        "retrieved donor evidence"
+        if int(_safe_int(citations.get("mel_retrieval_grounded_citation_count")) or 0) > 0
+        else (
+            "strategy reference" if int(_safe_int(mel_citation_type_counts.get("strategy_reference")) or 0) > 0 else ""
+        )
+    )
 
     return {
         "case_dir": case_dir.name,
@@ -276,6 +286,12 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "architect_evidence_signal_mix": _bucket_mix_text(
             {str(key): int(value or 0) for key, value in architect_evidence_counts.items()}
         ),
+        "mel_retrieval_hits_count": mel.get("retrieval_hits_count"),
+        "mel_retrieval_used": mel.get("retrieval_used"),
+        "mel_retrieval_grounded_citation_count": citations.get("mel_retrieval_grounded_citation_count"),
+        "mel_retrieval_grounded_citation_rate": citations.get("mel_retrieval_grounded_citation_rate"),
+        "mel_fallback_namespace_citation_count": citations.get("mel_fallback_namespace_citation_count"),
+        "mel_primary_evidence_signal": mel_primary_signal or None,
         "open_critic_findings": readiness.get("open_critic_findings"),
         "high_severity_open_findings": readiness.get("high_severity_open_findings"),
         "resolved_critic_findings": readiness.get("resolved_critic_findings"),
@@ -426,6 +442,12 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "architect_fallback_namespace_citation_count",
         "architect_primary_evidence_signal",
         "architect_evidence_signal_mix",
+        "mel_retrieval_hits_count",
+        "mel_retrieval_used",
+        "mel_retrieval_grounded_citation_count",
+        "mel_retrieval_grounded_citation_rate",
+        "mel_fallback_namespace_citation_count",
+        "mel_primary_evidence_signal",
         "open_critic_findings",
         "high_severity_open_findings",
         "resolved_critic_findings",
@@ -512,6 +534,24 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
     avg_architect_fallback_count = _avg(
         [_safe_int(row.get("architect_fallback_namespace_citation_count")) for row in rows]
     )
+    avg_mel_hits = _avg([_safe_int(row.get("mel_retrieval_hits_count")) for row in rows])
+    avg_mel_grounded_count = _avg([_safe_int(row.get("mel_retrieval_grounded_citation_count")) for row in rows])
+    avg_mel_grounded_rate = _avg([_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in rows])
+    avg_mel_fallback_count = _avg([_safe_int(row.get("mel_fallback_namespace_citation_count")) for row in rows])
+    avg_mel_hits = _avg([_safe_int(row.get("mel_retrieval_hits_count")) for row in rows])
+    avg_mel_grounded_count = _avg([_safe_int(row.get("mel_retrieval_grounded_citation_count")) for row in rows])
+    avg_mel_grounded_rate = _avg([_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in rows])
+    avg_mel_fallback_count = _avg([_safe_int(row.get("mel_fallback_namespace_citation_count")) for row in rows])
+    avg_mel_hits = _avg([_safe_int(row.get("mel_retrieval_hits_count")) for row in rows])
+    avg_mel_grounded_count = _avg([_safe_int(row.get("mel_retrieval_grounded_citation_count")) for row in rows])
+    avg_mel_grounded_rate = _avg([_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in rows])
+    avg_mel_fallback_count = _avg([_safe_int(row.get("mel_fallback_namespace_citation_count")) for row in rows])
+    mel_signal_totals: dict[str, int] = {}
+    for row in rows:
+        token = str(row.get("mel_primary_evidence_signal") or "").strip()
+        if token:
+            mel_signal_totals[token] = mel_signal_totals.get(token, 0) + 1
+    top_mel_signal = max(mel_signal_totals.items(), key=lambda item: item[1])[0] if mel_signal_totals else ""
     avg_open_findings = _avg([_safe_int(row.get("open_critic_findings")) for row in rows])
     avg_resolved_findings = _avg([_safe_int(row.get("resolved_critic_findings")) for row in rows])
     avg_ack_findings = _avg([_safe_int(row.get("acknowledged_critic_findings")) for row in rows])
@@ -539,6 +579,14 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
     avg_comment_ack_queue = _avg([_safe_int(row.get("comment_ack_queue_count")) for row in rows])
     avg_comment_resolve_queue = _avg([_safe_int(row.get("comment_resolve_queue_count")) for row in rows])
     avg_comment_reopen_queue = _avg([_safe_int(row.get("comment_reopen_queue_count")) for row in rows])
+    avg_mel_hits = _avg([_safe_int(row.get("mel_retrieval_hits_count")) for row in rows])
+    avg_mel_grounded_count = _avg([_safe_int(row.get("mel_retrieval_grounded_citation_count")) for row in rows])
+    avg_mel_grounded_rate = _avg([_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in rows])
+    avg_mel_fallback_count = _avg([_safe_int(row.get("mel_fallback_namespace_citation_count")) for row in rows])
+    avg_mel_hits = _avg([_safe_int(row.get("mel_retrieval_hits_count")) for row in rows])
+    avg_mel_grounded_count = _avg([_safe_int(row.get("mel_retrieval_grounded_citation_count")) for row in rows])
+    avg_mel_grounded_rate = _avg([_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in rows])
+    avg_mel_fallback_count = _avg([_safe_int(row.get("mel_fallback_namespace_citation_count")) for row in rows])
     stale_bucket_totals = {
         "logic": sum(int(_safe_int(row.get("stale_comment_bucket_logic")) or 0) for row in rows),
         "grounding": sum(int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0) for row in rows),
@@ -608,6 +656,10 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
     policy_breach_count = 0
     policy_attention_count = 0
     architect_signal_totals: dict[str, int] = {}
+    mel_signal_totals: dict[str, int] = {}
+    mel_signal_totals: dict[str, int] = {}
+    mel_signal_totals: dict[str, int] = {}
+    mel_signal_totals: dict[str, int] = {}
     for row in rows:
         current_status = str(row.get("review_workflow_policy_status") or "").strip().lower()
         if current_status and policy_status_rank.get(current_status, 0) > policy_status_rank.get(policy_status, 0):
@@ -627,9 +679,13 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
                 if not key:
                     continue
                 architect_signal_totals[key] = architect_signal_totals.get(key, 0) + int(_safe_int(value) or 0)
+        mel_signal = str(row.get("mel_primary_evidence_signal") or "").strip()
+        if mel_signal:
+            mel_signal_totals[mel_signal] = mel_signal_totals.get(mel_signal, 0) + 1
     top_architect_signal = (
         max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
     )
+    top_mel_signal = max(mel_signal_totals.items(), key=lambda item: item[1])[0] if mel_signal_totals else ""
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "pilot_pack_name": pilot_pack_name,
@@ -647,6 +703,12 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
         "avg_architect_fallback_namespace_citation_count": avg_architect_fallback_count,
         "architect_evidence_signal_mix": _bucket_mix_text(architect_signal_totals),
         "top_architect_evidence_signal": top_architect_signal or None,
+        "avg_mel_retrieval_hits_count": avg_mel_hits,
+        "avg_mel_retrieval_grounded_citation_count": avg_mel_grounded_count,
+        "avg_mel_retrieval_grounded_citation_rate": avg_mel_grounded_rate,
+        "avg_mel_fallback_namespace_citation_count": avg_mel_fallback_count,
+        "mel_evidence_signal_mix": _bucket_mix_text(mel_signal_totals),
+        "top_mel_evidence_signal": top_mel_signal or None,
         "avg_open_critic_findings": avg_open_findings,
         "avg_acknowledged_critic_findings": avg_ack_findings,
         "avg_resolved_critic_findings": avg_resolved_findings,
@@ -737,6 +799,10 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_comment_ack_queue = _avg([_safe_int(row.get("comment_ack_queue_count")) for row in rows])
     avg_comment_resolve_queue = _avg([_safe_int(row.get("comment_resolve_queue_count")) for row in rows])
     avg_comment_reopen_queue = _avg([_safe_int(row.get("comment_reopen_queue_count")) for row in rows])
+    avg_mel_hits = _avg([_safe_int(row.get("mel_retrieval_hits_count")) for row in rows])
+    avg_mel_grounded_count = _avg([_safe_int(row.get("mel_retrieval_grounded_citation_count")) for row in rows])
+    avg_mel_grounded_rate = _avg([_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in rows])
+    avg_mel_fallback_count = _avg([_safe_int(row.get("mel_fallback_namespace_citation_count")) for row in rows])
     stale_bucket_totals = {
         "logic": sum(int(_safe_int(row.get("stale_comment_bucket_logic")) or 0) for row in rows),
         "grounding": sum(int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0) for row in rows),
@@ -806,6 +872,7 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     policy_breach_count = 0
     policy_attention_count = 0
     architect_signal_totals: dict[str, int] = {}
+    mel_signal_totals: dict[str, int] = {}
     for row in rows:
         current_status = str(row.get("review_workflow_policy_status") or "").strip().lower()
         if current_status and policy_status_rank.get(current_status, 0) > policy_status_rank.get(policy_status, 0):
@@ -825,9 +892,13 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
                 if not key:
                     continue
                 architect_signal_totals[key] = architect_signal_totals.get(key, 0) + int(_safe_int(value) or 0)
+        mel_signal = str(row.get("mel_primary_evidence_signal") or "").strip()
+        if mel_signal:
+            mel_signal_totals[mel_signal] = mel_signal_totals.get(mel_signal, 0) + 1
     top_architect_signal = (
         max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
     )
+    top_mel_signal = max(mel_signal_totals.items(), key=lambda item: item[1])[0] if mel_signal_totals else ""
 
     lines: list[str] = []
     lines.append("# Pilot Metrics")
@@ -852,6 +923,14 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
         lines.append(f"- Architect evidence signal mix: `{_bucket_mix_text(architect_signal_totals)}`")
     if top_architect_signal:
         lines.append(f"- Top architect evidence signal: `{top_architect_signal}`")
+    lines.append(f"- Average MEL retrieval hits per case: `{_fmt(avg_mel_hits)}`")
+    lines.append(f"- Average MEL grounded citations per case: `{_fmt(avg_mel_grounded_count)}`")
+    lines.append(f"- Average MEL grounded citation rate: `{_fmt(avg_mel_grounded_rate)}`")
+    lines.append(f"- Average MEL fallback citations per case: `{_fmt(avg_mel_fallback_count)}`")
+    if mel_signal_totals:
+        lines.append(f"- MEL evidence signal mix: `{_bucket_mix_text(mel_signal_totals)}`")
+    if top_mel_signal:
+        lines.append(f"- Top MEL evidence signal: `{top_mel_signal}`")
     lines.append(f"- Average open critic findings per case: `{_fmt(avg_open_findings)}`")
     lines.append(f"- Average acknowledged critic findings per case: `{_fmt(avg_ack_findings)}`")
     lines.append(f"- Average resolved critic findings per case: `{_fmt(avg_resolved_findings)}`")

@@ -136,6 +136,11 @@ def _build_handout(
     featured_architect_grounded_rate: float | None,
     featured_architect_fallback_count: float | None,
     featured_architect_signal_mix: str,
+    portfolio_mel_hits_avg: float | None,
+    portfolio_top_mel_signal: str,
+    featured_mel_hits: float | None,
+    featured_mel_grounded_rate: float | None,
+    featured_mel_fallback_count: float | None,
     review_ready_cases: str,
     current_conditions: list[str],
 ) -> str:
@@ -170,6 +175,9 @@ def _build_handout(
     lines.append(f"- Average architect retrieval hits per case: `{_format_num(portfolio_architect_hits_avg)}`")
     if portfolio_top_architect_signal:
         lines.append(f"- Top architect evidence signal: `{portfolio_top_architect_signal}`")
+    lines.append(f"- Average MEL retrieval hits per case: `{_format_num(portfolio_mel_hits_avg)}`")
+    if portfolio_top_mel_signal:
+        lines.append(f"- Top MEL evidence signal: `{portfolio_top_mel_signal}`")
     lines.append("")
     lines.append("## Why This Matters")
     lines.append("- Faster path to a reviewable draft, not just generated text.")
@@ -212,6 +220,9 @@ def _build_handout(
         lines.append(f"- Architect fallback citations: `{_format_num(featured_architect_fallback_count)}`")
         if featured_architect_signal_mix != "-":
             lines.append(f"- Architect evidence signal mix: `{featured_architect_signal_mix}`")
+        lines.append(f"- MEL retrieval hits: `{_format_num(featured_mel_hits)}`")
+        lines.append(f"- MEL grounded citation rate: `{_format_num(featured_mel_grounded_rate)}`")
+        lines.append(f"- MEL fallback citations: `{_format_num(featured_mel_fallback_count)}`")
     if featured_triage_summary:
         if str(featured_triage_summary.get("next_review_bucket") or "").strip():
             lines.append(f"- Next review bucket: `{featured_triage_summary.get('next_review_bucket')}`")
@@ -366,6 +377,18 @@ def main() -> int:
     portfolio_top_architect_signal = (
         max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
     )
+    mel_hits_values = [
+        float(row["mel_retrieval_hits_count"])
+        for row in metrics_rows
+        if str(row.get("mel_retrieval_hits_count") or "").strip()
+    ]
+    portfolio_mel_hits_avg = sum(mel_hits_values) / len(mel_hits_values) if mel_hits_values else None
+    mel_signal_totals: dict[str, int] = {}
+    for row in metrics_rows:
+        token = str(row.get("mel_primary_evidence_signal") or "").strip()
+        if token:
+            mel_signal_totals[token] = mel_signal_totals.get(token, 0) + 1
+    portfolio_top_mel_signal = max(mel_signal_totals.items(), key=lambda item: item[1])[0] if mel_signal_totals else ""
     featured_metrics_row = next(
         (
             row
@@ -509,6 +532,11 @@ def main() -> int:
                 featured_metrics_row.get("architect_fallback_namespace_citation_count")
             ),
             featured_architect_signal_mix=str(featured_metrics_row.get("architect_evidence_signal_mix") or "-"),
+            portfolio_mel_hits_avg=portfolio_mel_hits_avg,
+            portfolio_top_mel_signal=portfolio_top_mel_signal,
+            featured_mel_hits=_safe_float(featured_metrics_row.get("mel_retrieval_hits_count")),
+            featured_mel_grounded_rate=_safe_float(featured_metrics_row.get("mel_retrieval_grounded_citation_rate")),
+            featured_mel_fallback_count=_safe_float(featured_metrics_row.get("mel_fallback_namespace_citation_count")),
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
             current_conditions=current_conditions,
         ),
