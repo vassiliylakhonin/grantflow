@@ -153,10 +153,43 @@ def _finding_review_bucket(item: Dict[str, Any]) -> str:
 
 
 def _finding_review_title(item: Dict[str, Any]) -> str:
+    code = str(item.get("code") or item.get("label") or "").strip().upper()
+    message = str(item.get("message") or "").strip().lower()
+    token = " ".join(part for part in (code.lower(), message) if part)
+    explicit_titles = {
+        "TOC_EVIDENCE_GAP": "ToC Evidence Gap",
+        "GROUNDING_WEAK": "Grounding Evidence Weak",
+        "TOC_BOILERPLATE_REPETITION": "ToC Boilerplate Repetition",
+        "BASELINE_TARGET_MISSING": "Baseline And Target Missing",
+        "MEL_PLACEHOLDER_TARGETS": "Placeholder Baseline And Target Values",
+        "USAID_DO_MISSING": "USAID Development Objectives Missing",
+        "USAID_IR_MISSING": "USAID Intermediate Results Missing",
+        "USAID_OUTPUTS_MISSING": "USAID Outputs Missing",
+        "EU_OVERALL_OBJECTIVE_MISSING": "EU Overall Objective Missing",
+        "EU_SPECIFIC_OBJECTIVES_MISSING": "EU Specific Objectives Missing",
+        "EU_EXPECTED_OUTCOMES_MISSING": "EU Expected Outcomes Missing",
+        "WB_PDO_MISSING": "World Bank PDO Missing",
+        "WB_OBJECTIVES_MISSING": "World Bank Objectives Missing",
+        "WB_RESULTS_CHAIN_MISSING": "World Bank Results Chain Missing",
+        "STATE_STRATEGIC_CONTEXT_PRESENT_MISSING": "State Department Strategic Context Missing",
+    }
+    if code in explicit_titles:
+        return explicit_titles[code]
+    if "boilerplate" in token or "repetition" in token or "repeated" in token:
+        return "Boilerplate Repetition"
+    if "fallback" in token or "grounding" in token or "evidence gap" in token:
+        return "Grounding Evidence Gap"
+    if "traceability" in token or "doc_id" in token or "chunk" in token or "page" in token:
+        return "Citation Traceability Gap"
+    if "baseline" in token and "target" in token:
+        return "Baseline And Target Missing"
+    if "owner" in token or "means_of_verification" in token or "verification" in token:
+        return "Verification Or Ownership Gap"
+    if "causal" in token or "assumption" in token or "objective" in token or "outcome" in token:
+        return "Results Logic Gap"
     label = str(item.get("label") or "").strip()
     if label:
         return label.replace("_", " ").title()
-    code = str(item.get("code") or "").strip()
     if code:
         return code.replace("_", " ").title()
     section = str(item.get("section") or "general").strip().lower()

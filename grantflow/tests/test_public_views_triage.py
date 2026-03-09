@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from grantflow.api.public_views import _finding_recommended_action
+from grantflow.api.public_views import _finding_recommended_action, _finding_review_title
 
 
 def test_finding_recommended_action_uses_donor_specific_logic_language():
@@ -91,3 +91,36 @@ def test_finding_recommended_action_makes_boilerplate_logic_more_specific():
     )
     assert "repeated boilerplate" in action.lower()
     assert "reviewer-ready" in action.lower()
+
+
+def test_finding_review_title_prefers_human_readable_mapping_for_known_codes():
+    title = _finding_review_title(
+        {
+            "code": "USAID_DO_MISSING",
+            "section": "toc",
+            "message": "USAID ToC is missing Development Objectives.",
+        }
+    )
+    assert title == "USAID Development Objectives Missing"
+
+
+def test_finding_review_title_uses_semantic_mapping_for_boilerplate():
+    title = _finding_review_title(
+        {
+            "code": "TOC_BOILERPLATE_REPETITION",
+            "section": "toc",
+            "message": "Theory of Change contains repeated boilerplate narrative across multiple sections.",
+        }
+    )
+    assert title == "ToC Boilerplate Repetition"
+
+
+def test_finding_review_title_uses_semantic_mapping_for_traceability_gap():
+    title = _finding_review_title(
+        {
+            "code": "ARCHITECT_TRACEABILITY_GAP",
+            "section": "toc",
+            "message": "Architect claim citations contain significant traceability gaps with missing doc_id and page metadata.",
+        }
+    )
+    assert title == "Citation Traceability Gap"
