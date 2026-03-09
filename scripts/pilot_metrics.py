@@ -95,10 +95,12 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
     quality_path = case_dir / "quality.json"
     critic_path = case_dir / "critic.json"
     export_payload_path = case_dir / "export-payload.json"
+    status_path = case_dir / "status.json"
     metrics = _read_json(metrics_path) if metrics_path.exists() else {}
     quality = _read_json(quality_path) if quality_path.exists() else {}
     critic = _read_json(critic_path) if critic_path.exists() else {}
     export_payload = _read_json(export_payload_path) if export_payload_path.exists() else {}
+    status_payload = _read_json(status_path) if status_path.exists() else {}
     readiness = (
         quality.get("review_readiness_summary") if isinstance(quality.get("review_readiness_summary"), dict) else {}
     )
@@ -212,10 +214,36 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             else {}
         )
     mel = quality.get("mel") if isinstance(quality.get("mel"), dict) else {}
+    citations = quality.get("citations") if isinstance(quality.get("citations"), dict) else {}
+    architect_signal_summary = (
+        citations.get("architect_signal_summary") if isinstance(citations.get("architect_signal_summary"), dict) else {}
+    )
+    architect_retrieval = (
+        status_payload.get("state", {}).get("architect_retrieval")
+        if isinstance(status_payload.get("state"), dict)
+        else {}
+    )
     mov_rate = _safe_float(mel.get("means_of_verification_coverage_rate"))
     owner_rate = _safe_float(mel.get("owner_coverage_rate"))
     smart_rate = _safe_float(mel.get("smart_field_coverage_rate"))
     stale_bucket_counts = _bucket_map(comment_triage if isinstance(comment_triage, dict) else {})
+    architect_evidence_counts = (
+        architect_signal_summary.get("evidence_signal_counts")
+        if isinstance(architect_signal_summary.get("evidence_signal_counts"), dict)
+        else {}
+    )
+    architect_primary_signal = next(
+        (
+            str(key).strip()
+            for key, value in sorted(
+                architect_evidence_counts.items(),
+                key=lambda item: int(item[1] or 0),
+                reverse=True,
+            )
+            if str(key).strip() and int(value or 0) > 0
+        ),
+        "",
+    )
 
     return {
         "case_dir": case_dir.name,
@@ -235,6 +263,19 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "resume_count": metrics.get("resume_count"),
         "grounding_risk_level": metrics.get("grounding_risk_level"),
         "retrieval_expected": metrics.get("retrieval_expected"),
+        "architect_retrieval_hits_count": (
+            architect_retrieval.get("hits_count") if isinstance(architect_retrieval, dict) else None
+        ),
+        "architect_retrieval_used_results": (
+            architect_retrieval.get("used_results") if isinstance(architect_retrieval, dict) else None
+        ),
+        "architect_retrieval_grounded_citation_count": citations.get("architect_retrieval_grounded_citation_count"),
+        "architect_retrieval_grounded_citation_rate": citations.get("architect_retrieval_grounded_citation_rate"),
+        "architect_fallback_namespace_citation_count": citations.get("architect_fallback_namespace_citation_count"),
+        "architect_primary_evidence_signal": architect_primary_signal or None,
+        "architect_evidence_signal_mix": _bucket_mix_text(
+            {str(key): int(value or 0) for key, value in architect_evidence_counts.items()}
+        ),
         "open_critic_findings": readiness.get("open_critic_findings"),
         "high_severity_open_findings": readiness.get("high_severity_open_findings"),
         "resolved_critic_findings": readiness.get("resolved_critic_findings"),
@@ -378,6 +419,13 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "resume_count",
         "grounding_risk_level",
         "retrieval_expected",
+        "architect_retrieval_hits_count",
+        "architect_retrieval_used_results",
+        "architect_retrieval_grounded_citation_count",
+        "architect_retrieval_grounded_citation_rate",
+        "architect_fallback_namespace_citation_count",
+        "architect_primary_evidence_signal",
+        "architect_evidence_signal_mix",
         "open_critic_findings",
         "high_severity_open_findings",
         "resolved_critic_findings",
@@ -453,6 +501,17 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
     avg_terminal = _avg([_safe_float(row.get("time_to_terminal_seconds")) for row in rows])
     avg_pending_hitl = _avg([_safe_float(row.get("time_in_pending_hitl_seconds")) for row in rows])
     avg_citations = _avg([_safe_int(row.get("citation_count")) for row in rows])
+    avg_architect_hits = _avg([_safe_int(row.get("architect_retrieval_hits_count")) for row in rows])
+    avg_architect_used_results = _avg([_safe_int(row.get("architect_retrieval_used_results")) for row in rows])
+    avg_architect_grounded_count = _avg(
+        [_safe_int(row.get("architect_retrieval_grounded_citation_count")) for row in rows]
+    )
+    avg_architect_grounded_rate = _avg(
+        [_safe_float(row.get("architect_retrieval_grounded_citation_rate")) for row in rows]
+    )
+    avg_architect_fallback_count = _avg(
+        [_safe_int(row.get("architect_fallback_namespace_citation_count")) for row in rows]
+    )
     avg_open_findings = _avg([_safe_int(row.get("open_critic_findings")) for row in rows])
     avg_resolved_findings = _avg([_safe_int(row.get("resolved_critic_findings")) for row in rows])
     avg_ack_findings = _avg([_safe_int(row.get("acknowledged_critic_findings")) for row in rows])
@@ -548,6 +607,7 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
     policy_next_operational_action = ""
     policy_breach_count = 0
     policy_attention_count = 0
+    architect_signal_totals: dict[str, int] = {}
     for row in rows:
         current_status = str(row.get("review_workflow_policy_status") or "").strip().lower()
         if current_status and policy_status_rank.get(current_status, 0) > policy_status_rank.get(policy_status, 0):
@@ -556,6 +616,20 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
             policy_next_operational_action = str(row.get("review_workflow_next_operational_action") or "").strip()
         policy_breach_count += int(_safe_int(row.get("review_workflow_policy_breach_count")) or 0)
         policy_attention_count += int(_safe_int(row.get("review_workflow_policy_attention_count")) or 0)
+        mix = str(row.get("architect_evidence_signal_mix") or "").strip()
+        if mix and mix != "-":
+            for part in mix.split(","):
+                token = str(part or "").strip()
+                if "=" not in token:
+                    continue
+                key, value = token.split("=", 1)
+                key = str(key).strip()
+                if not key:
+                    continue
+                architect_signal_totals[key] = architect_signal_totals.get(key, 0) + int(_safe_int(value) or 0)
+    top_architect_signal = (
+        max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
+    )
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "pilot_pack_name": pilot_pack_name,
@@ -566,6 +640,13 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
         "avg_time_to_terminal_seconds": avg_terminal,
         "avg_time_in_pending_hitl_seconds": avg_pending_hitl,
         "avg_citation_count": avg_citations,
+        "avg_architect_retrieval_hits_count": avg_architect_hits,
+        "avg_architect_retrieval_used_results": avg_architect_used_results,
+        "avg_architect_retrieval_grounded_citation_count": avg_architect_grounded_count,
+        "avg_architect_retrieval_grounded_citation_rate": avg_architect_grounded_rate,
+        "avg_architect_fallback_namespace_citation_count": avg_architect_fallback_count,
+        "architect_evidence_signal_mix": _bucket_mix_text(architect_signal_totals),
+        "top_architect_evidence_signal": top_architect_signal or None,
         "avg_open_critic_findings": avg_open_findings,
         "avg_acknowledged_critic_findings": avg_ack_findings,
         "avg_resolved_critic_findings": avg_resolved_findings,
@@ -618,6 +699,17 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_terminal = _avg([_safe_float(row.get("time_to_terminal_seconds")) for row in rows])
     avg_pending_hitl = _avg([_safe_float(row.get("time_in_pending_hitl_seconds")) for row in rows])
     avg_citations = _avg([_safe_int(row.get("citation_count")) for row in rows])
+    avg_architect_hits = _avg([_safe_int(row.get("architect_retrieval_hits_count")) for row in rows])
+    avg_architect_used_results = _avg([_safe_int(row.get("architect_retrieval_used_results")) for row in rows])
+    avg_architect_grounded_count = _avg(
+        [_safe_int(row.get("architect_retrieval_grounded_citation_count")) for row in rows]
+    )
+    avg_architect_grounded_rate = _avg(
+        [_safe_float(row.get("architect_retrieval_grounded_citation_rate")) for row in rows]
+    )
+    avg_architect_fallback_count = _avg(
+        [_safe_int(row.get("architect_fallback_namespace_citation_count")) for row in rows]
+    )
     avg_open_findings = _avg([_safe_int(row.get("open_critic_findings")) for row in rows])
     avg_resolved_findings = _avg([_safe_int(row.get("resolved_critic_findings")) for row in rows])
     avg_ack_findings = _avg([_safe_int(row.get("acknowledged_critic_findings")) for row in rows])
@@ -713,6 +805,7 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     policy_next_operational_action = ""
     policy_breach_count = 0
     policy_attention_count = 0
+    architect_signal_totals: dict[str, int] = {}
     for row in rows:
         current_status = str(row.get("review_workflow_policy_status") or "").strip().lower()
         if current_status and policy_status_rank.get(current_status, 0) > policy_status_rank.get(policy_status, 0):
@@ -721,6 +814,20 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
             policy_next_operational_action = str(row.get("review_workflow_next_operational_action") or "").strip()
         policy_breach_count += int(_safe_int(row.get("review_workflow_policy_breach_count")) or 0)
         policy_attention_count += int(_safe_int(row.get("review_workflow_policy_attention_count")) or 0)
+        mix = str(row.get("architect_evidence_signal_mix") or "").strip()
+        if mix and mix != "-":
+            for part in mix.split(","):
+                token = str(part or "").strip()
+                if "=" not in token:
+                    continue
+                key, value = token.split("=", 1)
+                key = str(key).strip()
+                if not key:
+                    continue
+                architect_signal_totals[key] = architect_signal_totals.get(key, 0) + int(_safe_int(value) or 0)
+    top_architect_signal = (
+        max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
+    )
 
     lines: list[str] = []
     lines.append("# Pilot Metrics")
@@ -736,6 +843,15 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average time to terminal status (s): `{_fmt(avg_terminal)}`")
     lines.append(f"- Average time in pending HITL (s): `{_fmt(avg_pending_hitl)}`")
     lines.append(f"- Average citation count: `{_fmt(avg_citations)}`")
+    lines.append(f"- Average architect retrieval hits per case: `{_fmt(avg_architect_hits)}`")
+    lines.append(f"- Average architect used results per case: `{_fmt(avg_architect_used_results)}`")
+    lines.append(f"- Average architect grounded citations per case: `{_fmt(avg_architect_grounded_count)}`")
+    lines.append(f"- Average architect grounded citation rate: `{_fmt(avg_architect_grounded_rate)}`")
+    lines.append(f"- Average architect fallback citations per case: `{_fmt(avg_architect_fallback_count)}`")
+    if architect_signal_totals:
+        lines.append(f"- Architect evidence signal mix: `{_bucket_mix_text(architect_signal_totals)}`")
+    if top_architect_signal:
+        lines.append(f"- Top architect evidence signal: `{top_architect_signal}`")
     lines.append(f"- Average open critic findings per case: `{_fmt(avg_open_findings)}`")
     lines.append(f"- Average acknowledged critic findings per case: `{_fmt(avg_ack_findings)}`")
     lines.append(f"- Average resolved critic findings per case: `{_fmt(avg_resolved_findings)}`")

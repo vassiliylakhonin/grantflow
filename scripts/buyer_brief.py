@@ -99,6 +99,16 @@ def _load_case_export_payload(pilot_pack_dir: Path, case_dir: str) -> dict[str, 
     return payload if isinstance(payload, dict) else {}
 
 
+def _load_case_status(pilot_pack_dir: Path, case_dir: str) -> dict[str, Any]:
+    if not case_dir:
+        return {}
+    path = pilot_pack_dir / "live-runs" / case_dir / "status.json"
+    if not path.exists():
+        return {}
+    payload = _read_json(path)
+    return payload if isinstance(payload, dict) else {}
+
+
 def _review_readiness_from_payloads(
     quality_payload: dict[str, Any],
     critic_payload: dict[str, Any],
@@ -265,6 +275,11 @@ def _build_brief(
     avg_comment_reopen_queue: float | None,
     avg_critic_finding_resolution_rate: float | None,
     avg_critic_finding_ack_rate: float | None,
+    avg_architect_hits: float | None,
+    avg_architect_grounded_rate: float | None,
+    avg_architect_fallback_count: float | None,
+    architect_signal_mix: str,
+    top_architect_signal: str | None,
     review_policy_status: str | None,
     review_policy_go_no_go: str | None,
     review_policy_next_operational_action: str | None,
@@ -297,6 +312,13 @@ def _build_brief(
     lines.append(f"- Average quality score: `{_format_num(avg_quality)}`")
     lines.append(f"- Average critic score: `{_format_num(avg_critic)}`")
     lines.append(f"- Average citation count: `{_format_num(avg_citations)}`")
+    lines.append(f"- Average architect retrieval hits per case: `{_format_num(avg_architect_hits)}`")
+    lines.append(f"- Average architect grounded citation rate: `{_format_num(avg_architect_grounded_rate)}`")
+    lines.append(f"- Average architect fallback citations per case: `{_format_num(avg_architect_fallback_count)}`")
+    if architect_signal_mix and architect_signal_mix != "-":
+        lines.append(f"- Architect evidence signal mix: `{architect_signal_mix}`")
+    if top_architect_signal:
+        lines.append(f"- Top architect evidence signal: `{top_architect_signal}`")
     if review_policy_status:
         lines.append(f"- Review workflow policy status: `{review_policy_status}`")
     if review_policy_go_no_go:
@@ -380,6 +402,7 @@ def main() -> int:
     export_payloads = [
         _load_case_export_payload(pilot_pack_dir, str(row.get("case_dir") or "").strip()) for row in rows
     ]
+    status_payloads = [_load_case_status(pilot_pack_dir, str(row.get("case_dir") or "").strip()) for row in rows]
     readiness_summaries = [
         _review_readiness_from_payloads(
             quality_payload,
@@ -572,6 +595,55 @@ def main() -> int:
     fallback_citations_avg = _avg(
         [_safe_int(item.get("fallback_strategy_citations")) for item in readiness_summaries if isinstance(item, dict)]
     )
+    architect_hits_avg = _avg(
+        [
+            _safe_int(item.get("state", {}).get("architect_retrieval", {}).get("hits_count"))
+            for item in status_payloads
+            if isinstance(item, dict) and isinstance(item.get("state"), dict)
+        ]
+    )
+    architect_grounded_rate_avg = _avg(
+        [
+            _safe_float(
+                item.get("citations", {}).get("architect_retrieval_grounded_citation_rate")
+                if isinstance(item.get("citations"), dict)
+                else None
+            )
+            for item in quality_payloads
+            if isinstance(item, dict)
+        ]
+    )
+    architect_fallback_avg = _avg(
+        [
+            _safe_int(
+                item.get("citations", {}).get("architect_fallback_namespace_citation_count")
+                if isinstance(item.get("citations"), dict)
+                else None
+            )
+            for item in quality_payloads
+            if isinstance(item, dict)
+        ]
+    )
+    architect_signal_totals: dict[str, int] = {}
+    for payload in quality_payloads:
+        if not isinstance(payload, dict):
+            continue
+        citations = payload.get("citations")
+        if not isinstance(citations, dict):
+            continue
+        summary = citations.get("architect_signal_summary")
+        if not isinstance(summary, dict):
+            continue
+        counts = summary.get("evidence_signal_counts")
+        if not isinstance(counts, dict):
+            continue
+        for key, value in counts.items():
+            token = str(key or "").strip()
+            if token:
+                architect_signal_totals[token] = architect_signal_totals.get(token, 0) + int(_safe_int(value) or 0)
+    top_architect_signal = (
+        max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
+    )
     low_confidence_avg = _avg(
         [_safe_int(item.get("low_confidence_citations")) for item in readiness_summaries if isinstance(item, dict)]
     )
@@ -761,6 +833,11 @@ def main() -> int:
         avg_comment_reopen_queue=avg_comment_reopen_queue,
         avg_critic_finding_resolution_rate=avg_critic_finding_resolution_rate,
         avg_critic_finding_ack_rate=avg_critic_finding_ack_rate,
+        avg_architect_hits=architect_hits_avg,
+        avg_architect_grounded_rate=architect_grounded_rate_avg,
+        avg_architect_fallback_count=architect_fallback_avg,
+        architect_signal_mix=_bucket_mix_text(architect_signal_totals),
+        top_architect_signal=(top_architect_signal or None),
         review_policy_status=(review_policy_status or None),
         review_policy_go_no_go=(review_policy_go_no_go or None),
         review_policy_next_operational_action=(review_policy_next_operational_action or None),

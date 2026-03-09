@@ -190,6 +190,10 @@ def _build_summary(
     featured_triage_summary: dict[str, Any],
     featured_critic_payload: dict[str, Any],
     featured_mel_summary: dict[str, Any],
+    featured_architect_grounded_rate: float | None,
+    featured_architect_fallback_count: int | None,
+    featured_architect_signal_mix: str,
+    featured_top_architect_signal: str,
     review_ready_cases: str,
     portfolio_open_findings_avg: float | None,
     portfolio_open_comments_avg: float | None,
@@ -200,6 +204,11 @@ def _build_summary(
     portfolio_comment_acknowledgment_rate_avg: float | None,
     portfolio_critic_finding_resolution_rate_avg: float | None,
     portfolio_critic_finding_ack_rate_avg: float | None,
+    portfolio_architect_hits_avg: float | None,
+    portfolio_architect_grounded_rate_avg: float | None,
+    portfolio_architect_fallback_avg: float | None,
+    portfolio_architect_signal_mix: str,
+    portfolio_top_architect_signal: str,
     portfolio_fallback_avg: float | None,
     portfolio_low_confidence_avg: float | None,
     portfolio_smart_avg: float | None,
@@ -273,6 +282,13 @@ def _build_summary(
     lines.append(
         f"- Average critic finding acknowledgment rate: `{_format_num(portfolio_critic_finding_ack_rate_avg)}`"
     )
+    lines.append(f"- Average architect retrieval hits per case: `{_format_num(portfolio_architect_hits_avg)}`")
+    lines.append(f"- Average architect grounded citation rate: `{_format_num(portfolio_architect_grounded_rate_avg)}`")
+    lines.append(f"- Average architect fallback citations per case: `{_format_num(portfolio_architect_fallback_avg)}`")
+    if portfolio_architect_signal_mix != "-":
+        lines.append(f"- Architect evidence signal mix: `{portfolio_architect_signal_mix}`")
+    if portfolio_top_architect_signal:
+        lines.append(f"- Top architect evidence signal: `{portfolio_top_architect_signal}`")
     lines.append(f"- Average finding ack queue per case: `{_format_num(portfolio_finding_ack_queue_avg)}`")
     lines.append(f"- Average finding resolve queue per case: `{_format_num(portfolio_finding_resolve_queue_avg)}`")
     lines.append(f"- Average comment ack queue per case: `{_format_num(portfolio_comment_ack_queue_avg)}`")
@@ -331,6 +347,14 @@ def _build_summary(
     lines.append(
         f"- Low-confidence citations (featured case): `{featured_review_readiness.get('low_confidence_citations', '-')}`"
     )
+    lines.append(
+        f"- Architect grounded citation rate (featured case): `{_format_num(featured_architect_grounded_rate)}`"
+    )
+    lines.append(f"- Architect fallback citations (featured case): `{_format_num(featured_architect_fallback_count)}`")
+    if featured_architect_signal_mix != "-":
+        lines.append(f"- Architect evidence signal mix (featured case): `{featured_architect_signal_mix}`")
+    if featured_top_architect_signal:
+        lines.append(f"- Top architect evidence signal (featured case): `{featured_top_architect_signal}`")
     lines.append(
         f"- SMART coverage (featured case): "
         f"`{_format_num(_safe_float(featured_mel_summary.get('smart_field_coverage_rate')))}"
@@ -638,6 +662,33 @@ def main() -> int:
     portfolio_critic_finding_ack_rate_avg = _avg(
         [_safe_float(row.get("critic_finding_acknowledgment_rate")) for row in metrics_rows]
     )
+    portfolio_architect_hits_avg = _avg(
+        [_safe_float(row.get("architect_retrieval_hits_count")) for row in metrics_rows]
+    )
+    portfolio_architect_grounded_rate_avg = _avg(
+        [_safe_float(row.get("architect_retrieval_grounded_citation_rate")) for row in metrics_rows]
+    )
+    portfolio_architect_fallback_avg = _avg(
+        [_safe_float(row.get("architect_fallback_namespace_citation_count")) for row in metrics_rows]
+    )
+    architect_signal_totals: dict[str, int] = {}
+    for row in metrics_rows:
+        raw_mix = str(row.get("architect_evidence_signal_mix") or "").strip()
+        if not raw_mix or raw_mix == "-":
+            continue
+        for token in raw_mix.split(","):
+            part = token.strip()
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            signal = key.strip()
+            count = int(_safe_int(value.strip()) or 0)
+            if signal and count > 0:
+                architect_signal_totals[signal] = architect_signal_totals.get(signal, 0) + count
+    portfolio_architect_signal_mix = _bucket_mix_text(architect_signal_totals)
+    portfolio_top_architect_signal = (
+        max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
+    )
     portfolio_fallback_avg = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in metrics_rows])
     portfolio_low_confidence_avg = _avg([_safe_int(row.get("low_confidence_citations")) for row in metrics_rows])
     portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
@@ -692,6 +743,35 @@ def main() -> int:
     portfolio_policy_next_operational_action = _first_nonempty(metrics_rows, "review_workflow_next_operational_action")
     portfolio_next_bucket = _first_nonempty(metrics_rows, "next_review_bucket")
     portfolio_next_action = _first_nonempty(metrics_rows, "next_recommended_action")
+    featured_architect_grounded_rate = _safe_float(
+        quality_payload.get("citations", {}).get("architect_retrieval_grounded_citation_rate")
+        if isinstance(quality_payload.get("citations"), dict)
+        else None
+    )
+    featured_architect_fallback_count = _safe_int(
+        quality_payload.get("citations", {}).get("architect_fallback_namespace_citation_count")
+        if isinstance(quality_payload.get("citations"), dict)
+        else None
+    )
+    featured_architect_signal_summary = (
+        quality_payload.get("citations", {}).get("architect_signal_summary")
+        if isinstance(quality_payload.get("citations"), dict)
+        else {}
+    )
+    featured_architect_counts = (
+        featured_architect_signal_summary.get("evidence_signal_counts")
+        if isinstance(featured_architect_signal_summary, dict)
+        and isinstance(featured_architect_signal_summary.get("evidence_signal_counts"), dict)
+        else {}
+    )
+    featured_architect_signal_mix = _bucket_mix_text(
+        {str(key): int(value or 0) for key, value in featured_architect_counts.items()}
+    )
+    featured_top_architect_signal = (
+        max(featured_architect_counts.items(), key=lambda item: int(item[1] or 0))[0]
+        if featured_architect_counts
+        else ""
+    )
     scorecard_text = (pilot_pack_dir / "pilot-scorecard.md").read_text(encoding="utf-8")
     conditional_reasons = _extract_markdown_bullets(scorecard_text, "## Conditions Before Buyer Decision")
     (output_dir / "README.md").write_text(
@@ -706,6 +786,10 @@ def main() -> int:
             featured_triage_summary=featured_triage_summary,
             featured_critic_payload=critic_payload,
             featured_mel_summary=featured_mel_summary,
+            featured_architect_grounded_rate=featured_architect_grounded_rate,
+            featured_architect_fallback_count=featured_architect_fallback_count,
+            featured_architect_signal_mix=featured_architect_signal_mix,
+            featured_top_architect_signal=featured_top_architect_signal,
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
             portfolio_open_findings_avg=portfolio_open_findings_avg,
             portfolio_open_comments_avg=portfolio_open_comments_avg,
@@ -716,6 +800,11 @@ def main() -> int:
             portfolio_comment_acknowledgment_rate_avg=portfolio_comment_acknowledgment_rate_avg,
             portfolio_critic_finding_resolution_rate_avg=portfolio_critic_finding_resolution_rate_avg,
             portfolio_critic_finding_ack_rate_avg=portfolio_critic_finding_ack_rate_avg,
+            portfolio_architect_hits_avg=portfolio_architect_hits_avg,
+            portfolio_architect_grounded_rate_avg=portfolio_architect_grounded_rate_avg,
+            portfolio_architect_fallback_avg=portfolio_architect_fallback_avg,
+            portfolio_architect_signal_mix=portfolio_architect_signal_mix,
+            portfolio_top_architect_signal=portfolio_top_architect_signal,
             portfolio_fallback_avg=portfolio_fallback_avg,
             portfolio_low_confidence_avg=portfolio_low_confidence_avg,
             portfolio_smart_avg=portfolio_smart_avg,

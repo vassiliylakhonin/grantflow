@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,6 +17,13 @@ from grantflow.api.public_views import (
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _read_csv_rows(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return [dict(row) for row in csv.DictReader(handle)]
 
 
 def _resolve_featured_case(
@@ -46,6 +54,16 @@ def _safe_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _format_num(value: float | int | None) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, int):
+        return str(value)
+    if float(value).is_integer():
+        return str(int(value))
+    return f"{value:.2f}"
 
 
 def _bucket_mix_text(bucket_counts: dict[str, int]) -> str:
@@ -113,6 +131,11 @@ def _build_handout(
     featured_triage_summary: dict[str, Any],
     featured_critic_payload: dict[str, Any],
     featured_mel_summary: dict[str, Any],
+    portfolio_architect_hits_avg: float | None,
+    portfolio_top_architect_signal: str,
+    featured_architect_grounded_rate: float | None,
+    featured_architect_fallback_count: float | None,
+    featured_architect_signal_mix: str,
     review_ready_cases: str,
     current_conditions: list[str],
 ) -> str:
@@ -144,6 +167,9 @@ def _build_handout(
     lines.append(f"- Current readiness color: `{readiness}`")
     lines.append(f"- Baseline-complete cases: `{baseline_complete_cases}`")
     lines.append(f"- Cases with complete LogFrame operational coverage: `{review_ready_cases}`")
+    lines.append(f"- Average architect retrieval hits per case: `{_format_num(portfolio_architect_hits_avg)}`")
+    if portfolio_top_architect_signal:
+        lines.append(f"- Top architect evidence signal: `{portfolio_top_architect_signal}`")
     lines.append("")
     lines.append("## Why This Matters")
     lines.append("- Faster path to a reviewable draft, not just generated text.")
@@ -182,6 +208,10 @@ def _build_handout(
         lines.append(
             f"- Fallback/strategy citations: `{featured_review_readiness.get('fallback_strategy_citations', '-')}`"
         )
+        lines.append(f"- Architect grounded citation rate: `{_format_num(featured_architect_grounded_rate)}`")
+        lines.append(f"- Architect fallback citations: `{_format_num(featured_architect_fallback_count)}`")
+        if featured_architect_signal_mix != "-":
+            lines.append(f"- Architect evidence signal mix: `{featured_architect_signal_mix}`")
     if featured_triage_summary:
         if str(featured_triage_summary.get("next_review_bucket") or "").strip():
             lines.append(f"- Next review bucket: `{featured_triage_summary.get('next_review_bucket')}`")
@@ -310,6 +340,40 @@ def main() -> int:
         "-",
     )
     current_conditions = _extract_markdown_bullets(scorecard_text, "## Conditions Before Buyer Decision")
+    metrics_rows = _read_csv_rows(metrics_path)
+    architect_hits_values = [
+        float(row["architect_retrieval_hits_count"])
+        for row in metrics_rows
+        if str(row.get("architect_retrieval_hits_count") or "").strip()
+    ]
+    portfolio_architect_hits_avg = (
+        sum(architect_hits_values) / len(architect_hits_values) if architect_hits_values else None
+    )
+    architect_signal_totals: dict[str, int] = {}
+    for row in metrics_rows:
+        raw_mix = str(row.get("architect_evidence_signal_mix") or "").strip()
+        if not raw_mix or raw_mix == "-":
+            continue
+        for token in raw_mix.split(","):
+            part = token.strip()
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            signal = key.strip()
+            count = int(value.strip() or "0")
+            if signal and count > 0:
+                architect_signal_totals[signal] = architect_signal_totals.get(signal, 0) + count
+    portfolio_top_architect_signal = (
+        max(architect_signal_totals.items(), key=lambda item: item[1])[0] if architect_signal_totals else ""
+    )
+    featured_metrics_row = next(
+        (
+            row
+            for row in metrics_rows
+            if str(row.get("case_dir") or "").strip() == str(featured_row.get("case_dir") or "").strip()
+        ),
+        {},
+    )
 
     quality_values = [float(row["quality_score"]) for row in rows if str(row.get("quality_score") or "").strip()]
     critic_values = [float(row["critic_score"]) for row in rows if str(row.get("critic_score") or "").strip()]
@@ -436,6 +500,15 @@ def main() -> int:
             featured_triage_summary=featured_triage_summary,
             featured_critic_payload=featured_critic_payload,
             featured_mel_summary=featured_mel_summary,
+            portfolio_architect_hits_avg=portfolio_architect_hits_avg,
+            portfolio_top_architect_signal=portfolio_top_architect_signal,
+            featured_architect_grounded_rate=_safe_float(
+                featured_metrics_row.get("architect_retrieval_grounded_citation_rate")
+            ),
+            featured_architect_fallback_count=_safe_float(
+                featured_metrics_row.get("architect_fallback_namespace_citation_count")
+            ),
+            featured_architect_signal_mix=str(featured_metrics_row.get("architect_evidence_signal_mix") or "-"),
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
             current_conditions=current_conditions,
         ),
