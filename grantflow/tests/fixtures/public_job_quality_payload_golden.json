@@ -321,6 +321,7 @@
       "overdue_comment_count": 0,
       "pending_comment_count": 1,
       "resolved_comment_count": 0,
+      "stale_comment_bucket_counts": {},
       "stale_open_comment_count": 0,
       "top_comment_ids": [
         "comment-1"

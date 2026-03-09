@@ -137,6 +137,92 @@ def _review_readiness_rows(
             break
     for idx, action in enumerate(top_actions, start=1):
         rows.append((f"Top reviewer action {idx}", action))
+    acknowledged_comments = [
+        item
+        for item in review_comments
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "acknowledged"
+    ]
+    resolved_comments = [
+        item
+        for item in review_comments
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+    ]
+    total_items = len(critic_findings) + len(review_comments)
+    resolved_items = len(
+        [
+            item
+            for item in critic_findings
+            if isinstance(item, dict) and str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+        ]
+    ) + len(resolved_comments)
+    acknowledged_items = len(
+        [
+            item
+            for item in critic_findings
+            if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "acknowledged"
+        ]
+    ) + len(acknowledged_comments)
+    rows.extend(
+        [
+            ("Acknowledged review comments", len(acknowledged_comments)),
+            ("Resolved review comments", len(resolved_comments)),
+            ("Reviewer workflow resolution rate", round(resolved_items / total_items, 4) if total_items else None),
+            (
+                "Reviewer workflow acknowledgment rate",
+                round((resolved_items + acknowledged_items) / total_items, 4) if total_items else None,
+            ),
+        ]
+    )
+
+    now_candidates = []
+    for item in review_comments:
+        if not isinstance(item, dict):
+            continue
+        for key in ("last_transition_at", "updated_ts", "resolved_at", "acknowledged_at", "ts", "due_at"):
+            value = item.get(key)
+            if value:
+                now_candidates.append(value)
+    # lightweight aging summary for exports without importing API helpers
+    from datetime import datetime, timezone
+
+    def _parse_dt(value: Any):
+        if not value:
+            return None
+        try:
+            text = str(value).replace("Z", "+00:00")
+            dt = datetime.fromisoformat(text)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except Exception:
+            return None
+
+    ref = max((_parse_dt(value) for value in now_candidates), default=None)
+    if ref is None:
+        ref = datetime.now(timezone.utc)
+    aging = {"3-7d": 0, ">7d": 0}
+    for item in review_comments:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "open").strip().lower()
+        if status in {"resolved", "closed"}:
+            continue
+        transition = (
+            _parse_dt(item.get("last_transition_at")) or _parse_dt(item.get("updated_ts")) or _parse_dt(item.get("ts"))
+        )
+        if transition is None:
+            continue
+        hours = max(0.0, (ref - transition).total_seconds() / 3600.0)
+        if 72.0 <= hours < 168.0:
+            aging["3-7d"] += 1
+        elif hours >= 168.0:
+            aging[">7d"] += 1
+    rows.extend(
+        [
+            ("Comment threads aged 3-7d", aging["3-7d"]),
+            ("Comment threads aged >7d", aging[">7d"]),
+        ]
+    )
     return [(label, value) for label, value in rows if value is not None and value != ""]
 
 

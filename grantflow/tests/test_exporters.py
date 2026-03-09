@@ -137,6 +137,11 @@ def test_word_export_includes_citation_traceability_section():
     assert "High-severity open findings: 1" in text
     assert "Open review comments: 0" in text
     assert "Fallback/strategy citations: 1" in text
+    assert "Acknowledged review comments: 0" in text
+    assert "Resolved review comments: 1" in text
+    assert "Reviewer workflow resolution rate:" in text
+    assert "Reviewer workflow acknowledgment rate:" in text
+    assert "Comment threads aged 3-7d:" in text
     assert "Top reviewer action 1:" in text
     assert "Reviewer next step:" in text
     assert "Recommended action:" in text
@@ -561,7 +566,12 @@ def test_excel_export_includes_citations_sheet():
     assert readiness_map["Open critic findings"] == 1
     assert readiness_map["High-severity open findings"] == 1
     assert readiness_map["Open review comments"] == 0
+    assert readiness_map["Acknowledged review comments"] == 0
+    assert readiness_map["Resolved review comments"] == 1
     assert readiness_map["Fallback/strategy citations"] == 1
+    assert "Reviewer workflow resolution rate" in readiness_map
+    assert "Reviewer workflow acknowledgment rate" in readiness_map
+    assert "Comment threads aged 3-7d" in readiness_map
     assert "Top reviewer action 1" in readiness_map
 
 

@@ -2630,6 +2630,7 @@ def _comment_triage_summary_payload(
     next_recommended_action: Optional[str] = None
     comment_status_counts: Dict[str, int] = {}
     comment_bucket_counts: Dict[str, int] = {}
+    stale_comment_bucket_counts: Dict[str, int] = {}
     aging_band_counts: Dict[str, int] = {
         "lt_24h": 0,
         "d1_3": 0,
@@ -2713,6 +2714,7 @@ def _comment_triage_summary_payload(
         if status not in {"resolved", "closed"}:
             if age_hours >= 24.0:
                 stale_open_count += 1
+                stale_comment_bucket_counts[review_bucket] = int(stale_comment_bucket_counts.get(review_bucket, 0)) + 1
             if age_hours < 24.0:
                 aging_band_counts["lt_24h"] = int(aging_band_counts.get("lt_24h") or 0) + 1
             elif age_hours < 72.0:
@@ -2777,6 +2779,7 @@ def _comment_triage_summary_payload(
         "high_priority_open_comment_count": high_priority_open_count,
         "comment_status_counts": comment_status_counts,
         "comment_bucket_counts": comment_bucket_counts,
+        "stale_comment_bucket_counts": stale_comment_bucket_counts,
         "aging_band_counts": aging_band_counts,
         "top_comment_ids": top_comment_ids,
         "next_comment_section": next_comment_section,
@@ -3759,6 +3762,7 @@ def public_portfolio_metrics_payload(
         "low_confidence_citations": 0,
         "fallback_strategy_citations": 0,
     }
+    stale_comment_bucket_counts_total: Dict[str, int] = {}
     triage_rows: list[tuple[str, list[Dict[str, Any]]]] = []
     metrics_rows: list[Dict[str, Any]] = []
 
@@ -3822,6 +3826,20 @@ def public_portfolio_metrics_payload(
         review_readiness_totals["fallback_strategy_citations"] += int(
             review_summary.get("fallback_strategy_citations") or 0
         )
+        comment_triage = (
+            review_summary.get("comment_triage_summary")
+            if isinstance(review_summary.get("comment_triage_summary"), dict)
+            else {}
+        )
+        stale_bucket_counts = (
+            comment_triage.get("stale_comment_bucket_counts") if isinstance(comment_triage, dict) else {}
+        )
+        if isinstance(stale_bucket_counts, dict):
+            for bucket, count in stale_bucket_counts.items():
+                token = str(bucket).strip().lower() or "general"
+                stale_comment_bucket_counts_total[token] = int(stale_comment_bucket_counts_total.get(token) or 0) + int(
+                    count or 0
+                )
 
     def _avg(key: str) -> Optional[float]:
         values = [float(m[key]) for m in metrics_rows if isinstance(m.get(key), (int, float))]
@@ -3910,6 +3928,7 @@ def public_portfolio_metrics_payload(
                 round(review_readiness_totals["orphan_linked_review_comments"] / job_count, 4) if job_count else None
             ),
             "triage_summary": _portfolio_triage_summary_payload(triage_rows),
+            "stale_comment_bucket_counts": dict(sorted(stale_comment_bucket_counts_total.items())),
         },
     }
 
@@ -4090,6 +4109,7 @@ def public_portfolio_quality_payload(
                 "orphan_linked_review_comments": 0,
                 "low_confidence_citations": 0,
                 "fallback_strategy_citations": 0,
+                "stale_comment_bucket_counts": {},
             },
         )
         donor_readiness_row["job_count"] = int(donor_readiness_row.get("job_count") or 0) + 1
@@ -4112,6 +4132,24 @@ def public_portfolio_quality_payload(
             "fallback_strategy_citations",
         ):
             donor_readiness_row[field] = int(donor_readiness_row.get(field) or 0) + int(review_summary.get(field) or 0)
+        comment_triage = (
+            review_summary.get("comment_triage_summary")
+            if isinstance(review_summary.get("comment_triage_summary"), dict)
+            else {}
+        )
+        stale_bucket_counts = (
+            comment_triage.get("stale_comment_bucket_counts") if isinstance(comment_triage, dict) else {}
+        )
+        if isinstance(stale_bucket_counts, dict):
+            donor_bucket_counts = (
+                donor_readiness_row.get("stale_comment_bucket_counts")
+                if isinstance(donor_readiness_row.get("stale_comment_bucket_counts"), dict)
+                else {}
+            )
+            for bucket, count in stale_bucket_counts.items():
+                token = str(bucket).strip().lower() or "general"
+                donor_bucket_counts[token] = int(donor_bucket_counts.get(token) or 0) + int(count or 0)
+            donor_readiness_row["stale_comment_bucket_counts"] = donor_bucket_counts
 
     def _avg(rows: list[Dict[str, Any]], key: str) -> Optional[float]:
         values = [float(row[key]) for row in rows if isinstance(row.get(key), (int, float))]
@@ -5372,6 +5410,19 @@ def public_portfolio_quality_payload(
         )
         donor_row["triage_summary"] = _portfolio_triage_summary_payload(
             [(donor_token, donor_triage_rows.get(donor_token) or [])]
+        )
+        donor_row["stale_comment_bucket_counts"] = dict(
+            sorted(
+                (
+                    str(bucket).strip().lower() or "general",
+                    int(count or 0),
+                )
+                for bucket, count in (
+                    donor_row.get("stale_comment_bucket_counts")
+                    if isinstance(donor_row.get("stale_comment_bucket_counts"), dict)
+                    else {}
+                ).items()
+            )
         )
         donor_review_readiness_breakdown[donor_token] = donor_row
 
