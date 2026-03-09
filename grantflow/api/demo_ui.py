@@ -5472,23 +5472,28 @@ def render_demo_ui_html() -> str:
         const commentPreset = commentActionPresetFromQueue(actionQueue);
         state.lastSuggestedFindingAction = findingPreset;
         state.lastSuggestedCommentAction = commentPreset;
+        const primaryAction = String(actionQueue?.next_primary_action || "").trim().toLowerCase();
         const policyNext = String(workflowPolicy?.next_operational_action || "-").trim() || "-";
         const listEl = els.reviewWorkflowSuggestedActionsList;
         if (!listEl) return;
         listEl.innerHTML = "";
         const cards = [];
-        if (findingPreset) {
-          cards.push({
-            title: `Finding queue · ${findingPreset.title}`,
-            sub: `${findingPreset.path} · queue=${findingPreset.queueLabel} · policy_next=${policyNext}`,
-          });
+        const orderedPresets = [];
+        if (primaryAction.includes("comment") && commentPreset) orderedPresets.push({ kind: "comment", preset: commentPreset });
+        if (primaryAction.includes("finding") && findingPreset) orderedPresets.push({ kind: "finding", preset: findingPreset });
+        if (findingPreset && !orderedPresets.some((entry) => entry.kind === "finding")) {
+          orderedPresets.push({ kind: "finding", preset: findingPreset });
         }
-        if (commentPreset) {
-          cards.push({
-            title: `Comment queue · ${commentPreset.title}`,
-            sub: `${commentPreset.path} · queue=${commentPreset.queueLabel} · policy_next=${policyNext}`,
-          });
+        if (commentPreset && !orderedPresets.some((entry) => entry.kind === "comment")) {
+          orderedPresets.push({ kind: "comment", preset: commentPreset });
         }
+        orderedPresets.forEach((entry, index) => {
+          const label = index === 0 ? "Primary" : "Follow-up";
+          cards.push({
+            title: `${label} ${entry.kind === "finding" ? "finding" : "comment"} queue · ${entry.preset.title}`,
+            sub: `${entry.preset.path} · queue=${entry.preset.queueLabel} · policy_next=${policyNext}`,
+          });
+        });
         if (!cards.length) {
           listEl.innerHTML = `<div class="item"><div class="sub">No suggested queue actions for the current review workflow snapshot.</div></div>`;
         } else {
@@ -5510,6 +5515,29 @@ def render_demo_ui_html() -> str:
           els.applySuggestedCommentActionBtn.textContent = commentPreset
             ? `Use Suggested Comment Action (${commentPreset.key})`
             : "Use Suggested Comment Action";
+        }
+      }
+
+      function applyCurrentSuggestedPrimaryActionPreset() {
+        const findingPreset = state.lastSuggestedFindingAction;
+        const commentPreset = state.lastSuggestedCommentAction;
+        const primaryActionText = Array.isArray(els.reviewActionQueueCards?.children)
+          ? String(els.reviewActionQueueCards.children?.[0]?.querySelector(".value")?.textContent || "").trim().toLowerCase()
+          : "";
+        if (primaryActionText.includes("comment") && commentPreset) {
+          applySuggestedCommentActionPreset();
+          return;
+        }
+        if (primaryActionText.includes("finding") && findingPreset) {
+          applySuggestedFindingActionPreset();
+          return;
+        }
+        if (findingPreset) {
+          applySuggestedFindingActionPreset();
+          return;
+        }
+        if (commentPreset) {
+          applySuggestedCommentActionPreset();
         }
       }
 
@@ -8689,6 +8717,7 @@ def render_demo_ui_html() -> str:
           refreshPortfolioReviewWorkflowTrends(),
           refreshPortfolioReviewWorkflowSlaTrends(),
         ]);
+        if (!dryRun) applyCurrentSuggestedPrimaryActionPreset();
         return result;
       }
 
@@ -8778,6 +8807,7 @@ def render_demo_ui_html() -> str:
           refreshPortfolioReviewWorkflowTrends(),
           refreshPortfolioReviewWorkflowSlaTrends(),
         ]);
+        if (!dryRun) applyCurrentSuggestedPrimaryActionPreset();
         return result;
       }
 
