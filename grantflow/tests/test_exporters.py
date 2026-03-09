@@ -1037,6 +1037,8 @@ def test_excel_export_includes_donor_specific_sheets():
     assert "Suggested Baseline -> Target" in giz_rows[0]
     assert "Suggested Frequency" in giz_rows[0]
     assert "Suggested Formula" in giz_rows[0]
+    assert "Suggested Result Focus" in giz_rows[0]
+    assert "Suggested Measurement Intent" in giz_rows[0]
     assert any("Attendance registers and delivery logs" in str(row) for row in giz_rows[1:])
     assert any("0 firms -> 60 firms" in str(row) for row in giz_rows[1:])
 
@@ -1045,6 +1047,8 @@ def test_excel_export_includes_donor_specific_sheets():
     assert "Suggested Baseline -> Target" in un_rows[0]
     assert "Suggested Frequency" in un_rows[0]
     assert "Suggested Formula" in un_rows[0]
+    assert "Suggested Result Focus" in un_rows[0]
+    assert "Suggested Measurement Intent" in un_rows[0]
     assert any(row[0] == "Overview" for row in un_rows[1:])
     assert any(
         row[0] == "Objective" and row[1] == "Improve inclusive education system readiness" for row in un_rows[1:]
@@ -1058,6 +1062,8 @@ def test_excel_export_includes_donor_specific_sheets():
     assert "Suggested Monitoring Focus" in state_rows[0]
     assert "Suggested Means of Verification" in state_rows[0]
     assert "Suggested Owner" in state_rows[0]
+    assert "Suggested Result Focus" in state_rows[0]
+    assert "Suggested Measurement Intent" in state_rows[0]
     assert any("Editorial risk logs and resilience reviews" in str(row) for row in state_rows[1:])
 
 

@@ -830,6 +830,8 @@ def _add_giz_results_sheet(
         "Suggested Baseline -> Target",
         "Suggested Frequency",
         "Suggested Formula",
+        "Suggested Result Focus",
+        "Suggested Measurement Intent",
     ]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
@@ -838,6 +840,7 @@ def _add_giz_results_sheet(
     if programme_objective:
         focus_name, focus_mov, focus_owner = _indicator_focus_cells(output_focus[:1] or outcome_focus[:1])
         baseline_target, frequency, formulas = _indicator_summary_cells(output_focus[:1] or outcome_focus[:1])
+        result_focus, measurement_intent = _indicator_context_cells(output_focus[:1] or outcome_focus[:1])
         ws.append(
             [
                 "Programme Objective",
@@ -850,6 +853,8 @@ def _add_giz_results_sheet(
                 baseline_target,
                 frequency,
                 formulas,
+                result_focus,
+                measurement_intent,
             ]
         )
         for col in range(1, len(headers) + 1):
@@ -861,6 +866,7 @@ def _add_giz_results_sheet(
         for output in outputs:
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(output_focus[:1] or outcome_focus[:1])
             baseline_target, frequency, formulas = _indicator_summary_cells(output_focus[:1] or outcome_focus[:1])
+            result_focus, measurement_intent = _indicator_context_cells(output_focus[:1] or outcome_focus[:1])
             ws.append(
                 [
                     "Output",
@@ -873,6 +879,8 @@ def _add_giz_results_sheet(
                     baseline_target,
                     frequency,
                     formulas,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -886,6 +894,7 @@ def _add_giz_results_sheet(
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(output_focus[:1] or outcome_focus[:1])
             baseline_target, frequency, formulas = _indicator_summary_cells(output_focus[:1] or outcome_focus[:1])
+            result_focus, measurement_intent = _indicator_context_cells(output_focus[:1] or outcome_focus[:1])
             ws.append(
                 [
                     "Outcome",
@@ -898,6 +907,8 @@ def _add_giz_results_sheet(
                     baseline_target,
                     frequency,
                     formulas,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -907,7 +918,7 @@ def _add_giz_results_sheet(
     sustainability_factors = toc.get("sustainability_factors") if isinstance(toc, dict) else None
     if isinstance(sustainability_factors, list):
         for item in sustainability_factors:
-            ws.append(["Sustainability", str(item), "", "", "", "", "", "", "", ""])
+            ws.append(["Sustainability", str(item), "", "", "", "", "", "", "", "", "", ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
@@ -915,13 +926,13 @@ def _add_giz_results_sheet(
     assumptions_risks = toc.get("assumptions_risks") if isinstance(toc, dict) else None
     if isinstance(assumptions_risks, list):
         for item in assumptions_risks:
-            ws.append(["Assumption/Risk", str(item), "", "", "", "", "", "", "", ""])
+            ws.append(["Assumption/Risk", str(item), "", "", "", "", "", "", "", "", "", ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
 
     if row_idx == 2:
-        ws.append(["", "", "", "", "", "", "", "", "", ""])
+        ws.append(["", "", "", "", "", "", "", "", "", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=2, column=col).border = thin_border
     _autosize_columns(ws)
@@ -948,6 +959,8 @@ def _add_un_results_sheet(
         "Suggested Baseline -> Target",
         "Suggested Frequency",
         "Suggested Formula",
+        "Suggested Result Focus",
+        "Suggested Measurement Intent",
     ]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
@@ -956,6 +969,7 @@ def _add_un_results_sheet(
     if brief:
         focus_name, focus_mov, focus_owner = _indicator_focus_cells(impact_focus or outcome_focus[:1])
         baseline_target, frequency, formulas = _indicator_summary_cells(impact_focus or outcome_focus[:1])
+        result_focus, measurement_intent = _indicator_context_cells(impact_focus or outcome_focus[:1])
         ws.append(
             [
                 "Overview",
@@ -967,6 +981,8 @@ def _add_un_results_sheet(
                 baseline_target,
                 frequency,
                 formulas,
+                result_focus,
+                measurement_intent,
             ]
         )
         for col in range(1, len(headers) + 1):
@@ -980,6 +996,7 @@ def _add_un_results_sheet(
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1] or impact_focus)
             baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus[:1] or impact_focus)
+            result_focus, measurement_intent = _indicator_context_cells(outcome_focus[:1] or impact_focus)
             ws.append(
                 [
                     "Objective",
@@ -991,6 +1008,8 @@ def _add_un_results_sheet(
                     baseline_target,
                     frequency,
                     formulas,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -1004,6 +1023,7 @@ def _add_un_results_sheet(
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1])
             baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus[:1])
+            result_focus, measurement_intent = _indicator_context_cells(outcome_focus[:1])
             ws.append(
                 [
                     "Outcome",
@@ -1015,6 +1035,8 @@ def _add_un_results_sheet(
                     baseline_target,
                     frequency,
                     formulas,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -1022,7 +1044,7 @@ def _add_un_results_sheet(
             row_idx += 1
 
     if row_idx == 2:
-        ws.append(["", "", "", "", "", "", "", "", ""])
+        ws.append(["", "", "", "", "", "", "", "", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=2, column=col).border = thin_border
     _autosize_columns(ws)
@@ -1047,13 +1069,15 @@ def _add_state_department_results_sheet(
         "Suggested Monitoring Focus",
         "Suggested Means of Verification",
         "Suggested Owner",
+        "Suggested Result Focus",
+        "Suggested Measurement Intent",
     ]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
 
     strategic_context = str(toc.get("strategic_context") or "").strip() if isinstance(toc, dict) else ""
     if strategic_context:
-        ws.append(["Strategic Context", "Context", "", strategic_context, "", "", ""])
+        ws.append(["Strategic Context", "Context", "", strategic_context, "", "", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=row_idx, column=col).border = thin_border
         row_idx += 1
@@ -1061,7 +1085,20 @@ def _add_state_department_results_sheet(
     program_goal = str(toc.get("program_goal") or "").strip() if isinstance(toc, dict) else ""
     if program_goal:
         focus_name, focus_mov, focus_owner = _indicator_focus_cells(impact_focus or outcome_focus[:1])
-        ws.append(["Program Goal", "Goal", "", program_goal, focus_name, focus_mov, focus_owner])
+        result_focus, measurement_intent = _indicator_context_cells(impact_focus or outcome_focus[:1])
+        ws.append(
+            [
+                "Program Goal",
+                "Goal",
+                "",
+                program_goal,
+                focus_name,
+                focus_mov,
+                focus_owner,
+                result_focus,
+                measurement_intent,
+            ]
+        )
         for col in range(1, len(headers) + 1):
             ws.cell(row=row_idx, column=col).border = thin_border
         row_idx += 1
@@ -1072,6 +1109,7 @@ def _add_state_department_results_sheet(
             if not isinstance(obj, dict):
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1] or impact_focus)
+            result_focus, measurement_intent = _indicator_context_cells(outcome_focus[:1] or impact_focus)
             ws.append(
                 [
                     "Objective",
@@ -1081,6 +1119,8 @@ def _add_state_department_results_sheet(
                     focus_name,
                     focus_mov,
                     focus_owner,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -1090,7 +1130,7 @@ def _add_state_department_results_sheet(
     stakeholder_map = toc.get("stakeholder_map") if isinstance(toc, dict) else None
     if isinstance(stakeholder_map, list):
         for item in stakeholder_map:
-            ws.append(["Stakeholder", str(item), "", "", "", "", ""])
+            ws.append(["Stakeholder", str(item), "", "", "", "", "", "", ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
@@ -1098,13 +1138,13 @@ def _add_state_department_results_sheet(
     risk_mitigation = toc.get("risk_mitigation") if isinstance(toc, dict) else None
     if isinstance(risk_mitigation, list):
         for item in risk_mitigation:
-            ws.append(["Risk Mitigation", str(item), "", "", "", "", ""])
+            ws.append(["Risk Mitigation", str(item), "", "", "", "", "", "", ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
 
     if row_idx == 2:
-        ws.append(["", "", "", "", "", "", ""])
+        ws.append(["", "", "", "", "", "", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=2, column=col).border = thin_border
     _autosize_columns(ws)
