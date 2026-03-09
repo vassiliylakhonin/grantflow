@@ -170,6 +170,11 @@ def main() -> int:
         fast_bundle_manifest.get("next_operational_action_before_external_send") or ""
     ).strip() or _extract_backtick_value(fast_bundle_text, "- Next operational action before external send: `")
     bundle_manifest_name = _safe_rel(latest_fast_manifest, build_dir) if latest_fast_manifest.exists() else "-"
+    finding_ack_completed = executive_summary.get("avg_finding_ack_completed_count")
+    comment_resolve_completed = executive_summary.get("avg_comment_resolve_completed_count")
+    finding_ack_net_delta = executive_summary.get("avg_finding_ack_net_delta")
+    comment_resolve_net_delta = executive_summary.get("avg_comment_resolve_net_delta")
+    dominant_completed_action = str(executive_summary.get("dominant_completed_action") or "").strip()
 
     lines: list[str] = []
     lines.append("# GrantFlow Send Bundle Index")
@@ -247,6 +252,12 @@ def main() -> int:
     lines.append(f"- MEL fallback citations per case: `{mel_fallback}`")
     if top_mel_signal != "-":
         lines.append(f"- Top MEL evidence signal: `{top_mel_signal}`")
+    lines.append(f"- Finding acks completed per case: `{_format_num(finding_ack_completed)}`")
+    lines.append(f"- Comment resolves completed per case: `{_format_num(comment_resolve_completed)}`")
+    lines.append(f"- Finding ack net delta: `{_format_num(finding_ack_net_delta)}`")
+    lines.append(f"- Comment resolve net delta: `{_format_num(comment_resolve_net_delta)}`")
+    if dominant_completed_action:
+        lines.append(f"- Dominant completed workflow action: `{dominant_completed_action}`")
     lines.append("")
     if executive_text:
         lines.append("## Featured Readiness Snapshot")

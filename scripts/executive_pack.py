@@ -353,6 +353,11 @@ def _build_summary(
     portfolio_comment_ack_queue_avg: float | None,
     portfolio_comment_resolve_queue_avg: float | None,
     portfolio_comment_reopen_queue_avg: float | None,
+    portfolio_finding_ack_completed_avg: float | None,
+    portfolio_comment_resolve_completed_avg: float | None,
+    portfolio_finding_ack_net_delta_avg: float | None,
+    portfolio_comment_resolve_net_delta_avg: float | None,
+    portfolio_dominant_completed_action: str,
     portfolio_comment_age_d3_7_avg: float | None,
     portfolio_comment_age_gt_7d_avg: float | None,
     portfolio_stale_bucket_mix: str,
@@ -452,6 +457,14 @@ def _build_summary(
     lines.append(f"- Average comment ack queue per case: `{_format_num(portfolio_comment_ack_queue_avg)}`")
     lines.append(f"- Average comment resolve queue per case: `{_format_num(portfolio_comment_resolve_queue_avg)}`")
     lines.append(f"- Average comment reopen queue per case: `{_format_num(portfolio_comment_reopen_queue_avg)}`")
+    lines.append(f"- Average finding acks completed per case: `{_format_num(portfolio_finding_ack_completed_avg)}`")
+    lines.append(
+        f"- Average comment resolves completed per case: `{_format_num(portfolio_comment_resolve_completed_avg)}`"
+    )
+    lines.append(f"- Average finding ack net delta: `{_format_num(portfolio_finding_ack_net_delta_avg)}`")
+    lines.append(f"- Average comment resolve net delta: `{_format_num(portfolio_comment_resolve_net_delta_avg)}`")
+    if portfolio_dominant_completed_action:
+        lines.append(f"- Dominant completed workflow action: `{portfolio_dominant_completed_action}`")
     lines.append(f"- Average comment threads aged 3-7d per case: `{_format_num(portfolio_comment_age_d3_7_avg)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_format_num(portfolio_comment_age_gt_7d_avg)}`")
     if portfolio_policy_status:
@@ -915,6 +928,17 @@ def main() -> int:
     portfolio_comment_reopen_queue_avg = _avg(
         [_safe_float(row.get("comment_reopen_queue_count")) for row in metrics_rows]
     )
+    portfolio_finding_ack_completed_avg = _avg(
+        [_safe_float(row.get("finding_ack_completed_count")) for row in metrics_rows]
+    )
+    portfolio_comment_resolve_completed_avg = _avg(
+        [_safe_float(row.get("comment_resolve_completed_count")) for row in metrics_rows]
+    )
+    portfolio_finding_ack_net_delta_avg = _avg([_safe_float(row.get("finding_ack_net_delta")) for row in metrics_rows])
+    portfolio_comment_resolve_net_delta_avg = _avg(
+        [_safe_float(row.get("comment_resolve_net_delta")) for row in metrics_rows]
+    )
+    portfolio_dominant_completed_action = _first_nonempty(metrics_rows, "dominant_completed_action")
     portfolio_comment_age_d3_7_avg = _avg([_safe_float(row.get("comment_age_d3_7")) for row in metrics_rows])
     portfolio_comment_age_gt_7d_avg = _avg([_safe_float(row.get("comment_age_gt_7d")) for row in metrics_rows])
     portfolio_stale_bucket_totals = {
@@ -1067,6 +1091,11 @@ def main() -> int:
             portfolio_comment_ack_queue_avg=portfolio_comment_ack_queue_avg,
             portfolio_comment_resolve_queue_avg=portfolio_comment_resolve_queue_avg,
             portfolio_comment_reopen_queue_avg=portfolio_comment_reopen_queue_avg,
+            portfolio_finding_ack_completed_avg=portfolio_finding_ack_completed_avg,
+            portfolio_comment_resolve_completed_avg=portfolio_comment_resolve_completed_avg,
+            portfolio_finding_ack_net_delta_avg=portfolio_finding_ack_net_delta_avg,
+            portfolio_comment_resolve_net_delta_avg=portfolio_comment_resolve_net_delta_avg,
+            portfolio_dominant_completed_action=portfolio_dominant_completed_action,
             portfolio_comment_age_d3_7_avg=portfolio_comment_age_d3_7_avg,
             portfolio_comment_age_gt_7d_avg=portfolio_comment_age_gt_7d_avg,
             portfolio_stale_bucket_mix=portfolio_stale_bucket_mix,
