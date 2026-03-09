@@ -4923,7 +4923,7 @@ def render_demo_ui_html() -> str:
       function renderBulkPreviewSummary(
         el,
         result,
-        { notFoundKey = "", updatedKey = "", itemLabel = "items", scopeLabel = "", queueLabel = "" } = {}
+        { notFoundKey = "", updatedKey = "", itemLabel = "items", scopeLabel = "", queueLabel = "", filterBasis = "" } = {}
       ) {
         if (!el) return;
         el.innerHTML = "";
@@ -4942,6 +4942,7 @@ def render_demo_ui_html() -> str:
         const cards = [
           { title: dryRun ? "Preview Mode" : "Apply Mode", sub: dryRun ? "dry_run=true" : persisted ? "persisted=true" : "persisted=false" },
           { title: "Scope", sub: String(scopeLabel || "-") },
+          { title: "Filter Basis", sub: String(filterBasis || "-") },
           { title: "Queue Impact", sub: String(queueLabel || "-") },
           { title: "Matched", sub: String(matchedCount) },
           { title: "Changed", sub: String(changedCount) },
@@ -4988,6 +4989,34 @@ def render_demo_ui_html() -> str:
         if (normalized === "all") return `all ${itemLabel} in job`;
         if (normalized === "selected") return `selected ${itemLabel} (${selectedCount})`;
         return `filtered ${itemLabel}`;
+      }
+
+      function describeCriticFilterBasis(scope) {
+        const normalized = String(scope || "filtered").trim().toLowerCase();
+        if (normalized === "all") return "apply_to_all=true";
+        if (normalized === "selected") return "selected ids only";
+        const parts = [];
+        const section = String(els.criticSectionFilter?.value || "").trim();
+        const severity = String(els.criticSeverityFilter?.value || "").trim();
+        const findingStatus = String(els.criticFindingStatusFilter?.value || "").trim();
+        if (section) parts.push(`section=${section}`);
+        if (severity) parts.push(`severity=${severity}`);
+        if (findingStatus) parts.push(`status=${findingStatus}`);
+        return parts.join(" · ") || "current critic filters";
+      }
+
+      function describeCommentFilterBasis(scope) {
+        const normalized = String(scope || "filtered").trim().toLowerCase();
+        if (normalized === "all") return "apply_to_all=true";
+        if (normalized === "selected") return "selected ids only";
+        const parts = [];
+        const section = String(els.commentsFilterSection?.value || "").trim();
+        const commentStatus = String(els.commentsFilterStatus?.value || "").trim();
+        const versionId = String(els.commentsFilterVersionId?.value || "").trim();
+        if (section) parts.push(`section=${section}`);
+        if (commentStatus) parts.push(`status=${commentStatus}`);
+        if (versionId) parts.push(`version=${versionId}`);
+        return parts.join(" · ") || "current comment filters";
       }
 
       function describeBulkAction(targetStatus, itemKind) {
@@ -8298,6 +8327,7 @@ def render_demo_ui_html() -> str:
           updatedKey: "updated_findings",
           itemLabel: "findings",
           scopeLabel: describeBulkScope(scope, parseIdList(els.criticSelectedFindingIds.value).length, "finding ids"),
+          filterBasis: describeCriticFilterBasis(scope),
           queueLabel: action.queueLabel,
         });
         await Promise.allSettled([
@@ -8385,6 +8415,7 @@ def render_demo_ui_html() -> str:
           updatedKey: "updated_comments",
           itemLabel: "comments",
           scopeLabel: describeBulkScope(scope, parseIdList(els.commentSelectedCommentIds.value).length, "comment ids"),
+          filterBasis: describeCommentFilterBasis(scope),
           queueLabel: action.queueLabel,
         });
         await Promise.allSettled([
@@ -8528,6 +8559,7 @@ def render_demo_ui_html() -> str:
           updatedKey: "updated_findings",
           itemLabel: "findings",
           scopeLabel: "-",
+          filterBasis: "-",
           queueLabel: "-",
         });
         els.criticCopySelectedFindingIdsBtn.addEventListener("click", () =>
@@ -8834,6 +8866,7 @@ def render_demo_ui_html() -> str:
           updatedKey: "updated_comments",
           itemLabel: "comments",
           scopeLabel: "-",
+          filterBasis: "-",
           queueLabel: "-",
         });
         els.commentCopySelectedCommentIdsBtn.addEventListener("click", () =>
