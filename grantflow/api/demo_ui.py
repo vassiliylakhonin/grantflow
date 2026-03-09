@@ -1238,6 +1238,20 @@ def render_demo_ui_html() -> str:
             </div>
             <div id="exportContractMetaLine" class="footer-note mono">mode=- · status=- · risk=- · missing=-</div>
             <div class="list" id="exportContractWarningsList" style="margin-top:10px;"></div>
+            <div class="row3" style="margin-top:10px;">
+              <div>
+                <label>Send Gate</label>
+                <div id="sendGatePill" class="pill readiness-level-none">
+                  <span class="dot"></span><span id="sendGatePillText">not evaluated</span>
+                </div>
+              </div>
+              <div class="sub mono" id="sendGateMetaLine" style="align-self:end;">
+                policy=- · classification=- · next=-
+              </div>
+              <div class="sub mono" id="sendGateAdvisoryLine" style="align-self:end;">
+                external send gate pending portfolio workflow snapshot
+              </div>
+            </div>
             <div class="row" style="margin-top:10px;">
               <button id="exportZipFromPayloadBtn" class="secondary">Export ZIP from Payload</button>
               <button id="exportProductionZipFromPayloadBtn" class="danger">Production Export (enforced)</button>
@@ -1706,6 +1720,7 @@ def render_demo_ui_html() -> str:
         lastCitations: null,
         lastIngestInventory: null,
         lastQualitySummary: null,
+        lastPortfolioWorkflowPolicy: null,
         qualityGroundedGateExplainExpanded: false,
         ingestChecklistProgress: {},
         zeroReadinessWarningPrefs: {},
@@ -2045,6 +2060,10 @@ def render_demo_ui_html() -> str:
         exportGzipEnabled: $("exportGzipEnabled"),
         productionExportMode: $("productionExportMode"),
         allowUnsafeExport: $("allowUnsafeExport"),
+        sendGatePill: $("sendGatePill"),
+        sendGatePillText: $("sendGatePillText"),
+        sendGateMetaLine: $("sendGateMetaLine"),
+        sendGateAdvisoryLine: $("sendGateAdvisoryLine"),
         commentsFilterSection: $("commentsFilterSection"),
         commentsFilterStatus: $("commentsFilterStatus"),
         commentsFilterVersionId: $("commentsFilterVersionId"),
@@ -2162,6 +2181,7 @@ def render_demo_ui_html() -> str:
         if (!String(els.allowUnsafeExport?.value || "").trim()) {
           els.allowUnsafeExport.value = "false";
         }
+        renderSendGate(state.lastPortfolioWorkflowPolicy);
         if (!String(els.ingestDonorId.value || "").trim()) {
           els.ingestDonorId.value = String(els.donorId.value || "usaid");
         }
@@ -5294,6 +5314,64 @@ def render_demo_ui_html() -> str:
         return "-";
       }
 
+      function renderSendGate(policySummary) {
+        const summary = policySummary && typeof policySummary === "object" ? policySummary : {};
+        const status = String(summary?.status || "-").trim().toLowerCase() || "-";
+        const goNoGo = String(summary?.go_no_go_flag || "-").trim().toLowerCase() || "-";
+        const nextAction = String(summary?.next_operational_action || "-").trim() || "-";
+        const sendClassification = sendClassificationForGoNoGo(goNoGo);
+        const risk =
+          status === "breach"
+            ? "high"
+            : status === "attention"
+              ? "medium"
+              : status === "healthy"
+                ? "low"
+                : "none";
+        const unsafeOverride = allowUnsafeExportEnabled();
+        const blocked = sendClassification === "internal-only" && !unsafeOverride;
+        state.lastPortfolioWorkflowPolicy = Object.keys(summary).length ? summary : null;
+
+        if (els.sendGatePill && els.sendGatePillText) {
+          els.sendGatePill.className = `pill readiness-level-${risk}`;
+          const headline =
+            sendClassification === "internal-only"
+              ? blocked
+                ? "external send blocked"
+                : "internal-only override"
+              : sendClassification === "send-with-conditions"
+                ? "send with conditions"
+                : sendClassification === "send-safe"
+                  ? "send safe"
+                  : "not evaluated";
+          els.sendGatePillText.textContent = `${headline} (${status === "-" ? "policy pending" : status})`;
+        }
+        if (els.sendGateMetaLine) {
+          els.sendGateMetaLine.textContent =
+            `policy=${status} · go/no-go=${goNoGo} · classification=${sendClassification} · next=${nextAction}`;
+        }
+        if (els.sendGateAdvisoryLine) {
+          els.sendGateAdvisoryLine.textContent = blocked
+            ? "external send blocked until workflow policy moves out of hold; use Allow Unsafe Override only for internal review proofing"
+            : sendClassification === "send-with-conditions"
+              ? "external send allowed with conditions; review next operational action before sharing"
+              : sendClassification === "send-safe"
+                ? "external send path is clear under current workflow policy"
+                : unsafeOverride
+                  ? "unsafe override enabled; policy gate is advisory"
+                  : "external send gate pending portfolio workflow snapshot";
+        }
+        if (els.exportProductionZipFromPayloadBtn) {
+          els.exportProductionZipFromPayloadBtn.disabled = blocked;
+          els.exportProductionZipFromPayloadBtn.textContent = blocked
+            ? "Production Export Blocked"
+            : "Production Export (enforced)";
+          els.exportProductionZipFromPayloadBtn.title = blocked
+            ? "Portfolio workflow policy is hold/internal-only. Clear workflow issues or enable unsafe override for internal review proofing."
+            : "Enforced production export using current payload and gating settings.";
+        }
+      }
+
       function renderReviewActionQueueCards(summary) {
         const cards = Array.isArray(els.reviewActionQueueCards?.children)
           ? Array.from(els.reviewActionQueueCards.children)
@@ -5427,6 +5505,7 @@ def render_demo_ui_html() -> str:
           els.portfolioReviewWorkflowPolicyLine.textContent =
             `portfolio policy: status=${String(workflowPolicy?.status || "-")} · go/no-go=${goNoGo} · send_class=${sendClassificationForGoNoGo(goNoGo)} · next=${String(workflowPolicy?.next_operational_action || "-")}`;
         }
+        renderSendGate(workflowPolicy);
 
         const listEl = els.portfolioReviewWorkflowList;
         if (!listEl) return;
@@ -9204,7 +9283,10 @@ def render_demo_ui_html() -> str:
         });
         els.exportGzipEnabled.addEventListener("change", persistUiState);
         els.productionExportMode.addEventListener("change", persistUiState);
-        els.allowUnsafeExport.addEventListener("change", persistUiState);
+        els.allowUnsafeExport.addEventListener("change", () => {
+          persistUiState();
+          renderSendGate(state.lastPortfolioWorkflowPolicy);
+        });
         els.inputContextJson.addEventListener("change", persistUiState);
         els.ingestPresetSelect.addEventListener("change", () => {
           persistUiState();

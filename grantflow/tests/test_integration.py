@@ -510,9 +510,15 @@ def test_demo_console_page_loads():
     assert "exportContractPillText" in body
     assert "exportContractMetaLine" in body
     assert "exportContractWarningsList" in body
+    assert "sendGatePill" in body
+    assert "sendGatePillText" in body
+    assert "sendGateMetaLine" in body
+    assert "sendGateAdvisoryLine" in body
     assert "productionExportMode" in body
     assert "allowUnsafeExport" in body
     assert "exportPayloadJson" in body
+    assert "Send Gate" in body
+    assert "external send gate pending portfolio workflow snapshot" in body
     assert "production_export" in body
     assert "allow_unsafe_export" in body
     assert "commentsFilterStatus" in body
@@ -764,6 +770,9 @@ def test_demo_console_includes_bulk_preview_summary_helpers():
     assert "Queue Impact" in body
     assert "workflow policy:" in body
     assert "portfolio policy:" in body
+    assert "external send blocked" in body
+    assert "send with conditions" in body
+    assert "send safe" in body
     assert "Matched" in body
     assert "Changed" in body
     assert "Unchanged" in body
@@ -800,6 +809,9 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "commentSyncWorkflowFiltersBtn",
         "reviewWorkflowPolicyLine",
         "portfolioReviewWorkflowPolicyLine",
+        "sendGatePill",
+        "sendGateMetaLine",
+        "sendGateAdvisoryLine",
         "reviewWorkflowJson",
         "renderBulkPreviewSummary",
         "collectWorkflowFindingIds",
@@ -811,6 +823,8 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "describeCriticFilterBasis",
         "describeCommentFilterBasis",
         "describeStatusTransition",
+        "renderSendGate",
+        "sendClassificationForGoNoGo",
         "syncCriticFiltersFromWorkflow",
         "syncCommentFiltersFromWorkflow",
         "Copy Selected IDs",
