@@ -11,7 +11,9 @@ from grantflow.api.public_views import (
     _comment_triage_summary_payload,
     _critic_triage_summary_payload,
     _review_action_queue_summary_payload,
+    _review_workflow_queue_delta_summary_payload,
     _review_workflow_policy_summary_payload,
+    _review_workflow_throughput_summary_payload,
     _reviewer_workflow_summary_payload,
 )
 
@@ -146,6 +148,7 @@ def _review_readiness_from_payloads(
     quality_payload: dict[str, Any],
     critic_payload: dict[str, Any],
     export_payload: dict[str, Any],
+    status_payload: dict[str, Any],
     *,
     donor_id: str = "",
 ) -> dict[str, Any]:
@@ -200,6 +203,27 @@ def _review_readiness_from_payloads(
                     else {}
                 ),
             )
+        if not isinstance(enriched.get("throughput_summary"), dict):
+            raw_events = status_payload.get("job_events") if isinstance(status_payload.get("job_events"), list) else []
+            timeline = [
+                {"ts": item.get("ts"), "type": item.get("type"), "status": item.get("status")}
+                for item in raw_events
+                if isinstance(item, dict)
+                and str(item.get("type") or "").strip()
+                in {"critic_finding_status_changed", "review_comment_added", "review_comment_status_changed"}
+            ]
+            enriched["throughput_summary"] = _review_workflow_throughput_summary_payload(timeline=timeline)
+        if not isinstance(enriched.get("queue_delta_summary"), dict):
+            enriched["queue_delta_summary"] = _review_workflow_queue_delta_summary_payload(
+                action_queue_summary=(
+                    enriched.get("action_queue_summary")
+                    if isinstance(enriched.get("action_queue_summary"), dict)
+                    else {}
+                ),
+                throughput_summary=(
+                    enriched.get("throughput_summary") if isinstance(enriched.get("throughput_summary"), dict) else {}
+                ),
+            )
         return enriched
     payload_root = export_payload.get("payload") if isinstance(export_payload.get("payload"), dict) else {}
     review_comments = (
@@ -222,6 +246,15 @@ def _review_readiness_from_payloads(
         critic_findings=findings,
         comment_triage_summary=comment_triage,
     )
+    throughput_summary = _review_workflow_throughput_summary_payload(
+        timeline=[
+            {"ts": item.get("ts"), "type": item.get("type"), "status": item.get("status")}
+            for item in (status_payload.get("job_events") if isinstance(status_payload.get("job_events"), list) else [])
+            if isinstance(item, dict)
+            and str(item.get("type") or "").strip()
+            in {"critic_finding_status_changed", "review_comment_added", "review_comment_status_changed"}
+        ]
+    )
     return {
         **comment_defaults,
         **readiness,
@@ -238,6 +271,11 @@ def _review_readiness_from_payloads(
         "comment_triage_summary": comment_triage,
         "reviewer_workflow_summary": reviewer_workflow_summary,
         "action_queue_summary": action_queue_summary,
+        "throughput_summary": throughput_summary,
+        "queue_delta_summary": _review_workflow_queue_delta_summary_payload(
+            action_queue_summary=action_queue_summary,
+            throughput_summary=throughput_summary,
+        ),
         "review_workflow_policy_summary": _review_workflow_policy_summary_payload(
             reviewer_workflow_summary=reviewer_workflow_summary,
             action_queue_summary=action_queue_summary,
@@ -572,10 +610,11 @@ def main() -> int:
             quality_payload,
             critic_payload,
             export_payload,
+            status_payload,
             donor_id=str(row.get("donor_id") or "").strip(),
         )
-        for row, quality_payload, critic_payload, export_payload in zip(
-            rows, quality_payloads, critic_payloads, export_payloads, strict=False
+        for row, quality_payload, critic_payload, export_payload, status_payload in zip(
+            rows, quality_payloads, critic_payloads, export_payloads, status_payloads, strict=False
         )
     ]
     triage_summaries = []
@@ -697,6 +736,38 @@ def main() -> int:
             for item in readiness_summaries
             if isinstance(item, dict)
         ]
+    )
+    avg_finding_ack_completed = _avg(
+        [
+            _safe_float(
+                item.get("throughput_summary", {}).get("finding_ack_completed_count")
+                if isinstance(item.get("throughput_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    avg_comment_resolve_completed = _avg(
+        [
+            _safe_float(
+                item.get("throughput_summary", {}).get("comment_resolve_completed_count")
+                if isinstance(item.get("throughput_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    dominant_completed_action = next(
+        (
+            str(item.get("throughput_summary", {}).get("dominant_completed_action") or "").strip()
+            for item in readiness_summaries
+            if isinstance(item, dict)
+            and isinstance(item.get("throughput_summary"), dict)
+            and str(item.get("throughput_summary", {}).get("dominant_completed_action") or "").strip()
+        ),
+        "",
     )
     avg_critic_finding_resolution_rate = _avg(
         [
@@ -1073,6 +1144,13 @@ def main() -> int:
         f"- Average comment ack queue per case: `{_format_num(avg_comment_ack_queue)}`",
         f"- Average comment resolve queue per case: `{_format_num(avg_comment_resolve_queue)}`",
         f"- Average comment reopen queue per case: `{_format_num(avg_comment_reopen_queue)}`",
+        f"- Average finding acks completed per case: `{_format_num(avg_finding_ack_completed)}`",
+        f"- Average comment resolves completed per case: `{_format_num(avg_comment_resolve_completed)}`",
+        *(
+            [f"- Dominant completed workflow action: `{dominant_completed_action}`"]
+            if dominant_completed_action
+            else []
+        ),
         f"- Comment threads aged 3-7d per case: `{_format_num(age_d3_7_avg)}`",
         f"- Comment threads aged >7d per case: `{_format_num(age_gt_7d_avg)}`",
         *(

@@ -5322,6 +5322,16 @@ def render_demo_ui_html() -> str:
         const actionQueue = summary?.action_queue_summary && typeof summary.action_queue_summary === "object"
           ? summary.action_queue_summary
           : {};
+        const throughput = summary?.throughput_summary && typeof summary.throughput_summary === "object"
+          ? summary.throughput_summary
+          : {};
+        if (els.reviewWorkflowPolicyLine) {
+          const dominantCompletedAction = String(throughput?.dominant_completed_action || "-");
+          const findingAckCompleted = Number(throughput?.finding_ack_completed_count || 0);
+          const commentResolveCompleted = Number(throughput?.comment_resolve_completed_count || 0);
+          els.reviewWorkflowPolicyLine.textContent +=
+            ` · throughput=${dominantCompletedAction} · finding_ack_done=${findingAckCompleted} · comment_resolve_done=${commentResolveCompleted}`;
+        }
         renderReviewActionQueueCards(actionQueue);
         renderSuggestedOpsActions(actionQueue, workflowPolicy);
       }
@@ -5757,10 +5767,13 @@ def render_demo_ui_html() -> str:
         const workflowPolicy = summary?.review_workflow_policy_summary && typeof summary.review_workflow_policy_summary === "object"
           ? summary.review_workflow_policy_summary
           : {};
+        const throughput = summary?.throughput_summary && typeof summary.throughput_summary === "object"
+          ? summary.throughput_summary
+          : {};
         if (els.portfolioReviewWorkflowPolicyLine) {
           const goNoGo = String(workflowPolicy?.go_no_go_flag || "-");
           els.portfolioReviewWorkflowPolicyLine.textContent =
-            `portfolio policy: status=${String(workflowPolicy?.status || "-")} · go/no-go=${goNoGo} · send_class=${sendClassificationForGoNoGo(goNoGo)} · next=${String(workflowPolicy?.next_operational_action || "-")}`;
+            `portfolio policy: status=${String(workflowPolicy?.status || "-")} · go/no-go=${goNoGo} · send_class=${sendClassificationForGoNoGo(goNoGo)} · next=${String(workflowPolicy?.next_operational_action || "-")} · throughput=${String(throughput?.dominant_completed_action || "-")} · finding_ack_done=${Number(throughput?.finding_ack_completed_count || 0)} · comment_resolve_done=${Number(throughput?.comment_resolve_completed_count || 0)}`;
         }
         renderSendGate(workflowPolicy);
 

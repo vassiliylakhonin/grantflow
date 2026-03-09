@@ -12,7 +12,9 @@ from grantflow.api.public_views import (
     _comment_triage_summary_payload,
     _critic_triage_summary_payload,
     _review_action_queue_summary_payload,
+    _review_workflow_queue_delta_summary_payload,
     _review_workflow_policy_summary_payload,
+    _review_workflow_throughput_summary_payload,
     _reviewer_workflow_summary_payload,
 )
 
@@ -135,17 +137,49 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
     action_queue_summary = (
         readiness.get("action_queue_summary") if isinstance(readiness.get("action_queue_summary"), dict) else {}
     )
+    throughput_summary = (
+        readiness.get("throughput_summary") if isinstance(readiness.get("throughput_summary"), dict) else {}
+    )
+    queue_delta_summary = (
+        readiness.get("queue_delta_summary") if isinstance(readiness.get("queue_delta_summary"), dict) else {}
+    )
     reviewer_workflow_summary = (
         readiness.get("reviewer_workflow_summary")
         if isinstance(readiness.get("reviewer_workflow_summary"), dict)
         else {}
     )
+    status_payload_events = (
+        status_payload.get("job_events") if isinstance(status_payload.get("job_events"), list) else []
+    )
+    timeline = []
+    for item in status_payload_events:
+        if not isinstance(item, dict):
+            continue
+        event_type = str(item.get("type") or "").strip()
+        if event_type not in {
+            "critic_finding_status_changed",
+            "review_comment_added",
+            "review_comment_status_changed",
+        }:
+            continue
+        timeline.append(
+            {
+                "ts": item.get("ts"),
+                "type": event_type,
+                "status": item.get("status"),
+            }
+        )
     if not action_queue_summary and isinstance(critic, dict):
         raw_findings = critic.get("fatal_flaws")
         findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
         action_queue_summary = _review_action_queue_summary_payload(
             critic_findings=findings,
             comment_triage_summary=comment_triage,
+        )
+        throughput_summary = _review_workflow_throughput_summary_payload(timeline=timeline)
+        queue_delta_summary = _review_workflow_queue_delta_summary_payload(
+            action_queue_summary=action_queue_summary,
+            throughput_summary=throughput_summary,
         )
         reviewer_workflow_summary = _reviewer_workflow_summary_payload(
             critic_findings=findings,
@@ -155,7 +189,18 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             **readiness,
             "reviewer_workflow_summary": reviewer_workflow_summary,
             "action_queue_summary": action_queue_summary,
+            "throughput_summary": throughput_summary,
+            "queue_delta_summary": queue_delta_summary,
         }
+    if not throughput_summary:
+        throughput_summary = _review_workflow_throughput_summary_payload(timeline=timeline)
+        readiness = {**readiness, "throughput_summary": throughput_summary}
+    if not queue_delta_summary and action_queue_summary:
+        queue_delta_summary = _review_workflow_queue_delta_summary_payload(
+            action_queue_summary=action_queue_summary,
+            throughput_summary=throughput_summary,
+        )
+        readiness = {**readiness, "queue_delta_summary": queue_delta_summary}
     if not isinstance(readiness.get("review_workflow_policy_summary"), dict):
         readiness = {
             **readiness,
@@ -343,6 +388,61 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             if isinstance(readiness.get("action_queue_summary"), dict)
             else None
         ),
+        "finding_ack_completed_count": (
+            readiness.get("throughput_summary", {}).get("finding_ack_completed_count")
+            if isinstance(readiness.get("throughput_summary"), dict)
+            else None
+        ),
+        "finding_resolve_completed_count": (
+            readiness.get("throughput_summary", {}).get("finding_resolve_completed_count")
+            if isinstance(readiness.get("throughput_summary"), dict)
+            else None
+        ),
+        "comment_ack_completed_count": (
+            readiness.get("throughput_summary", {}).get("comment_ack_completed_count")
+            if isinstance(readiness.get("throughput_summary"), dict)
+            else None
+        ),
+        "comment_resolve_completed_count": (
+            readiness.get("throughput_summary", {}).get("comment_resolve_completed_count")
+            if isinstance(readiness.get("throughput_summary"), dict)
+            else None
+        ),
+        "comment_reopen_completed_count": (
+            readiness.get("throughput_summary", {}).get("comment_reopen_completed_count")
+            if isinstance(readiness.get("throughput_summary"), dict)
+            else None
+        ),
+        "dominant_completed_action": (
+            readiness.get("throughput_summary", {}).get("dominant_completed_action")
+            if isinstance(readiness.get("throughput_summary"), dict)
+            else None
+        ),
+        "finding_ack_net_delta": (
+            readiness.get("queue_delta_summary", {}).get("finding_ack_net_delta")
+            if isinstance(readiness.get("queue_delta_summary"), dict)
+            else None
+        ),
+        "finding_resolve_net_delta": (
+            readiness.get("queue_delta_summary", {}).get("finding_resolve_net_delta")
+            if isinstance(readiness.get("queue_delta_summary"), dict)
+            else None
+        ),
+        "comment_ack_net_delta": (
+            readiness.get("queue_delta_summary", {}).get("comment_ack_net_delta")
+            if isinstance(readiness.get("queue_delta_summary"), dict)
+            else None
+        ),
+        "comment_resolve_net_delta": (
+            readiness.get("queue_delta_summary", {}).get("comment_resolve_net_delta")
+            if isinstance(readiness.get("queue_delta_summary"), dict)
+            else None
+        ),
+        "comment_reopen_net_delta": (
+            readiness.get("queue_delta_summary", {}).get("comment_reopen_net_delta")
+            if isinstance(readiness.get("queue_delta_summary"), dict)
+            else None
+        ),
         "next_primary_action": (
             readiness.get("action_queue_summary", {}).get("next_primary_action")
             if isinstance(readiness.get("action_queue_summary"), dict)
@@ -471,6 +571,17 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "comment_ack_queue_count",
         "comment_resolve_queue_count",
         "comment_reopen_queue_count",
+        "finding_ack_completed_count",
+        "finding_resolve_completed_count",
+        "comment_ack_completed_count",
+        "comment_resolve_completed_count",
+        "comment_reopen_completed_count",
+        "dominant_completed_action",
+        "finding_ack_net_delta",
+        "finding_resolve_net_delta",
+        "comment_ack_net_delta",
+        "comment_resolve_net_delta",
+        "comment_reopen_net_delta",
         "next_primary_action",
         "review_workflow_policy_status",
         "review_workflow_policy_go_no_go_flag",
@@ -579,6 +690,24 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
     avg_comment_ack_queue = _avg([_safe_int(row.get("comment_ack_queue_count")) for row in rows])
     avg_comment_resolve_queue = _avg([_safe_int(row.get("comment_resolve_queue_count")) for row in rows])
     avg_comment_reopen_queue = _avg([_safe_int(row.get("comment_reopen_queue_count")) for row in rows])
+    avg_finding_ack_completed = _avg([_safe_int(row.get("finding_ack_completed_count")) for row in rows])
+    avg_finding_resolve_completed = _avg([_safe_int(row.get("finding_resolve_completed_count")) for row in rows])
+    avg_comment_ack_completed = _avg([_safe_int(row.get("comment_ack_completed_count")) for row in rows])
+    avg_comment_resolve_completed = _avg([_safe_int(row.get("comment_resolve_completed_count")) for row in rows])
+    avg_comment_reopen_completed = _avg([_safe_int(row.get("comment_reopen_completed_count")) for row in rows])
+    avg_finding_ack_net_delta = _avg([_safe_int(row.get("finding_ack_net_delta")) for row in rows])
+    avg_finding_resolve_net_delta = _avg([_safe_int(row.get("finding_resolve_net_delta")) for row in rows])
+    avg_comment_ack_net_delta = _avg([_safe_int(row.get("comment_ack_net_delta")) for row in rows])
+    avg_comment_resolve_net_delta = _avg([_safe_int(row.get("comment_resolve_net_delta")) for row in rows])
+    avg_comment_reopen_net_delta = _avg([_safe_int(row.get("comment_reopen_net_delta")) for row in rows])
+    dominant_completed_action = next(
+        (
+            str(row.get("dominant_completed_action") or "").strip()
+            for row in rows
+            if str(row.get("dominant_completed_action") or "").strip()
+        ),
+        "",
+    )
     avg_mel_hits = _avg([_safe_int(row.get("mel_retrieval_hits_count")) for row in rows])
     avg_mel_grounded_count = _avg([_safe_int(row.get("mel_retrieval_grounded_citation_count")) for row in rows])
     avg_mel_grounded_rate = _avg([_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in rows])
@@ -728,6 +857,17 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
         "avg_comment_ack_queue": avg_comment_ack_queue,
         "avg_comment_resolve_queue": avg_comment_resolve_queue,
         "avg_comment_reopen_queue": avg_comment_reopen_queue,
+        "avg_finding_ack_completed_count": avg_finding_ack_completed,
+        "avg_finding_resolve_completed_count": avg_finding_resolve_completed,
+        "avg_comment_ack_completed_count": avg_comment_ack_completed,
+        "avg_comment_resolve_completed_count": avg_comment_resolve_completed,
+        "avg_comment_reopen_completed_count": avg_comment_reopen_completed,
+        "avg_finding_ack_net_delta": avg_finding_ack_net_delta,
+        "avg_finding_resolve_net_delta": avg_finding_resolve_net_delta,
+        "avg_comment_ack_net_delta": avg_comment_ack_net_delta,
+        "avg_comment_resolve_net_delta": avg_comment_resolve_net_delta,
+        "avg_comment_reopen_net_delta": avg_comment_reopen_net_delta,
+        "dominant_completed_action": dominant_completed_action or None,
         "avg_comment_age_d3_7": avg_comment_age_d3_7,
         "avg_comment_age_gt_7d": avg_comment_age_gt_7d,
         "stale_comment_bucket_mix": _bucket_mix_text(stale_bucket_totals),
@@ -799,6 +939,24 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_comment_ack_queue = _avg([_safe_int(row.get("comment_ack_queue_count")) for row in rows])
     avg_comment_resolve_queue = _avg([_safe_int(row.get("comment_resolve_queue_count")) for row in rows])
     avg_comment_reopen_queue = _avg([_safe_int(row.get("comment_reopen_queue_count")) for row in rows])
+    avg_finding_ack_completed = _avg([_safe_int(row.get("finding_ack_completed_count")) for row in rows])
+    avg_finding_resolve_completed = _avg([_safe_int(row.get("finding_resolve_completed_count")) for row in rows])
+    avg_comment_ack_completed = _avg([_safe_int(row.get("comment_ack_completed_count")) for row in rows])
+    avg_comment_resolve_completed = _avg([_safe_int(row.get("comment_resolve_completed_count")) for row in rows])
+    avg_comment_reopen_completed = _avg([_safe_int(row.get("comment_reopen_completed_count")) for row in rows])
+    avg_finding_ack_net_delta = _avg([_safe_int(row.get("finding_ack_net_delta")) for row in rows])
+    avg_finding_resolve_net_delta = _avg([_safe_int(row.get("finding_resolve_net_delta")) for row in rows])
+    avg_comment_ack_net_delta = _avg([_safe_int(row.get("comment_ack_net_delta")) for row in rows])
+    avg_comment_resolve_net_delta = _avg([_safe_int(row.get("comment_resolve_net_delta")) for row in rows])
+    avg_comment_reopen_net_delta = _avg([_safe_int(row.get("comment_reopen_net_delta")) for row in rows])
+    dominant_completed_action = next(
+        (
+            str(row.get("dominant_completed_action") or "").strip()
+            for row in rows
+            if str(row.get("dominant_completed_action") or "").strip()
+        ),
+        "",
+    )
     avg_mel_hits = _avg([_safe_int(row.get("mel_retrieval_hits_count")) for row in rows])
     avg_mel_grounded_count = _avg([_safe_int(row.get("mel_retrieval_grounded_citation_count")) for row in rows])
     avg_mel_grounded_rate = _avg([_safe_float(row.get("mel_retrieval_grounded_citation_rate")) for row in rows])
@@ -950,6 +1108,18 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average comment ack queue per case: `{_fmt(avg_comment_ack_queue)}`")
     lines.append(f"- Average comment resolve queue per case: `{_fmt(avg_comment_resolve_queue)}`")
     lines.append(f"- Average comment reopen queue per case: `{_fmt(avg_comment_reopen_queue)}`")
+    lines.append(f"- Average finding acks completed per case: `{_fmt(avg_finding_ack_completed)}`")
+    lines.append(f"- Average finding resolves completed per case: `{_fmt(avg_finding_resolve_completed)}`")
+    lines.append(f"- Average comment acks completed per case: `{_fmt(avg_comment_ack_completed)}`")
+    lines.append(f"- Average comment resolves completed per case: `{_fmt(avg_comment_resolve_completed)}`")
+    lines.append(f"- Average comment reopens per case: `{_fmt(avg_comment_reopen_completed)}`")
+    lines.append(f"- Average finding ack net delta: `{_fmt(avg_finding_ack_net_delta)}`")
+    lines.append(f"- Average finding resolve net delta: `{_fmt(avg_finding_resolve_net_delta)}`")
+    lines.append(f"- Average comment ack net delta: `{_fmt(avg_comment_ack_net_delta)}`")
+    lines.append(f"- Average comment resolve net delta: `{_fmt(avg_comment_resolve_net_delta)}`")
+    lines.append(f"- Average comment reopen net delta: `{_fmt(avg_comment_reopen_net_delta)}`")
+    if dominant_completed_action:
+        lines.append(f"- Dominant completed workflow action: `{dominant_completed_action}`")
     lines.append(f"- Average comment threads aged 3-7d per case: `{_fmt(avg_comment_age_d3_7)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_fmt(avg_comment_age_gt_7d)}`")
     if any(stale_bucket_totals.values()):

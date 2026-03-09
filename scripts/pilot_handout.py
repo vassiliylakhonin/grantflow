@@ -352,6 +352,16 @@ def _build_handout(
         if isinstance(featured_review_readiness.get("action_queue_summary"), dict)
         else {}
     )
+    throughput_summary = (
+        featured_review_readiness.get("throughput_summary")
+        if isinstance(featured_review_readiness.get("throughput_summary"), dict)
+        else {}
+    )
+    queue_delta_summary = (
+        featured_review_readiness.get("queue_delta_summary")
+        if isinstance(featured_review_readiness.get("queue_delta_summary"), dict)
+        else {}
+    )
     if action_queue:
         if str(action_queue.get("next_primary_action") or "").strip():
             lines.append(f"- Next primary review action: `{action_queue.get('next_primary_action')}`")
@@ -360,6 +370,18 @@ def _build_handout(
         lines.append(f"- Comment ack queue: `{action_queue.get('comment_ack_queue_count', '-')}`")
         lines.append(f"- Comment resolve queue: `{action_queue.get('comment_resolve_queue_count', '-')}`")
         lines.append(f"- Comment reopen queue: `{action_queue.get('comment_reopen_queue_count', '-')}`")
+    if throughput_summary:
+        lines.append(f"- Finding acks completed: `{throughput_summary.get('finding_ack_completed_count', '-')}`")
+        lines.append(
+            f"- Comment resolves completed: `{throughput_summary.get('comment_resolve_completed_count', '-')}`"
+        )
+        if str(throughput_summary.get("dominant_completed_action") or "").strip():
+            lines.append(
+                f"- Dominant completed workflow action: `{throughput_summary.get('dominant_completed_action')}`"
+            )
+    if queue_delta_summary:
+        lines.append(f"- Finding ack net delta: `{queue_delta_summary.get('finding_ack_net_delta', '-')}`")
+        lines.append(f"- Comment resolve net delta: `{queue_delta_summary.get('comment_resolve_net_delta', '-')}`")
     top_finding_titles, top_reviewer_actions = _top_reviewer_items(featured_critic_payload)
     fallback_next_action = str(featured_triage_summary.get("next_recommended_action") or "").strip()
     if fallback_next_action and fallback_next_action not in top_reviewer_actions:
