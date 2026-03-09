@@ -381,6 +381,67 @@ def test_mel_state_department_defaults_are_media_resilience_shaped():
     assert "partner risk reviews" in str(indicator["data_source"]).lower()
 
 
+def test_mel_un_agencies_defaults_are_programme_shaped():
+    indicator = mel_module._apply_indicator_defaults(
+        {
+            "indicator_id": "IND_001",
+            "name": "Improve education access for vulnerable children across target schools",
+            "justification": "stub",
+            "citation": "stub",
+        },
+        donor_id="un_agencies",
+        toc_statement_path="toc.expected_outcomes[0].title",
+    )
+
+    assert "un programme result" in str(indicator["definition"]).lower()
+    assert "education monitoring datasets" in str(indicator["data_source"]).lower()
+    assert "sector coordination lead" in str(indicator["owner"]).lower()
+    assert "sector review documentation" in str(indicator["means_of_verification"]).lower()
+    assert indicator["formula"] == "Count of institutions/facilities meeting verified programme delivery criteria"
+    assert indicator["disaggregation"] == ["sex", "age", "location"]
+
+
+def test_mel_un_agencies_retrieval_text_is_programme_shaped():
+    justification = mel_module._retrieval_indicator_justification(
+        donor_id="un_agencies",
+        namespace="un_agencies_guidance",
+        toc_statement_path="toc.expected_outcomes[0].title",
+        result_level="outcome",
+        indicator_name="Schools implementing verified learning continuity standards",
+    )
+    definition = mel_module._retrieval_definition_from_hit(
+        donor_id="un_agencies",
+        namespace="un_agencies_guidance",
+        toc_statement_path="toc.expected_outcomes[0].title",
+        result_level="outcome",
+        indicator_name="Schools implementing verified learning continuity standards",
+        excerpt="Cluster and field monitoring evidence",
+        source="un_agencies_guidance",
+    )
+
+    assert "un programme monitoring" in justification.lower()
+    assert "sector-review use" in justification.lower()
+    assert "un programme result" in definition.lower()
+    assert "inter-agency review evidence" in definition.lower()
+
+
+def test_mel_giz_defaults_include_implementation_validation():
+    indicator = mel_module._apply_indicator_defaults(
+        {
+            "indicator_id": "IND_001",
+            "name": "Strengthen SME resilience and continuity planning",
+            "justification": "stub",
+            "citation": "stub",
+        },
+        donor_id="giz",
+        toc_statement_path="toc.expected_outcomes[0].title",
+    )
+
+    assert "implementation validation" in str(indicator["definition"]).lower()
+    assert "sustainability focal points" in str(indicator["owner"]).lower()
+    assert "implementation review notes" in str(indicator["means_of_verification"]).lower()
+
+
 def test_mel_llm_mode_uses_structured_output_when_available(monkeypatch):
     monkeypatch.setattr(mel_module, "openai_compatible_llm_available", lambda: True)
 

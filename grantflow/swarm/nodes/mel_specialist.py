@@ -419,6 +419,8 @@ def _default_frequency_for_donor(donor_id: str, *, result_level: str) -> str:
         return "quarterly" if level == "output" else "annual"
     if donor in {"giz", "state_department", "us_state_department"}:
         return "quarterly"
+    if donor == "un_agencies":
+        return "quarterly" if level == "output" else "semiannual"
     return base
 
 
@@ -491,6 +493,20 @@ def _default_data_source_for_donor(donor_id: str, *, result_level: str, indicato
             "impact": "Independent assessments and administrative datasets",
         }
         return sources.get(level, sources["outcome"])
+    if donor == "un_agencies":
+        if any(token in name for token in ("education", "school", "learning", "teacher", "student", "child")):
+            sources = {
+                "output": "Programme monitoring records, partner 5W trackers, and school-level activity reports",
+                "outcome": "Partner verification records, education monitoring datasets, and field monitoring notes",
+                "impact": "Sector assessments, official education statistics, and inter-agency review evidence",
+            }
+            return sources.get(level, sources["outcome"])
+        sources = {
+            "output": "Programme monitoring records, partner 5W trackers, and implementation reports",
+            "outcome": "Partner verification records, field monitoring notes, and programme review datasets",
+            "impact": "Inter-agency assessments, official statistics, and programme review evidence",
+        }
+        return sources.get(level, sources["outcome"])
     return default_sources.get(level, default_sources["outcome"])
 
 
@@ -537,7 +553,10 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
             "and results reporting."
         )
     if donor == "giz":
-        return f"{label} measured at {level} level with partner delivery evidence and sustainability-oriented review."
+        return (
+            f"{label} measured at {level} level with partner delivery evidence, implementation validation, "
+            "and sustainability-oriented review."
+        )
     if donor in {"state_department", "us_state_department"}:
         if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
             return (
@@ -547,6 +566,16 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
         return (
             f"{label} measured at {level} level using program management evidence, verification checks, and "
             "periodic risk review."
+        )
+    if donor == "un_agencies":
+        if any(token in name for token in ("education", "school", "learning", "teacher", "student", "child")):
+            return (
+                f"{label} measured at {level} level as a UN programme result using partner verification, "
+                "field monitoring, and sector-review evidence."
+            )
+        return (
+            f"{label} measured at {level} level as a UN programme result using partner verification, "
+            "field monitoring, and inter-agency review evidence."
         )
     return f"{label} tracked at {level} level."
 
@@ -573,6 +602,12 @@ def _default_indicator_formula(indicator_name: str, *, result_level: str, donor_
         token in name for token in ("media", "newsroom", "journalist", "civil society", "resilience")
     ):
         return "Count of organizations implementing verified resilience or protection practices"
+    if donor == "un_agencies" and any(
+        token in name for token in ("education", "school", "learning", "facility", "service access")
+    ):
+        return "Count of institutions/facilities meeting verified programme delivery criteria"
+    if donor == "un_agencies" and any(token in name for token in ("child", "student", "teacher", "beneficiary")):
+        return "Count of individuals meeting verified access or participation criteria"
     if _is_institution_indicator(name) or _is_organization_indicator(name):
         return "Count of institutions/organizations meeting defined performance or adoption criteria"
     if any(token in name for token in ("policy", "regulation", "protocol", "guideline", "sop")):
@@ -620,6 +655,11 @@ def _deterministic_indicator_justification(
             f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a USAID-style performance indicator "
             f"covering {focus} and aligned with PMP-oriented monitoring, disaggregation, and verification logic."
         )
+    if donor == "un_agencies":
+        return (
+            f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a UN programme indicator "
+            f"covering {focus} for field monitoring, partner verification, and sector-review use."
+        )
     return (
         f"Deterministic MEL mapping for {level_label} '{statement_ref}' from `{statement_path}` covering {focus}. "
         "Tracks delivery of the causal results chain."
@@ -666,6 +706,11 @@ def _deterministic_definition_from_statement(
         return (
             f"{label} tracks {focus} as a {level}-level State Department program result using partner verification, "
             "delivery monitoring, and resilience-oriented review."
+        )
+    if donor == "un_agencies":
+        return (
+            f"{label} tracks {focus} as a {level}-level UN programme result using partner verification, "
+            "field monitoring, and inter-agency review evidence."
         )
     return f"{label} tracks {focus} at {level} level."
 
@@ -728,6 +773,11 @@ def _retrieval_indicator_justification(
             f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
             "for program delivery and resilience-focused review."
         )
+    if donor == "un_agencies":
+        return (
+            f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
+            "for UN programme monitoring, partner verification, and sector-review use."
+        )
     return (
         f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
         "for MEL coverage."
@@ -771,6 +821,12 @@ def _retrieval_evidence_signal(
         if any(token in text for token in ("verification", "risk log", "partner monitoring")):
             return "partner verification evidence"
         return "State Department program evidence"
+    if donor == "un_agencies":
+        if any(token in text for token in ("cluster", "inter-agency", "sector review")):
+            return "inter-agency review evidence"
+        if any(token in text for token in ("5w", "partner monitoring", "field monitoring", "verification")):
+            return "partner and field monitoring evidence"
+        return "UN programme evidence"
     return "retrieved donor evidence"
 
 
@@ -824,6 +880,11 @@ def _retrieval_definition_from_hit(
             f"{label} tracks a {level_label}-level State Department program result using {signal} "
             "for delivery monitoring and resilience-oriented review."
         )
+    if donor == "un_agencies":
+        return (
+            f"{label} tracks a {level_label}-level UN programme result using {signal} "
+            "for partner verification, field monitoring, and sector-review use."
+        )
     return f"{label} tracks a {level_label}-level result using {signal}."
 
 
@@ -838,6 +899,8 @@ def _default_disaggregation(indicator_name: str, *, donor_id: str, result_level:
         base = ["location", "institution_type"]
     elif donor in {"state_department", "us_state_department"}:
         base = ["location", "participant_group"]
+    elif donor == "un_agencies":
+        base = ["sex", "age", "location"]
     if any(token in name for token in ("train", "official", "staff", "beneficiar", "participant", "people")):
         return ["sex", "age", "location"]
     if any(token in name for token in ("coverage", "rate", "service")):
@@ -864,11 +927,13 @@ def _default_owner_for_donor(donor_id: str, *, result_level: str, indicator_name
             return "PIU results lead and implementing agency performance focal points"
         return "PIU M&E specialist and implementing agency focal points"
     if donor == "giz":
-        return "Programme M&E advisor and delivery partners"
+        return "Programme M&E advisor, delivery partners, and sustainability focal points"
     if donor in {"state_department", "us_state_department"}:
         if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
             return "Program manager, partner MEL focal point, and media partner leads"
         return "Program manager and partner MEL focal point"
+    if donor == "un_agencies":
+        return "Programme manager, partner M&E focal point, and sector coordination lead"
     return "MEL lead"
 
 
@@ -921,11 +986,13 @@ def _default_means_of_verification_for_donor(donor_id: str, *, result_level: str
         }
         return mapping.get(level, mapping["outcome"])
     if donor == "giz":
-        return "Partner monitoring records, validation meetings, and sustainability review notes"
+        return "Partner monitoring records, validation meetings, implementation review notes, and sustainability review notes"
     if donor in {"state_department", "us_state_department"}:
         if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
             return "Partner monitoring records, editorial risk logs, and resilience review documentation"
         return "Program monitoring records, partner verification notes, and risk review documentation"
+    if donor == "un_agencies":
+        return "Partner monitoring records, field verification notes, and programme or sector review documentation"
     return "Monitoring records and verification documents"
 
 
