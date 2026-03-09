@@ -1106,6 +1106,9 @@ def render_demo_ui_html() -> str:
             <div id="criticBulkActionHint" class="footer-note mono" style="margin-top:10px;">
               finding bulk action: scope=filtered finding ids · queue=finding ack queue
             </div>
+            <div id="criticWorkflowFilterSuggestion" class="footer-note mono" style="margin-top:6px;">
+              workflow filter suggestion: -
+            </div>
             <div class="row" style="margin-top:10px;">
               <div>
                 <label for="criticSelectedFindingIds">Selected Finding IDs (comma/newline separated)</label>
@@ -1343,6 +1346,9 @@ def render_demo_ui_html() -> str:
             </div>
             <div id="commentBulkActionHint" class="footer-note mono" style="margin-top:10px;">
               comment bulk action: scope=filtered comment ids · queue=comment ack queue
+            </div>
+            <div id="commentWorkflowFilterSuggestion" class="footer-note mono" style="margin-top:6px;">
+              workflow filter suggestion: -
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -2012,6 +2018,7 @@ def render_demo_ui_html() -> str:
         criticBulkScope: $("criticBulkScope"),
         criticBulkPreviewBtn: $("criticBulkPreviewBtn"),
         criticBulkActionHint: $("criticBulkActionHint"),
+        criticWorkflowFilterSuggestion: $("criticWorkflowFilterSuggestion"),
         criticSyncWorkflowFiltersBtn: $("criticSyncWorkflowFiltersBtn"),
         criticAddSelectedFindingBtn: $("criticAddSelectedFindingBtn"),
         criticClearSelectedFindingIdsBtn: $("criticClearSelectedFindingIdsBtn"),
@@ -2039,6 +2046,7 @@ def render_demo_ui_html() -> str:
         commentsFilterVersionId: $("commentsFilterVersionId"),
         commentBulkPreviewBtn: $("commentBulkPreviewBtn"),
         commentBulkActionHint: $("commentBulkActionHint"),
+        commentWorkflowFilterSuggestion: $("commentWorkflowFilterSuggestion"),
         commentSyncWorkflowFiltersBtn: $("commentSyncWorkflowFiltersBtn"),
         commentCopySelectedCommentIdsBtn: $("commentCopySelectedCommentIdsBtn"),
         commentLoadCommentIdsFromWorkflowBtn: $("commentLoadCommentIdsFromWorkflowBtn"),
@@ -5081,6 +5089,21 @@ def render_demo_ui_html() -> str:
         if (els.criticBulkActionHint) {
           els.criticBulkActionHint.textContent = `finding bulk action: scope=${describeBulkScope(scope, selectedCount, "finding ids")} · queue=${action.queueLabel}`;
         }
+        const workflowSection = String(els.reviewWorkflowFindingSectionFilter?.value || "").trim();
+        const workflowStatus = String(els.reviewWorkflowCommentStatusFilter?.value || "").trim();
+        const criticSection = String(els.criticSectionFilter?.value || "").trim();
+        const criticStatus = String(els.criticFindingStatusFilter?.value || "").trim();
+        if (els.criticWorkflowFilterSuggestion) {
+          if ((workflowSection || workflowStatus) && !criticSection && !criticStatus) {
+            const parts = [];
+            if (workflowSection) parts.push(`section=${workflowSection}`);
+            if (workflowStatus) parts.push(`status=${workflowStatus}`);
+            els.criticWorkflowFilterSuggestion.textContent =
+              `workflow filter suggestion: bulk critic filters are empty; use workflow filters (${parts.join(" · ")})`;
+          } else {
+            els.criticWorkflowFilterSuggestion.textContent = "workflow filter suggestion: -";
+          }
+        }
       }
 
       function updateCommentBulkActionUi() {
@@ -5092,6 +5115,21 @@ def render_demo_ui_html() -> str:
         if (els.commentBulkApplyBtn) els.commentBulkApplyBtn.textContent = action.applyLabel;
         if (els.commentBulkActionHint) {
           els.commentBulkActionHint.textContent = `comment bulk action: scope=${describeBulkScope(scope, selectedCount, "comment ids")} · queue=${action.queueLabel}`;
+        }
+        const workflowSection = String(els.reviewWorkflowFindingSectionFilter?.value || "").trim();
+        const workflowStatus = String(els.reviewWorkflowCommentStatusFilter?.value || "").trim();
+        const commentSection = String(els.commentsFilterSection?.value || "").trim();
+        const commentStatus = String(els.commentsFilterStatus?.value || "").trim();
+        if (els.commentWorkflowFilterSuggestion) {
+          if ((workflowSection || workflowStatus) && !commentSection && !commentStatus) {
+            const parts = [];
+            if (workflowSection) parts.push(`section=${workflowSection}`);
+            if (workflowStatus) parts.push(`status=${workflowStatus}`);
+            els.commentWorkflowFilterSuggestion.textContent =
+              `workflow filter suggestion: bulk comment filters are empty; use workflow filters (${parts.join(" · ")})`;
+          } else {
+            els.commentWorkflowFilterSuggestion.textContent = "workflow filter suggestion: -";
+          }
         }
       }
 
@@ -8955,6 +8993,16 @@ def render_demo_ui_html() -> str:
         [els.commentBulkTargetStatus, els.commentBulkScope, els.commentSelectedCommentIds].forEach((el) => {
           el?.addEventListener("change", updateCommentBulkActionUi);
           el?.addEventListener("input", updateCommentBulkActionUi);
+        });
+        [els.reviewWorkflowFindingSectionFilter, els.reviewWorkflowCommentStatusFilter].forEach((el) => {
+          el?.addEventListener("change", () => {
+            updateCriticBulkActionUi();
+            updateCommentBulkActionUi();
+          });
+          el?.addEventListener("input", () => {
+            updateCriticBulkActionUi();
+            updateCommentBulkActionUi();
+          });
         });
         updateCriticBulkActionUi();
         updateCommentBulkActionUi();
