@@ -86,6 +86,18 @@ def _triage_summary_from_payloads(
     return _critic_triage_summary_payload(findings, donor_id=donor_id) if findings else {}
 
 
+def _top_reviewer_actions_from_critic(critic_payload: dict[str, Any], *, donor_id: str = "") -> list[str]:
+    raw_findings = critic_payload.get("fatal_flaws")
+    findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+    if not findings:
+        return []
+    triage = _critic_triage_summary_payload(findings, donor_id=donor_id)
+    raw_actions = triage.get("top_reviewer_actions")
+    if not isinstance(raw_actions, list):
+        return []
+    return [str(value or "").strip() for value in raw_actions if str(value or "").strip()]
+
+
 def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
     lines = text.splitlines()
     bullets: list[str] = []
@@ -110,6 +122,7 @@ def _build_brief(
     triage_next_action: str | None,
     triage_next_bucket: str | None,
     triage_top_ids: list[str],
+    triage_top_actions: list[str],
 ) -> str:
     done_count = sum(1 for row in rows if str(row.get("status") or "").strip().lower() == "done")
     hitl_count = sum(1 for row in rows if bool(row.get("hitl_enabled")))
@@ -146,6 +159,8 @@ def _build_brief(
             lines.append(f"- Next review bucket: `{triage_next_bucket}`")
         if triage_next_action:
             lines.append(f"- Next recommended action: {triage_next_action}")
+        for index, action in enumerate(triage_top_actions[:2], start=1):
+            lines.append(f"- Top reviewer action {index}: {action}")
         if triage_top_ids:
             lines.append(
                 f"- Top priority finding ids: {', '.join(f'`{item}`' for item in triage_top_ids if str(item).strip())}"
@@ -272,6 +287,7 @@ def main() -> int:
         "",
     )
     triage_top_ids: list[str] = []
+    triage_top_actions: list[str] = []
     for item in triage_summaries:
         if not isinstance(item, dict):
             continue
@@ -286,6 +302,34 @@ def main() -> int:
                 break
         if len(triage_top_ids) >= 3:
             break
+    for item in triage_summaries:
+        if not isinstance(item, dict):
+            continue
+        raw_actions = item.get("top_reviewer_actions")
+        if not isinstance(raw_actions, list):
+            continue
+        for value in raw_actions:
+            token = str(value or "").strip()
+            if token and token not in triage_top_actions:
+                triage_top_actions.append(token)
+            if len(triage_top_actions) >= 3:
+                break
+        if len(triage_top_actions) >= 3:
+            break
+    if not triage_top_actions:
+        for row, critic_payload in zip(rows, critic_payloads, strict=False):
+            for action in _top_reviewer_actions_from_critic(
+                critic_payload,
+                donor_id=str(row.get("donor_id") or "").strip(),
+            ):
+                if action and action not in triage_top_actions:
+                    triage_top_actions.append(action)
+                if len(triage_top_actions) >= 3:
+                    break
+            if len(triage_top_actions) >= 3:
+                break
+    if not triage_top_actions and triage_next_action:
+        triage_top_actions.append(triage_next_action)
 
     output_path = Path(str(args.output)).resolve() if str(args.output).strip() else pilot_pack_dir / "buyer-brief.md"
     include_productization_memo = (pilot_pack_dir / "productization-gaps-memo.md").exists()
@@ -303,6 +347,7 @@ def main() -> int:
         triage_next_action=(triage_next_action or None),
         triage_next_bucket=(triage_next_bucket or None),
         triage_top_ids=triage_top_ids,
+        triage_top_actions=triage_top_actions,
     )
     insert_lines = [
         "## Review Readiness Snapshot",

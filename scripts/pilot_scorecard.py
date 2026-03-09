@@ -104,6 +104,14 @@ def _load_metrics_rows(metrics_csv_path: Path) -> dict[str, dict[str, str]]:
     return metrics_rows
 
 
+def _first_nonempty_metric(metrics_rows: dict[str, dict[str, str]], key: str) -> str:
+    for row in metrics_rows.values():
+        value = str(row.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
 def _missing_files(case_path: Path, required_files: tuple[str, ...]) -> list[str]:
     return [name for name in required_files if not (case_path / name).exists()]
 
@@ -200,6 +208,8 @@ def _build_scorecard(
     min_avg_quality: float,
     min_avg_critic: float,
     min_terminal_done_rate: float,
+    portfolio_next_bucket: str,
+    portfolio_next_action: str,
 ) -> str:
     total_cases = len(cases)
     done_cases = sum(1 for case in cases if case.status.lower() == "done")
@@ -347,6 +357,10 @@ def _build_scorecard(
     lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart)}`")
     lines.append(f"- Average MoV coverage: `{_fmt(avg_mov)}`")
     lines.append(f"- Average owner coverage: `{_fmt(avg_owner)}`")
+    if portfolio_next_bucket:
+        lines.append(f"- Portfolio next review bucket: `{portfolio_next_bucket}`")
+    if portfolio_next_action:
+        lines.append(f"- Portfolio next recommended action: {portfolio_next_action}")
     lines.append(
         f"- Cases with complete LogFrame operational coverage: `{complete_logframe_cases}/{total_cases}` ({complete_logframe_rate:.0%})"
     )
@@ -431,6 +445,8 @@ def main() -> int:
 
     metrics_rows = _load_metrics_rows(pilot_pack_dir / "pilot-metrics.csv")
     cases = _load_case_scorecards(pilot_pack_dir, benchmark_rows, metrics_rows)
+    portfolio_next_bucket = _first_nonempty_metric(metrics_rows, "next_review_bucket")
+    portfolio_next_action = _first_nonempty_metric(metrics_rows, "next_recommended_action")
     output_path = (
         Path(str(args.output)).resolve() if str(args.output).strip() else pilot_pack_dir / "pilot-scorecard.md"
     )
@@ -441,6 +457,8 @@ def main() -> int:
             min_avg_quality=args.min_avg_quality,
             min_avg_critic=args.min_avg_critic,
             min_terminal_done_rate=args.min_terminal_done_rate,
+            portfolio_next_bucket=portfolio_next_bucket,
+            portfolio_next_action=portfolio_next_action,
         ),
         encoding="utf-8",
     )
