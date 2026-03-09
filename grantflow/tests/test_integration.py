@@ -752,6 +752,40 @@ def test_demo_console_includes_bulk_preview_summary_helpers():
     assert "Not Found" in body
     assert "Target Status" in body
     assert "Missing IDs" in body
+
+
+def test_demo_console_exposes_end_to_end_bulk_review_controls():
+    response = client.get("/demo")
+    assert response.status_code == 200
+    body = response.text
+
+    required_tokens = [
+        "criticBulkScope",
+        "criticBulkPreviewBtn",
+        "criticBulkApplyBtn",
+        "criticSelectedFindingIds",
+        "criticCopySelectedFindingIdsBtn",
+        "criticLoadFindingIdsFromWorkflowBtn",
+        "criticBulkSummaryList",
+        "commentBulkScope",
+        "commentBulkPreviewBtn",
+        "commentBulkApplyBtn",
+        "commentSelectedCommentIds",
+        "commentCopySelectedCommentIdsBtn",
+        "commentLoadCommentIdsFromWorkflowBtn",
+        "commentBulkSummaryList",
+        "reviewWorkflowJson",
+        "renderBulkPreviewSummary",
+        "collectWorkflowFindingIds",
+        "collectWorkflowCommentIds",
+        "Copy Selected IDs",
+        "Fill From Workflow View",
+        "Preview Bulk Status",
+        "Preview Comment Bulk Status",
+        "No bulk preview yet.",
+    ]
+    for token in required_tokens:
+        assert token in body
     assert "reviewWorkflowExportJsonBtn" in body
     assert "reviewWorkflowExportCsvBtn" in body
     assert "reviewWorkflowTrendsBtn" in body
