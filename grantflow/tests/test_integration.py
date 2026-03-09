@@ -4071,6 +4071,75 @@ def test_status_critic_bulk_status_dry_run_previews_without_persisting():
     assert all(str(item.get("status") or "") == "resolved" for item in critic_after_commit)
 
 
+def test_status_critic_bulk_status_dry_run_previews_selected_ids_without_persisting():
+    job_id = "critic-findings-bulk-dry-run-selected-1"
+    api_app_module.JOB_STORE.set(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "quality_score": 6.0,
+                "critic_score": 6.0,
+                "needs_revision": True,
+                "critic_notes": {
+                    "engine": "rules",
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "dry-selected-f1",
+                            "code": "TOC_SCHEMA_INVALID",
+                            "severity": "high",
+                            "section": "toc",
+                            "status": "open",
+                            "message": "ToC invalid.",
+                            "source": "rules",
+                        },
+                        {
+                            "finding_id": "dry-selected-f2",
+                            "code": "LOGFRAME_BASELINE_MISSING",
+                            "severity": "medium",
+                            "section": "logframe",
+                            "status": "open",
+                            "message": "Missing baseline.",
+                            "source": "rules",
+                        },
+                    ],
+                    "rule_checks": [],
+                },
+            },
+        },
+    )
+
+    dry_run_resp = client.post(
+        f"/status/{job_id}/critic/findings/bulk-status",
+        headers={"X-Actor": "bulk_finding_previewer"},
+        json={
+            "next_status": "acknowledged",
+            "finding_ids": ["dry-selected-f1", "dry-selected-missing"],
+            "dry_run": True,
+        },
+    )
+    assert dry_run_resp.status_code == 200
+    dry_run_body = dry_run_resp.json()
+    assert dry_run_body["dry_run"] is True
+    assert dry_run_body["persisted"] is False
+    assert dry_run_body["requested_status"] == "acknowledged"
+    assert dry_run_body["actor"] == "bulk_finding_previewer"
+    assert dry_run_body["matched_count"] == 1
+    assert dry_run_body["changed_count"] == 1
+    assert dry_run_body["unchanged_count"] == 0
+    assert dry_run_body["not_found_finding_ids"] == ["dry-selected-missing"]
+    assert dry_run_body["updated_findings"][0]["finding_id"] == "dry-selected-f1"
+    assert dry_run_body["updated_findings"][0]["status"] == "acknowledged"
+
+    critic_after_preview_resp = client.get(f"/status/{job_id}/critic")
+    assert critic_after_preview_resp.status_code == 200
+    critic_after_preview = {
+        item["finding_id"]: item["status"] for item in critic_after_preview_resp.json()["fatal_flaws"]
+    }
+    assert critic_after_preview["dry-selected-f1"] == "open"
+    assert critic_after_preview["dry-selected-f2"] == "open"
+
+
 def test_status_critic_bulk_status_if_match_returns_conflict_without_changes():
     job_id = "critic-findings-bulk-if-match-1"
     api_app_module.JOB_STORE.set(
