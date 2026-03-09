@@ -1100,6 +1100,9 @@ def render_demo_ui_html() -> str:
                 <button id="criticBulkClearFiltersBtn" class="ghost">Clear Critic Filters</button>
               </div>
             </div>
+            <div id="criticBulkActionHint" class="footer-note mono" style="margin-top:10px;">
+              finding bulk action: scope=filtered finding ids · queue=finding ack queue
+            </div>
             <div class="row" style="margin-top:10px;">
               <div>
                 <label for="criticSelectedFindingIds">Selected Finding IDs (comma/newline separated)</label>
@@ -1331,6 +1334,9 @@ def render_demo_ui_html() -> str:
                   <option value="all">all</option>
                 </select>
               </div>
+            </div>
+            <div id="commentBulkActionHint" class="footer-note mono" style="margin-top:10px;">
+              comment bulk action: scope=filtered comment ids · queue=comment ack queue
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -1999,6 +2005,7 @@ def render_demo_ui_html() -> str:
         criticBulkTargetStatus: $("criticBulkTargetStatus"),
         criticBulkScope: $("criticBulkScope"),
         criticBulkPreviewBtn: $("criticBulkPreviewBtn"),
+        criticBulkActionHint: $("criticBulkActionHint"),
         criticAddSelectedFindingBtn: $("criticAddSelectedFindingBtn"),
         criticClearSelectedFindingIdsBtn: $("criticClearSelectedFindingIdsBtn"),
         criticCopySelectedFindingIdsBtn: $("criticCopySelectedFindingIdsBtn"),
@@ -2024,6 +2031,7 @@ def render_demo_ui_html() -> str:
         commentsFilterStatus: $("commentsFilterStatus"),
         commentsFilterVersionId: $("commentsFilterVersionId"),
         commentBulkPreviewBtn: $("commentBulkPreviewBtn"),
+        commentBulkActionHint: $("commentBulkActionHint"),
         commentCopySelectedCommentIdsBtn: $("commentCopySelectedCommentIdsBtn"),
         commentLoadCommentIdsFromWorkflowBtn: $("commentLoadCommentIdsFromWorkflowBtn"),
         commentBulkSummaryList: $("commentBulkSummaryList"),
@@ -4966,6 +4974,63 @@ def render_demo_ui_html() -> str:
             <div class="sub">${escapeHtml(notFoundList.slice(0, 5).join(", "))}${notFoundList.length > 5 ? ` +${notFoundList.length - 5} more` : ""}</div>
           `;
           el.appendChild(div);
+        }
+      }
+
+      function describeBulkScope(scope, selectedCount, itemLabel) {
+        const normalized = String(scope || "filtered").trim().toLowerCase();
+        if (normalized === "all") return `all ${itemLabel} in job`;
+        if (normalized === "selected") return `selected ${itemLabel} (${selectedCount})`;
+        return `filtered ${itemLabel}`;
+      }
+
+      function describeBulkAction(targetStatus, itemKind) {
+        const normalizedStatus = String(targetStatus || "").trim().toLowerCase();
+        const normalizedKind = String(itemKind || "finding").trim().toLowerCase();
+        const plural = normalizedKind === "comment" ? "Comments" : "Findings";
+        const base = normalizedKind === "comment" ? "comment" : "finding";
+        if (normalizedStatus === "resolved") {
+          return {
+            previewLabel: `Preview Resolve ${plural}`,
+            applyLabel: `Apply Resolve ${plural}`,
+            queueLabel: `${base} resolve queue`,
+          };
+        }
+        if (normalizedStatus === "open") {
+          return {
+            previewLabel: `Preview Reopen ${plural}`,
+            applyLabel: `Apply Reopen ${plural}`,
+            queueLabel: normalizedKind === "comment" ? "comment reopen queue" : "finding reopen path",
+          };
+        }
+        return {
+          previewLabel: `Preview Acknowledge ${plural}`,
+          applyLabel: `Apply Acknowledge ${plural}`,
+          queueLabel: `${base} ack queue`,
+        };
+      }
+
+      function updateCriticBulkActionUi() {
+        const targetStatus = String(els.criticBulkTargetStatus?.value || "acknowledged").trim();
+        const scope = String(els.criticBulkScope?.value || "filtered").trim();
+        const selectedCount = parseIdList(els.criticSelectedFindingIds?.value || "").length;
+        const action = describeBulkAction(targetStatus, "finding");
+        if (els.criticBulkPreviewBtn) els.criticBulkPreviewBtn.textContent = action.previewLabel;
+        if (els.criticBulkApplyBtn) els.criticBulkApplyBtn.textContent = action.applyLabel;
+        if (els.criticBulkActionHint) {
+          els.criticBulkActionHint.textContent = `finding bulk action: scope=${describeBulkScope(scope, selectedCount, "finding ids")} · queue=${action.queueLabel}`;
+        }
+      }
+
+      function updateCommentBulkActionUi() {
+        const targetStatus = String(els.commentBulkTargetStatus?.value || "acknowledged").trim();
+        const scope = String(els.commentBulkScope?.value || "filtered").trim();
+        const selectedCount = parseIdList(els.commentSelectedCommentIds?.value || "").length;
+        const action = describeBulkAction(targetStatus, "comment");
+        if (els.commentBulkPreviewBtn) els.commentBulkPreviewBtn.textContent = action.previewLabel;
+        if (els.commentBulkApplyBtn) els.commentBulkApplyBtn.textContent = action.applyLabel;
+        if (els.commentBulkActionHint) {
+          els.commentBulkActionHint.textContent = `comment bulk action: scope=${describeBulkScope(scope, selectedCount, "comment ids")} · queue=${action.queueLabel}`;
         }
       }
 
@@ -8436,6 +8501,7 @@ def render_demo_ui_html() -> str:
             const findingId = String(els.criticSelectedFindingId.value || "").trim();
             if (!findingId) throw new Error("No latest finding id selected");
             mergeIdsIntoTextarea(els.criticSelectedFindingIds, [findingId]);
+            updateCriticBulkActionUi();
           } catch (err) {
             showError(err);
           }
@@ -8443,6 +8509,7 @@ def render_demo_ui_html() -> str:
         els.criticClearSelectedFindingIdsBtn.addEventListener("click", () => {
           els.criticSelectedFindingIds.value = "";
           persistUiState();
+          updateCriticBulkActionUi();
         });
         renderBulkPreviewSummary(els.criticBulkSummaryList, null, {
           notFoundKey: "not_found_finding_ids",
@@ -8455,9 +8522,14 @@ def render_demo_ui_html() -> str:
         els.criticLoadFindingIdsFromWorkflowBtn.addEventListener("click", () => {
           try {
             loadFindingIdsFromWorkflow();
+            updateCriticBulkActionUi();
           } catch (err) {
             showError(err);
           }
+        });
+        [els.criticBulkTargetStatus, els.criticBulkScope, els.criticSelectedFindingIds].forEach((el) => {
+          el?.addEventListener("change", updateCriticBulkActionUi);
+          el?.addEventListener("input", updateCriticBulkActionUi);
         });
         els.criticBulkClearFiltersBtn.addEventListener("click", () => {
           clearCriticFilters();
@@ -8733,6 +8805,7 @@ def render_demo_ui_html() -> str:
             const commentId = String(els.selectedCommentId.value || "").trim();
             if (!commentId) throw new Error("No latest comment id selected");
             mergeIdsIntoTextarea(els.commentSelectedCommentIds, [commentId]);
+            updateCommentBulkActionUi();
           } catch (err) {
             showError(err);
           }
@@ -8740,6 +8813,7 @@ def render_demo_ui_html() -> str:
         els.commentClearSelectedCommentIdsBtn.addEventListener("click", () => {
           els.commentSelectedCommentIds.value = "";
           persistUiState();
+          updateCommentBulkActionUi();
         });
         renderBulkPreviewSummary(els.commentBulkSummaryList, null, {
           notFoundKey: "not_found_comment_ids",
@@ -8752,12 +8826,19 @@ def render_demo_ui_html() -> str:
         els.commentLoadCommentIdsFromWorkflowBtn.addEventListener("click", () => {
           try {
             loadCommentIdsFromWorkflow();
+            updateCommentBulkActionUi();
           } catch (err) {
             showError(err);
           }
         });
         els.commentBulkPreviewBtn.addEventListener("click", () => applyCommentBulkStatus({ dryRun: true }).catch(showError));
         els.commentBulkApplyBtn.addEventListener("click", () => applyCommentBulkStatus().catch(showError));
+        [els.commentBulkTargetStatus, els.commentBulkScope, els.commentSelectedCommentIds].forEach((el) => {
+          el?.addEventListener("change", updateCommentBulkActionUi);
+          el?.addEventListener("input", updateCommentBulkActionUi);
+        });
+        updateCriticBulkActionUi();
+        updateCommentBulkActionUi();
         els.clearLinkedFindingBtn.addEventListener("click", clearLinkedFindingSelection);
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));

@@ -448,11 +448,13 @@ def test_demo_console_page_loads():
     assert "criticBulkScope" in body
     assert "criticBulkApplyBtn" in body
     assert "criticBulkPreviewBtn" in body
+    assert "criticBulkActionHint" in body
     assert "criticBulkClearFiltersBtn" in body
     assert "criticBulkResultJson" in body
     assert "criticBulkSummaryList" in body
     assert "Apply Bulk Status" in body
     assert "Preview Bulk Status" in body
+    assert "finding bulk action:" in body
     assert "Clear Critic Filters" in body
     assert "criticAdvisorySummaryList" in body
     assert "criticAdvisoryLabelsList" in body
@@ -711,11 +713,13 @@ def test_demo_console_page_loads():
     assert "commentCopySelectedCommentIdsBtn" in body
     assert "commentLoadCommentIdsFromWorkflowBtn" in body
     assert "commentBulkPreviewBtn" in body
+    assert "commentBulkActionHint" in body
     assert "commentBulkSummaryList" in body
     assert "selected finding ids" in body
     assert "selected comment ids" in body
     assert "Copy Selected IDs" in body
     assert "Fill From Workflow View" in body
+    assert "comment bulk action:" in body
     assert "No bulk preview yet." in body
     assert "reviewActionQueueCards" in body
     assert "Next Primary Action" in body
@@ -774,14 +778,20 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "commentCopySelectedCommentIdsBtn",
         "commentLoadCommentIdsFromWorkflowBtn",
         "commentBulkSummaryList",
+        "criticBulkActionHint",
+        "commentBulkActionHint",
         "reviewWorkflowJson",
         "renderBulkPreviewSummary",
         "collectWorkflowFindingIds",
         "collectWorkflowCommentIds",
+        "updateCriticBulkActionUi",
+        "updateCommentBulkActionUi",
+        "describeBulkAction",
+        "describeBulkScope",
         "Copy Selected IDs",
         "Fill From Workflow View",
-        "Preview Bulk Status",
-        "Preview Comment Bulk Status",
+        "finding bulk action: scope=",
+        "comment bulk action: scope=",
         "No bulk preview yet.",
     ]
     for token in required_tokens:
