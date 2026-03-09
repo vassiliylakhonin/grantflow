@@ -338,6 +338,14 @@ def _build_scorecard(
     min_avg_quality: float,
     min_avg_critic: float,
     min_terminal_done_rate: float,
+    min_architect_grounded_rate: float,
+    min_mel_grounded_rate: float,
+    max_avg_architect_fallback: float,
+    max_avg_mel_fallback: float,
+    min_reviewer_resolution_rate: float,
+    min_reviewer_acknowledgment_rate: float,
+    max_avg_finding_ack_queue: float,
+    max_avg_comment_gt_7d: float,
     portfolio_next_bucket: str,
     portfolio_next_action: str,
 ) -> str:
@@ -473,6 +481,26 @@ def _build_scorecard(
         fail_reasons.append(f"export artifact coverage incomplete ({export_complete_cases}/{total_cases} cases)")
     if hitl_cases and hitl_history_cases < hitl_cases:
         fail_reasons.append(f"HITL history missing for enabled cases ({hitl_history_cases}/{hitl_cases})")
+    if portfolio_policy_status == "breach":
+        fail_reasons.append("review workflow SLA policy is in breach state")
+    if avg_architect_grounded_rate is None or avg_architect_grounded_rate < min_architect_grounded_rate:
+        fail_reasons.append(
+            "architect grounding below threshold "
+            f"({_fmt(avg_architect_grounded_rate)}, target >= {_fmt(min_architect_grounded_rate)})"
+        )
+    if avg_mel_grounded_rate is None or avg_mel_grounded_rate < min_mel_grounded_rate:
+        fail_reasons.append(
+            f"MEL grounding below threshold ({_fmt(avg_mel_grounded_rate)}, target >= {_fmt(min_mel_grounded_rate)})"
+        )
+    if avg_architect_fallback is not None and avg_architect_fallback > max_avg_architect_fallback:
+        fail_reasons.append(
+            "architect fallback citations above threshold "
+            f"({_fmt(avg_architect_fallback)}, target <= {_fmt(max_avg_architect_fallback)})"
+        )
+    if avg_mel_fallback is not None and avg_mel_fallback > max_avg_mel_fallback:
+        fail_reasons.append(
+            f"MEL fallback citations above threshold ({_fmt(avg_mel_fallback)}, target <= {_fmt(max_avg_mel_fallback)})"
+        )
 
     if baseline_cases < total_cases:
         conditional_reasons.append(
@@ -490,10 +518,36 @@ def _build_scorecard(
         conditional_reasons.append("stale reviewer comment threads remain in at least one case")
     if any((case.orphan_linked_review_comments or 0) > 0 for case in cases):
         conditional_reasons.append("orphan linked reviewer comments remain in at least one case")
-    if portfolio_policy_status == "breach":
-        conditional_reasons.append("review workflow SLA policy is in breach state")
-    elif portfolio_policy_status == "attention":
+    if portfolio_policy_status == "attention":
         conditional_reasons.append("review workflow SLA policy requires operational cleanup before buyer handoff")
+    if (
+        avg_reviewer_workflow_resolution is not None
+        and avg_reviewer_workflow_resolution < min_reviewer_resolution_rate
+        and portfolio_policy_status != "breach"
+    ):
+        conditional_reasons.append(
+            "reviewer workflow resolution rate below operating threshold "
+            f"({_fmt(avg_reviewer_workflow_resolution)}, target >= {_fmt(min_reviewer_resolution_rate)})"
+        )
+    if (
+        avg_reviewer_workflow_ack is not None
+        and avg_reviewer_workflow_ack < min_reviewer_acknowledgment_rate
+        and portfolio_policy_status != "breach"
+    ):
+        conditional_reasons.append(
+            "reviewer workflow acknowledgment rate below operating threshold "
+            f"({_fmt(avg_reviewer_workflow_ack)}, target >= {_fmt(min_reviewer_acknowledgment_rate)})"
+        )
+    if avg_finding_ack_queue is not None and avg_finding_ack_queue > max_avg_finding_ack_queue:
+        conditional_reasons.append(
+            "finding ack queue above operating threshold "
+            f"({_fmt(avg_finding_ack_queue)}, target <= {_fmt(max_avg_finding_ack_queue)})"
+        )
+    if avg_comment_age_gt_7d is not None and avg_comment_age_gt_7d > max_avg_comment_gt_7d:
+        conditional_reasons.append(
+            "comment threads aged >7d above operating threshold "
+            f"({_fmt(avg_comment_age_gt_7d)}, target <= {_fmt(max_avg_comment_gt_7d)})"
+        )
     if any((case.fallback_strategy_citations or 0) > 0 for case in cases):
         conditional_reasons.append("fallback/strategy citations remain present in at least one case")
     if hitl_cases == 0:
@@ -551,6 +605,77 @@ def _build_scorecard(
             _gate_status(complete_logframe_cases == total_cases, conditional=True),
             f"{complete_logframe_cases}/{total_cases}",
             "complete SMART + MoV + owner coverage for every case",
+        ),
+        (
+            "Review workflow policy",
+            _gate_status(portfolio_policy_status != "breach", conditional=portfolio_policy_status == "attention"),
+            portfolio_policy_status or "-",
+            "healthy preferred; attention allowed with conditions",
+        ),
+        (
+            "Architect grounding rate",
+            _gate_status(
+                avg_architect_grounded_rate is not None and avg_architect_grounded_rate >= min_architect_grounded_rate
+            ),
+            _fmt(avg_architect_grounded_rate),
+            f"target >= {_fmt(min_architect_grounded_rate)}",
+        ),
+        (
+            "MEL grounding rate",
+            _gate_status(avg_mel_grounded_rate is not None and avg_mel_grounded_rate >= min_mel_grounded_rate),
+            _fmt(avg_mel_grounded_rate),
+            f"target >= {_fmt(min_mel_grounded_rate)}",
+        ),
+        (
+            "Architect fallback load",
+            _gate_status(
+                avg_architect_fallback is not None and avg_architect_fallback <= max_avg_architect_fallback,
+                conditional=True,
+            ),
+            _fmt(avg_architect_fallback),
+            f"target <= {_fmt(max_avg_architect_fallback)}",
+        ),
+        (
+            "MEL fallback load",
+            _gate_status(avg_mel_fallback is not None and avg_mel_fallback <= max_avg_mel_fallback, conditional=True),
+            _fmt(avg_mel_fallback),
+            f"target <= {_fmt(max_avg_mel_fallback)}",
+        ),
+        (
+            "Reviewer resolution rate",
+            _gate_status(
+                avg_reviewer_workflow_resolution is not None
+                and avg_reviewer_workflow_resolution >= min_reviewer_resolution_rate,
+                conditional=True,
+            ),
+            _fmt(avg_reviewer_workflow_resolution),
+            f"target >= {_fmt(min_reviewer_resolution_rate)}",
+        ),
+        (
+            "Reviewer acknowledgment rate",
+            _gate_status(
+                avg_reviewer_workflow_ack is not None and avg_reviewer_workflow_ack >= min_reviewer_acknowledgment_rate,
+                conditional=True,
+            ),
+            _fmt(avg_reviewer_workflow_ack),
+            f"target >= {_fmt(min_reviewer_acknowledgment_rate)}",
+        ),
+        (
+            "Finding ack queue",
+            _gate_status(
+                avg_finding_ack_queue is not None and avg_finding_ack_queue <= max_avg_finding_ack_queue,
+                conditional=True,
+            ),
+            _fmt(avg_finding_ack_queue),
+            f"target <= {_fmt(max_avg_finding_ack_queue)}",
+        ),
+        (
+            "Comment threads >7d",
+            _gate_status(
+                avg_comment_age_gt_7d is not None and avg_comment_age_gt_7d <= max_avg_comment_gt_7d, conditional=True
+            ),
+            _fmt(avg_comment_age_gt_7d),
+            f"target <= {_fmt(max_avg_comment_gt_7d)}",
         ),
     ]
 
@@ -702,6 +827,14 @@ def main() -> int:
     parser.add_argument("--min-avg-quality", type=float, default=7.0)
     parser.add_argument("--min-avg-critic", type=float, default=7.0)
     parser.add_argument("--min-terminal-done-rate", type=float, default=1.0)
+    parser.add_argument("--min-architect-grounded-rate", type=float, default=0.85)
+    parser.add_argument("--min-mel-grounded-rate", type=float, default=0.85)
+    parser.add_argument("--max-avg-architect-fallback", type=float, default=0.5)
+    parser.add_argument("--max-avg-mel-fallback", type=float, default=0.5)
+    parser.add_argument("--min-reviewer-resolution-rate", type=float, default=0.35)
+    parser.add_argument("--min-reviewer-acknowledgment-rate", type=float, default=0.65)
+    parser.add_argument("--max-avg-finding-ack-queue", type=float, default=0.5)
+    parser.add_argument("--max-avg-comment-gt-7d", type=float, default=0.0)
     args = parser.parse_args()
 
     pilot_pack_dir = Path(str(args.pilot_pack_dir)).resolve()
@@ -727,6 +860,14 @@ def main() -> int:
             min_avg_quality=args.min_avg_quality,
             min_avg_critic=args.min_avg_critic,
             min_terminal_done_rate=args.min_terminal_done_rate,
+            min_architect_grounded_rate=args.min_architect_grounded_rate,
+            min_mel_grounded_rate=args.min_mel_grounded_rate,
+            max_avg_architect_fallback=args.max_avg_architect_fallback,
+            max_avg_mel_fallback=args.max_avg_mel_fallback,
+            min_reviewer_resolution_rate=args.min_reviewer_resolution_rate,
+            min_reviewer_acknowledgment_rate=args.min_reviewer_acknowledgment_rate,
+            max_avg_finding_ack_queue=args.max_avg_finding_ack_queue,
+            max_avg_comment_gt_7d=args.max_avg_comment_gt_7d,
             portfolio_next_bucket=portfolio_next_bucket,
             portfolio_next_action=portfolio_next_action,
         ),
