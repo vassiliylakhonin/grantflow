@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,6 +22,18 @@ def _latest_matching(build_dir: Path, pattern: str, *, kind: str) -> Path | None
     return max(candidates, key=lambda path: (path.stat().st_mtime, path.name))
 
 
+def _resolve_latest_link(build_dir: Path, link_name: str, *, kind: str) -> Path | None:
+    link_path = build_dir / link_name
+    if not (link_path.exists() or link_path.is_symlink()):
+        return None
+    target = link_path.resolve()
+    if kind == "dir" and target.is_dir():
+        return target
+    if kind == "file" and target.is_file():
+        return target
+    return None
+
+
 def _safe_rel(path: Path, root: Path) -> str:
     try:
         return str(path.relative_to(root))
@@ -37,6 +50,16 @@ def _read_text(path: Path) -> str:
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
+
+
+def _read_json_dict(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _extract_backtick_value(text: str, prefix: str) -> str:
@@ -74,10 +97,18 @@ def main() -> int:
     output_path = Path(str(args.output)).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    latest_fast_dir = _latest_matching(build_dir, "release-demo-bundle-fast*/*", kind="dir")
-    latest_fast_zip = _latest_matching(build_dir, "release-demo-bundle-fast*/*.zip", kind="file")
-    latest_full_dir = _latest_matching(build_dir, "release-demo-bundle/*", kind="dir")
-    latest_full_zip = _latest_matching(build_dir, "release-demo-bundle/*.zip", kind="file")
+    latest_fast_dir = _resolve_latest_link(build_dir, "latest-fast-send-bundle", kind="dir") or _latest_matching(
+        build_dir, "release-demo-bundle-fast*/*", kind="dir"
+    )
+    latest_fast_zip = _resolve_latest_link(build_dir, "latest-fast-send-bundle.zip", kind="file") or _latest_matching(
+        build_dir, "release-demo-bundle-fast*/*.zip", kind="file"
+    )
+    latest_full_dir = _resolve_latest_link(build_dir, "latest-full-send-bundle", kind="dir") or _latest_matching(
+        build_dir, "release-demo-bundle/*", kind="dir"
+    )
+    latest_full_zip = _resolve_latest_link(build_dir, "latest-full-send-bundle.zip", kind="file") or _latest_matching(
+        build_dir, "release-demo-bundle/*.zip", kind="file"
+    )
     latest_handout = _latest_matching(build_dir, "pilot-handout*.md", kind="file")
     latest_open_order = build_dir / "latest-open-order.md"
     executive_readme = build_dir / "latest-executive-pack" / "README.md"
@@ -101,11 +132,20 @@ def main() -> int:
     top_reviewer_action = _extract_suffix_value(executive_text, "- Top reviewer action 1 (featured case): ")
     stale_bucket_mix = _extract_backtick_value(executive_text, "- Stale comment bucket mix: `")
     top_stale_bucket = _extract_backtick_value(executive_text, "- Top stale comment bucket: `")
+    latest_fast_manifest = build_dir / "latest-fast-send-bundle-manifest.json"
+    fast_bundle_manifest = _read_json_dict(latest_fast_manifest)
     latest_fast_readme = latest_fast_dir / "README.md" if latest_fast_dir is not None else None
     fast_bundle_text = _read_text(latest_fast_readme) if latest_fast_readme is not None else ""
-    send_policy_status = _extract_backtick_value(fast_bundle_text, "- Send policy status: `")
-    send_policy_classification = _extract_backtick_value(fast_bundle_text, "- Send policy classification: `")
-    send_policy_action = _extract_backtick_value(fast_bundle_text, "- Next operational action before external send: `")
+    send_policy_status = str(fast_bundle_manifest.get("send_policy_status") or "").strip() or _extract_backtick_value(
+        fast_bundle_text, "- Send policy status: `"
+    )
+    send_policy_classification = str(
+        fast_bundle_manifest.get("send_policy_classification") or ""
+    ).strip() or _extract_backtick_value(fast_bundle_text, "- Send policy classification: `")
+    send_policy_action = str(
+        fast_bundle_manifest.get("next_operational_action_before_external_send") or ""
+    ).strip() or _extract_backtick_value(fast_bundle_text, "- Next operational action before external send: `")
+    bundle_manifest_name = _safe_rel(latest_fast_manifest, build_dir) if latest_fast_manifest.exists() else "-"
 
     lines: list[str] = []
     lines.append("# GrantFlow Send Bundle Index")
@@ -150,6 +190,8 @@ def main() -> int:
             lines.append(f"- Workflow policy status: `{send_policy_status}`")
         if send_policy_action != "-":
             lines.append(f"- Next operational action before external send: `{send_policy_action}`")
+        if bundle_manifest_name != "-":
+            lines.append(f"- Manifest: `{bundle_manifest_name}`")
         lines.append("")
     if executive_text:
         lines.append("## Featured Readiness Snapshot")

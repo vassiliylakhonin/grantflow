@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +29,16 @@ def _read_text(path: Path) -> str:
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8")
+
+
+def _read_json_dict(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return payload if isinstance(payload, dict) else {}
 
 
 def _extract_backtick_value(text: str, prefix: str) -> str:
@@ -76,9 +87,17 @@ def main() -> int:
     top_reviewer_action = _extract_suffix_value(executive_text, "- Top reviewer action 1 (featured case): ")
     fast_bundle_readme = build_dir / "latest-fast-send-bundle" / "README.md"
     fast_bundle_text = _read_text(fast_bundle_readme)
-    send_policy_status = _extract_backtick_value(fast_bundle_text, "- Send policy status: `")
-    send_policy_classification = _extract_backtick_value(fast_bundle_text, "- Send policy classification: `")
-    send_policy_action = _extract_backtick_value(fast_bundle_text, "- Next operational action before external send: `")
+    fast_bundle_manifest_path = build_dir / "latest-fast-send-bundle-manifest.json"
+    fast_bundle_manifest = _read_json_dict(fast_bundle_manifest_path)
+    send_policy_status = str(fast_bundle_manifest.get("send_policy_status") or "").strip() or _extract_backtick_value(
+        fast_bundle_text, "- Send policy status: `"
+    )
+    send_policy_classification = str(
+        fast_bundle_manifest.get("send_policy_classification") or ""
+    ).strip() or _extract_backtick_value(fast_bundle_text, "- Send policy classification: `")
+    send_policy_action = str(
+        fast_bundle_manifest.get("next_operational_action_before_external_send") or ""
+    ).strip() or _extract_backtick_value(fast_bundle_text, "- Next operational action before external send: `")
 
     lines: list[str] = []
     lines.append("# GrantFlow Latest Open Order")
@@ -112,6 +131,8 @@ def main() -> int:
             lines.append(f"- Workflow policy status: `{send_policy_status}`")
         if send_policy_action != "-":
             lines.append(f"- Next operational action before external send: `{send_policy_action}`")
+        if fast_bundle_manifest_path.exists() or fast_bundle_manifest_path.is_symlink():
+            lines.append(f"- Manifest: `{_readlink_target(fast_bundle_manifest_path)}`")
         lines.append("")
     if executive_text:
         lines.append("## Featured Readiness Snapshot")

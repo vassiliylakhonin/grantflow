@@ -21,6 +21,8 @@ FILE_LINK_SPECS = (
     ("latest-send-bundle-index.md", "send-bundle-index.md"),
     ("latest-fast-send-bundle.zip", "release-demo-bundle-fast*/*.zip"),
     ("latest-full-send-bundle.zip", "release-demo-bundle/*.zip"),
+    ("latest-fast-send-bundle-manifest.json", "release-demo-bundle-fast*/*/manifest.json"),
+    ("latest-full-send-bundle-manifest.json", "release-demo-bundle/*/manifest.json"),
 )
 
 PREFERRED_TARGETS = {
@@ -39,6 +41,55 @@ PREFERRED_TARGETS = {
 }
 
 
+def _preferred_target_path(build_dir: Path, link_name: str) -> Path | None:
+    preferred_name = PREFERRED_TARGETS.get(link_name)
+    if preferred_name:
+        if link_name in {
+            "latest-fast-send-bundle",
+            "latest-fast-send-bundle.zip",
+            "latest-fast-send-bundle-manifest.json",
+        }:
+            internal_only = _internal_only_variant(build_dir, preferred_name)
+            if internal_only is not None:
+                return internal_only
+        if link_name in {
+            "latest-full-send-bundle",
+            "latest-full-send-bundle.zip",
+            "latest-full-send-bundle-manifest.json",
+        }:
+            internal_only = _internal_only_variant(build_dir, preferred_name)
+            if internal_only is not None:
+                return internal_only
+        preferred_path = build_dir / preferred_name
+        if preferred_path.exists():
+            return preferred_path
+    if link_name == "latest-fast-send-bundle-manifest.json":
+        base = _preferred_target_path(build_dir, "latest-fast-send-bundle")
+        if base is not None:
+            manifest = base / "manifest.json"
+            if manifest.exists():
+                return manifest
+    if link_name == "latest-full-send-bundle-manifest.json":
+        base = _preferred_target_path(build_dir, "latest-full-send-bundle")
+        if base is not None:
+            manifest = base / "manifest.json"
+            if manifest.exists():
+                return manifest
+    return None
+
+
+def _internal_only_variant(build_dir: Path, preferred_name: str) -> Path | None:
+    preferred_path = build_dir / preferred_name
+    path_string = str(preferred_path)
+    if path_string.endswith(".zip"):
+        alt = Path(path_string[:-4] + "-internal-only.zip")
+    elif path_string.endswith("/manifest.json"):
+        alt = Path(path_string[: -len("/manifest.json")] + "-internal-only/manifest.json")
+    else:
+        alt = Path(path_string + "-internal-only")
+    return alt if alt.exists() else None
+
+
 def _is_generated_pack(path: Path, *, link_name: str, expect_file: bool) -> bool:
     if path.name == link_name or path.name.startswith("latest-"):
         return False
@@ -48,11 +99,9 @@ def _is_generated_pack(path: Path, *, link_name: str, expect_file: bool) -> bool
 
 
 def _pick_latest(build_dir: Path, pattern: str, *, link_name: str, expect_file: bool) -> Path | None:
-    preferred_name = PREFERRED_TARGETS.get(link_name)
-    if preferred_name:
-        preferred_path = build_dir / preferred_name
-        if preferred_path.exists() and _is_generated_pack(preferred_path, link_name=link_name, expect_file=expect_file):
-            return preferred_path
+    preferred_path = _preferred_target_path(build_dir, link_name)
+    if preferred_path is not None and _is_generated_pack(preferred_path, link_name=link_name, expect_file=expect_file):
+        return preferred_path
 
     candidates = [
         path
