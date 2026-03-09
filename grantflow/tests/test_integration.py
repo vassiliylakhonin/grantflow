@@ -842,6 +842,8 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "Suggested Ops Actions",
         "Post-Apply Summary",
         "No applied bulk action yet.",
+        "Queue Delta",
+        "currentQueueSnapshotFromCards",
         'const label = index === 0 ? "Primary" : "Follow-up";',
         "Use Suggested Finding Action",
         "Use Suggested Comment Action",

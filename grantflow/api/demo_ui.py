@@ -5410,6 +5410,20 @@ def render_demo_ui_html() -> str:
         });
       }
 
+      function currentQueueSnapshotFromCards() {
+        const children = Array.isArray(els.reviewActionQueueCards?.children)
+          ? els.reviewActionQueueCards.children
+          : [];
+        return {
+          next_primary_action: String(children?.[0]?.querySelector(".value")?.textContent || "").trim() || "-",
+          finding_ack_queue_count: Number.parseInt(String(children?.[1]?.querySelector(".value")?.textContent || "0"), 10) || 0,
+          finding_resolve_queue_count: Number.parseInt(String(children?.[2]?.querySelector(".value")?.textContent || "0"), 10) || 0,
+          comment_ack_queue_count: Number.parseInt(String(children?.[3]?.querySelector(".value")?.textContent || "0"), 10) || 0,
+          comment_resolve_queue_count: Number.parseInt(String(children?.[4]?.querySelector(".value")?.textContent || "0"), 10) || 0,
+          comment_reopen_queue_count: Number.parseInt(String(children?.[5]?.querySelector(".value")?.textContent || "0"), 10) || 0,
+        };
+      }
+
       function findingActionPresetFromQueue(summary) {
         const findingResolve = Number(summary?.finding_resolve_queue_count || 0);
         const findingAck = Number(summary?.finding_ack_queue_count || 0);
@@ -5537,6 +5551,7 @@ def render_demo_ui_html() -> str:
           { title: "Changed", sub: String(payload.changedCount ?? "-") },
           { title: "Unchanged", sub: String(payload.unchangedCount ?? "-") },
           { title: "Not Found", sub: String(payload.notFoundCount ?? "-") },
+          { title: "Queue Delta", sub: String(payload.queueDelta || "-") },
           { title: "Next Primary Action", sub: String(payload.nextPrimaryAction || "-") },
         ];
         listEl.innerHTML = "";
@@ -5572,6 +5587,7 @@ def render_demo_ui_html() -> str:
       }
 
       async function refreshWorkflowAfterBulkApply(result, queueLabel) {
+        const previousQueue = currentQueueSnapshotFromCards();
         await Promise.allSettled([
           refreshCritic(),
           refreshComments(),
@@ -5586,16 +5602,23 @@ def render_demo_ui_html() -> str:
           refreshPortfolioReviewWorkflowTrends(),
           refreshPortfolioReviewWorkflowSlaTrends(),
         ]);
-        const nextPrimaryAction = Array.isArray(els.reviewActionQueueCards?.children)
-          ? String(els.reviewActionQueueCards.children?.[0]?.querySelector(".value")?.textContent || "").trim()
-          : "-";
+        const currentQueue = currentQueueSnapshotFromCards();
+        const nextPrimaryAction = currentQueue.next_primary_action || "-";
         const notFoundFindingIds = Array.isArray(result?.not_found_finding_ids) ? result.not_found_finding_ids.length : 0;
         const notFoundCommentIds = Array.isArray(result?.not_found_comment_ids) ? result.not_found_comment_ids.length : 0;
+        const queueDeltaParts = [
+          `finding_ack ${previousQueue.finding_ack_queue_count}->${currentQueue.finding_ack_queue_count}`,
+          `finding_resolve ${previousQueue.finding_resolve_queue_count}->${currentQueue.finding_resolve_queue_count}`,
+          `comment_ack ${previousQueue.comment_ack_queue_count}->${currentQueue.comment_ack_queue_count}`,
+          `comment_resolve ${previousQueue.comment_resolve_queue_count}->${currentQueue.comment_resolve_queue_count}`,
+          `comment_reopen ${previousQueue.comment_reopen_queue_count}->${currentQueue.comment_reopen_queue_count}`,
+        ];
         state.lastBulkApplySummary = {
           appliedQueueAction: queueLabel || "-",
           changedCount: Number(result?.changed_count ?? 0),
           unchangedCount: Number(result?.unchanged_count ?? 0),
           notFoundCount: notFoundFindingIds + notFoundCommentIds,
+          queueDelta: queueDeltaParts.join(" · "),
           nextPrimaryAction: nextPrimaryAction || "-",
         };
         renderPostApplySummary(state.lastBulkApplySummary);
