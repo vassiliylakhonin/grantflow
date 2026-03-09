@@ -1147,6 +1147,9 @@ def render_demo_ui_html() -> str:
               </div>
             </div>
             <div style="margin-top:10px;">
+              <div class="list" id="criticBulkSummaryList"></div>
+            </div>
+            <div style="margin-top:10px;">
               <pre id="criticBulkResultJson">{}</pre>
             </div>
             <div style="margin-top:10px;">
@@ -1356,6 +1359,9 @@ def render_demo_ui_html() -> str:
                   <button id="commentClearSelectedCommentIdsBtn" class="ghost">Clear Selected IDs</button>
                 </div>
               </div>
+            </div>
+            <div style="margin-top:10px;">
+              <div class="list" id="commentBulkSummaryList"></div>
             </div>
             <div style="margin-top:10px;">
               <pre id="commentBulkResultJson">{}</pre>
@@ -1997,6 +2003,7 @@ def render_demo_ui_html() -> str:
         criticClearSelectedFindingIdsBtn: $("criticClearSelectedFindingIdsBtn"),
         criticCopySelectedFindingIdsBtn: $("criticCopySelectedFindingIdsBtn"),
         criticLoadFindingIdsFromWorkflowBtn: $("criticLoadFindingIdsFromWorkflowBtn"),
+        criticBulkSummaryList: $("criticBulkSummaryList"),
         portfolioDonorFilter: $("portfolioDonorFilter"),
         portfolioStatusFilter: $("portfolioStatusFilter"),
         portfolioHitlFilter: $("portfolioHitlFilter"),
@@ -2019,6 +2026,7 @@ def render_demo_ui_html() -> str:
         commentBulkPreviewBtn: $("commentBulkPreviewBtn"),
         commentCopySelectedCommentIdsBtn: $("commentCopySelectedCommentIdsBtn"),
         commentLoadCommentIdsFromWorkflowBtn: $("commentLoadCommentIdsFromWorkflowBtn"),
+        commentBulkSummaryList: $("commentBulkSummaryList"),
         commentSection: $("commentSection"),
         commentAuthor: $("commentAuthor"),
         commentVersionId: $("commentVersionId"),
@@ -4902,6 +4910,63 @@ def render_demo_ui_html() -> str:
         return comments
           .map((comment) => String(comment?.comment_id || comment?.id || "").trim())
           .filter(Boolean);
+      }
+
+      function renderBulkPreviewSummary(el, result, { notFoundKey = "", updatedKey = "", itemLabel = "items" } = {}) {
+        if (!el) return;
+        el.innerHTML = "";
+        if (!result || typeof result !== "object") {
+          el.innerHTML = `<div class="item"><div class="sub">No bulk preview yet.</div></div>`;
+          return;
+        }
+        const matchedCount = Number(result.matched_count || 0);
+        const changedCount = Number(result.changed_count || 0);
+        const unchangedCount = Number(result.unchanged_count || 0);
+        const notFoundList = Array.isArray(result[notFoundKey]) ? result[notFoundKey] : [];
+        const updatedItems = Array.isArray(result[updatedKey]) ? result[updatedKey] : [];
+        const dryRun = result.dry_run === true;
+        const persisted = result.persisted === true;
+        const status = String(result.requested_status || "").trim() || "-";
+        const cards = [
+          { title: dryRun ? "Preview Mode" : "Apply Mode", sub: dryRun ? "dry_run=true" : persisted ? "persisted=true" : "persisted=false" },
+          { title: "Matched", sub: String(matchedCount) },
+          { title: "Changed", sub: String(changedCount) },
+          { title: "Unchanged", sub: String(unchangedCount) },
+          { title: "Not Found", sub: String(notFoundList.length) },
+          { title: "Target Status", sub: status },
+        ];
+        for (const card of cards) {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">${escapeHtml(card.title)}</div>
+            <div class="sub">${escapeHtml(card.sub)}</div>
+          `;
+          el.appendChild(div);
+        }
+        if (updatedItems.length) {
+          const preview = updatedItems
+            .slice(0, 3)
+            .map((item) => String(item.finding_id || item.comment_id || item.id || "").trim())
+            .filter(Boolean)
+            .join(", ");
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">Preview ${escapeHtml(itemLabel)}</div>
+            <div class="sub">${escapeHtml(preview || "-")}${updatedItems.length > 3 ? ` +${updatedItems.length - 3} more` : ""}</div>
+          `;
+          el.appendChild(div);
+        }
+        if (notFoundList.length) {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <div class="title mono">Missing IDs</div>
+            <div class="sub">${escapeHtml(notFoundList.slice(0, 5).join(", "))}${notFoundList.length > 5 ? ` +${notFoundList.length - 5} more` : ""}</div>
+          `;
+          el.appendChild(div);
+        }
       }
 
       async function applyRuntimeGroundedGateReviewWorkflowDrilldown({ section = "", reasonCode = "" } = {}) {
@@ -8156,6 +8221,11 @@ def render_demo_ui_html() -> str:
           body: JSON.stringify(payload),
         });
         setJson(els.criticBulkResultJson, result);
+        renderBulkPreviewSummary(els.criticBulkSummaryList, result, {
+          notFoundKey: "not_found_finding_ids",
+          updatedKey: "updated_findings",
+          itemLabel: "findings",
+        });
         await Promise.allSettled([
           refreshCritic(),
           refreshReviewWorkflow(),
@@ -8235,6 +8305,11 @@ def render_demo_ui_html() -> str:
           body: JSON.stringify(payload),
         });
         setJson(els.commentBulkResultJson, result);
+        renderBulkPreviewSummary(els.commentBulkSummaryList, result, {
+          notFoundKey: "not_found_comment_ids",
+          updatedKey: "updated_comments",
+          itemLabel: "comments",
+        });
         await Promise.allSettled([
           refreshComments(),
           refreshReviewWorkflow(),
@@ -8368,6 +8443,11 @@ def render_demo_ui_html() -> str:
         els.criticClearSelectedFindingIdsBtn.addEventListener("click", () => {
           els.criticSelectedFindingIds.value = "";
           persistUiState();
+        });
+        renderBulkPreviewSummary(els.criticBulkSummaryList, null, {
+          notFoundKey: "not_found_finding_ids",
+          updatedKey: "updated_findings",
+          itemLabel: "findings",
         });
         els.criticCopySelectedFindingIdsBtn.addEventListener("click", () =>
           copySelectedFindingIds().catch((err) => showError(err))
@@ -8660,6 +8740,11 @@ def render_demo_ui_html() -> str:
         els.commentClearSelectedCommentIdsBtn.addEventListener("click", () => {
           els.commentSelectedCommentIds.value = "";
           persistUiState();
+        });
+        renderBulkPreviewSummary(els.commentBulkSummaryList, null, {
+          notFoundKey: "not_found_comment_ids",
+          updatedKey: "updated_comments",
+          itemLabel: "comments",
         });
         els.commentCopySelectedCommentIdsBtn.addEventListener("click", () =>
           copySelectedCommentIds().catch((err) => showError(err))

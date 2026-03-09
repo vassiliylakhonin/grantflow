@@ -450,6 +450,7 @@ def test_demo_console_page_loads():
     assert "criticBulkPreviewBtn" in body
     assert "criticBulkClearFiltersBtn" in body
     assert "criticBulkResultJson" in body
+    assert "criticBulkSummaryList" in body
     assert "Apply Bulk Status" in body
     assert "Preview Bulk Status" in body
     assert "Clear Critic Filters" in body
@@ -710,10 +711,12 @@ def test_demo_console_page_loads():
     assert "commentCopySelectedCommentIdsBtn" in body
     assert "commentLoadCommentIdsFromWorkflowBtn" in body
     assert "commentBulkPreviewBtn" in body
+    assert "commentBulkSummaryList" in body
     assert "selected finding ids" in body
     assert "selected comment ids" in body
     assert "Copy Selected IDs" in body
     assert "Fill From Workflow View" in body
+    assert "No bulk preview yet." in body
     assert "reviewActionQueueCards" in body
     assert "Next Primary Action" in body
     assert "reviewWorkflowBtn" in body
