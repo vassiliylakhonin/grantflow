@@ -5025,6 +5025,66 @@ def test_status_comments_bulk_status_supports_filters_and_apply_all():
     assert set(comment_ids).issubset(resolved_ids)
 
 
+def test_status_comments_bulk_status_dry_run_previews_selected_ids_without_persisting():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Public Finance", "country": "Uzbekistan"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+    _wait_for_terminal_status(job_id)
+
+    toc_versions_resp = client.get(f"/status/{job_id}/versions", params={"section": "toc"})
+    assert toc_versions_resp.status_code == 200
+    toc_version_id = toc_versions_resp.json()["versions"][-1]["version_id"]
+
+    c1 = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "toc", "message": "Tighten causal chain.", "version_id": toc_version_id},
+    )
+    c2 = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "general", "message": "Clarify ownership trail."},
+    )
+    assert c1.status_code == c2.status_code == 200
+    comment_ids = [c1.json()["comment_id"], c2.json()["comment_id"]]
+
+    dry_run_resp = client.post(
+        f"/status/{job_id}/comments/bulk-status",
+        headers={"X-Actor": "bulk_comment_previewer"},
+        json={
+            "next_status": "acknowledged",
+            "comment_ids": [comment_ids[0], "comment-missing"],
+            "dry_run": True,
+        },
+    )
+    assert dry_run_resp.status_code == 200
+    dry_run_body = dry_run_resp.json()
+    assert dry_run_body["dry_run"] is True
+    assert dry_run_body["persisted"] is False
+    assert dry_run_body["requested_status"] == "acknowledged"
+    assert dry_run_body["actor"] == "bulk_comment_previewer"
+    assert dry_run_body["matched_count"] == 1
+    assert dry_run_body["changed_count"] == 1
+    assert dry_run_body["unchanged_count"] == 0
+    assert dry_run_body["not_found_comment_ids"] == ["comment-missing"]
+    assert dry_run_body["updated_comments"][0]["comment_id"] == comment_ids[0]
+    assert dry_run_body["updated_comments"][0]["status"] == "acknowledged"
+
+    comments_after_preview_resp = client.get(f"/status/{job_id}/comments")
+    assert comments_after_preview_resp.status_code == 200
+    comments_after_preview = {
+        item["comment_id"]: item["status"] for item in comments_after_preview_resp.json()["comments"]
+    }
+    assert comments_after_preview[comment_ids[0]] == "open"
+    assert comments_after_preview[comment_ids[1]] == "open"
+
+
 def test_status_comments_endpoint_rejects_invalid_section_or_version():
     response = client.post(
         "/generate",
