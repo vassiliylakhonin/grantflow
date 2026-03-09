@@ -752,6 +752,7 @@ def test_demo_console_includes_bulk_preview_summary_helpers():
     assert "Apply Mode" in body
     assert "Scope" in body
     assert "Filter Basis" in body
+    assert "Status Transition" in body
     assert "Queue Impact" in body
     assert "Matched" in body
     assert "Changed" in body
@@ -793,10 +794,12 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "describeBulkScope",
         "describeCriticFilterBasis",
         "describeCommentFilterBasis",
+        "describeStatusTransition",
         "Copy Selected IDs",
         "Fill From Workflow View",
         "Scope",
         "Filter Basis",
+        "Status Transition",
         "Queue Impact",
         "finding bulk action: scope=",
         "comment bulk action: scope=",

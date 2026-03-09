@@ -4923,7 +4923,15 @@ def render_demo_ui_html() -> str:
       function renderBulkPreviewSummary(
         el,
         result,
-        { notFoundKey = "", updatedKey = "", itemLabel = "items", scopeLabel = "", queueLabel = "", filterBasis = "" } = {}
+        {
+          notFoundKey = "",
+          updatedKey = "",
+          itemLabel = "items",
+          scopeLabel = "",
+          queueLabel = "",
+          filterBasis = "",
+          statusTransition = "",
+        } = {}
       ) {
         if (!el) return;
         el.innerHTML = "";
@@ -4943,6 +4951,7 @@ def render_demo_ui_html() -> str:
           { title: dryRun ? "Preview Mode" : "Apply Mode", sub: dryRun ? "dry_run=true" : persisted ? "persisted=true" : "persisted=false" },
           { title: "Scope", sub: String(scopeLabel || "-") },
           { title: "Filter Basis", sub: String(filterBasis || "-") },
+          { title: "Status Transition", sub: String(statusTransition || "-") },
           { title: "Queue Impact", sub: String(queueLabel || "-") },
           { title: "Matched", sub: String(matchedCount) },
           { title: "Changed", sub: String(changedCount) },
@@ -5017,6 +5026,15 @@ def render_demo_ui_html() -> str:
         if (commentStatus) parts.push(`status=${commentStatus}`);
         if (versionId) parts.push(`version=${versionId}`);
         return parts.join(" · ") || "current comment filters";
+      }
+
+      function describeStatusTransition(result, fallbackFromStatus, targetStatus) {
+        const filters = result && typeof result === "object" && result.filters && typeof result.filters === "object" ? result.filters : {};
+        const explicitFrom =
+          String(filters.finding_status || filters.comment_status || filters.if_match_status || fallbackFromStatus || "").trim().toLowerCase();
+        const fromStatus = explicitFrom || "mixed";
+        const toStatus = String(targetStatus || result?.requested_status || "").trim().toLowerCase() || "-";
+        return `${fromStatus} -> ${toStatus}`;
       }
 
       function describeBulkAction(targetStatus, itemKind) {
@@ -8328,6 +8346,7 @@ def render_demo_ui_html() -> str:
           itemLabel: "findings",
           scopeLabel: describeBulkScope(scope, parseIdList(els.criticSelectedFindingIds.value).length, "finding ids"),
           filterBasis: describeCriticFilterBasis(scope),
+          statusTransition: describeStatusTransition(result, payload.finding_status, nextStatus),
           queueLabel: action.queueLabel,
         });
         await Promise.allSettled([
@@ -8416,6 +8435,7 @@ def render_demo_ui_html() -> str:
           itemLabel: "comments",
           scopeLabel: describeBulkScope(scope, parseIdList(els.commentSelectedCommentIds.value).length, "comment ids"),
           filterBasis: describeCommentFilterBasis(scope),
+          statusTransition: describeStatusTransition(result, payload.comment_status, nextStatus),
           queueLabel: action.queueLabel,
         });
         await Promise.allSettled([
@@ -8560,6 +8580,7 @@ def render_demo_ui_html() -> str:
           itemLabel: "findings",
           scopeLabel: "-",
           filterBasis: "-",
+          statusTransition: "-",
           queueLabel: "-",
         });
         els.criticCopySelectedFindingIdsBtn.addEventListener("click", () =>
@@ -8867,6 +8888,7 @@ def render_demo_ui_html() -> str:
           itemLabel: "comments",
           scopeLabel: "-",
           filterBasis: "-",
+          statusTransition: "-",
           queueLabel: "-",
         });
         els.commentCopySelectedCommentIdsBtn.addEventListener("click", () =>
