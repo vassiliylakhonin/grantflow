@@ -74,6 +74,11 @@ def main() -> int:
     next_bucket = _extract_backtick_value(executive_text, "- Next review bucket (featured case): `")
     next_action = _extract_suffix_value(executive_text, "- Next recommended action (featured case): ")
     top_reviewer_action = _extract_suffix_value(executive_text, "- Top reviewer action 1 (featured case): ")
+    fast_bundle_readme = build_dir / "latest-fast-send-bundle" / "README.md"
+    fast_bundle_text = _read_text(fast_bundle_readme)
+    send_policy_status = _extract_backtick_value(fast_bundle_text, "- Send policy status: `")
+    send_policy_classification = _extract_backtick_value(fast_bundle_text, "- Send policy classification: `")
+    send_policy_action = _extract_backtick_value(fast_bundle_text, "- Next operational action before external send: `")
 
     lines: list[str] = []
     lines.append("# GrantFlow Latest Open Order")
@@ -99,6 +104,15 @@ def main() -> int:
     lines.append("5. Use `latest-oem-pack/README.md` when the audience is technical or partnership-focused.")
     lines.append("6. Use `latest-pilot-archive/` or the zip under the archive folder for external sharing.")
     lines.append("")
+    if send_policy_classification != "-":
+        lines.append("## Send Policy")
+        lines.append("")
+        lines.append(f"- Current classification: `{send_policy_classification}`")
+        if send_policy_status != "-":
+            lines.append(f"- Workflow policy status: `{send_policy_status}`")
+        if send_policy_action != "-":
+            lines.append(f"- Next operational action before external send: `{send_policy_action}`")
+        lines.append("")
     if executive_text:
         lines.append("## Featured Readiness Snapshot")
         lines.append("")

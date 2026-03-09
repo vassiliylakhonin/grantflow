@@ -55,6 +55,13 @@ def _extract_suffix_value(text: str, prefix: str) -> str:
     return "-"
 
 
+def _extract_line_token(text: str, prefix: str) -> str:
+    for line in text.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip() or "-"
+    return "-"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build a send-oriented index of current GrantFlow fast/full demo bundles."
@@ -94,6 +101,11 @@ def main() -> int:
     top_reviewer_action = _extract_suffix_value(executive_text, "- Top reviewer action 1 (featured case): ")
     stale_bucket_mix = _extract_backtick_value(executive_text, "- Stale comment bucket mix: `")
     top_stale_bucket = _extract_backtick_value(executive_text, "- Top stale comment bucket: `")
+    latest_fast_readme = latest_fast_dir / "README.md" if latest_fast_dir is not None else None
+    fast_bundle_text = _read_text(latest_fast_readme) if latest_fast_readme is not None else ""
+    send_policy_status = _extract_backtick_value(fast_bundle_text, "- Send policy status: `")
+    send_policy_classification = _extract_backtick_value(fast_bundle_text, "- Send policy classification: `")
+    send_policy_action = _extract_backtick_value(fast_bundle_text, "- Next operational action before external send: `")
 
     lines: list[str] = []
     lines.append("# GrantFlow Send Bundle Index")
@@ -130,6 +142,15 @@ def main() -> int:
         "- Pilot archive/OEM artifacts: only when the recipient needs raw evidence or technical diligence details."
     )
     lines.append("")
+    if send_policy_classification != "-":
+        lines.append("## Send Policy")
+        lines.append("")
+        lines.append(f"- Current classification: `{send_policy_classification}`")
+        if send_policy_status != "-":
+            lines.append(f"- Workflow policy status: `{send_policy_status}`")
+        if send_policy_action != "-":
+            lines.append(f"- Next operational action before external send: `{send_policy_action}`")
+        lines.append("")
     if executive_text:
         lines.append("## Featured Readiness Snapshot")
         lines.append("")
