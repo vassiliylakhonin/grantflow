@@ -13,7 +13,7 @@ from grantflow.api.public_views import (
     _critic_triage_summary_payload,
     _review_action_queue_summary_payload,
 )
-from toc_snapshot import build_toc_snapshot
+from toc_snapshot import build_logframe_snapshot, build_toc_snapshot
 
 
 def _read_json(path: Path) -> Any:
@@ -232,6 +232,7 @@ def _build_handout(
     featured_critic_payload: dict[str, Any],
     featured_mel_summary: dict[str, Any],
     featured_toc_snapshot: list[str],
+    featured_logframe_snapshot: list[str],
     portfolio_architect_hits_avg: float | None,
     portfolio_top_architect_signal: str,
     featured_architect_grounded_rate: float | None,
@@ -396,6 +397,11 @@ def _build_handout(
         lines.append("")
         lines.append("## Featured ToC Snapshot")
         for item in featured_toc_snapshot:
+            lines.append(f"- {item}")
+    if featured_logframe_snapshot:
+        lines.append("")
+        lines.append("## Featured LogFrame Snapshot")
+        for item in featured_logframe_snapshot:
             lines.append(f"- {item}")
     review_policy = (
         featured_review_readiness.get("review_workflow_policy_summary")
@@ -591,6 +597,7 @@ def main() -> int:
     export_payload = _read_json(export_payload_path) if export_payload_path.exists() else {}
     export_payload = export_payload if isinstance(export_payload, dict) else {}
     featured_toc_snapshot = build_toc_snapshot(export_payload)
+    featured_logframe_snapshot = build_logframe_snapshot(export_payload)
     if not featured_triage_summary:
         triage_from_critic = featured_critic_payload.get("triage_summary")
         featured_triage_summary = triage_from_critic if isinstance(triage_from_critic, dict) else {}
@@ -683,6 +690,7 @@ def main() -> int:
             featured_critic_payload=featured_critic_payload,
             featured_mel_summary=featured_mel_summary,
             featured_toc_snapshot=featured_toc_snapshot,
+            featured_logframe_snapshot=featured_logframe_snapshot,
             portfolio_architect_hits_avg=portfolio_architect_hits_avg,
             portfolio_top_architect_signal=portfolio_top_architect_signal,
             featured_architect_grounded_rate=_safe_float(

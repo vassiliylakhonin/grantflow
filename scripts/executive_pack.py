@@ -15,7 +15,7 @@ from grantflow.api.public_views import (
     _review_action_queue_summary_payload,
     _review_workflow_policy_summary_payload,
 )
-from toc_snapshot import build_toc_snapshot
+from toc_snapshot import build_logframe_snapshot, build_toc_snapshot
 
 
 ROOT_FILES = (
@@ -312,6 +312,7 @@ def _build_summary(
     done_cases: int,
     featured_review_readiness: dict[str, Any],
     featured_toc_snapshot: list[str],
+    featured_logframe_snapshot: list[str],
     featured_triage_summary: dict[str, Any],
     featured_critic_payload: dict[str, Any],
     featured_mel_summary: dict[str, Any],
@@ -623,6 +624,11 @@ def _build_summary(
         lines.append("## Featured ToC Snapshot")
         for item in featured_toc_snapshot:
             lines.append(f"- {item}")
+    if featured_logframe_snapshot:
+        lines.append("")
+        lines.append("## Featured LogFrame Snapshot")
+        for item in featured_logframe_snapshot:
+            lines.append(f"- {item}")
     lines.append("")
     next_ops_sequence = _next_ops_sequence(
         queue_next_primary_action=str(action_queue.get("next_primary_action") or "").strip() or None,
@@ -751,6 +757,7 @@ def main() -> int:
     if not isinstance(export_payload, dict):
         export_payload = {}
     featured_toc_snapshot = build_toc_snapshot(export_payload)
+    featured_logframe_snapshot = build_logframe_snapshot(export_payload)
     if not featured_triage_summary:
         triage_from_critic = critic_payload.get("triage_summary")
         featured_triage_summary = triage_from_critic if isinstance(triage_from_critic, dict) else {}
@@ -1057,6 +1064,7 @@ def main() -> int:
             done_cases=done_cases,
             featured_review_readiness=featured_review_readiness,
             featured_toc_snapshot=featured_toc_snapshot,
+            featured_logframe_snapshot=featured_logframe_snapshot,
             featured_triage_summary=featured_triage_summary,
             featured_critic_payload=critic_payload,
             featured_mel_summary=featured_mel_summary,

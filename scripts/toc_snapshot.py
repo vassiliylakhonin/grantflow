@@ -91,3 +91,39 @@ def build_toc_snapshot(export_payload: dict[str, Any], *, max_items: int = 4) ->
         if len(lines) >= max_items:
             break
     return lines[:max_items]
+
+
+def build_logframe_snapshot(export_payload: dict[str, Any], *, max_items: int = 3) -> list[str]:
+    payload_root = export_payload.get("payload") if isinstance(export_payload.get("payload"), dict) else {}
+    state = payload_root.get("state") if isinstance(payload_root.get("state"), dict) else {}
+    mel = state.get("mel") if isinstance(state.get("mel"), dict) else {}
+    logframe = state.get("logframe") if isinstance(state.get("logframe"), dict) else {}
+    indicators = mel.get("indicators") if isinstance(mel.get("indicators"), list) else []
+    if not indicators:
+        indicators = logframe.get("indicators") if isinstance(logframe.get("indicators"), list) else []
+
+    lines: list[str] = []
+    for indicator in indicators[:max_items]:
+        if not isinstance(indicator, dict):
+            continue
+        code = _compact_text(
+            indicator.get("code") or indicator.get("indicator_code") or indicator.get("indicator_id"),
+            max_len=24,
+        )
+        name = _compact_text(indicator.get("name"), max_len=96)
+        baseline = _compact_text(indicator.get("baseline"), max_len=32) or "-"
+        target = _compact_text(indicator.get("target"), max_len=32) or "-"
+        frequency = _compact_text(indicator.get("frequency"), max_len=24)
+        owner = _compact_text(indicator.get("owner"), max_len=44)
+        means_of_verification = _compact_text(indicator.get("means_of_verification"), max_len=56)
+
+        parts = [f"`{code or '-'}` {name or '-'}", f"baseline `{baseline}`", f"target `{target}`"]
+        if frequency:
+            parts.append(f"freq `{frequency}`")
+        if owner:
+            parts.append(f"owner `{owner}`")
+        if means_of_verification:
+            parts.append(f"mov `{means_of_verification}`")
+        lines.append(" | ".join(parts))
+
+    return lines[:max_items]
