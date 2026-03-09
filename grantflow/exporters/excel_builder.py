@@ -132,6 +132,17 @@ def _review_readiness_rows(
         ("Low-confidence citations", len(low_confidence)),
         ("Fallback/strategy citations", len(fallback)),
     ]
+    top_actions: list[str] = []
+    for item in open_findings:
+        if not isinstance(item, dict):
+            continue
+        action = str(item.get("reviewer_next_step") or item.get("recommended_action") or "").strip()
+        if action and action not in top_actions:
+            top_actions.append(action)
+        if len(top_actions) >= 2:
+            break
+    for idx, action in enumerate(top_actions, start=1):
+        rows.append((f"Top reviewer action {idx}", action))
     return [(label, value) for label, value in rows if value is not None and value != ""]
 
 

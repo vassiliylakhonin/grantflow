@@ -61,7 +61,12 @@ def _sample_critic_findings():
             "severity": "high",
             "section": "toc",
             "code": "TOC_SCHEMA_INVALID",
+            "review_title": "ToC Schema Invalid",
+            "review_bucket": "compliance",
+            "triage_priority": "high",
             "message": "ToC schema contract mismatch.",
+            "recommended_action": "Revise the ToC so it matches the donor review package before the next export.",
+            "reviewer_next_step": "ToC Schema Invalid: Revise the ToC so it matches the donor review package before the next export.",
             "fix_hint": "Revise objective structure.",
             "version_id": "toc_v2",
             "source": "rules",
@@ -121,7 +126,7 @@ def test_word_export_includes_citation_traceability_section():
     assert "level outcome" in text
     assert "path toc.development_objectives[0].description" in text
     assert "Critic Findings" in text
-    assert "TOC_SCHEMA_INVALID" in text
+    assert "ToC Schema Invalid" in text
     assert "Review Comments" in text
     assert "Adjusted objective wording and assumptions." in text
     assert "Quality Summary" in text
@@ -132,6 +137,9 @@ def test_word_export_includes_citation_traceability_section():
     assert "High-severity open findings: 1" in text
     assert "Open review comments: 0" in text
     assert "Fallback/strategy citations: 1" in text
+    assert "Top reviewer action 1:" in text
+    assert "Reviewer next step:" in text
+    assert "Recommended action:" in text
 
 
 def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
@@ -533,6 +541,10 @@ def test_excel_export_includes_citations_sheet():
     findings_rows = list(wb["Critic Findings"].iter_rows(values_only=True))
     assert findings_rows[0][:4] == ("Status", "Severity", "Section", "Code")
     assert any(row[3] == "TOC_SCHEMA_INVALID" for row in findings_rows[1:])
+    findings_headers = [str(cell or "") for cell in findings_rows[0]]
+    assert "Review Title" in findings_headers
+    assert "Recommended Action" in findings_headers
+    assert "Reviewer Next Step" in findings_headers
 
     comments_rows = list(wb["Review Comments"].iter_rows(values_only=True))
     assert comments_rows[0][:4] == ("Status", "Section", "Author", "Message")
@@ -550,6 +562,7 @@ def test_excel_export_includes_citations_sheet():
     assert readiness_map["High-severity open findings"] == 1
     assert readiness_map["Open review comments"] == 0
     assert readiness_map["Fallback/strategy citations"] == 1
+    assert "Top reviewer action 1" in readiness_map
 
 
 def test_excel_export_logframe_sheet_includes_smart_indicator_columns():
