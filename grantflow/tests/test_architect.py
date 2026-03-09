@@ -462,6 +462,69 @@ def test_architect_claim_threshold_is_tuned_by_donor_and_section():
     assert usaid_assumption_threshold > usaid_goal_threshold
 
 
+def test_fallback_structured_toc_uses_giz_specific_programme_phrasing():
+    payload, _engine = _fallback_structured_toc(
+        DonorFactory.get_strategy("giz").get_toc_schema(),
+        donor_id="giz",
+        project="SME Resilience and Youth Employment Skills Acceleration",
+        country="Jordan",
+        revision_hint="",
+        evidence_hits=[],
+    )
+
+    programme_objective = str(payload.get("programme_objective") or "")
+    assert "delivery and sustainability outcomes" in programme_objective.lower()
+    outcomes = payload.get("outcomes") or []
+    assert outcomes
+    assert "delivery partners implement stronger" in str(outcomes[0].get("title") or "").lower()
+    sustainability = payload.get("sustainability_factors") or []
+    assert sustainability
+    assert "partner institutions continue financing" in str(sustainability[0]).lower()
+
+
+def test_fallback_structured_toc_uses_un_agencies_specific_programme_phrasing():
+    payload, _engine = _fallback_structured_toc(
+        DonorFactory.get_strategy("un_agencies").get_toc_schema(),
+        donor_id="un_agencies",
+        project="Inclusive Education Recovery",
+        country="Nepal",
+        revision_hint="",
+        evidence_hits=[],
+    )
+
+    project_goal = str(payload.get("project_goal") or "")
+    assert "inclusive education recovery outcomes in nepal" in project_goal.lower()
+    objectives = payload.get("objectives") or payload.get("development_objectives") or []
+    assert objectives
+    assert (
+        "partner institutions deliver more reliable inclusive education recovery"
+        in str(objectives[0].get("title") or "").lower()
+    )
+    assert "field-verified inclusive education recovery delivery" in str(objectives[0].get("description") or "").lower()
+    assumptions = payload.get("assumptions") or payload.get("critical_assumptions") or []
+    assert assumptions
+    assert (
+        "community stakeholders continue supporting equitable inclusive education recovery delivery"
+        in str(assumptions[0]).lower()
+    )
+
+
+def test_architect_un_agencies_evidence_signal_and_review_hint_are_programme_shaped():
+    signal = architect_generation_module._architect_evidence_signal(
+        donor_id="un_agencies",
+        excerpt="Cluster review and field monitoring evidence",
+        source="un_agencies_guidance",
+    )
+    hint = architect_generation_module._architect_review_hint(
+        donor_id="un_agencies",
+        result_level="outcome",
+        evidence_signal=signal,
+    )
+
+    assert signal == "inter-agency review evidence"
+    assert "un programme and sector-review package" in hint.lower()
+
+
 def test_architect_llm_validation_failure_retries_once_and_recovers(monkeypatch):
     strategy = DonorFactory.get_strategy("usaid")
     monkeypatch.setattr(architect_generation_module, "openai_compatible_llm_available", lambda: True)
@@ -764,7 +827,10 @@ def test_fallback_structured_toc_uses_worldbank_specific_results_chain_phrasing(
     )
 
     assert engine == "contract_synthesizer"
-    assert payload["project_development_objective"].lower() == "improve public sector performance and service delivery in uzbekistan."
+    assert (
+        payload["project_development_objective"].lower()
+        == "improve public sector performance and service delivery in uzbekistan."
+    )
     assert payload["objectives"]
     assert any("institutional performance" in row["title"].lower() for row in payload["objectives"])
     assert payload["results_chain"]

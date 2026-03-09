@@ -100,6 +100,17 @@ def _worldbank_project_phrase(project_label: str) -> str:
     return f"{label} service delivery performance"
 
 
+def _un_programme_phrase(project_label: str) -> str:
+    label = str(project_label or "").strip().lower()
+    if not label:
+        return "inclusive programme delivery"
+    if "education" in label and "recovery" not in label:
+        return f"{label} recovery"
+    if "programme" in label or "program" in label:
+        return label
+    return label
+
+
 def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> BaseModel:
     validator = getattr(schema_cls, "model_validate", None)
     if callable(validator):
@@ -367,6 +378,66 @@ def _text_for_field(
             )[:420]
         if "indicators[" in lower_path and lname == "name":
             return f"Indicator for {project_label}"
+
+    if donor_key == "giz":
+        if lower_path in {"programme_objective", "program_objective"}:
+            return f"Improve {project_label} delivery and sustainability outcomes in {country or 'target locations'}."
+        if "outcomes[" in lower_path and lower_path.endswith(".title"):
+            giz_titles = [
+                f"Delivery partners implement stronger {project_label} practices",
+                f"Target actors sustain improved {project_label} routines",
+            ]
+            return giz_titles[index % len(giz_titles)]
+        if "outcomes[" in lower_path and lower_path.endswith(".description"):
+            return (
+                f"Participating partners and target groups in {country or 'the target context'} apply clearer "
+                f"{project_label} delivery, coordination, and sustainability practices."
+            )[:420]
+        if "sustainability_factors[" in lower_path:
+            return (
+                f"Sustainability factor {index + 1}: partner institutions continue financing, coordination, and "
+                f"ownership arrangements needed to sustain {project_label}."
+            )[:420]
+        if "partner_roles[" in lower_path:
+            return "Partner role: delivery partner coordinates implementation, field learning, and sustainability follow-up."
+
+    if donor_key == "un_agencies":
+        un_phrase = _un_programme_phrase(project_label)
+        if lower_path in {"project_goal", "program_goal", "programme_goal"}:
+            return f"Improve {un_phrase} outcomes in {country or 'target locations'}."
+        if "objectives[" in lower_path and lower_path.endswith(".title"):
+            un_objectives = [
+                f"Partner institutions deliver more reliable {un_phrase}",
+                f"Priority populations experience stronger access to {un_phrase}",
+            ]
+            return un_objectives[index % len(un_objectives)]
+        if "objectives[" in lower_path and lower_path.endswith(".description"):
+            return (
+                f"Partner institutions in {country or 'the target context'} demonstrate measurable improvements in "
+                f"equitable, accountable, and field-verified {un_phrase} delivery."
+            )[:420]
+        if "development_objectives[" in lower_path and lower_path.endswith(".description"):
+            un_objectives = [
+                f"Strengthen partner systems to deliver {un_phrase} at scale.",
+                f"Increase equitable access to {un_phrase} for priority populations.",
+            ]
+            return un_objectives[index % len(un_objectives)]
+        if "expected_outcomes[" in lower_path and lower_path.endswith(".description"):
+            return (
+                f"By the end of implementation, partner institutions in {country or 'the target context'} demonstrate "
+                f"measurable improvements in equitable, accountable, and field-verified {un_phrase} delivery."
+            )[:420]
+        if "expected_outcomes[" in lower_path and lower_path.endswith(".title"):
+            un_outcomes = [
+                f"Partner institutions deliver more reliable {un_phrase}",
+                f"Priority populations experience stronger access to {un_phrase}",
+            ]
+            return un_outcomes[index % len(un_outcomes)]
+        if "critical_assumptions[" in lower_path or "assumptions[" in lower_path:
+            return (
+                f"Partner agencies, coordination bodies, and community stakeholders continue supporting equitable "
+                f"{un_phrase} delivery during implementation."
+            )[:420]
 
     if lname.endswith("_id") or lname == "id":
         prefix = field_name.replace("_id", "").replace("_", " ").strip().title() or "Item"
@@ -735,6 +806,12 @@ def _architect_evidence_signal(*, donor_id: str, excerpt: str, source: str) -> s
         if any(token in text for token in ("sustainability", "partner validation", "implementation review")):
             return "sustainability and partner-validation evidence"
         return "GIZ delivery evidence"
+    if donor == "un_agencies":
+        if any(token in text for token in ("cluster", "inter-agency", "sector review")):
+            return "inter-agency review evidence"
+        if any(token in text for token in ("field monitoring", "partner monitoring", "verification", "5w")):
+            return "partner and field monitoring evidence"
+        return "UN programme evidence"
     if donor in {"state_department", "us_state_department"}:
         if any(token in text for token in ("resilience review", "editorial risk", "partner monitoring")):
             return "resilience review evidence"
@@ -753,6 +830,8 @@ def _architect_review_hint(*, donor_id: str, result_level: str, evidence_signal:
         return f"Use this as {level}-level support in the World Bank results framework and PDO package ({evidence_signal})."
     if donor == "giz":
         return f"Use this as {level}-level support in the GIZ delivery and sustainability review package ({evidence_signal})."
+    if donor == "un_agencies":
+        return f"Use this as {level}-level support in the UN programme and sector-review package ({evidence_signal})."
     if donor in {"state_department", "us_state_department"}:
         return f"Use this as {level}-level support in the State Department program and resilience review package ({evidence_signal})."
     return f"Use this as {level}-level donor guidance support ({evidence_signal})."
