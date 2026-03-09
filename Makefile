@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh pilot-evidence-pack pilot-evidence-pack-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -69,6 +69,7 @@ BASELINE_TEMPLATE_PILOT_DIR ?= $(PILOT_PACK_DIR)
 BASELINE_TEMPLATE_METRICS_CSV ?=
 BASELINE_TEMPLATE_CSV_OUT ?=
 BASELINE_TEMPLATE_MD_OUT ?=
+PILOT_EVIDENCE_PACK_OUT_DIR ?= build/pilot-evidence-pack
 CLEAN_DEMO_ARTIFACTS_BUILD_DIR ?= build
 LATEST_LINKS_BUILD_DIR ?= build
 PILOT_HANDOUT_PILOT_DIR ?= $(PILOT_PACK_DIR)
@@ -404,6 +405,16 @@ baseline-fill-template:
 
 baseline-fill-template-refresh: pilot-metrics-refresh
 	$(MAKE) baseline-fill-template BASELINE_TEMPLATE_PILOT_DIR=$(PILOT_PACK_DIR) BASELINE_TEMPLATE_METRICS_CSV=$(BASELINE_TEMPLATE_METRICS_CSV) BASELINE_TEMPLATE_CSV_OUT=$(BASELINE_TEMPLATE_CSV_OUT) BASELINE_TEMPLATE_MD_OUT=$(BASELINE_TEMPLATE_MD_OUT)
+
+pilot-evidence-pack:
+	$(PYTHON) scripts/pilot_evidence_pack.py \
+		--pilot-pack-dir $(PILOT_PACK_DIR) \
+		--executive-pack-dir $(EXECUTIVE_PACK_OUT_DIR) \
+		--case-study-dir $(CASE_STUDY_OUT_DIR) \
+		--output-dir $(PILOT_EVIDENCE_PACK_OUT_DIR)
+
+pilot-evidence-pack-refresh: executive-pack-refresh baseline-fill-template-refresh
+	$(MAKE) pilot-evidence-pack PILOT_EVIDENCE_PACK_OUT_DIR=$(PILOT_EVIDENCE_PACK_OUT_DIR)
 
 clean-demo-artifacts:
 	$(PYTHON) scripts/clean_demo_artifacts.py \

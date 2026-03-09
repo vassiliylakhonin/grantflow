@@ -229,6 +229,8 @@ By default, `demo-pack` also seeds a synthetic reviewer comment workflow into th
 `make pilot-metrics-refresh` rebuilds the pilot pack first and then writes the metric tables.
 `make pilot-scorecard` builds a buyer-facing go/no-go memo from an existing pilot pack.
 `make pilot-scorecard-refresh` rebuilds the pilot pack, metrics, and brief first, then writes the scorecard.
+`make pilot-evidence-pack` builds a compact pilot evidence bundle with blocking thresholds, before/after baseline coverage, and a representative case.
+`make pilot-evidence-pack-refresh` rebuilds the buyer path first and then writes the evidence bundle.
 `make case-study-pack` builds a compact single-case buyer/demo pack from an existing pilot pack.
 `make case-study-pack-refresh` rebuilds the pilot pack, metrics, brief, and scorecard first, then writes the case pack.
 `make executive-pack` builds a short send-ready folder from an existing pilot pack plus one case-study pack.

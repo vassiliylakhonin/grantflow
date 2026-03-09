@@ -81,6 +81,8 @@ It also seeds a synthetic reviewer comment workflow into the saved demo artifact
 `make pilot-metrics-refresh` rebuilds the pilot pack first, then writes the metric tables.
 `make pilot-scorecard` writes a short go/no-go memo from an existing pilot pack.
 `make pilot-scorecard-refresh` rebuilds the pilot pack, metrics, and brief first, then writes the scorecard.
+`make pilot-evidence-pack` assembles a compact pilot evidence bundle from the current pilot, executive, and case-study artifacts.
+`make pilot-evidence-pack-refresh` rebuilds the buyer path first, then writes the evidence bundle.
 `make case-study-pack` writes a compact single-case pack from an existing pilot pack.
 `make case-study-pack-refresh` rebuilds the pilot pack, metrics, brief, and scorecard first, then writes the case pack.
 `make executive-pack` writes a send-ready buyer folder from an existing pilot pack and case-study pack.
