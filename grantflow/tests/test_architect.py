@@ -195,6 +195,8 @@ def test_architect_claim_citation_policy_marks_low_confidence_hits():
     assert "doc_id" in citations[0]
     assert "retrieval_rank" in citations[0]
     assert "retrieval_confidence" in citations[0]
+    assert "evidence_signal" in citations[0]
+    assert "review_hint" in citations[0]
     assert 0.0 <= float(citations[0]["citation_confidence"]) <= 1.0
     assert 0.0 < float(citations[0]["confidence_threshold"]) < 1.0
     if citations[0]["citation_type"] == "rag_low_confidence":
@@ -222,6 +224,8 @@ def test_architect_claim_citations_without_hits_emit_per_claim_fallback_records(
     assert all(c.get("result_level") in {"impact", "outcome", "output", "general"} for c in citations)
     assert all(c.get("traceability_status") == "missing" for c in citations)
     assert all(c.get("traceability_complete") is False for c in citations)
+    assert all(c.get("evidence_signal") == "fallback namespace only" for c in citations)
+    assert all(str(c.get("review_hint") or "").strip() for c in citations)
     assert all("no retrieved evidence" in str(c.get("label") or "").lower() for c in citations)
     assert all(0.0 < float(c.get("confidence_threshold") or 0.0) < 1.0 for c in citations)
 
@@ -248,6 +252,7 @@ def test_architect_claim_citations_without_hits_use_strategy_reference_when_retr
     assert all(c.get("result_level") in {"impact", "outcome", "output", "general"} for c in citations)
     assert all(c.get("traceability_status") == "complete" for c in citations)
     assert all(c.get("traceability_complete") is True for c in citations)
+    assert all(c.get("evidence_signal") == "strategy reference" for c in citations)
     assert all(str(c.get("doc_id") or "").startswith("strategy::") for c in citations)
     assert all(str(c.get("source") or "").startswith("strategy::") for c in citations)
     assert all(float(c.get("citation_confidence") or 0.0) >= 0.7 for c in citations)

@@ -634,6 +634,54 @@ def _architect_grounded_confidence_bonus(hit: Dict[str, Any], *, traceability_st
     return min(0.06, round(bonus, 4))
 
 
+def _architect_evidence_signal(*, donor_id: str, excerpt: str, source: str) -> str:
+    donor = str(donor_id or "").strip().lower()
+    text = " ".join(f"{excerpt} {source}".split()).lower()
+    if donor == "usaid":
+        if any(token in text for token in ("pmp", "indicator reference", "performance management plan")):
+            return "PMP and indicator-reference evidence"
+        if any(token in text for token in ("cla", "learning agenda", "spot-check", "site visit")):
+            return "CLA and verification evidence"
+        return "USAID donor guidance evidence"
+    if donor == "eu":
+        if any(token in text for token in ("annex", "means of verification", "verification mission")):
+            return "verification annex evidence"
+        if any(token in text for token in ("action document", "intervention logic", "logframe")):
+            return "intervention-logic evidence"
+        return "EU donor guidance evidence"
+    if donor == "worldbank":
+        if any(token in text for token in ("isr", "implementation status", "aide-memoire", "aide memoire")):
+            return "ISR and aide-memoire evidence"
+        if any(token in text for token in ("results framework", "pdo", "intermediate results")):
+            return "results-framework evidence"
+        return "World Bank implementation evidence"
+    if donor == "giz":
+        if any(token in text for token in ("sustainability", "partner validation", "implementation review")):
+            return "sustainability and partner-validation evidence"
+        return "GIZ delivery evidence"
+    if donor in {"state_department", "us_state_department"}:
+        if any(token in text for token in ("resilience review", "editorial risk", "partner monitoring")):
+            return "resilience review evidence"
+        return "State Department program evidence"
+    return "retrieved donor evidence"
+
+
+def _architect_review_hint(*, donor_id: str, result_level: str, evidence_signal: str) -> str:
+    donor = str(donor_id or "").strip().lower()
+    level = str(result_level or "").strip().lower() or "general"
+    if donor == "usaid":
+        return f"Use this as {level}-level support in the USAID results hierarchy and monitoring package ({evidence_signal})."
+    if donor == "eu":
+        return f"Use this as {level}-level support in the EU intervention logic and verification package ({evidence_signal})."
+    if donor == "worldbank":
+        return f"Use this as {level}-level support in the World Bank results framework and PDO package ({evidence_signal})."
+    if donor == "giz":
+        return f"Use this as {level}-level support in the GIZ delivery and sustainability review package ({evidence_signal})."
+    if donor in {"state_department", "us_state_department"}:
+        return f"Use this as {level}-level support in the State Department program and resilience review package ({evidence_signal})."
+    return f"Use this as {level}-level donor guidance support ({evidence_signal})."
+
+
 def extract_architect_claim_records(
     toc_payload: Dict[str, Any],
     *,
@@ -781,6 +829,12 @@ def build_architect_claim_citations(
                 "used_for": "toc_draft",
                 "statement_path": "toc",
                 "result_level": "general",
+                "evidence_signal": "strategy namespace reference",
+                "review_hint": _architect_review_hint(
+                    donor_id=donor_id,
+                    result_level="general",
+                    evidence_signal="strategy namespace reference",
+                ),
             }
         )
         return citations
@@ -816,6 +870,12 @@ def build_architect_claim_citations(
                         "statement": statement[:240],
                         "statement_priority": priority,
                         "result_level": result_level,
+                        "evidence_signal": "strategy reference",
+                        "review_hint": _architect_review_hint(
+                            donor_id=donor_id,
+                            result_level=result_level,
+                            evidence_signal="strategy reference",
+                        ),
                         "excerpt": statement[:240],
                         "citation_confidence": 0.75,
                         "raw_claim_confidence": 0.75,
@@ -842,6 +902,12 @@ def build_architect_claim_citations(
                         "statement_path": "toc",
                         "statement": "ToC claims generated from donor strategy without retrieval.",
                         "result_level": "general",
+                        "evidence_signal": "strategy reference",
+                        "review_hint": _architect_review_hint(
+                            donor_id=donor_id,
+                            result_level="general",
+                            evidence_signal="strategy reference",
+                        ),
                         "citation_confidence": 0.75,
                         "raw_claim_confidence": 0.75,
                         "evidence_score": 0.75,
@@ -874,6 +940,12 @@ def build_architect_claim_citations(
                     "statement": statement[:240],
                     "statement_priority": priority,
                     "result_level": result_level,
+                    "evidence_signal": "fallback namespace only",
+                    "review_hint": _architect_review_hint(
+                        donor_id=donor_id,
+                        result_level=result_level,
+                        evidence_signal="fallback namespace only",
+                    ),
                     "citation_confidence": 0.1,
                     "raw_claim_confidence": 0.1,
                     "evidence_score": 0.1,
@@ -898,6 +970,12 @@ def build_architect_claim_citations(
                     "statement_path": "toc",
                     "statement": "ToC claims generated without retrieval evidence.",
                     "result_level": "general",
+                    "evidence_signal": "fallback namespace only",
+                    "review_hint": _architect_review_hint(
+                        donor_id=donor_id,
+                        result_level="general",
+                        evidence_signal="fallback namespace only",
+                    ),
                     "citation_confidence": 0.1,
                     "raw_claim_confidence": 0.1,
                     "evidence_score": 0.1,
@@ -950,6 +1028,15 @@ def build_architect_claim_citations(
             citation_type = "rag_low_confidence"
         else:
             citation_type = "fallback_namespace"
+        evidence_signal = (
+            _architect_evidence_signal(
+                donor_id=donor_id,
+                excerpt=str(hit.get("excerpt") or ""),
+                source=str(hit.get("source") or ""),
+            )
+            if hit
+            else "fallback namespace only"
+        )
         citations.append(
             {
                 "stage": "architect",
@@ -969,6 +1056,12 @@ def build_architect_claim_citations(
                 "statement": statement[:240],
                 "statement_priority": priority,
                 "result_level": result_level,
+                "evidence_signal": evidence_signal,
+                "review_hint": _architect_review_hint(
+                    donor_id=donor_id,
+                    result_level=result_level,
+                    evidence_signal=evidence_signal,
+                ),
                 "excerpt": str(hit.get("excerpt") or "")[:240] if hit else None,
                 "citation_confidence": round(confidence if hit else 0.1, 4),
                 "raw_claim_confidence": round(raw_claim_confidence if hit else 0.1, 4),
