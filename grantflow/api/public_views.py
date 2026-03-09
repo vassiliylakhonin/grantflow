@@ -3269,6 +3269,7 @@ def public_job_quality_payload(
         "preflight": preflight_payload,
         "readiness": readiness_payload,
         "review_readiness_summary": review_readiness_summary,
+        "triage_summary": sanitize_for_public_response(critic_payload.get("triage_summary")),
         "toc_text_quality": toc_text_quality,
     }
     if grounded_gate:

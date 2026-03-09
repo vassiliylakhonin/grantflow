@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from grantflow.api.public_views import _critic_triage_summary_payload
+
 
 ROOT_FILES = (
     "buyer-brief.md",
@@ -300,6 +302,13 @@ def main() -> int:
     critic_payload = _read_json(pilot_pack_dir / "live-runs" / resolved_case_dir / "critic.json")
     if not isinstance(critic_payload, dict):
         critic_payload = {}
+    if not featured_triage_summary:
+        triage_from_critic = critic_payload.get("triage_summary")
+        featured_triage_summary = triage_from_critic if isinstance(triage_from_critic, dict) else {}
+    if not featured_triage_summary:
+        raw_findings = critic_payload.get("fatal_flaws")
+        findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+        featured_triage_summary = _critic_triage_summary_payload(findings) if findings else {}
     review_ready_cases_count = 0
     for row in rows:
         case_dir = str(row.get("case_dir") or "").strip()
