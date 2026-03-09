@@ -59,6 +59,36 @@ def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
     return bullets
 
 
+def _top_reviewer_items(
+    critic_payload: dict[str, Any],
+    *,
+    limit: int = 2,
+) -> tuple[list[str], list[str]]:
+    priority_titles: list[str] = []
+    priority_actions: list[str] = []
+    fallback_titles: list[str] = []
+    fallback_actions: list[str] = []
+    for item in critic_payload.get("fatal_flaws") or []:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("review_title") or item.get("message") or "").strip()
+        action = str(item.get("reviewer_next_step") or item.get("recommended_action") or "").strip()
+        if title and title not in fallback_titles:
+            fallback_titles.append(title)
+        if action and action not in fallback_actions:
+            fallback_actions.append(action)
+        if str(item.get("triage_priority") or "").strip().lower() not in {"urgent", "high"}:
+            continue
+        if title and title not in priority_titles:
+            priority_titles.append(title)
+        if action and action not in priority_actions:
+            priority_actions.append(action)
+    return (
+        priority_titles[:limit] or fallback_titles[:limit],
+        priority_actions[:limit] or fallback_actions[:limit],
+    )
+
+
 def _build_handout(
     *,
     pilot_pack_name: str,
@@ -133,20 +163,14 @@ def _build_handout(
             lines.append(f"- Next review bucket: `{featured_triage_summary.get('next_review_bucket')}`")
         if str(featured_triage_summary.get("next_recommended_action") or "").strip():
             lines.append(f"- Next recommended action: {featured_triage_summary.get('next_recommended_action')}")
-    top_finding_titles = []
-    if isinstance(featured_critic_payload.get("fatal_flaws"), list):
-        for item in featured_critic_payload.get("fatal_flaws") or []:
-            if not isinstance(item, dict):
-                continue
-            if str(item.get("triage_priority") or "").strip().lower() not in {"urgent", "high"}:
-                continue
-            title = str(item.get("review_title") or item.get("message") or "").strip()
-            if title:
-                top_finding_titles.append(title)
-            if len(top_finding_titles) >= 2:
-                break
+    top_finding_titles, top_reviewer_actions = _top_reviewer_items(featured_critic_payload)
+    fallback_next_action = str(featured_triage_summary.get("next_recommended_action") or "").strip()
+    if fallback_next_action and fallback_next_action not in top_reviewer_actions:
+        top_reviewer_actions.insert(0, fallback_next_action)
     if top_finding_titles:
         lines.append(f"- Priority reviewer items: {', '.join(top_finding_titles)}")
+    for index, action in enumerate(top_reviewer_actions[:2], start=1):
+        lines.append(f"- Top reviewer action {index}: {action}")
     if featured_mel_summary:
         mov = featured_mel_summary.get("means_of_verification_coverage_rate")
         owner = featured_mel_summary.get("owner_coverage_rate")

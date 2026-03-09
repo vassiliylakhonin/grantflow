@@ -81,6 +81,36 @@ def _read_csv_rows(path: Path) -> list[dict[str, str]]:
         return [dict(row) for row in csv.DictReader(handle)]
 
 
+def _top_reviewer_items(
+    critic_payload: dict[str, Any],
+    *,
+    limit: int = 2,
+) -> tuple[list[str], list[str]]:
+    priority_titles: list[str] = []
+    priority_actions: list[str] = []
+    fallback_titles: list[str] = []
+    fallback_actions: list[str] = []
+    for item in critic_payload.get("fatal_flaws") or []:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("review_title") or item.get("message") or "").strip()
+        action = str(item.get("reviewer_next_step") or item.get("recommended_action") or "").strip()
+        if title and title not in fallback_titles:
+            fallback_titles.append(title)
+        if action and action not in fallback_actions:
+            fallback_actions.append(action)
+        if str(item.get("triage_priority") or "").strip().lower() not in {"urgent", "high"}:
+            continue
+        if title and title not in priority_titles:
+            priority_titles.append(title)
+        if action and action not in priority_actions:
+            priority_actions.append(action)
+    return (
+        priority_titles[:limit] or fallback_titles[:limit],
+        priority_actions[:limit] or fallback_actions[:limit],
+    )
+
+
 def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
     lines = text.splitlines()
     bullets: list[str] = []
@@ -205,20 +235,15 @@ def _build_summary(
             lines.append(f"- Next review bucket (featured case): `{next_bucket}`")
         if next_action:
             lines.append(f"- Next recommended action (featured case): {next_action}")
-    priority_titles: list[str] = []
-    if isinstance(featured_critic_payload.get("fatal_flaws"), list):
-        for item in featured_critic_payload.get("fatal_flaws") or []:
-            if not isinstance(item, dict):
-                continue
-            if str(item.get("triage_priority") or "").strip().lower() not in {"urgent", "high"}:
-                continue
-            title = str(item.get("review_title") or item.get("message") or "").strip()
-            if title and title not in priority_titles:
-                priority_titles.append(title)
-            if len(priority_titles) >= 2:
-                break
+    priority_titles, priority_actions = _top_reviewer_items(featured_critic_payload)
+    fallback_next_action = str(featured_triage_summary.get("next_recommended_action") or "").strip()
+    if fallback_next_action and fallback_next_action not in priority_actions:
+        priority_actions.insert(0, fallback_next_action)
     if priority_titles:
         lines.append(f"- Priority reviewer items (featured case): {', '.join(priority_titles)}")
+    if priority_actions:
+        for index, action in enumerate(priority_actions[:2], start=1):
+            lines.append(f"- Top reviewer action {index} (featured case): {action}")
     lines.append("")
     if conditional_reasons:
         lines.append("## Current Conditions")
