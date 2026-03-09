@@ -65,8 +65,12 @@ def main() -> int:
     logframe_ready = _extract_backtick_value(executive_text, "- Cases with complete LogFrame operational coverage: `")
     next_primary_action = _extract_backtick_value(executive_text, "- Next primary review action (featured case): `")
     finding_ack_queue = _extract_backtick_value(executive_text, "- Finding ack queue (featured case): `")
+    finding_resolve_queue = _extract_backtick_value(executive_text, "- Finding resolve queue (featured case): `")
+    comment_ack_queue = _extract_backtick_value(executive_text, "- Comment ack queue (featured case): `")
     comment_resolve_queue = _extract_backtick_value(executive_text, "- Comment resolve queue (featured case): `")
     comment_reopen_queue = _extract_backtick_value(executive_text, "- Comment reopen queue (featured case): `")
+    critic_resolution_rate = _extract_backtick_value(executive_text, "- Average critic finding resolution rate: `")
+    critic_ack_rate = _extract_backtick_value(executive_text, "- Average critic finding acknowledgment rate: `")
     next_bucket = _extract_backtick_value(executive_text, "- Next review bucket (featured case): `")
     next_action = _extract_suffix_value(executive_text, "- Next recommended action (featured case): ")
     top_reviewer_action = _extract_suffix_value(executive_text, "- Top reviewer action 1 (featured case): ")
@@ -104,8 +108,14 @@ def main() -> int:
         lines.append(f"- Complete LogFrame operational coverage: `{logframe_ready}`")
         lines.append(f"- Next primary review action: `{next_primary_action}`")
         lines.append(f"- Finding ack queue: `{finding_ack_queue}`")
+        lines.append(f"- Finding resolve queue: `{finding_resolve_queue}`")
+        lines.append(f"- Comment ack queue: `{comment_ack_queue}`")
         lines.append(f"- Comment resolve queue: `{comment_resolve_queue}`")
         lines.append(f"- Comment reopen queue: `{comment_reopen_queue}`")
+        if critic_resolution_rate != "-":
+            lines.append(f"- Portfolio critic finding resolution rate: `{critic_resolution_rate}`")
+        if critic_ack_rate != "-":
+            lines.append(f"- Portfolio critic finding acknowledgment rate: `{critic_ack_rate}`")
         lines.append(f"- Next review bucket: `{next_bucket}`")
         lines.append(f"- Next recommended action: {next_action}")
         if top_reviewer_action != "-":

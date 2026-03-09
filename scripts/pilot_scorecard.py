@@ -87,6 +87,13 @@ class CaseScorecard:
     orphan_linked_review_comments: int | None
     reviewer_workflow_resolution_rate: float | None
     reviewer_workflow_acknowledgment_rate: float | None
+    critic_finding_resolution_rate: float | None
+    critic_finding_acknowledgment_rate: float | None
+    finding_ack_queue_count: float | None
+    finding_resolve_queue_count: float | None
+    comment_ack_queue_count: float | None
+    comment_resolve_queue_count: float | None
+    comment_reopen_queue_count: float | None
     comment_age_gt_7d: float | None
     stale_comment_bucket_logic: int | None
     stale_comment_bucket_grounding: int | None
@@ -218,6 +225,13 @@ def _load_case_scorecards(
                 reviewer_workflow_acknowledgment_rate=_safe_float(
                     metrics_row.get("reviewer_workflow_acknowledgment_rate")
                 ),
+                critic_finding_resolution_rate=_safe_float(metrics_row.get("critic_finding_resolution_rate")),
+                critic_finding_acknowledgment_rate=_safe_float(metrics_row.get("critic_finding_acknowledgment_rate")),
+                finding_ack_queue_count=_safe_float(metrics_row.get("finding_ack_queue_count")),
+                finding_resolve_queue_count=_safe_float(metrics_row.get("finding_resolve_queue_count")),
+                comment_ack_queue_count=_safe_float(metrics_row.get("comment_ack_queue_count")),
+                comment_resolve_queue_count=_safe_float(metrics_row.get("comment_resolve_queue_count")),
+                comment_reopen_queue_count=_safe_float(metrics_row.get("comment_reopen_queue_count")),
                 comment_age_gt_7d=_safe_float(metrics_row.get("comment_age_gt_7d")),
                 stale_comment_bucket_logic=(
                     int(metrics_row["stale_comment_bucket_logic"])
@@ -320,6 +334,31 @@ def _build_scorecard(
             for case in cases
             if case.reviewer_workflow_acknowledgment_rate is not None
         ]
+    )
+    avg_critic_finding_resolution = _avg(
+        [case.critic_finding_resolution_rate for case in cases if case.critic_finding_resolution_rate is not None]
+    )
+    avg_critic_finding_ack = _avg(
+        [
+            case.critic_finding_acknowledgment_rate
+            for case in cases
+            if case.critic_finding_acknowledgment_rate is not None
+        ]
+    )
+    avg_finding_ack_queue = _avg(
+        [case.finding_ack_queue_count for case in cases if case.finding_ack_queue_count is not None]
+    )
+    avg_finding_resolve_queue = _avg(
+        [case.finding_resolve_queue_count for case in cases if case.finding_resolve_queue_count is not None]
+    )
+    avg_comment_ack_queue = _avg(
+        [case.comment_ack_queue_count for case in cases if case.comment_ack_queue_count is not None]
+    )
+    avg_comment_resolve_queue = _avg(
+        [case.comment_resolve_queue_count for case in cases if case.comment_resolve_queue_count is not None]
+    )
+    avg_comment_reopen_queue = _avg(
+        [case.comment_reopen_queue_count for case in cases if case.comment_reopen_queue_count is not None]
     )
     avg_comment_age_gt_7d = _avg([case.comment_age_gt_7d for case in cases if case.comment_age_gt_7d is not None])
     stale_bucket_totals = {
@@ -471,6 +510,13 @@ def _build_scorecard(
     lines.append(f"- Average stale open review comments per case: `{_fmt(avg_stale_comments)}`")
     lines.append(f"- Average reviewer workflow resolution rate: `{_fmt(avg_reviewer_workflow_resolution)}`")
     lines.append(f"- Average reviewer workflow acknowledgment rate: `{_fmt(avg_reviewer_workflow_ack)}`")
+    lines.append(f"- Average critic finding resolution rate: `{_fmt(avg_critic_finding_resolution)}`")
+    lines.append(f"- Average critic finding acknowledgment rate: `{_fmt(avg_critic_finding_ack)}`")
+    lines.append(f"- Average finding ack queue per case: `{_fmt(avg_finding_ack_queue)}`")
+    lines.append(f"- Average finding resolve queue per case: `{_fmt(avg_finding_resolve_queue)}`")
+    lines.append(f"- Average comment ack queue per case: `{_fmt(avg_comment_ack_queue)}`")
+    lines.append(f"- Average comment resolve queue per case: `{_fmt(avg_comment_resolve_queue)}`")
+    lines.append(f"- Average comment reopen queue per case: `{_fmt(avg_comment_reopen_queue)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_fmt(avg_comment_age_gt_7d)}`")
     if stale_bucket_mix:
         lines.append(f"- Stale comment bucket mix: `{stale_bucket_mix}`")

@@ -195,6 +195,8 @@ def _build_summary(
     portfolio_stale_comments_avg: float | None,
     portfolio_comment_resolution_rate_avg: float | None,
     portfolio_comment_acknowledgment_rate_avg: float | None,
+    portfolio_critic_finding_resolution_rate_avg: float | None,
+    portfolio_critic_finding_ack_rate_avg: float | None,
     portfolio_fallback_avg: float | None,
     portfolio_low_confidence_avg: float | None,
     portfolio_smart_avg: float | None,
@@ -202,6 +204,11 @@ def _build_summary(
     portfolio_owner_avg: float | None,
     portfolio_reviewer_workflow_resolution_rate_avg: float | None,
     portfolio_reviewer_workflow_ack_rate_avg: float | None,
+    portfolio_finding_ack_queue_avg: float | None,
+    portfolio_finding_resolve_queue_avg: float | None,
+    portfolio_comment_ack_queue_avg: float | None,
+    portfolio_comment_resolve_queue_avg: float | None,
+    portfolio_comment_reopen_queue_avg: float | None,
     portfolio_comment_age_d3_7_avg: float | None,
     portfolio_comment_age_gt_7d_avg: float | None,
     portfolio_stale_bucket_mix: str,
@@ -254,6 +261,17 @@ def _build_summary(
     lines.append(
         f"- Average reviewer workflow acknowledgment rate: `{_format_num(portfolio_reviewer_workflow_ack_rate_avg)}`"
     )
+    lines.append(
+        f"- Average critic finding resolution rate: `{_format_num(portfolio_critic_finding_resolution_rate_avg)}`"
+    )
+    lines.append(
+        f"- Average critic finding acknowledgment rate: `{_format_num(portfolio_critic_finding_ack_rate_avg)}`"
+    )
+    lines.append(f"- Average finding ack queue per case: `{_format_num(portfolio_finding_ack_queue_avg)}`")
+    lines.append(f"- Average finding resolve queue per case: `{_format_num(portfolio_finding_resolve_queue_avg)}`")
+    lines.append(f"- Average comment ack queue per case: `{_format_num(portfolio_comment_ack_queue_avg)}`")
+    lines.append(f"- Average comment resolve queue per case: `{_format_num(portfolio_comment_resolve_queue_avg)}`")
+    lines.append(f"- Average comment reopen queue per case: `{_format_num(portfolio_comment_reopen_queue_avg)}`")
     lines.append(f"- Average comment threads aged 3-7d per case: `{_format_num(portfolio_comment_age_d3_7_avg)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_format_num(portfolio_comment_age_gt_7d_avg)}`")
     if portfolio_stale_bucket_mix != "-":
@@ -562,6 +580,12 @@ def main() -> int:
     portfolio_comment_acknowledgment_rate_avg = _avg(
         [_safe_float(row.get("review_comment_acknowledgment_rate")) for row in metrics_rows]
     )
+    portfolio_critic_finding_resolution_rate_avg = _avg(
+        [_safe_float(row.get("critic_finding_resolution_rate")) for row in metrics_rows]
+    )
+    portfolio_critic_finding_ack_rate_avg = _avg(
+        [_safe_float(row.get("critic_finding_acknowledgment_rate")) for row in metrics_rows]
+    )
     portfolio_fallback_avg = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in metrics_rows])
     portfolio_low_confidence_avg = _avg([_safe_int(row.get("low_confidence_citations")) for row in metrics_rows])
     portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
@@ -572,6 +596,17 @@ def main() -> int:
     )
     portfolio_reviewer_workflow_ack_rate_avg = _avg(
         [_safe_float(row.get("reviewer_workflow_acknowledgment_rate")) for row in metrics_rows]
+    )
+    portfolio_finding_ack_queue_avg = _avg([_safe_float(row.get("finding_ack_queue_count")) for row in metrics_rows])
+    portfolio_finding_resolve_queue_avg = _avg(
+        [_safe_float(row.get("finding_resolve_queue_count")) for row in metrics_rows]
+    )
+    portfolio_comment_ack_queue_avg = _avg([_safe_float(row.get("comment_ack_queue_count")) for row in metrics_rows])
+    portfolio_comment_resolve_queue_avg = _avg(
+        [_safe_float(row.get("comment_resolve_queue_count")) for row in metrics_rows]
+    )
+    portfolio_comment_reopen_queue_avg = _avg(
+        [_safe_float(row.get("comment_reopen_queue_count")) for row in metrics_rows]
     )
     portfolio_comment_age_d3_7_avg = _avg([_safe_float(row.get("comment_age_d3_7")) for row in metrics_rows])
     portfolio_comment_age_gt_7d_avg = _avg([_safe_float(row.get("comment_age_gt_7d")) for row in metrics_rows])
@@ -624,6 +659,8 @@ def main() -> int:
             portfolio_stale_comments_avg=portfolio_stale_comments_avg,
             portfolio_comment_resolution_rate_avg=portfolio_comment_resolution_rate_avg,
             portfolio_comment_acknowledgment_rate_avg=portfolio_comment_acknowledgment_rate_avg,
+            portfolio_critic_finding_resolution_rate_avg=portfolio_critic_finding_resolution_rate_avg,
+            portfolio_critic_finding_ack_rate_avg=portfolio_critic_finding_ack_rate_avg,
             portfolio_fallback_avg=portfolio_fallback_avg,
             portfolio_low_confidence_avg=portfolio_low_confidence_avg,
             portfolio_smart_avg=portfolio_smart_avg,
@@ -631,6 +668,11 @@ def main() -> int:
             portfolio_owner_avg=portfolio_owner_avg,
             portfolio_reviewer_workflow_resolution_rate_avg=portfolio_reviewer_workflow_resolution_rate_avg,
             portfolio_reviewer_workflow_ack_rate_avg=portfolio_reviewer_workflow_ack_rate_avg,
+            portfolio_finding_ack_queue_avg=portfolio_finding_ack_queue_avg,
+            portfolio_finding_resolve_queue_avg=portfolio_finding_resolve_queue_avg,
+            portfolio_comment_ack_queue_avg=portfolio_comment_ack_queue_avg,
+            portfolio_comment_resolve_queue_avg=portfolio_comment_resolve_queue_avg,
+            portfolio_comment_reopen_queue_avg=portfolio_comment_reopen_queue_avg,
             portfolio_comment_age_d3_7_avg=portfolio_comment_age_d3_7_avg,
             portfolio_comment_age_gt_7d_avg=portfolio_comment_age_gt_7d_avg,
             portfolio_stale_bucket_mix=portfolio_stale_bucket_mix,

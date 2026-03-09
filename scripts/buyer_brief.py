@@ -239,6 +239,8 @@ def _build_brief(
     avg_comment_ack_queue: float | None,
     avg_comment_resolve_queue: float | None,
     avg_comment_reopen_queue: float | None,
+    avg_critic_finding_resolution_rate: float | None,
+    avg_critic_finding_ack_rate: float | None,
 ) -> str:
     done_count = sum(1 for row in rows if str(row.get("status") or "").strip().lower() == "done")
     hitl_count = sum(1 for row in rows if bool(row.get("hitl_enabled")))
@@ -476,6 +478,42 @@ def main() -> int:
             if isinstance(item, dict)
         ]
     )
+    avg_critic_finding_resolution_rate = _avg(
+        [
+            _safe_float(item.get("critic_finding_resolution_rate"))
+            for item in readiness_summaries
+            if isinstance(item, dict) and _safe_float(item.get("critic_finding_resolution_rate")) is not None
+        ]
+    )
+    avg_critic_finding_ack_rate = _avg(
+        [
+            _safe_float(item.get("critic_finding_acknowledgment_rate"))
+            for item in readiness_summaries
+            if isinstance(item, dict) and _safe_float(item.get("critic_finding_acknowledgment_rate")) is not None
+        ]
+    )
+    if avg_critic_finding_resolution_rate is None or avg_critic_finding_ack_rate is None:
+        critic_resolution_values: list[float] = []
+        critic_ack_values: list[float] = []
+        for critic_payload in critic_payloads:
+            if not isinstance(critic_payload, dict):
+                continue
+            raw_findings = critic_payload.get("fatal_flaws")
+            findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+            if not findings:
+                continue
+            resolved_count = sum(
+                1 for item in findings if str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+            )
+            acknowledged_count = sum(
+                1 for item in findings if str(item.get("status") or "").strip().lower() == "acknowledged"
+            )
+            critic_resolution_values.append(resolved_count / len(findings))
+            critic_ack_values.append((resolved_count + acknowledged_count) / len(findings))
+        if avg_critic_finding_resolution_rate is None:
+            avg_critic_finding_resolution_rate = _avg(critic_resolution_values)
+        if avg_critic_finding_ack_rate is None:
+            avg_critic_finding_ack_rate = _avg(critic_ack_values)
     age_d3_7_avg = _avg(
         [
             _safe_int(
@@ -673,6 +711,8 @@ def main() -> int:
         avg_comment_ack_queue=avg_comment_ack_queue,
         avg_comment_resolve_queue=avg_comment_resolve_queue,
         avg_comment_reopen_queue=avg_comment_reopen_queue,
+        avg_critic_finding_resolution_rate=avg_critic_finding_resolution_rate,
+        avg_critic_finding_ack_rate=avg_critic_finding_ack_rate,
     )
     insert_lines = [
         "## Review Readiness Snapshot",
@@ -686,6 +726,8 @@ def main() -> int:
         f"- Average review comment acknowledgment rate: `{_format_num(acknowledgment_rate_avg)}`",
         f"- Average reviewer workflow resolution rate: `{_format_num(workflow_resolution_rate_avg)}`",
         f"- Average reviewer workflow acknowledgment rate: `{_format_num(workflow_acknowledgment_rate_avg)}`",
+        f"- Average critic finding resolution rate: `{_format_num(avg_critic_finding_resolution_rate)}`",
+        f"- Average critic finding acknowledgment rate: `{_format_num(avg_critic_finding_ack_rate)}`",
         f"- Average finding ack queue per case: `{_format_num(avg_finding_ack_queue)}`",
         f"- Average finding resolve queue per case: `{_format_num(avg_finding_resolve_queue)}`",
         f"- Average comment ack queue per case: `{_format_num(avg_comment_ack_queue)}`",

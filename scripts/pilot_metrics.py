@@ -133,6 +133,30 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             "reviewer_workflow_summary": reviewer_workflow_summary,
             "action_queue_summary": action_queue_summary,
         }
+    if (
+        readiness.get("critic_finding_resolution_rate") in {None, ""}
+        or readiness.get("critic_finding_acknowledgment_rate") in {None, ""}
+    ) and isinstance(critic, dict):
+        raw_findings = critic.get("fatal_flaws")
+        findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+        total_findings = len(findings)
+        resolved_finding_count = sum(
+            1 for item in findings if str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+        )
+        acknowledged_finding_count = sum(
+            1 for item in findings if str(item.get("status") or "").strip().lower() == "acknowledged"
+        )
+        readiness = {
+            **readiness,
+            "critic_finding_resolution_rate": (
+                round(resolved_finding_count / total_findings, 4) if total_findings else None
+            ),
+            "critic_finding_acknowledgment_rate": (
+                round((resolved_finding_count + acknowledged_finding_count) / total_findings, 4)
+                if total_findings
+                else None
+            ),
+        }
     comment_defaults = {
         "open_review_comments": 0,
         "resolved_review_comments": 0,
@@ -185,6 +209,8 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "high_severity_open_findings": readiness.get("high_severity_open_findings"),
         "resolved_critic_findings": readiness.get("resolved_critic_findings"),
         "acknowledged_critic_findings": readiness.get("acknowledged_critic_findings"),
+        "critic_finding_resolution_rate": readiness.get("critic_finding_resolution_rate"),
+        "critic_finding_acknowledgment_rate": readiness.get("critic_finding_acknowledgment_rate"),
         "open_review_comments": readiness.get("open_review_comments"),
         "resolved_review_comments": readiness.get("resolved_review_comments"),
         "acknowledged_review_comments": readiness.get("acknowledged_review_comments"),
@@ -301,6 +327,8 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "high_severity_open_findings",
         "resolved_critic_findings",
         "acknowledged_critic_findings",
+        "critic_finding_resolution_rate",
+        "critic_finding_acknowledgment_rate",
         "open_review_comments",
         "resolved_review_comments",
         "acknowledged_review_comments",
@@ -359,6 +387,8 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_pending_hitl = _avg([_safe_float(row.get("time_in_pending_hitl_seconds")) for row in rows])
     avg_citations = _avg([_safe_int(row.get("citation_count")) for row in rows])
     avg_open_findings = _avg([_safe_int(row.get("open_critic_findings")) for row in rows])
+    avg_resolved_findings = _avg([_safe_int(row.get("resolved_critic_findings")) for row in rows])
+    avg_ack_findings = _avg([_safe_int(row.get("acknowledged_critic_findings")) for row in rows])
     avg_fallback_citations = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in rows])
     avg_low_confidence = _avg([_safe_int(row.get("low_confidence_citations")) for row in rows])
     avg_open_comments = _avg([_safe_int(row.get("open_review_comments")) for row in rows])
@@ -374,6 +404,8 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_reviewer_workflow_ack_rate = _avg(
         [_safe_float(row.get("reviewer_workflow_acknowledgment_rate")) for row in rows]
     )
+    avg_critic_finding_resolution_rate = _avg([_safe_float(row.get("critic_finding_resolution_rate")) for row in rows])
+    avg_critic_finding_ack_rate = _avg([_safe_float(row.get("critic_finding_acknowledgment_rate")) for row in rows])
     avg_comment_age_d3_7 = _avg([_safe_int(row.get("comment_age_d3_7")) for row in rows])
     avg_comment_age_gt_7d = _avg([_safe_int(row.get("comment_age_gt_7d")) for row in rows])
     avg_finding_ack_queue = _avg([_safe_int(row.get("finding_ack_queue_count")) for row in rows])
@@ -459,6 +491,8 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average time in pending HITL (s): `{_fmt(avg_pending_hitl)}`")
     lines.append(f"- Average citation count: `{_fmt(avg_citations)}`")
     lines.append(f"- Average open critic findings per case: `{_fmt(avg_open_findings)}`")
+    lines.append(f"- Average acknowledged critic findings per case: `{_fmt(avg_ack_findings)}`")
+    lines.append(f"- Average resolved critic findings per case: `{_fmt(avg_resolved_findings)}`")
     lines.append(f"- Average open review comments per case: `{_fmt(avg_open_comments)}`")
     lines.append(f"- Average resolved review comments per case: `{_fmt(avg_resolved_comments)}`")
     lines.append(f"- Average acknowledged review comments per case: `{_fmt(avg_ack_comments)}`")
@@ -468,6 +502,8 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average review comment acknowledgment rate: `{_fmt(avg_comment_ack_rate)}`")
     lines.append(f"- Average reviewer workflow resolution rate: `{_fmt(avg_reviewer_workflow_resolution_rate)}`")
     lines.append(f"- Average reviewer workflow acknowledgment rate: `{_fmt(avg_reviewer_workflow_ack_rate)}`")
+    lines.append(f"- Average critic finding resolution rate: `{_fmt(avg_critic_finding_resolution_rate)}`")
+    lines.append(f"- Average critic finding acknowledgment rate: `{_fmt(avg_critic_finding_ack_rate)}`")
     lines.append(f"- Average finding ack queue per case: `{_fmt(avg_finding_ack_queue)}`")
     lines.append(f"- Average finding resolve queue per case: `{_fmt(avg_finding_resolve_queue)}`")
     lines.append(f"- Average comment ack queue per case: `{_fmt(avg_comment_ack_queue)}`")
