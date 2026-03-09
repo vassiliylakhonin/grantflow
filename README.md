@@ -770,6 +770,8 @@ make eval-grounded-target-live \
 A compact live verification summary for the currently checked donor paths is in `docs/grounded-donor-scoreboard.md`.
 A compact live export verification summary is in `docs/export-readiness-scoreboard.md`.
 A compact live architect-grounding verification summary is in `docs/architect-grounding-scoreboard.md`.
+A compact live MEL-grounding verification summary is in `docs/mel-grounding-scoreboard.md`.
+A combined draft-grounding summary is in `docs/draft-grounding-scoreboard.md`.
 
 `--seed-rag-manifest` resolves each manifest `donor_id` via `DonorFactory` and ingests into the donor strategy RAG namespace (for example, `usaid -> usaid_ads201`, `state_department -> us_state_department_guidance`).
 Use `scripts/check_seeded_corpus.py` to fail fast when seeded artifacts are missing:
