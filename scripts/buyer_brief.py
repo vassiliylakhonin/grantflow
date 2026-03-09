@@ -57,11 +57,27 @@ def _load_case_quality(pilot_pack_dir: Path, case_dir: str) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
+    lines = text.splitlines()
+    bullets: list[str] = []
+    capture = False
+    for line in lines:
+        if line.strip() == heading:
+            capture = True
+            continue
+        if capture and line.startswith("## "):
+            break
+        if capture and line.startswith("- "):
+            bullets.append(line[2:].strip())
+    return bullets
+
+
 def _build_brief(
     rows: list[dict[str, Any]],
     *,
     pilot_pack_name: str,
     include_productization_memo: bool,
+    current_conditions: list[str],
 ) -> str:
     done_count = sum(1 for row in rows if str(row.get("status") or "").strip().lower() == "done")
     hitl_count = sum(1 for row in rows if bool(row.get("hitl_enabled")))
@@ -100,6 +116,11 @@ def _build_brief(
     lines.append("- Optional human checkpoint flow with approve/resume behavior.")
     lines.append("- Exportable review artifacts for downstream proposal workflow.")
     lines.append("")
+    if current_conditions:
+        lines.append("## Current Conditions")
+        for reason in current_conditions:
+            lines.append(f"- {reason}")
+        lines.append("")
     lines.append("## Why This Matters To Proposal Teams")
     lines.append("- Reduces review chaos by keeping draft state and evidence in one workflow.")
     lines.append("- Improves evaluability of draft quality before formal compliance sign-off.")
@@ -184,10 +205,17 @@ def main() -> int:
 
     output_path = Path(str(args.output)).resolve() if str(args.output).strip() else pilot_pack_dir / "buyer-brief.md"
     include_productization_memo = (pilot_pack_dir / "productization-gaps-memo.md").exists()
+    scorecard_path = pilot_pack_dir / "pilot-scorecard.md"
+    current_conditions = (
+        _extract_markdown_bullets(scorecard_path.read_text(encoding="utf-8"), "## Conditions Before Buyer Decision")
+        if scorecard_path.exists()
+        else []
+    )
     text = _build_brief(
         rows,
         pilot_pack_name=pilot_pack_dir.name,
         include_productization_memo=include_productization_memo,
+        current_conditions=current_conditions,
     )
     insert_lines = [
         "## Review Readiness Snapshot",

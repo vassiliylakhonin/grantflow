@@ -302,6 +302,28 @@ def _statement_to_indicator_phrase(statement: str) -> str:
     return normalized[:1].upper() + normalized[1:] if normalized else ""
 
 
+def _statement_focus_phrase(statement: str) -> str:
+    text = " ".join(str(statement or "").split()).strip().rstrip(".")
+    if not text:
+        return "priority result"
+    normalized = re.sub(r"^[\"'`]+|[\"'`]+$", "", text)
+    normalized = re.sub(
+        r"^(improve|strengthen|increase|expand|enhance|reduce|develop|build|support|enable|promote)\s+",
+        "",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"\b(in|for|across|among|through|via|with|within|under|on)\b.*$",
+        "",
+        normalized,
+        flags=re.IGNORECASE,
+    ).strip(" ,;:-")
+    if not normalized:
+        normalized = text
+    return _compact_indicator_label(normalized.lower(), max_len=52)
+
+
 def _indicator_name_from_toc_statement(statement: str, *, idx: int, result_level: str = "") -> str:
     phrase = _statement_to_indicator_phrase(statement)
     if not phrase:
@@ -529,30 +551,75 @@ def _deterministic_indicator_justification(
         "output": "delivery/result output",
     }.get(level, "causal result")
     statement_ref = _compact_indicator_label(_statement_to_indicator_phrase(statement), max_len=72) or statement_path
+    focus = _statement_focus_phrase(statement)
     if donor == "eu":
         return (
             f"Maps {level_label} '{statement_ref}' from `{statement_path}` into an EU intervention-logic indicator "
-            "with monitoring, verification, and implementation-evidence intent."
+            f"covering {focus} with monitoring, verification, and implementation-evidence intent."
         )
     if donor == "worldbank":
         return (
             f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a World Bank-style results framework "
-            "indicator for verified implementation tracking."
+            f"indicator covering {focus} for verified implementation tracking."
         )
     if donor in {"state_department", "us_state_department"}:
         return (
             f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a State Department-style program "
-            "indicator for monitored delivery and resilience review."
+            f"indicator covering {focus} for monitored delivery and resilience review."
         )
     if donor == "usaid":
         return (
             f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a USAID-style performance indicator "
-            "aligned with PMP-oriented monitoring, disaggregation, and verification logic."
+            f"covering {focus} and aligned with PMP-oriented monitoring, disaggregation, and verification logic."
         )
     return (
-        f"Deterministic MEL mapping for {level_label} '{statement_ref}' from `{statement_path}`. "
+        f"Deterministic MEL mapping for {level_label} '{statement_ref}' from `{statement_path}` covering {focus}. "
         "Tracks delivery of the causal results chain."
     )
+
+
+def _deterministic_definition_from_statement(
+    *,
+    donor_id: str,
+    result_level: str,
+    statement: str,
+    indicator_name: str,
+) -> str:
+    donor = str(donor_id or "").strip().lower()
+    level = _normalize_result_level(result_level) or "outcome"
+    focus = _statement_focus_phrase(statement)
+    label = str(indicator_name or "Indicator").strip() or "Indicator"
+    if donor == "usaid":
+        return (
+            f"{label} tracks {focus} as a {level}-level USAID performance result with PMP-oriented evidence, "
+            "disaggregation expectations, and documented verification."
+        )
+    if donor == "eu":
+        return (
+            f"{label} tracks {focus} as a {level}-level EU intervention-logic result with explicit means of "
+            "verification, partner validation, and implementation-evidence review."
+        )
+    if donor == "worldbank":
+        if level == "impact":
+            return (
+                f"{label} tracks {focus} as an impact-level Project Development Objective-style result using "
+                "verified government performance evidence and completion-stage review."
+            )
+        return (
+            f"{label} tracks {focus} as a {level}-level World Bank results framework result using ISR-ready "
+            "implementation evidence and agency verification."
+        )
+    if donor == "giz":
+        return (
+            f"{label} tracks {focus} as a {level}-level GIZ delivery result with partner evidence and "
+            "sustainability-oriented review."
+        )
+    if donor in {"state_department", "us_state_department"}:
+        return (
+            f"{label} tracks {focus} as a {level}-level State Department program result using partner verification, "
+            "delivery monitoring, and resilience-oriented review."
+        )
+    return f"{label} tracks {focus} at {level} level."
 
 
 def _default_disaggregation(indicator_name: str, *, donor_id: str, result_level: str) -> list[str]:
@@ -804,6 +871,12 @@ def _deterministic_indicators_from_toc(
             result_level=inferred_result_level,
             statement=statement,
         )
+        definition = _deterministic_definition_from_statement(
+            donor_id=donor_id,
+            result_level=inferred_result_level,
+            statement=statement,
+            indicator_name=name,
+        )
         indicators.append(
             _apply_indicator_defaults(
                 _copy_optional_indicator_fields_from_hit(
@@ -811,6 +884,7 @@ def _deterministic_indicators_from_toc(
                         "indicator_id": str(hit.get("indicator_id") or f"IND_{idx + 1:03d}"),
                         "name": name or f"Results indicator {idx + 1}",
                         "justification": justification,
+                        "definition": definition,
                         "citation": citation,
                         "baseline": baseline,
                         "target": target,

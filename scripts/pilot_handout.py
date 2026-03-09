@@ -42,6 +42,21 @@ def _safe_float(value: Any) -> float | None:
         return None
 
 
+def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
+    lines = text.splitlines()
+    bullets: list[str] = []
+    capture = False
+    for line in lines:
+        if line.strip() == heading:
+            capture = True
+            continue
+        if capture and line.startswith("## "):
+            break
+        if capture and line.startswith("- "):
+            bullets.append(line[2:].strip())
+    return bullets
+
+
 def _build_handout(
     *,
     pilot_pack_name: str,
@@ -56,6 +71,7 @@ def _build_handout(
     featured_review_readiness: dict[str, Any],
     featured_mel_summary: dict[str, Any],
     review_ready_cases: str,
+    current_conditions: list[str],
 ) -> str:
     done_cases = sum(1 for row in rows if str(row.get("status") or "").strip().lower() == "done")
     donors = sorted({str(row.get("donor_id") or "").strip() for row in rows if str(row.get("donor_id") or "").strip()})
@@ -91,6 +107,11 @@ def _build_handout(
     lines.append("- Lower review chaos through explicit workflow state and traceability.")
     lines.append("- Exportable artifacts for downstream proposal operations.")
     lines.append("")
+    if current_conditions:
+        lines.append("## Current Conditions")
+        for reason in current_conditions:
+            lines.append(f"- {reason}")
+        lines.append("")
     lines.append("## Featured Case")
     lines.append(f"- Donor: `{featured_row.get('donor_id')}`")
     lines.append(f"- Preset: `{featured_row.get('preset_key')}`")
@@ -184,6 +205,7 @@ def main() -> int:
         ),
         "-",
     )
+    current_conditions = _extract_markdown_bullets(scorecard_text, "## Conditions Before Buyer Decision")
 
     quality_values = [float(row["quality_score"]) for row in rows if str(row.get("quality_score") or "").strip()]
     critic_values = [float(row["critic_score"]) for row in rows if str(row.get("critic_score") or "").strip()]
@@ -226,6 +248,7 @@ def main() -> int:
             featured_review_readiness=featured_review_readiness,
             featured_mel_summary=featured_mel_summary,
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
+            current_conditions=current_conditions,
         ),
         encoding="utf-8",
     )

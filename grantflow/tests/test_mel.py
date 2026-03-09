@@ -229,6 +229,26 @@ def test_indicator_name_from_toc_statement_prefers_compact_result_label():
     assert name == "Impact: Improved digital service quality in municipal agencies"
 
 
+def test_deterministic_definition_from_statement_is_donor_shaped():
+    usaid_definition = mel_module._deterministic_definition_from_statement(
+        donor_id="usaid",
+        result_level="outcome",
+        statement="Improve digital service quality in municipal agencies.",
+        indicator_name="Outcome: Improved digital service quality in municipal agencies",
+    )
+    wb_definition = mel_module._deterministic_definition_from_statement(
+        donor_id="worldbank",
+        result_level="impact",
+        statement="Improve public sector service performance across pilot agencies.",
+        indicator_name="Impact: Improved public sector service performance across pilot agencies",
+    )
+
+    assert "tracks digital service quality" in usaid_definition.lower()
+    assert "usaid performance result" in usaid_definition.lower()
+    assert "project development objective-style result" in wb_definition.lower()
+    assert "public sector service performance" in wb_definition.lower()
+
+
 def test_mel_worldbank_defaults_are_results_framework_shaped():
     indicator = mel_module._apply_indicator_defaults(
         {
