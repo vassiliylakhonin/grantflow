@@ -663,6 +663,70 @@ def _deterministic_definition_from_statement(
     return f"{label} tracks {focus} at {level} level."
 
 
+def _is_generic_indicator_justification(text: str) -> bool:
+    normalized = " ".join(str(text or "").split()).strip().lower()
+    if not normalized:
+        return True
+    generic_tokens = (
+        "indicator selected for mel coverage",
+        "selected from donor-specific rag collection",
+        "selected from rag collection",
+        "selected based on project and toc relevance",
+        "tracks completion performance",
+        "tracks service performance",
+        "tracks agency performance improvements",
+        "tracks resilience adoption",
+    )
+    return any(token in normalized for token in generic_tokens)
+
+
+def _retrieval_indicator_justification(
+    *,
+    donor_id: str,
+    namespace: str,
+    toc_statement_path: str,
+    result_level: str,
+    indicator_name: str,
+) -> str:
+    donor = str(donor_id or "").strip().lower()
+    level = _normalize_result_level(result_level) or _infer_result_level_from_toc_path(toc_statement_path)
+    level_label = {
+        "impact": "impact-level result",
+        "outcome": "outcome-level result",
+        "output": "delivery/output result",
+    }.get(level, "causal result")
+    name_ref = _compact_indicator_label(indicator_name, max_len=72) or "indicator"
+    if donor == "usaid":
+        return (
+            f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
+            "for PMP-oriented monitoring and verification."
+        )
+    if donor == "eu":
+        return (
+            f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
+            "for intervention-logic monitoring and means-of-verification review."
+        )
+    if donor == "worldbank":
+        return (
+            f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
+            "for results framework and implementation-status tracking."
+        )
+    if donor == "giz":
+        return (
+            f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
+            "for delivery monitoring and sustainability-oriented review."
+        )
+    if donor in {"state_department", "us_state_department"}:
+        return (
+            f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
+            "for program delivery and resilience-focused review."
+        )
+    return (
+        f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
+        "for MEL coverage."
+    )
+
+
 def _default_disaggregation(indicator_name: str, *, donor_id: str, result_level: str) -> list[str]:
     name = str(indicator_name or "").strip().lower()
     donor = str(donor_id or "").strip().lower()
@@ -1499,6 +1563,8 @@ def _indicator_from_hit(
     input_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     name = str(hit.get("name") or f"Indicator from {namespace} #{idx + 1}")
+    toc_statement_path = str(hit.get("toc_statement_path") or "").strip() or ""
+    result_level = str(hit.get("result_level") or "").strip() or None
     baseline, target = _resolve_baseline_target(
         baseline_raw=hit.get("baseline"),
         target_raw=hit.get("target"),
@@ -1506,14 +1572,21 @@ def _indicator_from_hit(
         input_context=input_context or {},
         idx=idx,
         donor_id=donor_id,
-        result_level=str(hit.get("result_level") or "").strip() or None,
+        result_level=result_level,
     )
+    justification = str(hit.get("justification") or "").strip()
+    if _is_generic_indicator_justification(justification):
+        justification = _retrieval_indicator_justification(
+            donor_id=donor_id,
+            namespace=namespace,
+            toc_statement_path=toc_statement_path or f"retrieval_hit[{idx}]",
+            result_level=result_level or "",
+            indicator_name=name,
+        )
     indicator: Dict[str, Any] = {
         "indicator_id": str(hit.get("indicator_id") or f"IND_{idx + 1:03d}"),
         "name": name,
-        "justification": (
-            "Selected from donor-specific RAG collection " f"'{namespace}' based on project and ToC relevance."
-        ),
+        "justification": justification,
         "citation": str(hit.get("label") or namespace),
         "baseline": baseline,
         "target": target,
@@ -1523,7 +1596,7 @@ def _indicator_from_hit(
     return _apply_indicator_defaults(
         enriched,
         donor_id=donor_id,
-        toc_statement_path=str(hit.get("toc_statement_path") or "").strip() or None,
+        toc_statement_path=toc_statement_path or None,
     )
 
 
@@ -1539,7 +1612,17 @@ def _normalize_indicator_item(
         return None
     indicator_id = str(item.get("indicator_id") or f"IND_{idx + 1:03d}").strip() or f"IND_{idx + 1:03d}"
     name = str(item.get("name") or "").strip() or f"Indicator {idx + 1}"
-    justification = str(item.get("justification") or "").strip() or "Indicator selected for MEL coverage."
+    toc_statement_path = str(item.get("toc_statement_path") or "").strip() or ""
+    result_level = str(item.get("result_level") or "").strip() or None
+    justification = str(item.get("justification") or "").strip()
+    if _is_generic_indicator_justification(justification):
+        justification = _retrieval_indicator_justification(
+            donor_id=donor_id,
+            namespace=namespace,
+            toc_statement_path=toc_statement_path or f"normalized_item[{idx}]",
+            result_level=result_level or "",
+            indicator_name=name,
+        )
     citation = str(item.get("citation") or "").strip() or namespace
     baseline, target = _resolve_baseline_target(
         baseline_raw=item.get("baseline"),
@@ -1548,7 +1631,7 @@ def _normalize_indicator_item(
         input_context=input_context or {},
         idx=idx,
         donor_id=donor_id,
-        result_level=str(item.get("result_level") or "").strip() or None,
+        result_level=result_level,
     )
     evidence_excerpt = str(item.get("evidence_excerpt") or "").strip() or None
     normalized: Dict[str, Any] = {
@@ -1585,7 +1668,7 @@ def _normalize_indicator_item(
     return _apply_indicator_defaults(
         normalized,
         donor_id=donor_id,
-        toc_statement_path=str(item.get("toc_statement_path") or "").strip() or None,
+        toc_statement_path=toc_statement_path or None,
     )
 
 

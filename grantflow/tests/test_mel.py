@@ -929,6 +929,29 @@ def test_mel_donor_aware_indicator_governance_defaults():
     assert "administrative performance statistics" in str(wb_item["means_of_verification"]).lower()
 
 
+def test_mel_retrieval_indicator_justification_is_donor_shaped_when_generic():
+    item = mel_module._normalize_indicator_item(
+        {
+            "indicator_id": "IND_050",
+            "name": "Institutional performance score",
+            "justification": "Indicator selected for MEL coverage.",
+            "citation": "worldbank_ads301",
+            "baseline": "0 institutions",
+            "target": "8 institutions",
+            "result_level": "impact",
+            "toc_statement_path": "toc.project_development_objective",
+        },
+        idx=0,
+        namespace="worldbank_ads301",
+        donor_id="worldbank",
+        input_context={},
+    )
+
+    assert item is not None
+    assert "retrieved institutional performance score from `worldbank_ads301`" in str(item["justification"]).lower()
+    assert "results framework" in str(item["justification"]).lower()
+
+
 def test_mel_worldbank_and_state_department_defaults_shape_indicator_targets():
     wb_item = mel_module._normalize_indicator_item(
         {
