@@ -381,6 +381,27 @@ def test_mel_state_department_defaults_are_media_resilience_shaped():
     assert "partner risk reviews" in str(indicator["data_source"]).lower()
 
 
+def test_mel_state_department_civic_defaults_are_rights_and_governance_shaped():
+    indicator = mel_module._apply_indicator_defaults(
+        {
+            "indicator_id": "IND_002",
+            "name": "Strengthen civic accountability and information integrity practices",
+            "justification": "stub",
+            "citation": "stub",
+        },
+        donor_id="state_department",
+        toc_statement_path="toc.objectives[0].expected_change",
+    )
+
+    assert "civic-actor monitoring evidence" in str(indicator["definition"]).lower()
+    assert "stakeholder verification" in str(indicator["means_of_verification"]).lower()
+    assert "civic engagement leads" in str(indicator["owner"]).lower()
+    assert "civic risk reviews" in str(indicator["data_source"]).lower()
+    assert (
+        indicator["formula"] == "Count of organizations implementing verified civic or information-integrity practices"
+    )
+
+
 def test_mel_un_agencies_defaults_are_programme_shaped():
     indicator = mel_module._apply_indicator_defaults(
         {

@@ -525,6 +525,29 @@ def test_architect_un_agencies_evidence_signal_and_review_hint_are_programme_sha
     assert "un programme and sector-review package" in hint.lower()
 
 
+def test_fallback_structured_toc_uses_state_department_specific_program_logic_phrasing():
+    payload, _engine = _fallback_structured_toc(
+        DonorFactory.get_strategy("state_department").get_toc_schema(),
+        donor_id="state_department",
+        project="Independent Media Resilience",
+        country="Georgia",
+        revision_hint="",
+        evidence_hits=[],
+    )
+
+    strategic_context = str(payload.get("strategic_context") or "")
+    assert "information-space" in strategic_context.lower()
+    assert "partner safeguarding" in strategic_context.lower()
+    assert str(payload.get("program_goal") or "").lower() == "improve independent media resilience outcomes in georgia."
+    objectives = payload.get("objectives") or []
+    assert objectives
+    assert "political and operational pressure" in str(objectives[0].get("objective") or "").lower()
+    assert "democracy, human rights, and governance" in str(objectives[0].get("line_of_effort") or "").lower()
+    risks = payload.get("risk_mitigation") or []
+    assert risks
+    assert "contingency planning" in str(risks[0]).lower()
+
+
 def test_architect_llm_validation_failure_retries_once_and_recovers(monkeypatch):
     strategy = DonorFactory.get_strategy("usaid")
     monkeypatch.setattr(architect_generation_module, "openai_compatible_llm_available", lambda: True)

@@ -487,6 +487,13 @@ def _default_data_source_for_donor(donor_id: str, *, result_level: str, indicato
                 "impact": "Independent assessments, partner risk reviews, and sector monitoring datasets",
             }
             return sources.get(level, sources["outcome"])
+        if donor in {"state_department", "us_state_department"} and _is_state_department_civic_indicator(name):
+            sources = {
+                "output": "Partner activity records, stakeholder engagement logs, and verification notes",
+                "outcome": "Partner monitoring records, civic risk reviews, and stakeholder verification files",
+                "impact": "Independent assessments, stakeholder perception reviews, and sector monitoring datasets",
+            }
+            return sources.get(level, sources["outcome"])
         sources = {
             "output": "Implementing partner monitoring records",
             "outcome": "Partner verification records and periodic outcome reviews",
@@ -563,6 +570,11 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
                 f"{label} measured at {level} level using independent-media resilience evidence, partner "
                 "verification checks, and periodic risk review."
             )
+        if _is_state_department_civic_indicator(name):
+            return (
+                f"{label} measured at {level} level using civic-actor monitoring evidence, partner verification "
+                "checks, and periodic risk-context review."
+            )
         return (
             f"{label} measured at {level} level using program management evidence, verification checks, and "
             "periodic risk review."
@@ -602,6 +614,8 @@ def _default_indicator_formula(indicator_name: str, *, result_level: str, donor_
         token in name for token in ("media", "newsroom", "journalist", "civil society", "resilience")
     ):
         return "Count of organizations implementing verified resilience or protection practices"
+    if donor in {"state_department", "us_state_department"} and _is_state_department_civic_indicator(name):
+        return "Count of organizations implementing verified civic or information-integrity practices"
     if donor == "un_agencies" and any(
         token in name for token in ("education", "school", "learning", "facility", "service access")
     ):
@@ -931,6 +945,8 @@ def _default_owner_for_donor(donor_id: str, *, result_level: str, indicator_name
     if donor in {"state_department", "us_state_department"}:
         if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
             return "Program manager, partner MEL focal point, and media partner leads"
+        if _is_state_department_civic_indicator(name):
+            return "Program manager, partner MEL focal point, and civic engagement leads"
         return "Program manager and partner MEL focal point"
     if donor == "un_agencies":
         return "Programme manager, partner M&E focal point, and sector coordination lead"
@@ -990,6 +1006,8 @@ def _default_means_of_verification_for_donor(donor_id: str, *, result_level: str
     if donor in {"state_department", "us_state_department"}:
         if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
             return "Partner monitoring records, editorial risk logs, and resilience review documentation"
+        if _is_state_department_civic_indicator(name):
+            return "Partner monitoring records, stakeholder verification notes, and risk review documentation"
         return "Program monitoring records, partner verification notes, and risk review documentation"
     if donor == "un_agencies":
         return "Partner monitoring records, field verification notes, and programme or sector review documentation"
@@ -1606,6 +1624,21 @@ def _is_state_department_organizational_indicator(name: str) -> bool:
             "journalist",
             "journalism",
             "local media",
+        )
+    )
+
+
+def _is_state_department_civic_indicator(name: str) -> bool:
+    lowered = str(name or "").lower()
+    return any(
+        token in lowered
+        for token in (
+            "civic",
+            "rights",
+            "information integrity",
+            "public diplomacy",
+            "governance",
+            "accountability",
         )
     )
 

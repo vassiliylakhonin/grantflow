@@ -439,6 +439,45 @@ def _text_for_field(
                 f"{un_phrase} delivery during implementation."
             )[:420]
 
+    if donor_key in {"state_department", "us_state_department"}:
+        state_phrase = project_label.lower()
+        if lower_path == "strategic_context":
+            return (
+                f"The operating environment in {country or 'the target context'} requires politically aware support for "
+                f"{state_phrase}, partner safeguarding, and credible delivery under information-space and stakeholder risk."
+            )[:420]
+        if lower_path == "program_goal":
+            return f"Improve {state_phrase} outcomes in {country or 'target locations'}."
+        if "objectives[" in lower_path and lower_path.endswith(".objective"):
+            state_objectives = [
+                f"Strengthen partner capacity to deliver {state_phrase} under political and operational pressure.",
+                f"Improve protective routines, coordination, and audience trust for {state_phrase}.",
+            ]
+            return state_objectives[index % len(state_objectives)]
+        if "objectives[" in lower_path and lower_path.endswith(".line_of_effort"):
+            state_lines = [
+                "Democracy, Human Rights, and Governance",
+                "Public Affairs and Information Integrity",
+            ]
+            return state_lines[index % len(state_lines)]
+        if "objectives[" in lower_path and lower_path.endswith(".expected_change"):
+            return (
+                f"Partner institutions and frontline actors in {country or 'the target context'} demonstrate stronger "
+                f"risk-aware delivery, coordination, and resilience practices for {state_phrase}."
+            )[:420]
+        if "stakeholder_map[" in lower_path:
+            stakeholders = [
+                "Independent media outlets, journalist networks, and partner civil society organizations coordinate delivery and safeguarding.",
+                "Oversight actors, partner institutions, and community-facing stakeholders support verification, feedback, and risk response.",
+            ]
+            return stakeholders[index % len(stakeholders)][:420]
+        if "risk_mitigation[" in lower_path:
+            mitigations = [
+                "Adapt partner support, security routines, and contingency planning to political pressure and information-space risk.",
+                "Maintain verification, safeguarding, and escalation procedures so sensitive partners can continue delivery under stress.",
+            ]
+            return mitigations[index % len(mitigations)][:420]
+
     if lname.endswith("_id") or lname == "id":
         prefix = field_name.replace("_id", "").replace("_", " ").strip().title() or "Item"
         return f"{prefix} {index + 1}"
