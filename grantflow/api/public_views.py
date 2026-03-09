@@ -209,6 +209,9 @@ def _finding_recommended_action(item: Dict[str, Any], *, donor_id: Optional[str]
         return "No action; keep this finding for audit traceability."
     bucket = _finding_review_bucket(item)
     section = str(item.get("section") or "general").strip().lower()
+    code = str(item.get("code") or item.get("label") or "").strip().lower()
+    message = str(item.get("message") or "").strip().lower()
+    token = " ".join(part for part in (code, message) if part)
     donor = str(donor_id or "").strip().lower()
     donor_phrase = {
         "usaid": "USAID results hierarchy and monitoring package",
@@ -242,22 +245,48 @@ def _finding_recommended_action(item: Dict[str, Any], *, donor_id: Optional[str]
         "state_department": "Align this section to the expected State Department strategic context, stakeholder, and risk structure before approval.",
         "un_agencies": "Align this section to the expected UN objective, outcome, and verification structure before approval.",
     }.get(donor)
+    donor_grounding_phrase = {
+        "usaid": "results hierarchy evidence and PMP references",
+        "eu": "intervention-logic evidence and means-of-verification references",
+        "worldbank": "results-framework evidence and ISR/PDO references",
+        "giz": "delivery evidence and sustainability references",
+        "state_department": "program evidence and partner-risk references",
+        "un_agencies": "results framework evidence and verification references",
+    }.get(donor, "evidence references")
     if bucket == "grounding":
+        if any(key in token for key in ("traceability", "doc_id", "chunk", "page", "source")):
+            return f"Regenerate the affected evidence with explicit document, chunk, and page metadata so reviewers can trace the {donor_grounding_phrase} line by line."
+        if any(key in token for key in ("low_confidence", "confidence", "weak citation", "weak evidence")):
+            return f"Improve retrieval match quality and replace weak citations so the next draft carries reviewer-credible {donor_grounding_phrase}."
+        if any(key in token for key in ("fallback", "grounding", "evidence gap", "rag")):
+            return f"Replace fallback evidence with retrieved donor-grounded support so the next reviewer pass sees credible {donor_grounding_phrase}."
         if section == "toc":
             return f"Reground the affected ToC claim and replace fallback or weak citations in the {donor_phrase} before next review."
         if section == "logframe":
             return f"Reconnect the indicator to grounded evidence and replace fallback or weak citations in the {donor_phrase} before next review."
         return f"Replace fallback or weak evidence before the next reviewer pass for the {donor_phrase}."
     if bucket == "measurement":
+        if any(key in token for key in ("baseline", "target", "placeholder")):
+            return f"Replace placeholder baseline and target values with reviewer-defensible measures before the next export of the {donor_phrase}."
+        if any(key in token for key in ("owner", "verification", "means_of_verification", "mov")):
+            return f"Assign an owner and explicit means of verification so the next export is operationally review-ready for the {donor_phrase}."
+        if any(key in token for key in ("formula", "frequency", "indicator")):
+            return f"Refine the indicator formula, frequency, and definition so the next export is measurable and reviewer-ready for the {donor_phrase}."
         return donor_measurement_action or (
             f"Tighten baseline, target, formula, or verification fields before the next export of the {donor_phrase}."
         )
     if bucket == "logic":
+        if any(key in token for key in ("boilerplate", "repetition", "repeated")):
+            return f"Replace repeated boilerplate with section-specific causal logic so the next draft reads like a reviewer-ready {donor_phrase}."
+        if any(key in token for key in ("assumption", "causal", "link")):
+            return f"Clarify the causal chain and assumptions so the next draft shows a credible results path for the {donor_phrase}."
         return (
             donor_logic_action
             or f"Revise the results logic or assumptions so the next draft aligns to the {donor_phrase}."
         )
     if bucket == "compliance":
+        if any(key in token for key in ("objective", "outcome", "pdo", "hierarchy", "schema", "required")):
+            return f"Complete the required donor structure so reviewers can validate hierarchy, objectives, and compliance in the {donor_phrase}."
         return donor_compliance_action or (
             f"Align this section to the required structure and compliance rules for the {donor_phrase} before approval."
         )

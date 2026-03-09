@@ -29,8 +29,8 @@ def test_finding_recommended_action_uses_donor_specific_measurement_language():
         },
         donor_id="worldbank",
     )
-    assert "ISR-style review" in action
-    assert "baseline" in action.lower()
+    assert "placeholder baseline and target values" in action.lower()
+    assert "world bank results framework and pdo package" in action.lower()
 
 
 def test_finding_recommended_action_uses_donor_specific_compliance_language():
@@ -46,3 +46,48 @@ def test_finding_recommended_action_uses_donor_specific_compliance_language():
     )
     assert "overall objective" in action.lower()
     assert "verification intent" in action.lower()
+
+
+def test_finding_recommended_action_makes_grounding_gap_more_specific():
+    action = _finding_recommended_action(
+        {
+            "code": "TOC_EVIDENCE_GAP",
+            "section": "toc",
+            "message": "Outcome chain lacks grounded support and relies on fallback evidence.",
+            "severity": "high",
+            "status": "open",
+        },
+        donor_id="usaid",
+    )
+    assert "fallback evidence" in action.lower()
+    assert "pmp references" in action.lower()
+
+
+def test_finding_recommended_action_makes_placeholder_targets_more_specific():
+    action = _finding_recommended_action(
+        {
+            "code": "BASELINE_TARGET_MISSING",
+            "section": "logframe",
+            "message": "Indicators still use placeholder baseline and target values.",
+            "severity": "medium",
+            "status": "open",
+        },
+        donor_id="eu",
+    )
+    assert "placeholder baseline and target values" in action.lower()
+    assert "eu intervention logic and verification package" in action.lower()
+
+
+def test_finding_recommended_action_makes_boilerplate_logic_more_specific():
+    action = _finding_recommended_action(
+        {
+            "code": "TOC_BOILERPLATE_REPETITION",
+            "section": "toc",
+            "message": "Theory of Change contains repeated boilerplate narrative across multiple sections.",
+            "severity": "low",
+            "status": "open",
+        },
+        donor_id="usaid",
+    )
+    assert "repeated boilerplate" in action.lower()
+    assert "reviewer-ready" in action.lower()
