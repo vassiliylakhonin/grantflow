@@ -20,6 +20,8 @@ ROOT_FILES = (
     "buyer-brief.md",
     "pilot-scorecard.md",
     "pilot-metrics.md",
+    "pilot-portfolio-summary.json",
+    "pilot-portfolio-summary.csv",
     "pilot-evaluation-checklist.md",
     "buyer-one-pager.md",
     "README.md",

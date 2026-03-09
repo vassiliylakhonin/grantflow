@@ -225,7 +225,7 @@ By default, `demo-pack` also seeds a synthetic reviewer comment workflow into th
 `make pilot-pack` wraps the live demo evidence into `build/pilot-pack/` with a top-level pilot README plus buyer/demo guidance docs.
 `make buyer-brief` turns an existing pilot pack into a short executive summary markdown for sponsor or buyer review.
 `make buyer-brief-refresh` rebuilds the pilot pack first and then writes the brief.
-`make pilot-metrics` builds `csv` + `md` metric tables from an existing pilot pack.
+`make pilot-metrics` builds per-case `csv`, reviewer-facing `md`, and machine-readable portfolio summary `json/csv` artifacts from an existing pilot pack.
 `make pilot-metrics-refresh` rebuilds the pilot pack first and then writes the metric tables.
 `make pilot-scorecard` builds a buyer-facing go/no-go memo from an existing pilot pack.
 `make pilot-scorecard-refresh` rebuilds the pilot pack, metrics, and brief first, then writes the scorecard.

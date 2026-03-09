@@ -69,6 +69,26 @@ def _bucket_mix_text(bucket_counts: dict[str, float | int]) -> str:
     return ", ".join(parts) if parts else "-"
 
 
+def _donor_bucket_mix_text(rows: list[dict[str, Any]]) -> str:
+    donor_stale_bucket_totals: dict[str, dict[str, int]] = {}
+    for row in rows:
+        donor = str(row.get("donor_id") or "").strip() or "unknown"
+        donor_bucket_counts = donor_stale_bucket_totals.setdefault(
+            donor, {"logic": 0, "grounding": 0, "measurement": 0, "compliance": 0, "general": 0}
+        )
+        donor_bucket_counts["logic"] += int(_safe_int(row.get("stale_comment_bucket_logic")) or 0)
+        donor_bucket_counts["grounding"] += int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0)
+        donor_bucket_counts["measurement"] += int(_safe_int(row.get("stale_comment_bucket_measurement")) or 0)
+        donor_bucket_counts["compliance"] += int(_safe_int(row.get("stale_comment_bucket_compliance")) or 0)
+        donor_bucket_counts["general"] += int(_safe_int(row.get("stale_comment_bucket_general")) or 0)
+    donor_mix = "; ".join(
+        f"{donor}: {_bucket_mix_text(bucket_counts)}"
+        for donor, bucket_counts in donor_stale_bucket_totals.items()
+        if _bucket_mix_text(bucket_counts) != "-"
+    )
+    return donor_mix or "-"
+
+
 def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, Any]:
     metrics_path = case_dir / "metrics.json"
     quality_path = case_dir / "quality.json"
@@ -379,6 +399,159 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
             writer.writerow(row)
 
 
+def _write_summary_csv(path: Path, summary: dict[str, Any]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(summary.keys()))
+        writer.writeheader()
+        writer.writerow(summary)
+
+
+def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> dict[str, Any]:
+    avg_quality = _avg([_safe_float(row.get("quality_score")) for row in rows])
+    avg_critic = _avg([_safe_float(row.get("critic_score")) for row in rows])
+    avg_first_draft = _avg([_safe_float(row.get("time_to_first_draft_seconds")) for row in rows])
+    avg_terminal = _avg([_safe_float(row.get("time_to_terminal_seconds")) for row in rows])
+    avg_pending_hitl = _avg([_safe_float(row.get("time_in_pending_hitl_seconds")) for row in rows])
+    avg_citations = _avg([_safe_int(row.get("citation_count")) for row in rows])
+    avg_open_findings = _avg([_safe_int(row.get("open_critic_findings")) for row in rows])
+    avg_resolved_findings = _avg([_safe_int(row.get("resolved_critic_findings")) for row in rows])
+    avg_ack_findings = _avg([_safe_int(row.get("acknowledged_critic_findings")) for row in rows])
+    avg_fallback_citations = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in rows])
+    avg_low_confidence = _avg([_safe_int(row.get("low_confidence_citations")) for row in rows])
+    avg_open_comments = _avg([_safe_int(row.get("open_review_comments")) for row in rows])
+    avg_resolved_comments = _avg([_safe_int(row.get("resolved_review_comments")) for row in rows])
+    avg_ack_comments = _avg([_safe_int(row.get("acknowledged_review_comments")) for row in rows])
+    avg_overdue_comments = _avg([_safe_int(row.get("overdue_review_comments")) for row in rows])
+    avg_stale_comments = _avg([_safe_int(row.get("stale_open_review_comments")) for row in rows])
+    avg_comment_resolution_rate = _avg([_safe_float(row.get("review_comment_resolution_rate")) for row in rows])
+    avg_comment_ack_rate = _avg([_safe_float(row.get("review_comment_acknowledgment_rate")) for row in rows])
+    avg_reviewer_workflow_resolution_rate = _avg(
+        [_safe_float(row.get("reviewer_workflow_resolution_rate")) for row in rows]
+    )
+    avg_reviewer_workflow_ack_rate = _avg(
+        [_safe_float(row.get("reviewer_workflow_acknowledgment_rate")) for row in rows]
+    )
+    avg_critic_finding_resolution_rate = _avg([_safe_float(row.get("critic_finding_resolution_rate")) for row in rows])
+    avg_critic_finding_ack_rate = _avg([_safe_float(row.get("critic_finding_acknowledgment_rate")) for row in rows])
+    avg_comment_age_d3_7 = _avg([_safe_int(row.get("comment_age_d3_7")) for row in rows])
+    avg_comment_age_gt_7d = _avg([_safe_int(row.get("comment_age_gt_7d")) for row in rows])
+    avg_finding_ack_queue = _avg([_safe_int(row.get("finding_ack_queue_count")) for row in rows])
+    avg_finding_resolve_queue = _avg([_safe_int(row.get("finding_resolve_queue_count")) for row in rows])
+    avg_comment_ack_queue = _avg([_safe_int(row.get("comment_ack_queue_count")) for row in rows])
+    avg_comment_resolve_queue = _avg([_safe_int(row.get("comment_resolve_queue_count")) for row in rows])
+    avg_comment_reopen_queue = _avg([_safe_int(row.get("comment_reopen_queue_count")) for row in rows])
+    stale_bucket_totals = {
+        "logic": sum(int(_safe_int(row.get("stale_comment_bucket_logic")) or 0) for row in rows),
+        "grounding": sum(int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0) for row in rows),
+        "measurement": sum(int(_safe_int(row.get("stale_comment_bucket_measurement")) or 0) for row in rows),
+        "compliance": sum(int(_safe_int(row.get("stale_comment_bucket_compliance")) or 0) for row in rows),
+        "general": sum(int(_safe_int(row.get("stale_comment_bucket_general")) or 0) for row in rows),
+    }
+    top_stale_bucket = (
+        max(stale_bucket_totals.items(), key=lambda item: item[1])[0] if any(stale_bucket_totals.values()) else ""
+    )
+    avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
+    avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
+    avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
+    complete_logframe_cases = sum(_safe_int(row.get("complete_logframe_operational_coverage")) == 1 for row in rows)
+    next_bucket = next(
+        (
+            str(row.get("next_review_bucket") or "").strip()
+            for row in rows
+            if str(row.get("next_review_bucket") or "").strip()
+        ),
+        "",
+    )
+    next_action = next(
+        (
+            str(row.get("next_recommended_action") or "").strip()
+            for row in rows
+            if str(row.get("next_recommended_action") or "").strip()
+        ),
+        "",
+    )
+    next_comment_section = next(
+        (
+            str(row.get("next_comment_section") or "").strip()
+            for row in rows
+            if str(row.get("next_comment_section") or "").strip()
+        ),
+        "",
+    )
+    next_comment_bucket = next(
+        (
+            str(row.get("next_comment_bucket") or "").strip()
+            for row in rows
+            if str(row.get("next_comment_bucket") or "").strip()
+        ),
+        "",
+    )
+    next_comment_action = next(
+        (
+            str(row.get("next_comment_action") or "").strip()
+            for row in rows
+            if str(row.get("next_comment_action") or "").strip()
+        ),
+        "",
+    )
+    next_primary_action = next(
+        (
+            str(row.get("next_primary_action") or "").strip()
+            for row in rows
+            if str(row.get("next_primary_action") or "").strip()
+        ),
+        "",
+    )
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "pilot_pack_name": pilot_pack_name,
+        "case_count": len(rows),
+        "avg_quality_score": avg_quality,
+        "avg_critic_score": avg_critic,
+        "avg_time_to_first_draft_seconds": avg_first_draft,
+        "avg_time_to_terminal_seconds": avg_terminal,
+        "avg_time_in_pending_hitl_seconds": avg_pending_hitl,
+        "avg_citation_count": avg_citations,
+        "avg_open_critic_findings": avg_open_findings,
+        "avg_acknowledged_critic_findings": avg_ack_findings,
+        "avg_resolved_critic_findings": avg_resolved_findings,
+        "avg_open_review_comments": avg_open_comments,
+        "avg_acknowledged_review_comments": avg_ack_comments,
+        "avg_resolved_review_comments": avg_resolved_comments,
+        "avg_overdue_review_comments": avg_overdue_comments,
+        "avg_stale_open_review_comments": avg_stale_comments,
+        "avg_review_comment_resolution_rate": avg_comment_resolution_rate,
+        "avg_review_comment_acknowledgment_rate": avg_comment_ack_rate,
+        "avg_reviewer_workflow_resolution_rate": avg_reviewer_workflow_resolution_rate,
+        "avg_reviewer_workflow_acknowledgment_rate": avg_reviewer_workflow_ack_rate,
+        "avg_critic_finding_resolution_rate": avg_critic_finding_resolution_rate,
+        "avg_critic_finding_acknowledgment_rate": avg_critic_finding_ack_rate,
+        "avg_finding_ack_queue": avg_finding_ack_queue,
+        "avg_finding_resolve_queue": avg_finding_resolve_queue,
+        "avg_comment_ack_queue": avg_comment_ack_queue,
+        "avg_comment_resolve_queue": avg_comment_resolve_queue,
+        "avg_comment_reopen_queue": avg_comment_reopen_queue,
+        "avg_comment_age_d3_7": avg_comment_age_d3_7,
+        "avg_comment_age_gt_7d": avg_comment_age_gt_7d,
+        "stale_comment_bucket_mix": _bucket_mix_text(stale_bucket_totals),
+        "top_stale_comment_bucket": top_stale_bucket or None,
+        "stale_thread_donor_bucket_mix": _donor_bucket_mix_text(rows),
+        "avg_fallback_strategy_citations": avg_fallback_citations,
+        "avg_low_confidence_citations": avg_low_confidence,
+        "avg_smart_field_coverage_rate": avg_smart_coverage,
+        "avg_means_of_verification_coverage_rate": avg_mov_coverage,
+        "avg_owner_coverage_rate": avg_owner_coverage,
+        "complete_logframe_operational_coverage_cases": complete_logframe_cases,
+        "complete_logframe_operational_coverage_ratio": round(complete_logframe_cases / len(rows), 4) if rows else None,
+        "portfolio_next_primary_action": next_primary_action or None,
+        "portfolio_next_review_bucket": next_bucket or None,
+        "portfolio_next_recommended_action": next_action or None,
+        "portfolio_next_comment_section": next_comment_section or None,
+        "portfolio_next_comment_bucket": next_comment_bucket or None,
+        "portfolio_next_comment_action": next_comment_action or None,
+    }
+
+
 def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_quality = _avg([_safe_float(row.get("quality_score")) for row in rows])
     avg_critic = _avg([_safe_float(row.get("critic_score")) for row in rows])
@@ -597,6 +770,8 @@ def main() -> int:
     parser.add_argument("--pilot-pack-dir", default="build/pilot-pack")
     parser.add_argument("--csv-out", default="")
     parser.add_argument("--md-out", default="")
+    parser.add_argument("--summary-json-out", default="")
+    parser.add_argument("--summary-csv-out", default="")
     args = parser.parse_args()
 
     pilot_pack_dir = Path(str(args.pilot_pack_dir)).resolve()
@@ -620,10 +795,23 @@ def main() -> int:
 
     csv_out = Path(str(args.csv_out)).resolve() if str(args.csv_out).strip() else pilot_pack_dir / "pilot-metrics.csv"
     md_out = Path(str(args.md_out)).resolve() if str(args.md_out).strip() else pilot_pack_dir / "pilot-metrics.md"
+    summary_json_out = (
+        Path(str(args.summary_json_out)).resolve()
+        if str(args.summary_json_out).strip()
+        else pilot_pack_dir / "pilot-portfolio-summary.json"
+    )
+    summary_csv_out = (
+        Path(str(args.summary_csv_out)).resolve()
+        if str(args.summary_csv_out).strip()
+        else pilot_pack_dir / "pilot-portfolio-summary.csv"
+    )
 
     _write_csv(csv_out, rows)
     md_out.write_text(_build_markdown(rows, pilot_pack_name=pilot_pack_dir.name), encoding="utf-8")
-    print(f"pilot metrics saved to {csv_out} and {md_out}")
+    summary_payload = _build_summary_payload(rows, pilot_pack_name=pilot_pack_dir.name)
+    summary_json_out.write_text(json.dumps(summary_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_summary_csv(summary_csv_out, summary_payload)
+    print(f"pilot metrics saved to {csv_out}, {md_out}, {summary_json_out}, and {summary_csv_out}")
     return 0
 
 
