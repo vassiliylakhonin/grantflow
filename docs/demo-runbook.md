@@ -108,7 +108,7 @@ It also seeds a synthetic reviewer comment workflow into the saved demo artifact
 `make verify-latest-stack` verifies that `build/latest-*` symlinks and key files exist.
 `make verify-latest-stack-refresh` rebuilds the chain first, then verifies the latest stack.
 `make release-demo-bundle` rebuilds and packages the latest stack into a send-ready folder plus zip.
-`make release-demo-bundle-fast` rebuilds only the fast buyer path, then packages `pilot-handout`, `latest-open-order`, `pilot-portfolio-summary.json/csv`, and the current `executive-pack` into a lighter send-ready folder plus zip.
+`make release-demo-bundle-fast` rebuilds only the fast buyer path, then packages `pilot-handout`, `pilot-evidence-pack`, `latest-open-order`, `pilot-portfolio-summary.json/csv`, and the current `executive-pack` into a lighter send-ready folder plus zip.
 `make send-bundle-index` writes a short markdown describing which current bundle to send and when.
 `make send-bundle-index-refresh` rebuilds the fast send bundle first, then writes that send index.
 `make open-latest-send` prints the current send-oriented open order from the latest fast/full bundle links. Set `OPEN_LATEST_SEND_MODE=open` on macOS to open the files directly.

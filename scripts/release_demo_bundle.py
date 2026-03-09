@@ -65,6 +65,7 @@ def _build_readme(
     archive_zip_name: str | None,
     include_diligence_index: bool,
     include_executive_pack: bool,
+    include_pilot_evidence_pack: bool,
     send_policy_status: str | None,
     send_policy_flag: str | None,
     send_policy_action: str | None,
@@ -105,6 +106,8 @@ def _build_readme(
     lines.append("## Included")
     lines.append("- `pilot-handout.md`: single-file buyer summary")
     lines.append("- `latest-open-order.md`: what to open and in which order")
+    if include_pilot_evidence_pack:
+        lines.append("- `pilot-evidence-pack/`: compact pilot evidence summary with before/after and blockers")
     lines.append("- `pilot-portfolio-summary.json`: machine-readable portfolio readiness snapshot")
     lines.append("- `pilot-portfolio-summary.csv`: flat portfolio readiness export")
     if include_diligence_index:
@@ -123,6 +126,8 @@ def _build_readme(
     lines.append("")
     lines.append("## Send Order")
     send_order = ["Share `pilot-handout.md` first."]
+    if include_pilot_evidence_pack:
+        send_order.append("Use `pilot-evidence-pack/README.md` for the compact pilot evidence view.")
     if include_executive_pack:
         send_order.append("Use `executive-pack/` for the buyer-facing packet.")
     if archive_zip_name:
@@ -216,6 +221,10 @@ def main() -> int:
 
     _copy_if_exists(build_dir / "pilot-handout.md", bundle_root / "pilot-handout.md")
     _copy_if_exists(build_dir / "latest-open-order.md", bundle_root / "latest-open-order.md")
+    pilot_evidence_pack_dir = build_dir / "pilot-evidence-pack"
+    include_pilot_evidence_pack = pilot_evidence_pack_dir.exists()
+    if include_pilot_evidence_pack:
+        _copy_tree_if_exists(pilot_evidence_pack_dir, bundle_root / "pilot-evidence-pack")
     if pilot_pack_dir:
         _copy_if_exists(pilot_pack_dir / "pilot-portfolio-summary.json", bundle_root / "pilot-portfolio-summary.json")
         _copy_if_exists(pilot_pack_dir / "pilot-portfolio-summary.csv", bundle_root / "pilot-portfolio-summary.csv")
@@ -254,6 +263,7 @@ def main() -> int:
         "includes": {
             "pilot_handout": (bundle_root / "pilot-handout.md").exists(),
             "latest_open_order": (bundle_root / "latest-open-order.md").exists(),
+            "pilot_evidence_pack": (bundle_root / "pilot-evidence-pack").exists(),
             "pilot_portfolio_summary_json": (bundle_root / "pilot-portfolio-summary.json").exists(),
             "pilot_portfolio_summary_csv": (bundle_root / "pilot-portfolio-summary.csv").exists(),
             "diligence_index": (bundle_root / "diligence-index.md").exists(),
@@ -270,6 +280,7 @@ def main() -> int:
             archive_zip_name=archive_zip_name,
             include_diligence_index=include_diligence_index,
             include_executive_pack=include_executive_pack,
+            include_pilot_evidence_pack=include_pilot_evidence_pack,
             send_policy_status=send_policy_status,
             send_policy_flag=send_policy_flag,
             send_policy_action=send_policy_action,
