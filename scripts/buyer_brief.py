@@ -94,11 +94,14 @@ def _review_readiness_from_payloads(
     comment_defaults = {
         "open_review_comments": 0,
         "resolved_review_comments": 0,
+        "acknowledged_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
         "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
+        "review_comment_resolution_rate": None,
+        "review_comment_acknowledgment_rate": None,
     }
     if isinstance(readiness.get("comment_triage_summary"), dict):
         return {**comment_defaults, **readiness}
@@ -122,11 +125,14 @@ def _review_readiness_from_payloads(
         **readiness,
         "open_review_comments": comment_triage.get("open_comment_count"),
         "resolved_review_comments": comment_triage.get("resolved_comment_count"),
+        "acknowledged_review_comments": comment_triage.get("acknowledged_comment_count"),
         "pending_review_comments": comment_triage.get("pending_comment_count"),
         "overdue_review_comments": comment_triage.get("overdue_comment_count"),
         "stale_open_review_comments": comment_triage.get("stale_open_comment_count"),
         "linked_review_comments": comment_triage.get("linked_comment_count"),
         "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
+        "review_comment_resolution_rate": readiness.get("review_comment_resolution_rate"),
+        "review_comment_acknowledgment_rate": readiness.get("review_comment_acknowledgment_rate"),
         "comment_triage_summary": comment_triage,
     }
 
@@ -320,11 +326,28 @@ def main() -> int:
     resolved_comments_avg = _avg(
         [_safe_int(item.get("resolved_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
     )
+    acknowledged_comments_avg = _avg(
+        [_safe_int(item.get("acknowledged_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
+    )
     overdue_comments_avg = _avg(
         [_safe_int(item.get("overdue_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
     )
     stale_comments_avg = _avg(
         [_safe_int(item.get("stale_open_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
+    )
+    resolution_rate_avg = _avg(
+        [
+            _safe_float(item.get("review_comment_resolution_rate"))
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    acknowledgment_rate_avg = _avg(
+        [
+            _safe_float(item.get("review_comment_acknowledgment_rate"))
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
     )
     fallback_citations_avg = _avg(
         [_safe_int(item.get("fallback_strategy_citations")) for item in readiness_summaries if isinstance(item, dict)]
@@ -466,8 +489,11 @@ def main() -> int:
         f"- Open critic findings per case: `{_format_num(open_findings_avg)}`",
         f"- Open review comments per case: `{_format_num(open_comments_avg)}`",
         f"- Resolved review comments per case: `{_format_num(resolved_comments_avg)}`",
+        f"- Acknowledged review comments per case: `{_format_num(acknowledged_comments_avg)}`",
         f"- Overdue review comments per case: `{_format_num(overdue_comments_avg)}`",
         f"- Stale open review comments per case: `{_format_num(stale_comments_avg)}`",
+        f"- Average review comment resolution rate: `{_format_num(resolution_rate_avg)}`",
+        f"- Average review comment acknowledgment rate: `{_format_num(acknowledgment_rate_avg)}`",
         f"- Fallback/strategy citations per case: `{_format_num(fallback_citations_avg)}`",
         f"- Low-confidence citations per case: `{_format_num(low_confidence_avg)}`",
         *([f"- Next comment section: `{next_comment_section}`"] if next_comment_section else []),

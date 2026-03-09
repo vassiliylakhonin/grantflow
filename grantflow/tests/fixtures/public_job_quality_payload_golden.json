@@ -295,7 +295,9 @@
     "warnings": []
   },
   "review_readiness_summary": {
+    "acknowledged_review_comments": 0,
     "comment_triage_summary": {
+      "acknowledged_comment_count": 0,
       "comment_bucket_counts": {
         "grounding": 1
       },
@@ -328,6 +330,8 @@
     "overdue_review_comments": 0,
     "pending_review_comments": 1,
     "resolved_review_comments": 0,
+    "review_comment_acknowledgment_rate": 0.0,
+    "review_comment_resolution_rate": 0.0,
     "stale_open_review_comments": 0
   },
   "status": "done",

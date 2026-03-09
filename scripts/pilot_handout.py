@@ -157,9 +157,18 @@ def _build_handout(
         lines.append(f"- Open critic findings: `{featured_review_readiness.get('open_critic_findings', '-')}`")
         lines.append(f"- Open review comments: `{featured_review_readiness.get('open_review_comments', '-')}`")
         lines.append(f"- Resolved review comments: `{featured_review_readiness.get('resolved_review_comments', '-')}`")
+        lines.append(
+            f"- Acknowledged review comments: `{featured_review_readiness.get('acknowledged_review_comments', '-')}`"
+        )
         lines.append(f"- Overdue review comments: `{featured_review_readiness.get('overdue_review_comments', '-')}`")
         lines.append(
             f"- Stale open review comments: `{featured_review_readiness.get('stale_open_review_comments', '-')}`"
+        )
+        lines.append(
+            f"- Review comment resolution rate: `{_safe_float(featured_review_readiness.get('review_comment_resolution_rate')) if _safe_float(featured_review_readiness.get('review_comment_resolution_rate')) is not None else '-'}`"
+        )
+        lines.append(
+            f"- Review comment acknowledgment rate: `{_safe_float(featured_review_readiness.get('review_comment_acknowledgment_rate')) if _safe_float(featured_review_readiness.get('review_comment_acknowledgment_rate')) is not None else '-'}`"
         )
         lines.append(
             f"- Fallback/strategy citations: `{featured_review_readiness.get('fallback_strategy_citations', '-')}`"
@@ -286,11 +295,14 @@ def main() -> int:
     featured_review_readiness = {
         "open_review_comments": 0,
         "resolved_review_comments": 0,
+        "acknowledged_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
         "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
+        "review_comment_resolution_rate": None,
+        "review_comment_acknowledgment_rate": None,
         **featured_review_readiness,
     }
     featured_triage_summary = quality_payload.get("triage_summary") if isinstance(quality_payload, dict) else {}
@@ -333,11 +345,16 @@ def main() -> int:
                 **featured_review_readiness,
                 "open_review_comments": comment_triage.get("open_comment_count"),
                 "resolved_review_comments": comment_triage.get("resolved_comment_count"),
+                "acknowledged_review_comments": comment_triage.get("acknowledged_comment_count"),
                 "pending_review_comments": comment_triage.get("pending_comment_count"),
                 "overdue_review_comments": comment_triage.get("overdue_comment_count"),
                 "stale_open_review_comments": comment_triage.get("stale_open_comment_count"),
                 "linked_review_comments": comment_triage.get("linked_comment_count"),
                 "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
+                "review_comment_resolution_rate": featured_review_readiness.get("review_comment_resolution_rate"),
+                "review_comment_acknowledgment_rate": featured_review_readiness.get(
+                    "review_comment_acknowledgment_rate"
+                ),
                 "comment_triage_summary": comment_triage,
             }
 

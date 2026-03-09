@@ -92,11 +92,14 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
     comment_defaults = {
         "open_review_comments": 0,
         "resolved_review_comments": 0,
+        "acknowledged_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
         "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
+        "review_comment_resolution_rate": None,
+        "review_comment_acknowledgment_rate": None,
     }
     readiness = {**comment_defaults, **readiness}
     triage = quality.get("triage_summary") if isinstance(quality.get("triage_summary"), dict) else {}
@@ -137,11 +140,14 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "high_severity_open_findings": readiness.get("high_severity_open_findings"),
         "open_review_comments": readiness.get("open_review_comments"),
         "resolved_review_comments": readiness.get("resolved_review_comments"),
+        "acknowledged_review_comments": readiness.get("acknowledged_review_comments"),
         "pending_review_comments": readiness.get("pending_review_comments"),
         "overdue_review_comments": readiness.get("overdue_review_comments"),
         "stale_open_review_comments": readiness.get("stale_open_review_comments"),
         "linked_review_comments": readiness.get("linked_review_comments"),
         "orphan_linked_review_comments": readiness.get("orphan_linked_review_comments"),
+        "review_comment_resolution_rate": readiness.get("review_comment_resolution_rate"),
+        "review_comment_acknowledgment_rate": readiness.get("review_comment_acknowledgment_rate"),
         "fallback_strategy_citations": readiness.get("fallback_strategy_citations"),
         "low_confidence_citations": readiness.get("low_confidence_citations"),
         "next_review_bucket": triage.get("next_review_bucket"),
@@ -191,11 +197,14 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "high_severity_open_findings",
         "open_review_comments",
         "resolved_review_comments",
+        "acknowledged_review_comments",
         "pending_review_comments",
         "overdue_review_comments",
         "stale_open_review_comments",
         "linked_review_comments",
         "orphan_linked_review_comments",
+        "review_comment_resolution_rate",
+        "review_comment_acknowledgment_rate",
         "fallback_strategy_citations",
         "low_confidence_citations",
         "next_review_bucket",
@@ -231,8 +240,11 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_low_confidence = _avg([_safe_int(row.get("low_confidence_citations")) for row in rows])
     avg_open_comments = _avg([_safe_int(row.get("open_review_comments")) for row in rows])
     avg_resolved_comments = _avg([_safe_int(row.get("resolved_review_comments")) for row in rows])
+    avg_ack_comments = _avg([_safe_int(row.get("acknowledged_review_comments")) for row in rows])
     avg_overdue_comments = _avg([_safe_int(row.get("overdue_review_comments")) for row in rows])
     avg_stale_comments = _avg([_safe_int(row.get("stale_open_review_comments")) for row in rows])
+    avg_comment_resolution_rate = _avg([_safe_float(row.get("review_comment_resolution_rate")) for row in rows])
+    avg_comment_ack_rate = _avg([_safe_float(row.get("review_comment_acknowledgment_rate")) for row in rows])
     avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
     avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
     avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
@@ -295,8 +307,11 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average open critic findings per case: `{_fmt(avg_open_findings)}`")
     lines.append(f"- Average open review comments per case: `{_fmt(avg_open_comments)}`")
     lines.append(f"- Average resolved review comments per case: `{_fmt(avg_resolved_comments)}`")
+    lines.append(f"- Average acknowledged review comments per case: `{_fmt(avg_ack_comments)}`")
     lines.append(f"- Average overdue review comments per case: `{_fmt(avg_overdue_comments)}`")
     lines.append(f"- Average stale open review comments per case: `{_fmt(avg_stale_comments)}`")
+    lines.append(f"- Average review comment resolution rate: `{_fmt(avg_comment_resolution_rate)}`")
+    lines.append(f"- Average review comment acknowledgment rate: `{_fmt(avg_comment_ack_rate)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence)}`")
     lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart_coverage)}`")

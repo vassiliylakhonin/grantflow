@@ -143,6 +143,14 @@ def test_comment_triage_summary_tracks_overdue_and_next_action():
             },
             {
                 "comment_id": "comment-2",
+                "status": "acknowledged",
+                "section": "logframe",
+                "linked_finding_id": "finding-2",
+                "ts": "2026-03-03T09:00:00+00:00",
+                "acknowledged_at": "2026-03-03T09:15:00+00:00",
+            },
+            {
+                "comment_id": "comment-3",
                 "status": "resolved",
                 "section": "logframe",
                 "ts": "2026-03-03T10:00:00+00:00",
@@ -156,12 +164,20 @@ def test_comment_triage_summary_tracks_overdue_and_next_action():
                 "severity": "high",
                 "section": "toc",
                 "message": "Theory of Change repeats boilerplate narrative across multiple sections.",
-            }
+            },
+            {
+                "id": "finding-2",
+                "status": "acknowledged",
+                "severity": "medium",
+                "section": "logframe",
+                "message": "Indicator baseline and target values still need confirmation.",
+            },
         ],
         donor_id="usaid",
     )
-    assert summary["open_comment_count"] == 1
+    assert summary["open_comment_count"] == 2
     assert summary["resolved_comment_count"] == 1
+    assert summary["acknowledged_comment_count"] == 1
     assert summary["overdue_comment_count"] == 1
     assert summary["stale_open_comment_count"] == 1
     assert summary["next_comment_section"] == "toc"

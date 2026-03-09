@@ -172,8 +172,11 @@ def _build_summary(
     review_ready_cases: str,
     portfolio_open_findings_avg: float | None,
     portfolio_open_comments_avg: float | None,
+    portfolio_ack_comments_avg: float | None,
     portfolio_overdue_comments_avg: float | None,
     portfolio_stale_comments_avg: float | None,
+    portfolio_comment_resolution_rate_avg: float | None,
+    portfolio_comment_acknowledgment_rate_avg: float | None,
     portfolio_fallback_avg: float | None,
     portfolio_low_confidence_avg: float | None,
     portfolio_smart_avg: float | None,
@@ -208,8 +211,13 @@ def _build_summary(
     lines.append(f"- Cases with complete LogFrame operational coverage: `{review_ready_cases}`")
     lines.append(f"- Average open critic findings per case: `{_format_num(portfolio_open_findings_avg)}`")
     lines.append(f"- Average open review comments per case: `{_format_num(portfolio_open_comments_avg)}`")
+    lines.append(f"- Average acknowledged review comments per case: `{_format_num(portfolio_ack_comments_avg)}`")
     lines.append(f"- Average overdue review comments per case: `{_format_num(portfolio_overdue_comments_avg)}`")
     lines.append(f"- Average stale open review comments per case: `{_format_num(portfolio_stale_comments_avg)}`")
+    lines.append(f"- Average review comment resolution rate: `{_format_num(portfolio_comment_resolution_rate_avg)}`")
+    lines.append(
+        f"- Average review comment acknowledgment rate: `{_format_num(portfolio_comment_acknowledgment_rate_avg)}`"
+    )
     lines.append(f"- Average fallback/strategy citations per case: `{_format_num(portfolio_fallback_avg)}`")
     lines.append(f"- Average low-confidence citations per case: `{_format_num(portfolio_low_confidence_avg)}`")
     lines.append(f"- Average SMART coverage: `{_format_num(portfolio_smart_avg)}`")
@@ -231,10 +239,19 @@ def _build_summary(
         f"- Resolved review comments (featured case): `{featured_review_readiness.get('resolved_review_comments', '-')}`"
     )
     lines.append(
+        f"- Acknowledged review comments (featured case): `{featured_review_readiness.get('acknowledged_review_comments', '-')}`"
+    )
+    lines.append(
         f"- Overdue review comments (featured case): `{featured_review_readiness.get('overdue_review_comments', '-')}`"
     )
     lines.append(
         f"- Stale open review comments (featured case): `{featured_review_readiness.get('stale_open_review_comments', '-')}`"
+    )
+    lines.append(
+        f"- Review comment resolution rate (featured case): `{_format_num(_safe_float(featured_review_readiness.get('review_comment_resolution_rate')))}`"
+    )
+    lines.append(
+        f"- Review comment acknowledgment rate (featured case): `{_format_num(_safe_float(featured_review_readiness.get('review_comment_acknowledgment_rate')))}`"
     )
     lines.append(
         f"- High-severity open findings (featured case): `{featured_review_readiness.get('high_severity_open_findings', '-')}`"
@@ -368,11 +385,14 @@ def main() -> int:
     featured_review_readiness = {
         "open_review_comments": 0,
         "resolved_review_comments": 0,
+        "acknowledged_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
         "stale_open_review_comments": 0,
         "linked_review_comments": 0,
         "orphan_linked_review_comments": 0,
+        "review_comment_resolution_rate": None,
+        "review_comment_acknowledgment_rate": None,
         **featured_review_readiness,
     }
     featured_triage_summary = quality_payload.get("triage_summary")
@@ -417,11 +437,16 @@ def main() -> int:
                 **featured_review_readiness,
                 "open_review_comments": comment_triage.get("open_comment_count"),
                 "resolved_review_comments": comment_triage.get("resolved_comment_count"),
+                "acknowledged_review_comments": comment_triage.get("acknowledged_comment_count"),
                 "pending_review_comments": comment_triage.get("pending_comment_count"),
                 "overdue_review_comments": comment_triage.get("overdue_comment_count"),
                 "stale_open_review_comments": comment_triage.get("stale_open_comment_count"),
                 "linked_review_comments": comment_triage.get("linked_comment_count"),
                 "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
+                "review_comment_resolution_rate": featured_review_readiness.get("review_comment_resolution_rate"),
+                "review_comment_acknowledgment_rate": featured_review_readiness.get(
+                    "review_comment_acknowledgment_rate"
+                ),
                 "comment_triage_summary": comment_triage,
             }
     review_ready_cases_count = 0
@@ -444,8 +469,15 @@ def main() -> int:
     metrics_rows = _read_csv_rows(pilot_pack_dir / "pilot-metrics.csv")
     portfolio_open_findings_avg = _avg([_safe_int(row.get("open_critic_findings")) for row in metrics_rows])
     portfolio_open_comments_avg = _avg([_safe_int(row.get("open_review_comments")) for row in metrics_rows])
+    portfolio_ack_comments_avg = _avg([_safe_int(row.get("acknowledged_review_comments")) for row in metrics_rows])
     portfolio_overdue_comments_avg = _avg([_safe_int(row.get("overdue_review_comments")) for row in metrics_rows])
     portfolio_stale_comments_avg = _avg([_safe_int(row.get("stale_open_review_comments")) for row in metrics_rows])
+    portfolio_comment_resolution_rate_avg = _avg(
+        [_safe_float(row.get("review_comment_resolution_rate")) for row in metrics_rows]
+    )
+    portfolio_comment_acknowledgment_rate_avg = _avg(
+        [_safe_float(row.get("review_comment_acknowledgment_rate")) for row in metrics_rows]
+    )
     portfolio_fallback_avg = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in metrics_rows])
     portfolio_low_confidence_avg = _avg([_safe_int(row.get("low_confidence_citations")) for row in metrics_rows])
     portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
@@ -470,8 +502,11 @@ def main() -> int:
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
             portfolio_open_findings_avg=portfolio_open_findings_avg,
             portfolio_open_comments_avg=portfolio_open_comments_avg,
+            portfolio_ack_comments_avg=portfolio_ack_comments_avg,
             portfolio_overdue_comments_avg=portfolio_overdue_comments_avg,
             portfolio_stale_comments_avg=portfolio_stale_comments_avg,
+            portfolio_comment_resolution_rate_avg=portfolio_comment_resolution_rate_avg,
+            portfolio_comment_acknowledgment_rate_avg=portfolio_comment_acknowledgment_rate_avg,
             portfolio_fallback_avg=portfolio_fallback_avg,
             portfolio_low_confidence_avg=portfolio_low_confidence_avg,
             portfolio_smart_avg=portfolio_smart_avg,

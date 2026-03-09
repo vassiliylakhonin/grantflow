@@ -2534,17 +2534,29 @@ def _review_readiness_summary_payload(
         review_comments=[item for item in review_comments if isinstance(item, dict)],
         critic_findings=[item for item in critic_findings if isinstance(item, dict)],
     )
+    total_comment_count = len([item for item in review_comments if isinstance(item, dict)])
+    resolved_comment_count = int(comment_triage_summary.get("resolved_comment_count") or 0)
+    acknowledged_comment_count = int(comment_triage_summary.get("acknowledged_comment_count") or 0)
     return {
         "needs_revision": sanitize_for_public_response(needs_revision),
         "open_critic_findings": len(open_findings),
         "high_severity_open_findings": len(high_severity_open_findings),
         "open_review_comments": len(open_review_comments),
-        "resolved_review_comments": int(comment_triage_summary.get("resolved_comment_count") or 0),
+        "resolved_review_comments": resolved_comment_count,
+        "acknowledged_review_comments": acknowledged_comment_count,
         "pending_review_comments": int(comment_triage_summary.get("pending_comment_count") or 0),
         "overdue_review_comments": int(comment_triage_summary.get("overdue_comment_count") or 0),
         "stale_open_review_comments": int(comment_triage_summary.get("stale_open_comment_count") or 0),
         "linked_review_comments": int(comment_triage_summary.get("linked_comment_count") or 0),
         "orphan_linked_review_comments": int(comment_triage_summary.get("orphan_linked_comment_count") or 0),
+        "review_comment_resolution_rate": (
+            round(resolved_comment_count / total_comment_count, 4) if total_comment_count else None
+        ),
+        "review_comment_acknowledgment_rate": (
+            round((resolved_comment_count + acknowledged_comment_count) / total_comment_count, 4)
+            if total_comment_count
+            else None
+        ),
         "low_confidence_citations": len(low_confidence_citations),
         "fallback_strategy_citations": len(fallback_strategy_citations),
         "comment_triage_summary": comment_triage_summary,
@@ -2577,6 +2589,7 @@ def _comment_triage_summary_payload(
 
     open_count = 0
     resolved_count = 0
+    acknowledged_count = 0
     pending_count = 0
     overdue_count = 0
     stale_open_count = 0
@@ -2608,6 +2621,9 @@ def _comment_triage_summary_payload(
         comment_status_counts[status] = int(comment_status_counts.get(status, 0)) + 1
         if status in {"resolved", "closed"}:
             resolved_count += 1
+        elif status == "acknowledged":
+            acknowledged_count += 1
+            open_count += 1
         else:
             open_count += 1
 
@@ -2709,6 +2725,7 @@ def _comment_triage_summary_payload(
     return {
         "open_comment_count": open_count,
         "resolved_comment_count": resolved_count,
+        "acknowledged_comment_count": acknowledged_count,
         "pending_comment_count": pending_count,
         "overdue_comment_count": overdue_count,
         "stale_open_comment_count": stale_open_count,
@@ -3689,6 +3706,7 @@ def public_portfolio_metrics_payload(
         "high_severity_open_findings": 0,
         "open_review_comments": 0,
         "resolved_review_comments": 0,
+        "acknowledged_review_comments": 0,
         "pending_review_comments": 0,
         "overdue_review_comments": 0,
         "stale_open_review_comments": 0,
@@ -3744,6 +3762,9 @@ def public_portfolio_metrics_payload(
         )
         review_readiness_totals["open_review_comments"] += int(review_summary.get("open_review_comments") or 0)
         review_readiness_totals["resolved_review_comments"] += int(review_summary.get("resolved_review_comments") or 0)
+        review_readiness_totals["acknowledged_review_comments"] += int(
+            review_summary.get("acknowledged_review_comments") or 0
+        )
         review_readiness_totals["pending_review_comments"] += int(review_summary.get("pending_review_comments") or 0)
         review_readiness_totals["overdue_review_comments"] += int(review_summary.get("overdue_review_comments") or 0)
         review_readiness_totals["stale_open_review_comments"] += int(
@@ -3825,6 +3846,9 @@ def public_portfolio_metrics_payload(
             ),
             "resolved_review_comments_per_job_avg": (
                 round(review_readiness_totals["resolved_review_comments"] / job_count, 4) if job_count else None
+            ),
+            "acknowledged_review_comments_per_job_avg": (
+                round(review_readiness_totals["acknowledged_review_comments"] / job_count, 4) if job_count else None
             ),
             "pending_review_comments_per_job_avg": (
                 round(review_readiness_totals["pending_review_comments"] / job_count, 4) if job_count else None
@@ -4014,6 +4038,7 @@ def public_portfolio_quality_payload(
                 "high_severity_open_findings": 0,
                 "open_review_comments": 0,
                 "resolved_review_comments": 0,
+                "acknowledged_review_comments": 0,
                 "pending_review_comments": 0,
                 "overdue_review_comments": 0,
                 "stale_open_review_comments": 0,
@@ -4033,6 +4058,7 @@ def public_portfolio_quality_payload(
             "high_severity_open_findings",
             "open_review_comments",
             "resolved_review_comments",
+            "acknowledged_review_comments",
             "pending_review_comments",
             "overdue_review_comments",
             "stale_open_review_comments",
@@ -5216,6 +5242,11 @@ def public_portfolio_quality_payload(
             for row in quality_rows
             if isinstance(row.get("review_readiness_summary"), dict)
         ),
+        "acknowledged_review_comments": sum(
+            int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("acknowledged_review_comments") or 0))
+            for row in quality_rows
+            if isinstance(row.get("review_readiness_summary"), dict)
+        ),
         "pending_review_comments": sum(
             int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("pending_review_comments") or 0))
             for row in quality_rows
@@ -5278,6 +5309,11 @@ def public_portfolio_quality_payload(
         )
         donor_row["resolved_review_comments_per_job_avg"] = (
             round(int(donor_row.get("resolved_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_row["acknowledged_review_comments_per_job_avg"] = (
+            round(int(donor_row.get("acknowledged_review_comments") or 0) / donor_job_count, 4)
+            if donor_job_count
+            else None
         )
         donor_row["pending_review_comments_per_job_avg"] = (
             round(int(donor_row.get("pending_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
