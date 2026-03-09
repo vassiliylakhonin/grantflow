@@ -85,6 +85,18 @@ def _extract_line_token(text: str, prefix: str) -> str:
     return "-"
 
 
+def _format_num(value: object) -> str:
+    if value is None or value == "":
+        return "-"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value).strip() or "-"
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.2f}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build a send-oriented index of current GrantFlow fast/full demo bundles."
@@ -112,13 +124,25 @@ def main() -> int:
     latest_handout = _latest_matching(build_dir, "pilot-handout*.md", kind="file")
     latest_open_order = build_dir / "latest-open-order.md"
     executive_readme = build_dir / "latest-executive-pack" / "README.md"
+    executive_summary_path = build_dir / "latest-executive-pack" / "pilot-portfolio-summary.json"
     executive_text = _read_text(executive_readme)
+    executive_summary = _read_json_dict(executive_summary_path)
     featured_donor = _extract_backtick_value(executive_text, "- Featured donor: `")
     featured_preset = _extract_backtick_value(executive_text, "- Featured preset: `")
     open_findings = _extract_backtick_value(executive_text, "- Open critic findings (featured case): `")
     fallback_citations = _extract_backtick_value(executive_text, "- Fallback/strategy citations (featured case): `")
     logframe_ready = _extract_backtick_value(executive_text, "- Cases with complete LogFrame operational coverage: `")
     smart_coverage = _extract_backtick_value(executive_text, "- SMART coverage (featured case): `")
+    architect_hits = _format_num(executive_summary.get("avg_architect_retrieval_hits_count"))
+    architect_grounded_rate = _format_num(executive_summary.get("avg_architect_retrieval_grounded_citation_rate"))
+    architect_fallback = _format_num(executive_summary.get("avg_architect_fallback_namespace_citation_count"))
+    architect_signal_mix = str(executive_summary.get("architect_evidence_signal_mix") or "").strip() or "-"
+    top_architect_signal = str(executive_summary.get("top_architect_evidence_signal") or "").strip() or "-"
+    mel_hits = _format_num(executive_summary.get("avg_mel_retrieval_hits_count"))
+    mel_grounded_rate = _format_num(executive_summary.get("avg_mel_retrieval_grounded_citation_rate"))
+    mel_fallback = _format_num(executive_summary.get("avg_mel_fallback_namespace_citation_count"))
+    mel_signal_mix = str(executive_summary.get("mel_evidence_signal_mix") or "").strip() or "-"
+    top_mel_signal = str(executive_summary.get("top_mel_evidence_signal") or "").strip() or "-"
     next_primary_action = _extract_backtick_value(executive_text, "- Next primary review action (featured case): `")
     finding_ack_queue = _extract_backtick_value(executive_text, "- Finding ack queue (featured case): `")
     finding_resolve_queue = _extract_backtick_value(executive_text, "- Finding resolve queue (featured case): `")
@@ -220,6 +244,20 @@ def main() -> int:
         lines.append(f"- Fallback/strategy citations: `{fallback_citations}`")
         lines.append(f"- Complete LogFrame operational coverage: `{logframe_ready}`")
         lines.append(f"- SMART coverage (featured case): `{smart_coverage}`")
+        lines.append(f"- Architect retrieval hits per case: `{architect_hits}`")
+        lines.append(f"- Architect grounded citation rate: `{architect_grounded_rate}`")
+        lines.append(f"- Architect fallback citations per case: `{architect_fallback}`")
+        if architect_signal_mix != "-":
+            lines.append(f"- Architect evidence signal mix: `{architect_signal_mix}`")
+        if top_architect_signal != "-":
+            lines.append(f"- Top architect evidence signal: `{top_architect_signal}`")
+        lines.append(f"- MEL retrieval hits per case: `{mel_hits}`")
+        lines.append(f"- MEL grounded citation rate: `{mel_grounded_rate}`")
+        lines.append(f"- MEL fallback citations per case: `{mel_fallback}`")
+        if mel_signal_mix != "-":
+            lines.append(f"- MEL evidence signal mix: `{mel_signal_mix}`")
+        if top_mel_signal != "-":
+            lines.append(f"- Top MEL evidence signal: `{top_mel_signal}`")
         lines.append(f"- Next primary review action: `{next_primary_action}`")
         lines.append(f"- Finding ack queue: `{finding_ack_queue}`")
         lines.append(f"- Finding resolve queue: `{finding_resolve_queue}`")

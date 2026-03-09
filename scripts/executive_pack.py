@@ -305,6 +305,24 @@ def _build_summary(
         lines.append(f"- MEL evidence signal mix: `{portfolio_mel_signal_mix}`")
     if portfolio_top_mel_signal:
         lines.append(f"- Top MEL evidence signal: `{portfolio_top_mel_signal}`")
+    lines.append("")
+    lines.append("## Grounding Readiness")
+    lines.append(f"- Architect retrieval hits per case: `{_format_num(portfolio_architect_hits_avg)}`")
+    lines.append(f"- Architect grounded citation rate: `{_format_num(portfolio_architect_grounded_rate_avg)}`")
+    lines.append(f"- Architect fallback citations per case: `{_format_num(portfolio_architect_fallback_avg)}`")
+    if portfolio_architect_signal_mix != "-":
+        lines.append(f"- Architect evidence signal mix: `{portfolio_architect_signal_mix}`")
+    lines.append(f"- MEL retrieval hits per case: `{_format_num(portfolio_mel_hits_avg)}`")
+    lines.append(f"- MEL grounded citation rate: `{_format_num(portfolio_mel_grounded_rate_avg)}`")
+    lines.append(f"- MEL fallback citations per case: `{_format_num(portfolio_mel_fallback_avg)}`")
+    if portfolio_mel_signal_mix != "-":
+        lines.append(f"- MEL evidence signal mix: `{portfolio_mel_signal_mix}`")
+    lines.append(
+        f"- Featured architect grounding: `{_format_num(featured_architect_grounded_rate)}` grounded, `{_format_num(featured_architect_fallback_count)}` fallback"
+    )
+    lines.append(
+        f"- Featured MEL grounding: `{_format_num(featured_mel_grounded_rate)}` grounded, `{_format_num(featured_mel_fallback_count)}` fallback"
+    )
     lines.append(f"- Average finding ack queue per case: `{_format_num(portfolio_finding_ack_queue_avg)}`")
     lines.append(f"- Average finding resolve queue per case: `{_format_num(portfolio_finding_resolve_queue_avg)}`")
     lines.append(f"- Average comment ack queue per case: `{_format_num(portfolio_comment_ack_queue_avg)}`")
