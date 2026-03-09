@@ -269,6 +269,80 @@ def test_rule_based_critic_warns_when_some_toc_text_is_placeholder():
     assert any(f["code"] == "TOC_PLACEHOLDER_CONTENT" for f in flaws)
 
 
+def test_rule_based_critic_emits_more_reviewer_oriented_rule_text():
+    state = {
+        "architect_rag_enabled": True,
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "GenericTOC"},
+        "toc_draft": {
+            "toc": {
+                "project_goal": "Improve service delivery.",
+                "objectives": [
+                    {"title": "Objective 1", "description": "TBD"},
+                    {"title": "Objective 2", "description": "TBD"},
+                ],
+            }
+        },
+        "logframe_draft": {
+            "indicators": [
+                {"indicator_id": "IND_001", "baseline": "TBD", "target": "TBD"},
+            ]
+        },
+        "citations": [
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.project_goal",
+                "citation_type": "fallback_namespace",
+                "citation_confidence": 0.1,
+                "confidence_threshold": 0.4,
+            },
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.objectives[0].description",
+                "citation_type": "fallback_namespace",
+                "citation_confidence": 0.1,
+                "confidence_threshold": 0.4,
+            },
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.objectives[1].description",
+                "citation_type": "fallback_namespace",
+                "citation_confidence": 0.1,
+                "confidence_threshold": 0.4,
+            },
+        ],
+        "toc_generation_meta": {
+            "claim_coverage": {
+                "key_claim_coverage_ratio": 1.0,
+                "fallback_claim_ratio": 1.0,
+            }
+        },
+    }
+
+    report = evaluate_rule_based_critic(state)
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+    by_code = {f["code"]: f for f in flaws}
+
+    assert "reviewers cannot assess" in by_code["TOC_PLACEHOLDER_CONTENT_CRITICAL"]["message"].lower()
+    assert (
+        "section-specific objective, outcome, and assumption statements"
+        in by_code["TOC_PLACEHOLDER_CONTENT_CRITICAL"]["fix_hint"].lower()
+    )
+    assert (
+        "not evidence-backed enough for serious review"
+        in by_code["TOC_CLAIM_GROUNDING_FALLBACK_DOMINANT"]["message"].lower()
+    )
+    assert (
+        "concrete, measurable figures" in by_code["LOGFRAME_BASELINE_TARGET_PLACEHOLDERS_CRITICAL"]["fix_hint"].lower()
+    )
+
+
 def test_rule_based_critic_fails_when_toc_text_is_placeholder_dominant():
     state = {
         "input_context": {"project": "AI governance training", "country": "Kazakhstan"},

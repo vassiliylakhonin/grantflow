@@ -350,8 +350,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="high",
                     section="toc",
                     state=state,
-                    message="Theory of Change text is dominated by placeholders.",
-                    fix_hint="Replace placeholder text (TBD/TODO/placeholder) with concrete objective, outcome, and assumption statements.",
+                    message="Theory of Change text is still dominated by placeholder language, so reviewers cannot assess the real objective, outcome, and assumption logic.",
+                    fix_hint="Replace placeholder text (TBD/TODO/placeholder) with section-specific objective, outcome, and assumption statements before the next draft review.",
                 )
             else:
                 checks.append(
@@ -368,8 +368,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="low",
                     section="toc",
                     state=state,
-                    message="Theory of Change still contains placeholder text.",
-                    fix_hint="Replace placeholder text (TBD/TODO/placeholder) with concrete statements before finalization.",
+                    message="Theory of Change still contains placeholder text in reviewer-visible sections.",
+                    fix_hint="Replace remaining placeholder text (TBD/TODO/placeholder) with concrete statements before the next review pass.",
                 )
         else:
             checks.append(
@@ -429,8 +429,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                 severity="low",
                 section="toc",
                 state=state,
-                message="Theory of Change contains repeated boilerplate narrative across multiple sections.",
-                fix_hint="Diversify repeated objective/result descriptions with section-specific, evidence-grounded wording.",
+                message="Theory of Change repeats boilerplate narrative across multiple sections, which weakens reviewer confidence in the causal logic.",
+                fix_hint="Replace repeated objective/result text with section-specific, evidence-grounded wording so each result line reads as a distinct causal step.",
             )
         else:
             checks.append(
@@ -514,8 +514,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                 severity="medium",
                 section="toc",
                 state=state,
-                message="ToC lacks claim-level citation traceability.",
-                fix_hint="Attach architect citations with statement_path to key objectives and assumptions.",
+                message="ToC lacks claim-level citation traceability for key objectives and assumptions.",
+                fix_hint="Attach architect citations with `statement_path` to key objectives, outcomes, and assumptions so reviewers can trace each claim directly.",
             )
     else:
         checks.append(
@@ -527,8 +527,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
             severity="medium",
             section="toc",
             state=state,
-            message="No architect citation trace was recorded for the ToC draft.",
-            fix_hint="Enable/verify architect citation capture and donor namespace grounding.",
+            message="No architect citation trace was recorded for the ToC draft, leaving reviewers without evidence anchors.",
+            fix_hint="Enable or verify architect citation capture and donor namespace grounding before the next review cycle.",
         )
 
     architect_claim_citations = [
@@ -647,8 +647,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="medium",
                     section="toc",
                     state=state,
-                    message="Fallback namespace citations dominate too many architect claims.",
-                    fix_hint="Improve RAG retrieval quality or corpus relevance to reduce fallback-only grounding.",
+                    message="Fallback namespace citations dominate too many architect claims, so the ToC is only weakly grounded for reviewer use.",
+                    fix_hint="Improve retrieval quality or corpus relevance so key architect claims rely less on fallback-only grounding.",
                 )
         else:
             checks.append(
@@ -663,8 +663,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="high",
                     section="toc",
                     state=state,
-                    message="Architect claim grounding is fallback-dominant and not evidence-backed enough.",
-                    fix_hint="Ingest donor-relevant corpus and ensure retriever returns traceable high-confidence evidence.",
+                    message="Architect claim grounding is fallback-dominant, so the ToC is not evidence-backed enough for serious review.",
+                    fix_hint="Ingest donor-relevant corpus and ensure the retriever returns traceable, high-confidence evidence for key ToC claims.",
                 )
 
     if len(architect_claim_citations) >= 3:
@@ -704,8 +704,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="medium",
                     section="toc",
                     state=state,
-                    message="Architect claim citations contain significant traceability gaps.",
-                    fix_hint="Ensure claim citations include traceable doc_id/source/chunk/page metadata for objective/result statements.",
+                    message="Architect claim citations contain significant traceability gaps, so reviewers cannot reliably follow the evidence trail.",
+                    fix_hint="Ensure claim citations include traceable `doc_id`, `source`, `chunk`, and `page` metadata for objective and result statements.",
                 )
         else:
             checks.append(
@@ -720,8 +720,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="high",
                     section="toc",
                     state=state,
-                    message="Architect claim citations are mostly non-traceable.",
-                    fix_hint="Regenerate ToC with retrieval evidence that includes document/source/page/chunk references.",
+                    message="Architect claim citations are mostly non-traceable, which blocks evidence review.",
+                    fix_hint="Regenerate the ToC with retrieval evidence that includes document, source, page, and chunk references for reviewer traceability.",
                 )
 
     threshold_evaluable = []
@@ -758,8 +758,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="medium",
                     section="toc",
                     state=state,
-                    message="Too few architect claim citations meet donor confidence thresholds.",
-                    fix_hint="Improve evidence matching and reduce weakly grounded objective/result claims.",
+                    message="Too few architect claim citations meet donor confidence thresholds for reliable review.",
+                    fix_hint="Improve evidence matching and reduce weakly grounded objective and result claims before the next draft.",
                 )
         else:
             checks.append(
@@ -772,8 +772,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="high",
                     section="toc",
                     state=state,
-                    message="Architect claim citations rarely meet donor confidence thresholds.",
-                    fix_hint="Refine retrieval corpus/query strategy and regenerate ToC with stronger grounded evidence.",
+                    message="Architect claim citations rarely meet donor confidence thresholds, leaving the ToC too weakly grounded for approval review.",
+                    fix_hint="Refine corpus and query strategy, then regenerate the ToC with stronger grounded evidence for key claims.",
                 )
 
     if isinstance(indicators, list) and indicators:
@@ -821,8 +821,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="high",
                     section="logframe",
                     state=state,
-                    message="Most indicators still use placeholder baseline/target values.",
-                    fix_hint="Replace placeholder baseline/target values with concrete measurable values before finalization/export.",
+                    message="Most indicators still use placeholder baseline and target values, so the LogFrame is not yet reviewer-ready.",
+                    fix_hint="Replace placeholder baseline and target values with concrete, measurable figures before the next export or review cycle.",
                 )
             else:
                 checks.append(
@@ -839,8 +839,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                     severity="medium",
                     section="logframe",
                     state=state,
-                    message="Some indicators still use placeholder baseline/target values.",
-                    fix_hint="Fill baseline/target with concrete measurable values for all indicators.",
+                    message="Some indicators still use placeholder baseline and target values.",
+                    fix_hint="Fill baseline and target fields with concrete measurable values for every affected indicator before the next review pass.",
                 )
         else:
             checks.append(
@@ -892,8 +892,8 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
             severity="medium",
             section="logframe",
             state=state,
-            message="Indicators are not accompanied by citation traceability.",
-            fix_hint="Ensure MEL step records citation metadata for retrieved or fallback indicators.",
+            message="Indicators are not accompanied by citation traceability, so reviewers cannot verify the monitoring logic.",
+            fix_hint="Ensure the MEL step records citation metadata for retrieved or fallback indicators, including enough detail for reviewer traceability.",
         )
 
     severity_penalty = {"high": 2.0, "medium": 1.0, "low": 0.5}
