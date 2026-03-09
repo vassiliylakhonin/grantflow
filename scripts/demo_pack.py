@@ -233,12 +233,34 @@ def _seed_review_comments(
                 "message": "Tighten means of verification and owner assignment for the intervention-logic row before formal review.",
                 "version_id": "logframe_v1",
                 "linked_finding_id": logframe_finding or general_finding or None,
-                "ts": _iso_at_offset(days=5),
-                "updated_ts": _iso_at_offset(days=4, hours=6),
-            }
+                "ts": _iso_at_offset(days=6),
+                "updated_ts": _iso_at_offset(days=5, hours=6),
+            },
+            {
+                "comment_id": f"{preset_key}-comment-delivery-open",
+                "status": "open",
+                "section": "general",
+                "author": "eu-program-manager",
+                "message": "Clarify delivery sequencing across partner responsibilities before the next internal review.",
+                "version_id": "toc_v1",
+                "linked_finding_id": None,
+                "ts": _iso_at_offset(days=2),
+                "updated_ts": _iso_at_offset(days=1, hours=12),
+            },
         ]
     if donor_token == "worldbank":
         return [
+            {
+                "comment_id": f"{preset_key}-comment-isr-stale",
+                "status": "open",
+                "section": "general",
+                "author": "wb-results-specialist",
+                "message": "Add ISR-style evidence notes so the results framework can be defended in portfolio review.",
+                "version_id": "toc_v1",
+                "linked_finding_id": general_finding or None,
+                "ts": _iso_at_offset(days=4),
+                "updated_ts": _iso_at_offset(days=3, hours=6),
+            },
             {
                 "comment_id": f"{preset_key}-comment-pdo-resolved",
                 "status": "resolved",
@@ -250,7 +272,7 @@ def _seed_review_comments(
                 "ts": _iso_at_offset(days=1, hours=12),
                 "updated_ts": _iso_at_offset(days=1),
                 "resolved_at": _iso_at_offset(days=1),
-            }
+            },
         ]
     return []
 
