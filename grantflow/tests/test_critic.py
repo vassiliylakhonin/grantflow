@@ -343,6 +343,138 @@ def test_rule_based_critic_emits_more_reviewer_oriented_rule_text():
     )
 
 
+def test_rule_based_critic_uses_donor_specific_language_for_grounding_and_measurement():
+    state = {
+        "donor_id": "worldbank",
+        "architect_rag_enabled": True,
+        "input_context": {"project": "Public sector performance", "country": "Uzbekistan"},
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "WorldBankTOC"},
+        "toc_draft": {
+            "toc": {
+                "project_development_objective": "Improve service delivery outcomes.",
+                "objectives": [
+                    {"title": "Objective 1", "description": "Strengthen local service performance."},
+                    {"title": "Objective 2", "description": "Improve planning quality."},
+                ],
+            }
+        },
+        "logframe_draft": {
+            "indicators": [
+                {"indicator_id": "IND_001", "baseline": "TBD", "target": "TBD"},
+            ]
+        },
+        "citations": [
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.project_development_objective",
+                "citation_type": "fallback_namespace",
+                "citation_confidence": 0.1,
+                "confidence_threshold": 0.4,
+            },
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.objectives[0].description",
+                "citation_type": "fallback_namespace",
+                "citation_confidence": 0.1,
+                "confidence_threshold": 0.4,
+            },
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.objectives[1].description",
+                "citation_type": "fallback_namespace",
+                "citation_confidence": 0.1,
+                "confidence_threshold": 0.4,
+            },
+        ],
+        "toc_generation_meta": {
+            "claim_coverage": {
+                "key_claim_coverage_ratio": 1.0,
+                "fallback_claim_ratio": 1.0,
+            }
+        },
+    }
+
+    report = evaluate_rule_based_critic(state)
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+    by_code = {f["code"]: f for f in flaws}
+
+    assert (
+        "world bank results framework and pdo package"
+        in by_code["TOC_CLAIM_GROUNDING_FALLBACK_DOMINANT"]["message"].lower()
+    )
+    assert (
+        "results-framework and isr-style review"
+        in by_code["LOGFRAME_BASELINE_TARGET_PLACEHOLDERS_CRITICAL"]["message"].lower()
+    )
+
+
+def test_rule_based_critic_uses_usaid_specific_traceability_language():
+    state = {
+        "donor_id": "usaid",
+        "architect_rag_enabled": True,
+        "input_context": {"project": "Civil service AI skills", "country": "Kazakhstan"},
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "USAIDTOC"},
+        "toc_draft": {
+            "toc": {
+                "project_goal": "Improve responsible AI skills in civil service.",
+                "objectives": [
+                    {"title": "Objective 1", "description": "Strengthen institutional guidance."},
+                    {"title": "Objective 2", "description": "Improve training quality."},
+                ],
+            }
+        },
+        "logframe_draft": {"indicators": [{"indicator_id": "IND_001", "baseline": "0", "target": "40"}]},
+        "citations": [
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.project_goal",
+                "citation_type": "rag_claim_support",
+                "citation_confidence": 0.8,
+                "confidence_threshold": 0.4,
+                "doc_id": "doc-1",
+            },
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.objectives[0].description",
+                "citation_type": "rag_claim_support",
+                "citation_confidence": 0.8,
+                "confidence_threshold": 0.4,
+                "source": "policy.pdf",
+            },
+            {
+                "stage": "architect",
+                "used_for": "toc_claim",
+                "statement_path": "toc.objectives[1].description",
+                "citation_type": "rag_claim_support",
+                "citation_confidence": 0.8,
+                "confidence_threshold": 0.4,
+            },
+        ],
+    }
+
+    report = evaluate_rule_based_critic(state)
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+    by_code = {f["code"]: f for f in flaws}
+
+    assert (
+        "usaid results hierarchy and monitoring package"
+        in by_code["TOC_CLAIM_TRACEABILITY_GAP_CRITICAL"]["message"].lower()
+    )
+
+
 def test_rule_based_critic_fails_when_toc_text_is_placeholder_dominant():
     state = {
         "input_context": {"project": "AI governance training", "country": "Kazakhstan"},
