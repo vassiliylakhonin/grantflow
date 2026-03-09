@@ -126,6 +126,8 @@ def _build_summary(
     total_cases: int,
     done_cases: int,
     featured_review_readiness: dict[str, Any],
+    featured_triage_summary: dict[str, Any],
+    featured_critic_payload: dict[str, Any],
     featured_mel_summary: dict[str, Any],
     review_ready_cases: str,
     portfolio_open_findings_avg: float | None,
@@ -194,6 +196,27 @@ def _build_summary(
         f"`{_format_num(_safe_float(featured_mel_summary.get('owner_coverage_rate')))}"
         "`"
     )
+    if featured_triage_summary:
+        next_bucket = str(featured_triage_summary.get("next_review_bucket") or "").strip()
+        next_action = str(featured_triage_summary.get("next_recommended_action") or "").strip()
+        if next_bucket:
+            lines.append(f"- Next review bucket (featured case): `{next_bucket}`")
+        if next_action:
+            lines.append(f"- Next recommended action (featured case): {next_action}")
+    priority_titles: list[str] = []
+    if isinstance(featured_critic_payload.get("fatal_flaws"), list):
+        for item in featured_critic_payload.get("fatal_flaws") or []:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("triage_priority") or "").strip().lower() not in {"urgent", "high"}:
+                continue
+            title = str(item.get("review_title") or item.get("message") or "").strip()
+            if title and title not in priority_titles:
+                priority_titles.append(title)
+            if len(priority_titles) >= 2:
+                break
+    if priority_titles:
+        lines.append(f"- Priority reviewer items (featured case): {', '.join(priority_titles)}")
     lines.append("")
     if conditional_reasons:
         lines.append("## Current Conditions")
@@ -268,9 +291,15 @@ def main() -> int:
     featured_review_readiness = quality_payload.get("review_readiness_summary")
     if not isinstance(featured_review_readiness, dict):
         featured_review_readiness = {}
+    featured_triage_summary = quality_payload.get("triage_summary")
+    if not isinstance(featured_triage_summary, dict):
+        featured_triage_summary = {}
     featured_mel_summary = quality_payload.get("mel")
     if not isinstance(featured_mel_summary, dict):
         featured_mel_summary = {}
+    critic_payload = _read_json(pilot_pack_dir / "live-runs" / resolved_case_dir / "critic.json")
+    if not isinstance(critic_payload, dict):
+        critic_payload = {}
     review_ready_cases_count = 0
     for row in rows:
         case_dir = str(row.get("case_dir") or "").strip()
@@ -306,6 +335,8 @@ def main() -> int:
             total_cases=len(rows),
             done_cases=done_cases,
             featured_review_readiness=featured_review_readiness,
+            featured_triage_summary=featured_triage_summary,
+            featured_critic_payload=critic_payload,
             featured_mel_summary=featured_mel_summary,
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
             portfolio_open_findings_avg=portfolio_open_findings_avg,

@@ -74,6 +74,13 @@ def main() -> int:
     fallback_citations = _extract_backtick_value(executive_text, "- Fallback/strategy citations (featured case): `")
     logframe_ready = _extract_backtick_value(executive_text, "- Cases with complete LogFrame operational coverage: `")
     smart_coverage = _extract_backtick_value(executive_text, "- SMART coverage (featured case): `")
+    next_bucket = _extract_backtick_value(executive_text, "- Next review bucket (featured case): `")
+    next_action = "-"
+    for line in executive_text.splitlines():
+        prefix = "- Next recommended action (featured case): "
+        if line.startswith(prefix):
+            next_action = line[len(prefix) :].strip() or "-"
+            break
 
     lines: list[str] = []
     lines.append("# GrantFlow Send Bundle Index")
@@ -119,6 +126,8 @@ def main() -> int:
         lines.append(f"- Fallback/strategy citations: `{fallback_citations}`")
         lines.append(f"- Complete LogFrame operational coverage: `{logframe_ready}`")
         lines.append(f"- SMART coverage (featured case): `{smart_coverage}`")
+        lines.append(f"- Next review bucket: `{next_bucket}`")
+        lines.append(f"- Next recommended action: {next_action}")
         lines.append("")
     lines.append("## Supporting Artifacts")
     lines.append("")
