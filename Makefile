@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-smoke dev-runtime-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -88,6 +88,8 @@ BUYER_DEMO_OPEN_BUILD_DIR ?= build
 BUYER_DEMO_OPEN_MODE ?= print
 CI_DEMO_SMOKE_ROOT ?= build/ci-demo-smoke
 CI_DEMO_SMOKE_PRESET_KEY ?= usaid_gov_ai_kazakhstan
+CI_DEMO_REVIEW_SMOKE_LOG ?= demo-smoke-artifacts/demo-review-smoke.log
+CI_DEMO_REVIEW_SMOKE_SUMMARY ?= demo-smoke-artifacts/demo-review-smoke-summary.md
 SEND_BUNDLE_INDEX_BUILD_DIR ?= build
 SEND_BUNDLE_INDEX_OUT ?= build/send-bundle-index.md
 OPEN_LATEST_SEND_BUILD_DIR ?= build
@@ -502,8 +504,28 @@ buyer-demo-open:
 buyer-demo-open-refresh: pilot-refresh-fast
 	$(MAKE) buyer-demo-open BUYER_DEMO_OPEN_BUILD_DIR=$(BUYER_DEMO_OPEN_BUILD_DIR) BUYER_DEMO_OPEN_MODE=$(BUYER_DEMO_OPEN_MODE)
 
+ci-demo-review-smoke:
+	@mkdir -p "$(dir $(CI_DEMO_REVIEW_SMOKE_LOG))"
+	@status=0; \
+	tests="test_demo_console_page_loads or test_demo_console_includes_bulk_preview_summary_helpers or test_demo_console_exposes_end_to_end_bulk_review_controls or test_status_comments_bulk_status_dry_run_previews_selected_ids_without_persisting or test_status_critic_bulk_status_dry_run_previews_selected_ids_without_persisting"; \
+	$(PYTHON) -m pytest grantflow/tests/test_integration.py -k "$$tests" -q 2>&1 | tee "$(CI_DEMO_REVIEW_SMOKE_LOG)" || status=$$?; \
+	{ \
+		echo "# Demo Review UI Smoke"; \
+		echo; \
+		echo "- Status: $$( [ $$status -eq 0 ] && echo passed || echo failed )"; \
+		echo "- Log: \`$(CI_DEMO_REVIEW_SMOKE_LOG)\`"; \
+		echo "- Scope: /demo bulk review UI presence, preview summaries, and dry-run payload contracts"; \
+		echo "- Tests:"; \
+		echo "  - test_demo_console_page_loads"; \
+		echo "  - test_demo_console_includes_bulk_preview_summary_helpers"; \
+		echo "  - test_demo_console_exposes_end_to_end_bulk_review_controls"; \
+		echo "  - test_status_comments_bulk_status_dry_run_previews_selected_ids_without_persisting"; \
+		echo "  - test_status_critic_bulk_status_dry_run_previews_selected_ids_without_persisting"; \
+	} > "$(CI_DEMO_REVIEW_SMOKE_SUMMARY)"; \
+	exit $$status
+
 ci-demo-smoke:
-	$(PYTHON) -m pytest grantflow/tests/test_integration.py -k "test_demo_console_page_loads or test_demo_console_includes_bulk_preview_summary_helpers or test_demo_console_exposes_end_to_end_bulk_review_controls or test_status_comments_bulk_status_dry_run_previews_selected_ids_without_persisting or test_status_critic_bulk_status_dry_run_previews_selected_ids_without_persisting" -q
+	$(MAKE) ci-demo-review-smoke CI_DEMO_REVIEW_SMOKE_LOG=$(CI_DEMO_REVIEW_SMOKE_LOG) CI_DEMO_REVIEW_SMOKE_SUMMARY=$(CI_DEMO_REVIEW_SMOKE_SUMMARY)
 	$(MAKE) buyer-demo-open-refresh \
 		DEMO_PACK_DIR=$(CI_DEMO_SMOKE_ROOT)/demo-pack \
 		DEMO_PACK_PRESET_KEYS=$(CI_DEMO_SMOKE_PRESET_KEY) \
