@@ -268,13 +268,51 @@ def _dedupe_toc_result_statements(items: list[tuple[str, str, int]]) -> list[tup
     return out
 
 
-def _indicator_name_from_toc_statement(statement: str, *, idx: int) -> str:
-    compact = " ".join(str(statement or "").split()).strip()
+def _compact_indicator_label(text: str, *, max_len: int = 88) -> str:
+    compact = " ".join(str(text or "").split()).strip(" .;:-")
     if not compact:
-        return f"Results indicator {idx + 1}"
-    if len(compact) <= 90:
+        return ""
+    if len(compact) <= max_len:
         return compact
-    return f"{compact[:87].rstrip()}..."
+    return f"{compact[: max_len - 3].rstrip()}..."
+
+
+def _statement_to_indicator_phrase(statement: str) -> str:
+    compact = " ".join(str(statement or "").split()).strip().rstrip(".")
+    if not compact:
+        return ""
+    normalized = re.sub(r"^[\"'`]+|[\"'`]+$", "", compact)
+    replacements = (
+        (r"^improve\s+", "Improved "),
+        (r"^strengthen\s+", "Strengthened "),
+        (r"^increase\s+", "Increased "),
+        (r"^expand\s+", "Expanded "),
+        (r"^enhance\s+", "Enhanced "),
+        (r"^reduce\s+", "Reduced "),
+        (r"^develop\s+", "Developed "),
+        (r"^build\s+", "Built "),
+        (r"^support\s+", "Supported "),
+        (r"^enable\s+", "Enabled "),
+    )
+    for pattern, replacement in replacements:
+        updated = re.sub(pattern, replacement, normalized, flags=re.IGNORECASE)
+        if updated != normalized:
+            normalized = updated
+            break
+    return normalized[:1].upper() + normalized[1:] if normalized else ""
+
+
+def _indicator_name_from_toc_statement(statement: str, *, idx: int, result_level: str = "") -> str:
+    phrase = _statement_to_indicator_phrase(statement)
+    if not phrase:
+        return f"Results indicator {idx + 1}"
+    level = _normalize_result_level(result_level)
+    prefix = {
+        "impact": "Impact",
+        "outcome": "Outcome",
+        "output": "Output",
+    }.get(level, "Result")
+    return _compact_indicator_label(f"{prefix}: {phrase}")
 
 
 def _infer_result_level_from_toc_path(path: str) -> str:
@@ -476,29 +514,45 @@ def _default_indicator_formula(indicator_name: str, *, result_level: str) -> str
     return "Count of verified results achieved in reporting period"
 
 
-def _deterministic_indicator_justification(*, donor_id: str, statement_path: str) -> str:
+def _deterministic_indicator_justification(
+    *,
+    donor_id: str,
+    statement_path: str,
+    result_level: str = "",
+    statement: str = "",
+) -> str:
     donor = str(donor_id or "").strip().lower()
+    level = _normalize_result_level(result_level) or _infer_result_level_from_toc_path(statement_path)
+    level_label = {
+        "impact": "impact-level change",
+        "outcome": "outcome-level change",
+        "output": "delivery/result output",
+    }.get(level, "causal result")
+    statement_ref = _compact_indicator_label(_statement_to_indicator_phrase(statement), max_len=72) or statement_path
     if donor == "eu":
         return (
-            f"Maps ToC result '{statement_path}' into an EU intervention-logic indicator with monitoring, "
-            "verification, and implementation-evidence intent."
+            f"Maps {level_label} '{statement_ref}' from `{statement_path}` into an EU intervention-logic indicator "
+            "with monitoring, verification, and implementation-evidence intent."
         )
     if donor == "worldbank":
         return (
-            f"Maps ToC result '{statement_path}' into a World Bank-style results framework indicator for verified "
-            "implementation tracking."
+            f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a World Bank-style results framework "
+            "indicator for verified implementation tracking."
         )
     if donor in {"state_department", "us_state_department"}:
         return (
-            f"Maps ToC result '{statement_path}' into a State Department-style program indicator for monitored "
-            "delivery and resilience review."
+            f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a State Department-style program "
+            "indicator for monitored delivery and resilience review."
         )
     if donor == "usaid":
         return (
-            f"Maps ToC result '{statement_path}' into a USAID-style performance indicator aligned with PMP-oriented "
-            "monitoring, disaggregation, and verification logic."
+            f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a USAID-style performance indicator "
+            "aligned with PMP-oriented monitoring, disaggregation, and verification logic."
         )
-    return f"Deterministic MEL mapping for ToC result '{statement_path}'. Tracks delivery of the causal results chain."
+    return (
+        f"Deterministic MEL mapping for {level_label} '{statement_ref}' from `{statement_path}`. "
+        "Tracks delivery of the causal results chain."
+    )
 
 
 def _default_disaggregation(indicator_name: str, *, donor_id: str, result_level: str) -> list[str]:
@@ -727,7 +781,13 @@ def _deterministic_indicators_from_toc(
     bounded_candidates = candidates[: max(1, max_indicators)]
     for idx, (statement_path, statement, _priority) in enumerate(bounded_candidates):
         hit, _score = _pick_best_mel_evidence_hit(statement, retrieval_hits)
-        name = str(hit.get("name") or _indicator_name_from_toc_statement(statement, idx=idx)).strip()
+        inferred_result_level = str(
+            hit.get("result_level") or _infer_result_level_from_toc_path(statement_path)
+        ).strip()
+        name = str(
+            hit.get("name")
+            or _indicator_name_from_toc_statement(statement, idx=idx, result_level=inferred_result_level)
+        ).strip()
         baseline, target = _resolve_baseline_target(
             baseline_raw=hit.get("baseline") if hit else "",
             target_raw=hit.get("target") if hit else "",
@@ -741,6 +801,8 @@ def _deterministic_indicators_from_toc(
         justification = _deterministic_indicator_justification(
             donor_id=donor_id,
             statement_path=statement_path,
+            result_level=inferred_result_level,
+            statement=statement,
         )
         indicators.append(
             _apply_indicator_defaults(

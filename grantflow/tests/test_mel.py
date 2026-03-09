@@ -194,21 +194,39 @@ def test_mel_deterministic_justification_is_donor_shaped():
     usaid_text = mel_module._deterministic_indicator_justification(
         donor_id="usaid",
         statement_path="toc.development_objectives[0].description",
+        result_level="outcome",
+        statement="Civil servants apply AI-assisted service workflows in daily operations.",
     )
     eu_text = mel_module._deterministic_indicator_justification(
         donor_id="eu",
         statement_path="toc.specific_objectives[0].title",
+        result_level="outcome",
+        statement="Improve youth employment service delivery across target municipalities.",
     )
     wb_text = mel_module._deterministic_indicator_justification(
         donor_id="worldbank",
         statement_path="toc.objectives[0].title",
+        result_level="impact",
+        statement="Improve public sector service performance across pilot agencies.",
     )
 
     assert "usaid-style performance indicator" in usaid_text.lower()
     assert "pmp-oriented" in usaid_text.lower()
+    assert "outcome-level change" in usaid_text.lower()
     assert "eu intervention-logic indicator" in eu_text.lower()
     assert "implementation-evidence intent" in eu_text.lower()
     assert "world bank-style results framework indicator" in wb_text.lower()
+    assert "impact-level change" in wb_text.lower()
+
+
+def test_indicator_name_from_toc_statement_prefers_compact_result_label():
+    name = mel_module._indicator_name_from_toc_statement(
+        "Improve digital service quality in municipal agencies.",
+        idx=0,
+        result_level="impact",
+    )
+
+    assert name == "Impact: Improved digital service quality in municipal agencies"
 
 
 def test_mel_worldbank_defaults_are_results_framework_shaped():

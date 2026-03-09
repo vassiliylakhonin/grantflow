@@ -53,6 +53,13 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
     quality_path = case_dir / "quality.json"
     metrics = _read_json(metrics_path) if metrics_path.exists() else {}
     quality = _read_json(quality_path) if quality_path.exists() else {}
+    readiness = (
+        quality.get("review_readiness_summary") if isinstance(quality.get("review_readiness_summary"), dict) else {}
+    )
+    mel = quality.get("mel") if isinstance(quality.get("mel"), dict) else {}
+    mov_rate = _safe_float(mel.get("means_of_verification_coverage_rate"))
+    owner_rate = _safe_float(mel.get("owner_coverage_rate"))
+    smart_rate = _safe_float(mel.get("smart_field_coverage_rate"))
 
     return {
         "case_dir": case_dir.name,
@@ -72,6 +79,17 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "resume_count": metrics.get("resume_count"),
         "grounding_risk_level": metrics.get("grounding_risk_level"),
         "retrieval_expected": metrics.get("retrieval_expected"),
+        "open_critic_findings": readiness.get("open_critic_findings"),
+        "high_severity_open_findings": readiness.get("high_severity_open_findings"),
+        "open_review_comments": readiness.get("open_review_comments"),
+        "fallback_strategy_citations": readiness.get("fallback_strategy_citations"),
+        "low_confidence_citations": readiness.get("low_confidence_citations"),
+        "smart_field_coverage_rate": mel.get("smart_field_coverage_rate"),
+        "means_of_verification_coverage_rate": mel.get("means_of_verification_coverage_rate"),
+        "owner_coverage_rate": mel.get("owner_coverage_rate"),
+        "complete_logframe_operational_coverage": (
+            1 if mov_rate == 1.0 and owner_rate == 1.0 and smart_rate == 1.0 else 0
+        ),
         "baseline_time_to_first_draft_seconds": "",
         "baseline_time_to_terminal_seconds": "",
         "baseline_review_loops": "",
@@ -98,6 +116,15 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "resume_count",
         "grounding_risk_level",
         "retrieval_expected",
+        "open_critic_findings",
+        "high_severity_open_findings",
+        "open_review_comments",
+        "fallback_strategy_citations",
+        "low_confidence_citations",
+        "smart_field_coverage_rate",
+        "means_of_verification_coverage_rate",
+        "owner_coverage_rate",
+        "complete_logframe_operational_coverage",
         "baseline_time_to_first_draft_seconds",
         "baseline_time_to_terminal_seconds",
         "baseline_review_loops",
@@ -117,6 +144,13 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_terminal = _avg([_safe_float(row.get("time_to_terminal_seconds")) for row in rows])
     avg_pending_hitl = _avg([_safe_float(row.get("time_in_pending_hitl_seconds")) for row in rows])
     avg_citations = _avg([_safe_int(row.get("citation_count")) for row in rows])
+    avg_open_findings = _avg([_safe_int(row.get("open_critic_findings")) for row in rows])
+    avg_fallback_citations = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in rows])
+    avg_low_confidence = _avg([_safe_int(row.get("low_confidence_citations")) for row in rows])
+    avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
+    avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
+    avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
+    complete_logframe_cases = sum(_safe_int(row.get("complete_logframe_operational_coverage")) == 1 for row in rows)
 
     lines: list[str] = []
     lines.append("# Pilot Metrics")
@@ -132,13 +166,20 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average time to terminal status (s): `{_fmt(avg_terminal)}`")
     lines.append(f"- Average time in pending HITL (s): `{_fmt(avg_pending_hitl)}`")
     lines.append(f"- Average citation count: `{_fmt(avg_citations)}`")
+    lines.append(f"- Average open critic findings per case: `{_fmt(avg_open_findings)}`")
+    lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
+    lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence)}`")
+    lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart_coverage)}`")
+    lines.append(f"- Average means-of-verification coverage: `{_fmt(avg_mov_coverage)}`")
+    lines.append(f"- Average owner coverage: `{_fmt(avg_owner_coverage)}`")
+    lines.append(f"- Cases with complete LogFrame operational coverage: `{complete_logframe_cases}/{len(rows)}`")
     lines.append("")
     lines.append("## Case Table")
     lines.append("")
     lines.append(
-        "| Preset | Donor | Status | HITL | Quality | Critic | Citations | First Draft (s) | Terminal (s) | Pending HITL (s) |"
+        "| Preset | Donor | Status | HITL | Quality | Critic | Open Findings | Fallback Citations | SMART | MoV | Owner | Complete Ops |"
     )
-    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|")
+    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|")
     for row in rows:
         lines.append(
             "| "
@@ -150,10 +191,12 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
                     "yes" if row.get("hitl_enabled") else "no",
                     _fmt(_safe_float(row.get("quality_score"))),
                     _fmt(_safe_float(row.get("critic_score"))),
-                    _fmt(_safe_int(row.get("citation_count"))),
-                    _fmt(_safe_float(row.get("time_to_first_draft_seconds"))),
-                    _fmt(_safe_float(row.get("time_to_terminal_seconds"))),
-                    _fmt(_safe_float(row.get("time_in_pending_hitl_seconds"))),
+                    _fmt(_safe_int(row.get("open_critic_findings"))),
+                    _fmt(_safe_int(row.get("fallback_strategy_citations"))),
+                    _fmt(_safe_float(row.get("smart_field_coverage_rate"))),
+                    _fmt(_safe_float(row.get("means_of_verification_coverage_rate"))),
+                    _fmt(_safe_float(row.get("owner_coverage_rate"))),
+                    "yes" if _safe_int(row.get("complete_logframe_operational_coverage")) == 1 else "no",
                 ]
             )
             + " |"
