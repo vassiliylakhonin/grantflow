@@ -21,6 +21,15 @@ def _read_csv_rows(path: Path) -> list[dict[str, str]]:
         return [dict(row) for row in csv.DictReader(handle)]
 
 
+def _index_rows(rows: list[dict[str, str]], *, key_field: str) -> dict[str, dict[str, str]]:
+    indexed: dict[str, dict[str, str]] = {}
+    for row in rows:
+        key = str(row.get(key_field) or "").strip()
+        if key:
+            indexed[key] = row
+    return indexed
+
+
 def _copy_if_exists(src: Path, dst: Path) -> None:
     if not src.exists():
         return
@@ -124,21 +133,33 @@ def _top_blockers(conditions: list[str], *, limit: int = 3) -> list[str]:
     return ranked
 
 
-def _before_after_rows(metrics_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+def _before_after_rows(
+    metrics_rows: list[dict[str, str]], *, benchmark_rows: list[dict[str, str]] | None = None
+) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
+    benchmark_by_case = _index_rows(benchmark_rows or [], key_field="case_dir")
     for row in metrics_rows:
         baseline_first = _safe_float(row.get("baseline_time_to_first_draft_seconds"))
         baseline_terminal = _safe_float(row.get("baseline_time_to_terminal_seconds"))
         baseline_loops = _safe_int(row.get("baseline_review_loops"))
+        baseline_type = "missing"
+        benchmark_row = benchmark_by_case.get(str(row.get("case_dir") or "").strip())
+        if baseline_first is not None or baseline_terminal is not None or baseline_loops is not None:
+            baseline_type = "measured"
+        elif benchmark_row:
+            baseline_first = _safe_float(benchmark_row.get("baseline_time_to_first_draft_seconds"))
+            baseline_terminal = _safe_float(benchmark_row.get("baseline_time_to_terminal_seconds"))
+            baseline_loops = _safe_int(benchmark_row.get("baseline_review_loops"))
+            if baseline_first is not None or baseline_terminal is not None or baseline_loops is not None:
+                baseline_type = (
+                    str(benchmark_row.get("benchmark_baseline_type") or "illustrative").strip() or "illustrative"
+                )
         out.append(
             {
                 "preset_key": str(row.get("preset_key") or "").strip(),
                 "donor_id": str(row.get("donor_id") or "").strip(),
-                "baseline_present": (
-                    "yes"
-                    if baseline_first is not None or baseline_terminal is not None or baseline_loops is not None
-                    else "no"
-                ),
+                "baseline_present": "yes" if baseline_type in {"measured", "illustrative"} else "no",
+                "baseline_type": baseline_type,
                 "baseline_first": _format_seconds(baseline_first),
                 "current_first": _format_seconds(_safe_float(row.get("time_to_first_draft_seconds"))),
                 "baseline_terminal": _format_seconds(baseline_terminal),
@@ -168,12 +189,13 @@ def _build_readme(
     *,
     portfolio_summary: dict[str, Any],
     metrics_rows: list[dict[str, str]],
+    benchmark_rows: list[dict[str, str]] | None,
     scorecard_text: str,
     case_study_name: str | None,
     has_executive_pack: bool,
 ) -> str:
     blockers = _top_blockers(_parse_conditions(scorecard_text))
-    before_after = _before_after_rows(metrics_rows)
+    before_after = _before_after_rows(metrics_rows, benchmark_rows=benchmark_rows)
     rep = _representative_case(metrics_rows)
 
     lines: list[str] = []
@@ -245,10 +267,13 @@ def _build_readme(
     lines.append("")
     lines.append("## Before/After Snapshot")
     lines.append("")
+    if any(row.get("baseline_type") == "illustrative" for row in before_after):
+        lines.append("Illustrative rows below use a demo benchmark baseline, not measured customer baseline data.")
+        lines.append("")
     lines.append(
-        "| Preset | Donor | Baseline Present | Baseline First Draft | Current First Draft | Baseline Terminal | Current Terminal | Baseline Review Loops | Current Finding Ack Queue | Current Open Review Comments |"
+        "| Preset | Donor | Baseline Type | Baseline Present | Baseline First Draft | Current First Draft | Baseline Terminal | Current Terminal | Baseline Review Loops | Current Finding Ack Queue | Current Open Review Comments |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|---:|---:|")
+    lines.append("|---|---|---|---|---|---|---|---|---|---:|---:|")
     for row in before_after:
         lines.append(
             "| "
@@ -256,6 +281,7 @@ def _build_readme(
                 [
                     f"`{row['preset_key']}`",
                     f"`{row['donor_id']}`",
+                    f"`{row['baseline_type']}`",
                     row["baseline_present"],
                     row["baseline_first"],
                     row["current_first"],
@@ -289,6 +315,8 @@ def _build_readme(
     if case_study_name:
         lines.append(f"- `case-study/{case_study_name}/`: representative case")
     lines.append("- `baseline-fill-template.csv` and `baseline-fill-template.md` when available")
+    if benchmark_rows:
+        lines.append("- `benchmark-baseline.csv` and `benchmark-baseline.md`: illustrative demo-only baseline overlay")
     return "\n".join(lines) + "\n"
 
 
@@ -307,6 +335,7 @@ def main() -> int:
 
     portfolio_summary_path = pilot_pack_dir / "pilot-portfolio-summary.json"
     metrics_csv_path = pilot_pack_dir / "pilot-metrics.csv"
+    benchmark_csv_path = pilot_pack_dir / "benchmark-baseline.csv"
     scorecard_path = pilot_pack_dir / "pilot-scorecard.md"
     if not portfolio_summary_path.exists():
         raise SystemExit(f"Missing portfolio summary: {portfolio_summary_path}")
@@ -319,6 +348,7 @@ def main() -> int:
     if not isinstance(portfolio_summary, dict):
         raise SystemExit("pilot-portfolio-summary.json must contain an object")
     metrics_rows = _read_csv_rows(metrics_csv_path)
+    benchmark_rows = _read_csv_rows(benchmark_csv_path)
     scorecard_text = scorecard_path.read_text(encoding="utf-8")
 
     case_study_name = None
@@ -337,13 +367,16 @@ def main() -> int:
         _copy_tree_if_exists(case_study_dir / case_study_name, output_dir / "case-study" / case_study_name)
     _copy_if_exists(pilot_pack_dir / "baseline-fill-template.csv", output_dir / "baseline-fill-template.csv")
     _copy_if_exists(pilot_pack_dir / "baseline-fill-template.md", output_dir / "baseline-fill-template.md")
+    _copy_if_exists(pilot_pack_dir / "benchmark-baseline.csv", output_dir / "benchmark-baseline.csv")
+    _copy_if_exists(pilot_pack_dir / "benchmark-baseline.md", output_dir / "benchmark-baseline.md")
 
     summary = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "portfolio_summary": portfolio_summary,
         "top_blocking_thresholds": _top_blockers(_parse_conditions(scorecard_text)),
-        "before_after_rows": _before_after_rows(metrics_rows),
+        "before_after_rows": _before_after_rows(metrics_rows, benchmark_rows=benchmark_rows),
         "representative_case": _representative_case(metrics_rows),
+        "benchmark_baseline_present": bool(benchmark_rows),
         "case_study": case_study_name or "",
     }
     (output_dir / "evidence-summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -351,6 +384,7 @@ def main() -> int:
         _build_readme(
             portfolio_summary=portfolio_summary,
             metrics_rows=metrics_rows,
+            benchmark_rows=benchmark_rows,
             scorecard_text=scorecard_text,
             case_study_name=case_study_name,
             has_executive_pack=executive_pack_dir.exists(),

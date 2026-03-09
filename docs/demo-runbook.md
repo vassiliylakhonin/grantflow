@@ -82,7 +82,7 @@ It also seeds a synthetic reviewer comment workflow into the saved demo artifact
 `make pilot-scorecard` writes a short go/no-go memo from an existing pilot pack.
 `make pilot-scorecard-refresh` rebuilds the pilot pack, metrics, and brief first, then writes the scorecard.
 `make pilot-evidence-pack` assembles a compact pilot evidence bundle from the current pilot, executive, and case-study artifacts.
-`make pilot-evidence-pack-refresh` rebuilds the buyer path first, then writes the evidence bundle.
+`make pilot-evidence-pack-refresh` rebuilds the buyer path first, writes an illustrative benchmark baseline overlay for demo-only before/after views, then writes the evidence bundle.
 `make case-study-pack` writes a compact single-case pack from an existing pilot pack.
 `make case-study-pack-refresh` rebuilds the pilot pack, metrics, brief, and scorecard first, then writes the case pack.
 `make executive-pack` writes a send-ready buyer folder from an existing pilot pack and case-study pack.
@@ -95,6 +95,8 @@ It also seeds a synthetic reviewer comment workflow into the saved demo artifact
 `make diligence-index-refresh` rebuilds the full chain first, then writes the index.
 `make baseline-fill-template` writes a fillable baseline worksheet from `pilot-metrics.csv`.
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
+`make benchmark-baseline` writes an illustrative benchmark baseline overlay for demo-only evidence bundles.
+`make benchmark-baseline-refresh` rebuilds pilot metrics first, then writes that illustrative overlay.
 `make clean-demo-artifacts-dry-run` lists generated bundles slated for cleanup.
 `make clean-demo-artifacts` removes generated bundles and leaves unrelated files alone.
 `make latest-links` writes stable `build/latest-*` symlinks to the newest generated bundles, including fast/full send bundles and their zip files.
