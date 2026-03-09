@@ -180,6 +180,8 @@ def test_comment_triage_summary_tracks_overdue_and_next_action():
     assert summary["acknowledged_comment_count"] == 1
     assert summary["overdue_comment_count"] == 1
     assert summary["stale_open_comment_count"] == 1
+    assert summary["aging_band_counts"]["d1_3"] == 1
+    assert summary["aging_band_counts"]["lt_24h"] == 1
     assert summary["next_comment_section"] == "toc"
     assert summary["next_comment_bucket"] == "logic"
     assert summary["comment_bucket_counts"]["logic"] == 1

@@ -100,9 +100,16 @@
       }
     ],
     "review_readiness_summary": {
+      "acknowledged_critic_findings": 0,
       "acknowledged_review_comments": 0,
       "comment_triage_summary": {
         "acknowledged_comment_count": 0,
+        "aging_band_counts": {
+          "d1_3": 0,
+          "d3_7": 0,
+          "gt_7d": 0,
+          "lt_24h": 1
+        },
         "comment_bucket_counts": {
           "logic": 1
         },
@@ -134,9 +141,17 @@
       "orphan_linked_review_comments": 0,
       "overdue_review_comments": 0,
       "pending_review_comments": 1,
+      "resolved_critic_findings": 0,
       "resolved_review_comments": 0,
       "review_comment_acknowledgment_rate": 0.0,
       "review_comment_resolution_rate": 0.0,
+      "reviewer_workflow_summary": {
+        "acknowledged_items": 0,
+        "acknowledgment_rate": 0.0,
+        "open_items": 2,
+        "resolution_rate": 0.0,
+        "resolved_items": 0
+      },
       "stale_open_review_comments": 0
     },
     "state": {

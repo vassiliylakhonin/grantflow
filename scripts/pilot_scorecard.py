@@ -81,8 +81,13 @@ class CaseScorecard:
     high_severity_open_findings: int | None
     open_review_comments: int | None
     resolved_review_comments: int | None
+    acknowledged_review_comments: int | None
     overdue_review_comments: int | None
+    stale_open_review_comments: int | None
     orphan_linked_review_comments: int | None
+    reviewer_workflow_resolution_rate: float | None
+    reviewer_workflow_acknowledgment_rate: float | None
+    comment_age_gt_7d: float | None
     fallback_strategy_citations: int | None
     low_confidence_citations: int | None
     smart_field_coverage_rate: float | None
@@ -184,9 +189,19 @@ def _load_case_scorecards(
                     if str(metrics_row.get("resolved_review_comments") or "").strip()
                     else None
                 ),
+                acknowledged_review_comments=(
+                    int(metrics_row["acknowledged_review_comments"])
+                    if str(metrics_row.get("acknowledged_review_comments") or "").strip()
+                    else None
+                ),
                 overdue_review_comments=(
                     int(metrics_row["overdue_review_comments"])
                     if str(metrics_row.get("overdue_review_comments") or "").strip()
+                    else None
+                ),
+                stale_open_review_comments=(
+                    int(metrics_row["stale_open_review_comments"])
+                    if str(metrics_row.get("stale_open_review_comments") or "").strip()
                     else None
                 ),
                 orphan_linked_review_comments=(
@@ -194,6 +209,11 @@ def _load_case_scorecards(
                     if str(metrics_row.get("orphan_linked_review_comments") or "").strip()
                     else None
                 ),
+                reviewer_workflow_resolution_rate=_safe_float(metrics_row.get("reviewer_workflow_resolution_rate")),
+                reviewer_workflow_acknowledgment_rate=_safe_float(
+                    metrics_row.get("reviewer_workflow_acknowledgment_rate")
+                ),
+                comment_age_gt_7d=_safe_float(metrics_row.get("comment_age_gt_7d")),
                 fallback_strategy_citations=(
                     int(metrics_row["fallback_strategy_citations"])
                     if str(metrics_row.get("fallback_strategy_citations") or "").strip()
@@ -252,9 +272,26 @@ def _build_scorecard(
     avg_open_comments = _avg(
         [float(case.open_review_comments) for case in cases if case.open_review_comments is not None]
     )
+    avg_acknowledged_comments = _avg(
+        [float(case.acknowledged_review_comments) for case in cases if case.acknowledged_review_comments is not None]
+    )
     avg_overdue_comments = _avg(
         [float(case.overdue_review_comments) for case in cases if case.overdue_review_comments is not None]
     )
+    avg_stale_comments = _avg(
+        [float(case.stale_open_review_comments) for case in cases if case.stale_open_review_comments is not None]
+    )
+    avg_reviewer_workflow_resolution = _avg(
+        [case.reviewer_workflow_resolution_rate for case in cases if case.reviewer_workflow_resolution_rate is not None]
+    )
+    avg_reviewer_workflow_ack = _avg(
+        [
+            case.reviewer_workflow_acknowledgment_rate
+            for case in cases
+            if case.reviewer_workflow_acknowledgment_rate is not None
+        ]
+    )
+    avg_comment_age_gt_7d = _avg([case.comment_age_gt_7d for case in cases if case.comment_age_gt_7d is not None])
     avg_high_severity_findings = _avg(
         [float(case.high_severity_open_findings) for case in cases if case.high_severity_open_findings is not None]
     )
@@ -305,6 +342,8 @@ def _build_scorecard(
         conditional_reasons.append("open critic findings remain in at least one case")
     if any((case.overdue_review_comments or 0) > 0 for case in cases):
         conditional_reasons.append("overdue reviewer comments remain in at least one case")
+    if any((case.stale_open_review_comments or 0) > 0 for case in cases):
+        conditional_reasons.append("stale reviewer comment threads remain in at least one case")
     if any((case.orphan_linked_review_comments or 0) > 0 for case in cases):
         conditional_reasons.append("orphan linked reviewer comments remain in at least one case")
     if any((case.fallback_strategy_citations or 0) > 0 for case in cases):
@@ -386,7 +425,12 @@ def _build_scorecard(
     lines.append(f"- Export-complete cases: `{export_complete_cases}/{total_cases}`")
     lines.append(f"- Average open critic findings per case: `{_fmt(avg_open_findings)}`")
     lines.append(f"- Average open review comments per case: `{_fmt(avg_open_comments)}`")
+    lines.append(f"- Average acknowledged review comments per case: `{_fmt(avg_acknowledged_comments)}`")
     lines.append(f"- Average overdue review comments per case: `{_fmt(avg_overdue_comments)}`")
+    lines.append(f"- Average stale open review comments per case: `{_fmt(avg_stale_comments)}`")
+    lines.append(f"- Average reviewer workflow resolution rate: `{_fmt(avg_reviewer_workflow_resolution)}`")
+    lines.append(f"- Average reviewer workflow acknowledgment rate: `{_fmt(avg_reviewer_workflow_ack)}`")
+    lines.append(f"- Average comment threads aged >7d per case: `{_fmt(avg_comment_age_gt_7d)}`")
     lines.append(f"- Average high-severity open findings per case: `{_fmt(avg_high_severity_findings)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence_citations)}`")

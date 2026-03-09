@@ -2537,9 +2537,24 @@ def _review_readiness_summary_payload(
     total_comment_count = len([item for item in review_comments if isinstance(item, dict)])
     resolved_comment_count = int(comment_triage_summary.get("resolved_comment_count") or 0)
     acknowledged_comment_count = int(comment_triage_summary.get("acknowledged_comment_count") or 0)
+    resolved_finding_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+    )
+    acknowledged_finding_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "acknowledged"
+    )
+    total_reviewer_items = len([item for item in critic_findings if isinstance(item, dict)]) + total_comment_count
+    resolved_reviewer_items = resolved_finding_count + resolved_comment_count
+    acknowledged_reviewer_items = acknowledged_finding_count + acknowledged_comment_count
     return {
         "needs_revision": sanitize_for_public_response(needs_revision),
         "open_critic_findings": len(open_findings),
+        "resolved_critic_findings": resolved_finding_count,
+        "acknowledged_critic_findings": acknowledged_finding_count,
         "high_severity_open_findings": len(high_severity_open_findings),
         "open_review_comments": len(open_review_comments),
         "resolved_review_comments": resolved_comment_count,
@@ -2557,6 +2572,19 @@ def _review_readiness_summary_payload(
             if total_comment_count
             else None
         ),
+        "reviewer_workflow_summary": {
+            "open_items": len(open_findings) + len(open_review_comments),
+            "acknowledged_items": acknowledged_reviewer_items,
+            "resolved_items": resolved_reviewer_items,
+            "resolution_rate": (
+                round(resolved_reviewer_items / total_reviewer_items, 4) if total_reviewer_items else None
+            ),
+            "acknowledgment_rate": (
+                round((resolved_reviewer_items + acknowledged_reviewer_items) / total_reviewer_items, 4)
+                if total_reviewer_items
+                else None
+            ),
+        },
         "low_confidence_citations": len(low_confidence_citations),
         "fallback_strategy_citations": len(fallback_strategy_citations),
         "comment_triage_summary": comment_triage_summary,
@@ -2602,6 +2630,12 @@ def _comment_triage_summary_payload(
     next_recommended_action: Optional[str] = None
     comment_status_counts: Dict[str, int] = {}
     comment_bucket_counts: Dict[str, int] = {}
+    aging_band_counts: Dict[str, int] = {
+        "lt_24h": 0,
+        "d1_3": 0,
+        "d3_7": 0,
+        "gt_7d": 0,
+    }
     ranked_comments: list[tuple[int, datetime, Dict[str, Any]]] = []
 
     donor_phrase = {
@@ -2676,8 +2710,17 @@ def _comment_triage_summary_payload(
             or datetime.min.replace(tzinfo=timezone.utc)
         )
         age_hours = max(0.0, (reference_ts - transition_dt).total_seconds() / 3600.0)
-        if status not in {"resolved", "closed"} and age_hours >= 24.0:
-            stale_open_count += 1
+        if status not in {"resolved", "closed"}:
+            if age_hours >= 24.0:
+                stale_open_count += 1
+            if age_hours < 24.0:
+                aging_band_counts["lt_24h"] = int(aging_band_counts.get("lt_24h") or 0) + 1
+            elif age_hours < 72.0:
+                aging_band_counts["d1_3"] = int(aging_band_counts.get("d1_3") or 0) + 1
+            elif age_hours < 168.0:
+                aging_band_counts["d3_7"] = int(aging_band_counts.get("d3_7") or 0) + 1
+            else:
+                aging_band_counts["gt_7d"] = int(aging_band_counts.get("gt_7d") or 0) + 1
         if rank > 0:
             ranked_comments.append((rank, transition_dt, current))
 
@@ -2734,6 +2777,7 @@ def _comment_triage_summary_payload(
         "high_priority_open_comment_count": high_priority_open_count,
         "comment_status_counts": comment_status_counts,
         "comment_bucket_counts": comment_bucket_counts,
+        "aging_band_counts": aging_band_counts,
         "top_comment_ids": top_comment_ids,
         "next_comment_section": next_comment_section,
         "next_comment_bucket": next_comment_bucket,

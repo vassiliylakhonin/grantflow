@@ -182,6 +182,10 @@ def _build_summary(
     portfolio_smart_avg: float | None,
     portfolio_mov_avg: float | None,
     portfolio_owner_avg: float | None,
+    portfolio_reviewer_workflow_resolution_rate_avg: float | None,
+    portfolio_reviewer_workflow_ack_rate_avg: float | None,
+    portfolio_comment_age_d3_7_avg: float | None,
+    portfolio_comment_age_gt_7d_avg: float | None,
     portfolio_next_bucket: str,
     portfolio_next_action: str,
     conditional_reasons: list[str],
@@ -223,6 +227,14 @@ def _build_summary(
     lines.append(f"- Average SMART coverage: `{_format_num(portfolio_smart_avg)}`")
     lines.append(f"- Average MoV coverage: `{_format_num(portfolio_mov_avg)}`")
     lines.append(f"- Average owner coverage: `{_format_num(portfolio_owner_avg)}`")
+    lines.append(
+        f"- Average reviewer workflow resolution rate: `{_format_num(portfolio_reviewer_workflow_resolution_rate_avg)}`"
+    )
+    lines.append(
+        f"- Average reviewer workflow acknowledgment rate: `{_format_num(portfolio_reviewer_workflow_ack_rate_avg)}`"
+    )
+    lines.append(f"- Average comment threads aged 3-7d per case: `{_format_num(portfolio_comment_age_d3_7_avg)}`")
+    lines.append(f"- Average comment threads aged >7d per case: `{_format_num(portfolio_comment_age_gt_7d_avg)}`")
     if portfolio_next_bucket:
         lines.append(f"- Portfolio next review bucket: `{portfolio_next_bucket}`")
     if portfolio_next_action:
@@ -483,6 +495,14 @@ def main() -> int:
     portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
     portfolio_mov_avg = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in metrics_rows])
     portfolio_owner_avg = _avg([_safe_float(row.get("owner_coverage_rate")) for row in metrics_rows])
+    portfolio_reviewer_workflow_resolution_rate_avg = _avg(
+        [_safe_float(row.get("reviewer_workflow_resolution_rate")) for row in metrics_rows]
+    )
+    portfolio_reviewer_workflow_ack_rate_avg = _avg(
+        [_safe_float(row.get("reviewer_workflow_acknowledgment_rate")) for row in metrics_rows]
+    )
+    portfolio_comment_age_d3_7_avg = _avg([_safe_float(row.get("comment_age_d3_7")) for row in metrics_rows])
+    portfolio_comment_age_gt_7d_avg = _avg([_safe_float(row.get("comment_age_gt_7d")) for row in metrics_rows])
     portfolio_next_bucket = _first_nonempty(metrics_rows, "next_review_bucket")
     portfolio_next_action = _first_nonempty(metrics_rows, "next_recommended_action")
     scorecard_text = (pilot_pack_dir / "pilot-scorecard.md").read_text(encoding="utf-8")
@@ -512,6 +532,10 @@ def main() -> int:
             portfolio_smart_avg=portfolio_smart_avg,
             portfolio_mov_avg=portfolio_mov_avg,
             portfolio_owner_avg=portfolio_owner_avg,
+            portfolio_reviewer_workflow_resolution_rate_avg=portfolio_reviewer_workflow_resolution_rate_avg,
+            portfolio_reviewer_workflow_ack_rate_avg=portfolio_reviewer_workflow_ack_rate_avg,
+            portfolio_comment_age_d3_7_avg=portfolio_comment_age_d3_7_avg,
+            portfolio_comment_age_gt_7d_avg=portfolio_comment_age_gt_7d_avg,
             portfolio_next_bucket=portfolio_next_bucket,
             portfolio_next_action=portfolio_next_action,
             conditional_reasons=conditional_reasons,

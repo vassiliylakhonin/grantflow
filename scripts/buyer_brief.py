@@ -349,6 +349,50 @@ def main() -> int:
             if isinstance(item, dict)
         ]
     )
+    workflow_resolution_rate_avg = _avg(
+        [
+            _safe_float(
+                item.get("reviewer_workflow_summary", {}).get("resolution_rate")
+                if isinstance(item.get("reviewer_workflow_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    workflow_acknowledgment_rate_avg = _avg(
+        [
+            _safe_float(
+                item.get("reviewer_workflow_summary", {}).get("acknowledgment_rate")
+                if isinstance(item.get("reviewer_workflow_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    age_d3_7_avg = _avg(
+        [
+            _safe_int(
+                item.get("comment_triage_summary", {}).get("aging_band_counts", {}).get("d3_7")
+                if isinstance(item.get("comment_triage_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    age_gt_7d_avg = _avg(
+        [
+            _safe_int(
+                item.get("comment_triage_summary", {}).get("aging_band_counts", {}).get("gt_7d")
+                if isinstance(item.get("comment_triage_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
     fallback_citations_avg = _avg(
         [_safe_int(item.get("fallback_strategy_citations")) for item in readiness_summaries if isinstance(item, dict)]
     )
@@ -494,6 +538,10 @@ def main() -> int:
         f"- Stale open review comments per case: `{_format_num(stale_comments_avg)}`",
         f"- Average review comment resolution rate: `{_format_num(resolution_rate_avg)}`",
         f"- Average review comment acknowledgment rate: `{_format_num(acknowledgment_rate_avg)}`",
+        f"- Average reviewer workflow resolution rate: `{_format_num(workflow_resolution_rate_avg)}`",
+        f"- Average reviewer workflow acknowledgment rate: `{_format_num(workflow_acknowledgment_rate_avg)}`",
+        f"- Comment threads aged 3-7d per case: `{_format_num(age_d3_7_avg)}`",
+        f"- Comment threads aged >7d per case: `{_format_num(age_gt_7d_avg)}`",
         f"- Fallback/strategy citations per case: `{_format_num(fallback_citations_avg)}`",
         f"- Low-confidence citations per case: `{_format_num(low_confidence_avg)}`",
         *([f"- Next comment section: `{next_comment_section}`"] if next_comment_section else []),

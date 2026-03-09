@@ -82,6 +82,7 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             **readiness,
             "open_review_comments": comment_triage.get("open_comment_count"),
             "resolved_review_comments": comment_triage.get("resolved_comment_count"),
+            "acknowledged_review_comments": comment_triage.get("acknowledged_comment_count"),
             "pending_review_comments": comment_triage.get("pending_comment_count"),
             "overdue_review_comments": comment_triage.get("overdue_comment_count"),
             "stale_open_review_comments": comment_triage.get("stale_open_comment_count"),
@@ -138,6 +139,8 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "retrieval_expected": metrics.get("retrieval_expected"),
         "open_critic_findings": readiness.get("open_critic_findings"),
         "high_severity_open_findings": readiness.get("high_severity_open_findings"),
+        "resolved_critic_findings": readiness.get("resolved_critic_findings"),
+        "acknowledged_critic_findings": readiness.get("acknowledged_critic_findings"),
         "open_review_comments": readiness.get("open_review_comments"),
         "resolved_review_comments": readiness.get("resolved_review_comments"),
         "acknowledged_review_comments": readiness.get("acknowledged_review_comments"),
@@ -148,6 +151,16 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "orphan_linked_review_comments": readiness.get("orphan_linked_review_comments"),
         "review_comment_resolution_rate": readiness.get("review_comment_resolution_rate"),
         "review_comment_acknowledgment_rate": readiness.get("review_comment_acknowledgment_rate"),
+        "reviewer_workflow_resolution_rate": (
+            readiness.get("reviewer_workflow_summary", {}).get("resolution_rate")
+            if isinstance(readiness.get("reviewer_workflow_summary"), dict)
+            else None
+        ),
+        "reviewer_workflow_acknowledgment_rate": (
+            readiness.get("reviewer_workflow_summary", {}).get("acknowledgment_rate")
+            if isinstance(readiness.get("reviewer_workflow_summary"), dict)
+            else None
+        ),
         "fallback_strategy_citations": readiness.get("fallback_strategy_citations"),
         "low_confidence_citations": readiness.get("low_confidence_citations"),
         "next_review_bucket": triage.get("next_review_bucket"),
@@ -160,6 +173,18 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         ),
         "next_comment_action": (
             comment_triage.get("next_recommended_action") if isinstance(comment_triage, dict) else None
+        ),
+        "comment_age_lt_24h": (
+            comment_triage.get("aging_band_counts", {}).get("lt_24h") if isinstance(comment_triage, dict) else None
+        ),
+        "comment_age_d1_3": (
+            comment_triage.get("aging_band_counts", {}).get("d1_3") if isinstance(comment_triage, dict) else None
+        ),
+        "comment_age_d3_7": (
+            comment_triage.get("aging_band_counts", {}).get("d3_7") if isinstance(comment_triage, dict) else None
+        ),
+        "comment_age_gt_7d": (
+            comment_triage.get("aging_band_counts", {}).get("gt_7d") if isinstance(comment_triage, dict) else None
         ),
         "smart_field_coverage_rate": mel.get("smart_field_coverage_rate"),
         "means_of_verification_coverage_rate": mel.get("means_of_verification_coverage_rate"),
@@ -195,6 +220,8 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "retrieval_expected",
         "open_critic_findings",
         "high_severity_open_findings",
+        "resolved_critic_findings",
+        "acknowledged_critic_findings",
         "open_review_comments",
         "resolved_review_comments",
         "acknowledged_review_comments",
@@ -205,6 +232,8 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "orphan_linked_review_comments",
         "review_comment_resolution_rate",
         "review_comment_acknowledgment_rate",
+        "reviewer_workflow_resolution_rate",
+        "reviewer_workflow_acknowledgment_rate",
         "fallback_strategy_citations",
         "low_confidence_citations",
         "next_review_bucket",
@@ -212,6 +241,10 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "next_comment_section",
         "next_comment_bucket",
         "next_comment_action",
+        "comment_age_lt_24h",
+        "comment_age_d1_3",
+        "comment_age_d3_7",
+        "comment_age_gt_7d",
         "smart_field_coverage_rate",
         "means_of_verification_coverage_rate",
         "owner_coverage_rate",
@@ -245,6 +278,14 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_stale_comments = _avg([_safe_int(row.get("stale_open_review_comments")) for row in rows])
     avg_comment_resolution_rate = _avg([_safe_float(row.get("review_comment_resolution_rate")) for row in rows])
     avg_comment_ack_rate = _avg([_safe_float(row.get("review_comment_acknowledgment_rate")) for row in rows])
+    avg_reviewer_workflow_resolution_rate = _avg(
+        [_safe_float(row.get("reviewer_workflow_resolution_rate")) for row in rows]
+    )
+    avg_reviewer_workflow_ack_rate = _avg(
+        [_safe_float(row.get("reviewer_workflow_acknowledgment_rate")) for row in rows]
+    )
+    avg_comment_age_d3_7 = _avg([_safe_int(row.get("comment_age_d3_7")) for row in rows])
+    avg_comment_age_gt_7d = _avg([_safe_int(row.get("comment_age_gt_7d")) for row in rows])
     avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
     avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
     avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
@@ -312,6 +353,10 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average stale open review comments per case: `{_fmt(avg_stale_comments)}`")
     lines.append(f"- Average review comment resolution rate: `{_fmt(avg_comment_resolution_rate)}`")
     lines.append(f"- Average review comment acknowledgment rate: `{_fmt(avg_comment_ack_rate)}`")
+    lines.append(f"- Average reviewer workflow resolution rate: `{_fmt(avg_reviewer_workflow_resolution_rate)}`")
+    lines.append(f"- Average reviewer workflow acknowledgment rate: `{_fmt(avg_reviewer_workflow_ack_rate)}`")
+    lines.append(f"- Average comment threads aged 3-7d per case: `{_fmt(avg_comment_age_d3_7)}`")
+    lines.append(f"- Average comment threads aged >7d per case: `{_fmt(avg_comment_age_gt_7d)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence)}`")
     lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart_coverage)}`")
