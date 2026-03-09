@@ -1,98 +1,36 @@
 {
   "job_id": "job-1",
-  "status": "done",
   "payload": {
-    "state": {
-      "donor_id": "usaid",
-      "toc_draft": {
-        "toc": {
-          "brief": "Sample"
-        }
-      },
-      "critic_notes": {
-        "fatal_flaws": [
-          {
-            "finding_id": "finding-1",
-            "status": "open",
-            "severity": "high",
-            "section": "toc",
-            "code": "TOC_GAP",
-            "message": "Missing output chain",
-            "source": "rules"
-          }
-        ]
-      }
-    },
-    "quality_summary": {
-      "quality_score": null,
-      "critic_score": null,
-      "needs_revision": null,
-      "engine": null,
-      "rule_score": null,
-      "llm_score": null,
-      "fatal_flaw_count": 1,
-      "citation_count": 0
-    },
     "critic_findings": [
       {
-        "finding_id": "finding-1",
-        "status": "open",
-        "severity": "high",
-        "section": "toc",
         "code": "TOC_GAP",
-        "message": "Missing output chain",
-        "source": "rules",
-        "id": "finding-1",
-        "rationale": null,
-        "fix_suggestion": null,
+        "finding_id": "finding-1",
         "fix_hint": null,
-        "version_id": null,
+        "fix_suggestion": null,
+        "id": "finding-1",
         "linked_comment_ids": [
           "comment-1"
-        ]
-      }
-    ],
-    "review_comments": [
-      {
-        "comment_id": "comment-1",
-        "status": "open",
+        ],
+        "message": "Missing output chain",
+        "rationale": null,
+        "recommended_action": "Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy.",
+        "review_bucket": "logic",
+        "review_title": "Toc Gap",
+        "reviewer_next_step": "Toc Gap: Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy.",
         "section": "toc",
-        "author": "rev",
-        "message": "Need details",
-        "linked_finding_id": "finding-1",
-        "version_id": "toc_v1",
-        "ts": "2026-02-27T00:00:00Z"
+        "severity": "high",
+        "source": "rules",
+        "staleness_band": "fresh",
+        "status": "open",
+        "triage_priority": "urgent",
+        "version_id": null
       }
     ],
-    "readiness": null,
-    "review_readiness_summary": {
-      "needs_revision": null,
-      "open_critic_findings": 1,
-      "high_severity_open_findings": 1,
-      "open_review_comments": 1,
-      "low_confidence_citations": 0,
-      "fallback_strategy_citations": 0
-    },
     "export_contract": {
-      "donor_id": "usaid",
-      "template_key": "usaid",
-      "template_display_name": "USAID Results Framework",
-      "required_sections": [
-        "project_goal",
-        "development_objectives"
-      ],
-      "present_sections": [],
-      "missing_required_sections": [
-        "project_goal",
-        "development_objectives"
-      ],
-      "required_sheets": [
-        "LogFrame",
-        "USAID_RF",
-        "Template Meta"
-      ],
+      "actual_primary_sheet_headers": [],
       "actual_sheets": [],
-      "missing_required_sheets": [],
+      "blocking": false,
+      "donor_id": "usaid",
       "expected_docx_headings": [
         "USAID Results Framework",
         "Project Goal",
@@ -106,22 +44,112 @@
         "IR ID",
         "IR Description"
       ],
-      "actual_primary_sheet_headers": [],
+      "go_ahead": true,
       "missing_required_primary_sheet_headers": [],
-      "workbook_validation_enabled": false,
-      "status": "warning",
-      "warnings": [
-        "missing_required_toc_sections"
+      "missing_required_sections": [
+        "project_goal",
+        "development_objectives"
       ],
+      "missing_required_sheets": [],
       "mode": "warn",
       "passed": false,
-      "blocking": false,
-      "go_ahead": true,
-      "summary": "missing_required_toc_sections",
+      "present_sections": [],
       "reasons": [
         "missing_required_toc_sections"
       ],
-      "risk_level": "high"
+      "required_sections": [
+        "project_goal",
+        "development_objectives"
+      ],
+      "required_sheets": [
+        "LogFrame",
+        "USAID_RF",
+        "Template Meta"
+      ],
+      "risk_level": "high",
+      "status": "warning",
+      "summary": "missing_required_toc_sections",
+      "template_display_name": "USAID Results Framework",
+      "template_key": "usaid",
+      "warnings": [
+        "missing_required_toc_sections"
+      ],
+      "workbook_validation_enabled": false
+    },
+    "quality_summary": {
+      "citation_count": 0,
+      "critic_score": null,
+      "engine": null,
+      "fatal_flaw_count": 1,
+      "llm_score": null,
+      "needs_revision": null,
+      "quality_score": null,
+      "rule_score": null
+    },
+    "readiness": null,
+    "review_comments": [
+      {
+        "author": "rev",
+        "comment_id": "comment-1",
+        "linked_finding_id": "finding-1",
+        "message": "Need details",
+        "section": "toc",
+        "status": "open",
+        "ts": "2026-02-27T00:00:00Z",
+        "version_id": "toc_v1"
+      }
+    ],
+    "review_readiness_summary": {
+      "comment_triage_summary": {
+        "comment_status_counts": {
+          "open": 1
+        },
+        "high_priority_open_comment_count": 1,
+        "linked_comment_count": 1,
+        "next_comment_section": "toc",
+        "next_recommended_action": "Address reviewer comments linked to active findings in the USAID results hierarchy and monitoring package before the next draft review.",
+        "open_comment_count": 1,
+        "orphan_linked_comment_count": 0,
+        "overdue_comment_count": 0,
+        "pending_comment_count": 1,
+        "resolved_comment_count": 0,
+        "top_comment_ids": [
+          "comment-1"
+        ]
+      },
+      "fallback_strategy_citations": 0,
+      "high_severity_open_findings": 1,
+      "linked_review_comments": 1,
+      "low_confidence_citations": 0,
+      "needs_revision": null,
+      "open_critic_findings": 1,
+      "open_review_comments": 1,
+      "orphan_linked_review_comments": 0,
+      "overdue_review_comments": 0,
+      "pending_review_comments": 1,
+      "resolved_review_comments": 0
+    },
+    "state": {
+      "critic_notes": {
+        "fatal_flaws": [
+          {
+            "code": "TOC_GAP",
+            "finding_id": "finding-1",
+            "message": "Missing output chain",
+            "section": "toc",
+            "severity": "high",
+            "source": "rules",
+            "status": "open"
+          }
+        ]
+      },
+      "donor_id": "usaid",
+      "toc_draft": {
+        "toc": {
+          "brief": "Sample"
+        }
+      }
     }
-  }
+  },
+  "status": "done"
 }

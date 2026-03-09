@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from grantflow.api.public_views import _critic_triage_summary_payload
+from grantflow.api.public_views import _comment_triage_summary_payload, _critic_triage_summary_payload
 
 
 ROOT_FILES = (
@@ -171,6 +171,8 @@ def _build_summary(
     featured_mel_summary: dict[str, Any],
     review_ready_cases: str,
     portfolio_open_findings_avg: float | None,
+    portfolio_open_comments_avg: float | None,
+    portfolio_overdue_comments_avg: float | None,
     portfolio_fallback_avg: float | None,
     portfolio_low_confidence_avg: float | None,
     portfolio_smart_avg: float | None,
@@ -204,6 +206,8 @@ def _build_summary(
     lines.append("## Portfolio Readiness Snapshot")
     lines.append(f"- Cases with complete LogFrame operational coverage: `{review_ready_cases}`")
     lines.append(f"- Average open critic findings per case: `{_format_num(portfolio_open_findings_avg)}`")
+    lines.append(f"- Average open review comments per case: `{_format_num(portfolio_open_comments_avg)}`")
+    lines.append(f"- Average overdue review comments per case: `{_format_num(portfolio_overdue_comments_avg)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_format_num(portfolio_fallback_avg)}`")
     lines.append(f"- Average low-confidence citations per case: `{_format_num(portfolio_low_confidence_avg)}`")
     lines.append(f"- Average SMART coverage: `{_format_num(portfolio_smart_avg)}`")
@@ -217,6 +221,15 @@ def _build_summary(
     lines.append("## Readiness Snapshot")
     lines.append(
         f"- Open critic findings (featured case): `{featured_review_readiness.get('open_critic_findings', '-')}`"
+    )
+    lines.append(
+        f"- Open review comments (featured case): `{featured_review_readiness.get('open_review_comments', '-')}`"
+    )
+    lines.append(
+        f"- Resolved review comments (featured case): `{featured_review_readiness.get('resolved_review_comments', '-')}`"
+    )
+    lines.append(
+        f"- Overdue review comments (featured case): `{featured_review_readiness.get('overdue_review_comments', '-')}`"
     )
     lines.append(
         f"- High-severity open findings (featured case): `{featured_review_readiness.get('high_severity_open_findings', '-')}`"
@@ -249,6 +262,18 @@ def _build_summary(
             lines.append(f"- Next review bucket (featured case): `{next_bucket}`")
         if next_action:
             lines.append(f"- Next recommended action (featured case): {next_action}")
+    comment_triage = (
+        featured_review_readiness.get("comment_triage_summary")
+        if isinstance(featured_review_readiness.get("comment_triage_summary"), dict)
+        else {}
+    )
+    if comment_triage:
+        next_comment_section = str(comment_triage.get("next_comment_section") or "").strip()
+        next_comment_action = str(comment_triage.get("next_recommended_action") or "").strip()
+        if next_comment_section:
+            lines.append(f"- Next comment section (featured case): `{next_comment_section}`")
+        if next_comment_action:
+            lines.append(f"- Next comment action (featured case): {next_comment_action}")
     priority_titles, priority_actions = _top_reviewer_items(featured_critic_payload)
     fallback_next_action = str(featured_triage_summary.get("next_recommended_action") or "").strip()
     if fallback_next_action and fallback_next_action not in priority_actions:
@@ -332,6 +357,15 @@ def main() -> int:
     featured_review_readiness = quality_payload.get("review_readiness_summary")
     if not isinstance(featured_review_readiness, dict):
         featured_review_readiness = {}
+    featured_review_readiness = {
+        "open_review_comments": 0,
+        "resolved_review_comments": 0,
+        "pending_review_comments": 0,
+        "overdue_review_comments": 0,
+        "linked_review_comments": 0,
+        "orphan_linked_review_comments": 0,
+        **featured_review_readiness,
+    }
     featured_triage_summary = quality_payload.get("triage_summary")
     if not isinstance(featured_triage_summary, dict):
         featured_triage_summary = {}
@@ -341,6 +375,9 @@ def main() -> int:
     critic_payload = _read_json(pilot_pack_dir / "live-runs" / resolved_case_dir / "critic.json")
     if not isinstance(critic_payload, dict):
         critic_payload = {}
+    export_payload = _read_json(pilot_pack_dir / "live-runs" / resolved_case_dir / "export-payload.json")
+    if not isinstance(export_payload, dict):
+        export_payload = {}
     if not featured_triage_summary:
         triage_from_critic = critic_payload.get("triage_summary")
         featured_triage_summary = triage_from_critic if isinstance(triage_from_critic, dict) else {}
@@ -352,6 +389,31 @@ def main() -> int:
             if findings
             else {}
         )
+    if not isinstance(featured_review_readiness.get("comment_triage_summary"), dict):
+        payload_root = export_payload.get("payload") if isinstance(export_payload.get("payload"), dict) else {}
+        review_comments = (
+            [row for row in payload_root.get("review_comments") or [] if isinstance(row, dict)]
+            if isinstance(payload_root, dict)
+            else []
+        )
+        raw_findings = critic_payload.get("fatal_flaws")
+        findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+        if review_comments:
+            comment_triage = _comment_triage_summary_payload(
+                review_comments=review_comments,
+                critic_findings=findings,
+                donor_id=str(selected_row.get("donor_id") or "").strip(),
+            )
+            featured_review_readiness = {
+                **featured_review_readiness,
+                "open_review_comments": comment_triage.get("open_comment_count"),
+                "resolved_review_comments": comment_triage.get("resolved_comment_count"),
+                "pending_review_comments": comment_triage.get("pending_comment_count"),
+                "overdue_review_comments": comment_triage.get("overdue_comment_count"),
+                "linked_review_comments": comment_triage.get("linked_comment_count"),
+                "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
+                "comment_triage_summary": comment_triage,
+            }
     review_ready_cases_count = 0
     for row in rows:
         case_dir = str(row.get("case_dir") or "").strip()
@@ -371,6 +433,8 @@ def main() -> int:
             review_ready_cases_count += 1
     metrics_rows = _read_csv_rows(pilot_pack_dir / "pilot-metrics.csv")
     portfolio_open_findings_avg = _avg([_safe_int(row.get("open_critic_findings")) for row in metrics_rows])
+    portfolio_open_comments_avg = _avg([_safe_int(row.get("open_review_comments")) for row in metrics_rows])
+    portfolio_overdue_comments_avg = _avg([_safe_int(row.get("overdue_review_comments")) for row in metrics_rows])
     portfolio_fallback_avg = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in metrics_rows])
     portfolio_low_confidence_avg = _avg([_safe_int(row.get("low_confidence_citations")) for row in metrics_rows])
     portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
@@ -394,6 +458,8 @@ def main() -> int:
             featured_mel_summary=featured_mel_summary,
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
             portfolio_open_findings_avg=portfolio_open_findings_avg,
+            portfolio_open_comments_avg=portfolio_open_comments_avg,
+            portfolio_overdue_comments_avg=portfolio_overdue_comments_avg,
             portfolio_fallback_avg=portfolio_fallback_avg,
             portfolio_low_confidence_avg=portfolio_low_confidence_avg,
             portfolio_smart_avg=portfolio_smart_avg,

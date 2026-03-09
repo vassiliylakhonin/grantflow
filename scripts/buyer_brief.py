@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from grantflow.api.public_views import _critic_triage_summary_payload
+from grantflow.api.public_views import _comment_triage_summary_payload, _critic_triage_summary_payload
 
 
 def _read_json(path: Path) -> Any:
@@ -67,6 +67,66 @@ def _load_case_critic(pilot_pack_dir: Path, case_dir: str) -> dict[str, Any]:
         return {}
     payload = _read_json(path)
     return payload if isinstance(payload, dict) else {}
+
+
+def _load_case_export_payload(pilot_pack_dir: Path, case_dir: str) -> dict[str, Any]:
+    if not case_dir:
+        return {}
+    path = pilot_pack_dir / "live-runs" / case_dir / "export-payload.json"
+    if not path.exists():
+        return {}
+    payload = _read_json(path)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _review_readiness_from_payloads(
+    quality_payload: dict[str, Any],
+    critic_payload: dict[str, Any],
+    export_payload: dict[str, Any],
+    *,
+    donor_id: str = "",
+) -> dict[str, Any]:
+    readiness = (
+        quality_payload.get("review_readiness_summary")
+        if isinstance(quality_payload.get("review_readiness_summary"), dict)
+        else {}
+    )
+    comment_defaults = {
+        "open_review_comments": 0,
+        "resolved_review_comments": 0,
+        "pending_review_comments": 0,
+        "overdue_review_comments": 0,
+        "linked_review_comments": 0,
+        "orphan_linked_review_comments": 0,
+    }
+    if isinstance(readiness.get("comment_triage_summary"), dict):
+        return {**comment_defaults, **readiness}
+    payload_root = export_payload.get("payload") if isinstance(export_payload.get("payload"), dict) else {}
+    review_comments = (
+        [row for row in payload_root.get("review_comments") or [] if isinstance(row, dict)]
+        if isinstance(payload_root, dict)
+        else []
+    )
+    raw_findings = critic_payload.get("fatal_flaws")
+    findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+    if not review_comments:
+        return {**comment_defaults, **readiness}
+    comment_triage = _comment_triage_summary_payload(
+        review_comments=review_comments,
+        critic_findings=findings,
+        donor_id=donor_id,
+    )
+    return {
+        **comment_defaults,
+        **readiness,
+        "open_review_comments": comment_triage.get("open_comment_count"),
+        "resolved_review_comments": comment_triage.get("resolved_comment_count"),
+        "pending_review_comments": comment_triage.get("pending_comment_count"),
+        "overdue_review_comments": comment_triage.get("overdue_comment_count"),
+        "linked_review_comments": comment_triage.get("linked_comment_count"),
+        "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
+        "comment_triage_summary": comment_triage,
+    }
 
 
 def _triage_summary_from_payloads(
@@ -224,10 +284,19 @@ def main() -> int:
 
     quality_payloads = [_load_case_quality(pilot_pack_dir, str(row.get("case_dir") or "").strip()) for row in rows]
     critic_payloads = [_load_case_critic(pilot_pack_dir, str(row.get("case_dir") or "").strip()) for row in rows]
+    export_payloads = [
+        _load_case_export_payload(pilot_pack_dir, str(row.get("case_dir") or "").strip()) for row in rows
+    ]
     readiness_summaries = [
-        payload.get("review_readiness_summary")
-        for payload in quality_payloads
-        if isinstance(payload.get("review_readiness_summary"), dict)
+        _review_readiness_from_payloads(
+            quality_payload,
+            critic_payload,
+            export_payload,
+            donor_id=str(row.get("donor_id") or "").strip(),
+        )
+        for row, quality_payload, critic_payload, export_payload in zip(
+            rows, quality_payloads, critic_payloads, export_payloads, strict=False
+        )
     ]
     triage_summaries = []
     for row, quality_payload, critic_payload in zip(rows, quality_payloads, critic_payloads, strict=False):
@@ -242,6 +311,15 @@ def main() -> int:
 
     open_findings_avg = _avg(
         [_safe_int(item.get("open_critic_findings")) for item in readiness_summaries if isinstance(item, dict)]
+    )
+    open_comments_avg = _avg(
+        [_safe_int(item.get("open_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
+    )
+    resolved_comments_avg = _avg(
+        [_safe_int(item.get("resolved_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
+    )
+    overdue_comments_avg = _avg(
+        [_safe_int(item.get("overdue_review_comments")) for item in readiness_summaries if isinstance(item, dict)]
     )
     fallback_citations_avg = _avg(
         [_safe_int(item.get("fallback_strategy_citations")) for item in readiness_summaries if isinstance(item, dict)]
@@ -330,6 +408,27 @@ def main() -> int:
                 break
     if not triage_top_actions and triage_next_action:
         triage_top_actions.append(triage_next_action)
+    comment_triage_summaries = [
+        item.get("comment_triage_summary")
+        for item in readiness_summaries
+        if isinstance(item, dict) and isinstance(item.get("comment_triage_summary"), dict)
+    ]
+    next_comment_section = next(
+        (
+            str(item.get("next_comment_section") or "").strip()
+            for item in comment_triage_summaries
+            if isinstance(item, dict) and str(item.get("next_comment_section") or "").strip()
+        ),
+        "",
+    )
+    next_comment_action = next(
+        (
+            str(item.get("next_recommended_action") or "").strip()
+            for item in comment_triage_summaries
+            if isinstance(item, dict) and str(item.get("next_recommended_action") or "").strip()
+        ),
+        "",
+    )
 
     output_path = Path(str(args.output)).resolve() if str(args.output).strip() else pilot_pack_dir / "buyer-brief.md"
     include_productization_memo = (pilot_pack_dir / "productization-gaps-memo.md").exists()
@@ -352,8 +451,13 @@ def main() -> int:
     insert_lines = [
         "## Review Readiness Snapshot",
         f"- Open critic findings per case: `{_format_num(open_findings_avg)}`",
+        f"- Open review comments per case: `{_format_num(open_comments_avg)}`",
+        f"- Resolved review comments per case: `{_format_num(resolved_comments_avg)}`",
+        f"- Overdue review comments per case: `{_format_num(overdue_comments_avg)}`",
         f"- Fallback/strategy citations per case: `{_format_num(fallback_citations_avg)}`",
         f"- Low-confidence citations per case: `{_format_num(low_confidence_avg)}`",
+        *([f"- Next comment section: `{next_comment_section}`"] if next_comment_section else []),
+        *([f"- Next comment action: {next_comment_action}"] if next_comment_action else []),
         "",
         "## LogFrame Readiness Snapshot",
         f"- Cases with complete SMART + MoV + owner coverage: `{review_ready_cases}/{len(rows)}`",

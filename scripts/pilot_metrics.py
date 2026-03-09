@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from grantflow.api.public_views import _critic_triage_summary_payload
+from grantflow.api.public_views import _comment_triage_summary_payload, _critic_triage_summary_payload
 
 
 def _read_json(path: Path) -> Any:
@@ -54,12 +54,49 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
     metrics_path = case_dir / "metrics.json"
     quality_path = case_dir / "quality.json"
     critic_path = case_dir / "critic.json"
+    export_payload_path = case_dir / "export-payload.json"
     metrics = _read_json(metrics_path) if metrics_path.exists() else {}
     quality = _read_json(quality_path) if quality_path.exists() else {}
     critic = _read_json(critic_path) if critic_path.exists() else {}
+    export_payload = _read_json(export_payload_path) if export_payload_path.exists() else {}
     readiness = (
         quality.get("review_readiness_summary") if isinstance(quality.get("review_readiness_summary"), dict) else {}
     )
+    export_review_comments = []
+    if isinstance(export_payload, dict):
+        payload_root = export_payload.get("payload")
+        if isinstance(payload_root, dict) and isinstance(payload_root.get("review_comments"), list):
+            export_review_comments = [row for row in payload_root.get("review_comments") or [] if isinstance(row, dict)]
+    comment_triage = (
+        readiness.get("comment_triage_summary") if isinstance(readiness.get("comment_triage_summary"), dict) else {}
+    )
+    if not comment_triage and isinstance(critic, dict) and export_review_comments:
+        raw_findings = critic.get("fatal_flaws")
+        findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+        comment_triage = _comment_triage_summary_payload(
+            review_comments=export_review_comments,
+            critic_findings=findings,
+            donor_id=str(benchmark_row.get("donor_id") or "").strip(),
+        )
+        readiness = {
+            **readiness,
+            "open_review_comments": comment_triage.get("open_comment_count"),
+            "resolved_review_comments": comment_triage.get("resolved_comment_count"),
+            "pending_review_comments": comment_triage.get("pending_comment_count"),
+            "overdue_review_comments": comment_triage.get("overdue_comment_count"),
+            "linked_review_comments": comment_triage.get("linked_comment_count"),
+            "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
+            "comment_triage_summary": comment_triage,
+        }
+    comment_defaults = {
+        "open_review_comments": 0,
+        "resolved_review_comments": 0,
+        "pending_review_comments": 0,
+        "overdue_review_comments": 0,
+        "linked_review_comments": 0,
+        "orphan_linked_review_comments": 0,
+    }
+    readiness = {**comment_defaults, **readiness}
     triage = quality.get("triage_summary") if isinstance(quality.get("triage_summary"), dict) else {}
     if not triage and isinstance(critic, dict):
         triage = critic.get("triage_summary") if isinstance(critic.get("triage_summary"), dict) else {}
@@ -97,10 +134,21 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "open_critic_findings": readiness.get("open_critic_findings"),
         "high_severity_open_findings": readiness.get("high_severity_open_findings"),
         "open_review_comments": readiness.get("open_review_comments"),
+        "resolved_review_comments": readiness.get("resolved_review_comments"),
+        "pending_review_comments": readiness.get("pending_review_comments"),
+        "overdue_review_comments": readiness.get("overdue_review_comments"),
+        "linked_review_comments": readiness.get("linked_review_comments"),
+        "orphan_linked_review_comments": readiness.get("orphan_linked_review_comments"),
         "fallback_strategy_citations": readiness.get("fallback_strategy_citations"),
         "low_confidence_citations": readiness.get("low_confidence_citations"),
         "next_review_bucket": triage.get("next_review_bucket"),
         "next_recommended_action": triage.get("next_recommended_action"),
+        "next_comment_section": (
+            comment_triage.get("next_comment_section") if isinstance(comment_triage, dict) else None
+        ),
+        "next_comment_action": (
+            comment_triage.get("next_recommended_action") if isinstance(comment_triage, dict) else None
+        ),
         "smart_field_coverage_rate": mel.get("smart_field_coverage_rate"),
         "means_of_verification_coverage_rate": mel.get("means_of_verification_coverage_rate"),
         "owner_coverage_rate": mel.get("owner_coverage_rate"),
@@ -136,10 +184,17 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "open_critic_findings",
         "high_severity_open_findings",
         "open_review_comments",
+        "resolved_review_comments",
+        "pending_review_comments",
+        "overdue_review_comments",
+        "linked_review_comments",
+        "orphan_linked_review_comments",
         "fallback_strategy_citations",
         "low_confidence_citations",
         "next_review_bucket",
         "next_recommended_action",
+        "next_comment_section",
+        "next_comment_action",
         "smart_field_coverage_rate",
         "means_of_verification_coverage_rate",
         "owner_coverage_rate",
@@ -166,6 +221,9 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_open_findings = _avg([_safe_int(row.get("open_critic_findings")) for row in rows])
     avg_fallback_citations = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in rows])
     avg_low_confidence = _avg([_safe_int(row.get("low_confidence_citations")) for row in rows])
+    avg_open_comments = _avg([_safe_int(row.get("open_review_comments")) for row in rows])
+    avg_resolved_comments = _avg([_safe_int(row.get("resolved_review_comments")) for row in rows])
+    avg_overdue_comments = _avg([_safe_int(row.get("overdue_review_comments")) for row in rows])
     avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
     avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
     avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
@@ -186,6 +244,22 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
         ),
         "",
     )
+    next_comment_section = next(
+        (
+            str(row.get("next_comment_section") or "").strip()
+            for row in rows
+            if str(row.get("next_comment_section") or "").strip()
+        ),
+        "",
+    )
+    next_comment_action = next(
+        (
+            str(row.get("next_comment_action") or "").strip()
+            for row in rows
+            if str(row.get("next_comment_action") or "").strip()
+        ),
+        "",
+    )
 
     lines: list[str] = []
     lines.append("# Pilot Metrics")
@@ -202,6 +276,9 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average time in pending HITL (s): `{_fmt(avg_pending_hitl)}`")
     lines.append(f"- Average citation count: `{_fmt(avg_citations)}`")
     lines.append(f"- Average open critic findings per case: `{_fmt(avg_open_findings)}`")
+    lines.append(f"- Average open review comments per case: `{_fmt(avg_open_comments)}`")
+    lines.append(f"- Average resolved review comments per case: `{_fmt(avg_resolved_comments)}`")
+    lines.append(f"- Average overdue review comments per case: `{_fmt(avg_overdue_comments)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence)}`")
     lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart_coverage)}`")
@@ -212,13 +289,17 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
         lines.append(f"- Portfolio next review bucket: `{next_bucket}`")
     if next_action:
         lines.append(f"- Portfolio next recommended action: {next_action}")
+    if next_comment_section:
+        lines.append(f"- Portfolio next comment section: `{next_comment_section}`")
+    if next_comment_action:
+        lines.append(f"- Portfolio next comment action: {next_comment_action}")
     lines.append("")
     lines.append("## Case Table")
     lines.append("")
     lines.append(
-        "| Preset | Donor | Status | HITL | Quality | Critic | Open Findings | Fallback Citations | Next Bucket | SMART | MoV | Owner | Complete Ops |"
+        "| Preset | Donor | Status | HITL | Quality | Critic | Open Findings | Open Comments | Overdue Comments | Fallback Citations | Next Bucket | Next Comment Section | SMART | MoV | Owner | Complete Ops |"
     )
-    lines.append("|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---|")
+    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---|---|---:|---:|---:|---|")
     for row in rows:
         lines.append(
             "| "
@@ -231,8 +312,11 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
                     _fmt(_safe_float(row.get("quality_score"))),
                     _fmt(_safe_float(row.get("critic_score"))),
                     _fmt(_safe_int(row.get("open_critic_findings"))),
+                    _fmt(_safe_int(row.get("open_review_comments"))),
+                    _fmt(_safe_int(row.get("overdue_review_comments"))),
                     _fmt(_safe_int(row.get("fallback_strategy_citations"))),
                     f"`{str(row.get('next_review_bucket') or '-').strip() or '-'}`",
+                    f"`{str(row.get('next_comment_section') or '-').strip() or '-'}`",
                     _fmt(_safe_float(row.get("smart_field_coverage_rate"))),
                     _fmt(_safe_float(row.get("means_of_verification_coverage_rate"))),
                     _fmt(_safe_float(row.get("owner_coverage_rate"))),

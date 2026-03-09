@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from grantflow.api.public_views import _finding_recommended_action, _finding_review_title
+from grantflow.api.public_views import (
+    _comment_triage_summary_payload,
+    _finding_recommended_action,
+    _finding_review_title,
+)
 
 
 def test_finding_recommended_action_uses_donor_specific_logic_language():
@@ -124,3 +128,39 @@ def test_finding_review_title_uses_semantic_mapping_for_traceability_gap():
         }
     )
     assert title == "Citation Traceability Gap"
+
+
+def test_comment_triage_summary_tracks_overdue_and_next_action():
+    summary = _comment_triage_summary_payload(
+        review_comments=[
+            {
+                "comment_id": "comment-1",
+                "status": "open",
+                "section": "toc",
+                "linked_finding_id": "finding-1",
+                "ts": "2026-03-01T10:00:00+00:00",
+                "due_at": "2026-03-01T11:00:00+00:00",
+            },
+            {
+                "comment_id": "comment-2",
+                "status": "resolved",
+                "section": "logframe",
+                "ts": "2026-03-01T10:00:00+00:00",
+                "resolved_at": "2026-03-01T10:30:00+00:00",
+            },
+        ],
+        critic_findings=[
+            {
+                "id": "finding-1",
+                "status": "open",
+                "severity": "high",
+                "section": "toc",
+            }
+        ],
+        donor_id="usaid",
+    )
+    assert summary["open_comment_count"] == 1
+    assert summary["resolved_comment_count"] == 1
+    assert summary["overdue_comment_count"] == 1
+    assert summary["next_comment_section"] == "toc"
+    assert "USAID results hierarchy" in str(summary["next_recommended_action"])

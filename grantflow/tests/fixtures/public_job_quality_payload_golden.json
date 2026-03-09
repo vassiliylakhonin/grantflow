@@ -295,12 +295,34 @@
     "warnings": []
   },
   "review_readiness_summary": {
+    "comment_triage_summary": {
+      "comment_status_counts": {
+        "open": 1
+      },
+      "high_priority_open_comment_count": 1,
+      "linked_comment_count": 1,
+      "next_comment_section": "toc",
+      "next_recommended_action": "Address reviewer comments linked to active findings in the USAID results hierarchy and monitoring package before the next draft review.",
+      "open_comment_count": 1,
+      "orphan_linked_comment_count": 0,
+      "overdue_comment_count": 0,
+      "pending_comment_count": 1,
+      "resolved_comment_count": 0,
+      "top_comment_ids": [
+        "comment-1"
+      ]
+    },
     "fallback_strategy_citations": 1,
     "high_severity_open_findings": 1,
+    "linked_review_comments": 1,
     "low_confidence_citations": 1,
     "needs_revision": true,
     "open_critic_findings": 2,
-    "open_review_comments": 1
+    "open_review_comments": 1,
+    "orphan_linked_review_comments": 0,
+    "overdue_review_comments": 0,
+    "pending_review_comments": 1,
+    "resolved_review_comments": 0
   },
   "status": "done",
   "strict_preflight": true,
@@ -317,7 +339,7 @@
   },
   "triage_summary": {
     "high_priority_finding_count": 0,
-    "next_recommended_action": "Reground the affected ToC claim and replace fallback or weak citations before next review.",
+    "next_recommended_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
     "next_review_bucket": "grounding",
     "next_review_section": "toc",
     "priority_counts": {

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from grantflow.api.public_views import _critic_triage_summary_payload
+from grantflow.api.public_views import _comment_triage_summary_payload, _critic_triage_summary_payload
 
 
 def _read_json(path: Path) -> Any:
@@ -155,6 +155,9 @@ def _build_handout(
     lines.append(f"- HITL enabled: `{'true' if featured_row.get('hitl_enabled') else 'false'}`")
     if featured_review_readiness:
         lines.append(f"- Open critic findings: `{featured_review_readiness.get('open_critic_findings', '-')}`")
+        lines.append(f"- Open review comments: `{featured_review_readiness.get('open_review_comments', '-')}`")
+        lines.append(f"- Resolved review comments: `{featured_review_readiness.get('resolved_review_comments', '-')}`")
+        lines.append(f"- Overdue review comments: `{featured_review_readiness.get('overdue_review_comments', '-')}`")
         lines.append(
             f"- Fallback/strategy citations: `{featured_review_readiness.get('fallback_strategy_citations', '-')}`"
         )
@@ -163,6 +166,16 @@ def _build_handout(
             lines.append(f"- Next review bucket: `{featured_triage_summary.get('next_review_bucket')}`")
         if str(featured_triage_summary.get("next_recommended_action") or "").strip():
             lines.append(f"- Next recommended action: {featured_triage_summary.get('next_recommended_action')}")
+    comment_triage = (
+        featured_review_readiness.get("comment_triage_summary")
+        if isinstance(featured_review_readiness.get("comment_triage_summary"), dict)
+        else {}
+    )
+    if comment_triage:
+        if str(comment_triage.get("next_comment_section") or "").strip():
+            lines.append(f"- Next comment section: `{comment_triage.get('next_comment_section')}`")
+        if str(comment_triage.get("next_recommended_action") or "").strip():
+            lines.append(f"- Next comment action: {comment_triage.get('next_recommended_action')}")
     top_finding_titles, top_reviewer_actions = _top_reviewer_items(featured_critic_payload)
     fallback_next_action = str(featured_triage_summary.get("next_recommended_action") or "").strip()
     if fallback_next_action and fallback_next_action not in top_reviewer_actions:
@@ -265,6 +278,15 @@ def main() -> int:
         quality_payload.get("review_readiness_summary") if isinstance(quality_payload, dict) else {}
     )
     featured_review_readiness = featured_review_readiness if isinstance(featured_review_readiness, dict) else {}
+    featured_review_readiness = {
+        "open_review_comments": 0,
+        "resolved_review_comments": 0,
+        "pending_review_comments": 0,
+        "overdue_review_comments": 0,
+        "linked_review_comments": 0,
+        "orphan_linked_review_comments": 0,
+        **featured_review_readiness,
+    }
     featured_triage_summary = quality_payload.get("triage_summary") if isinstance(quality_payload, dict) else {}
     featured_triage_summary = featured_triage_summary if isinstance(featured_triage_summary, dict) else {}
     featured_mel_summary = quality_payload.get("mel") if isinstance(quality_payload, dict) else {}
@@ -272,6 +294,9 @@ def main() -> int:
     critic_path = pilot_pack_dir / "live-runs" / str(featured_row.get("case_dir") or "") / "critic.json"
     featured_critic_payload = _read_json(critic_path) if critic_path.exists() else {}
     featured_critic_payload = featured_critic_payload if isinstance(featured_critic_payload, dict) else {}
+    export_payload_path = pilot_pack_dir / "live-runs" / str(featured_row.get("case_dir") or "") / "export-payload.json"
+    export_payload = _read_json(export_payload_path) if export_payload_path.exists() else {}
+    export_payload = export_payload if isinstance(export_payload, dict) else {}
     if not featured_triage_summary:
         triage_from_critic = featured_critic_payload.get("triage_summary")
         featured_triage_summary = triage_from_critic if isinstance(triage_from_critic, dict) else {}
@@ -283,6 +308,31 @@ def main() -> int:
             if findings
             else {}
         )
+    if not isinstance(featured_review_readiness.get("comment_triage_summary"), dict):
+        payload_root = export_payload.get("payload") if isinstance(export_payload.get("payload"), dict) else {}
+        review_comments = (
+            [row for row in payload_root.get("review_comments") or [] if isinstance(row, dict)]
+            if isinstance(payload_root, dict)
+            else []
+        )
+        raw_findings = featured_critic_payload.get("fatal_flaws")
+        findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+        if review_comments:
+            comment_triage = _comment_triage_summary_payload(
+                review_comments=review_comments,
+                critic_findings=findings,
+                donor_id=str(featured_row.get("donor_id") or "").strip(),
+            )
+            featured_review_readiness = {
+                **featured_review_readiness,
+                "open_review_comments": comment_triage.get("open_comment_count"),
+                "resolved_review_comments": comment_triage.get("resolved_comment_count"),
+                "pending_review_comments": comment_triage.get("pending_comment_count"),
+                "overdue_review_comments": comment_triage.get("overdue_comment_count"),
+                "linked_review_comments": comment_triage.get("linked_comment_count"),
+                "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
+                "comment_triage_summary": comment_triage,
+            }
 
     review_ready_cases_count = 0
     for row in rows:

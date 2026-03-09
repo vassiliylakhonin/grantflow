@@ -2036,6 +2036,12 @@ def public_job_export_payload(
         critic_findings=[item for item in critic_findings if isinstance(item, dict)],
         review_comments=[item for item in review_comments if isinstance(item, dict)],
     )
+    if isinstance(review_readiness_summary.get("comment_triage_summary"), dict):
+        review_readiness_summary["comment_triage_summary"] = _comment_triage_summary_payload(
+            review_comments=[item for item in review_comments if isinstance(item, dict)],
+            critic_findings=[item for item in critic_findings if isinstance(item, dict)],
+            donor_id=state_donor_id(state_dict, default=""),
+        )
 
     return {
         "job_id": str(job_id),
@@ -2524,13 +2530,174 @@ def _review_readiness_summary_payload(
         if isinstance(item, dict)
         and str(item.get("citation_type") or "").strip().lower() in {"fallback_namespace", "strategy_reference"}
     ]
+    comment_triage_summary = _comment_triage_summary_payload(
+        review_comments=[item for item in review_comments if isinstance(item, dict)],
+        critic_findings=[item for item in critic_findings if isinstance(item, dict)],
+    )
     return {
         "needs_revision": sanitize_for_public_response(needs_revision),
         "open_critic_findings": len(open_findings),
         "high_severity_open_findings": len(high_severity_open_findings),
         "open_review_comments": len(open_review_comments),
+        "resolved_review_comments": int(comment_triage_summary.get("resolved_comment_count") or 0),
+        "pending_review_comments": int(comment_triage_summary.get("pending_comment_count") or 0),
+        "overdue_review_comments": int(comment_triage_summary.get("overdue_comment_count") or 0),
+        "linked_review_comments": int(comment_triage_summary.get("linked_comment_count") or 0),
+        "orphan_linked_review_comments": int(comment_triage_summary.get("orphan_linked_comment_count") or 0),
         "low_confidence_citations": len(low_confidence_citations),
         "fallback_strategy_citations": len(fallback_strategy_citations),
+        "comment_triage_summary": comment_triage_summary,
+    }
+
+
+def _comment_triage_summary_payload(
+    *,
+    review_comments: list[Dict[str, Any]],
+    critic_findings: list[Dict[str, Any]],
+    donor_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    finding_by_id: Dict[str, Dict[str, Any]] = {}
+    for item in critic_findings:
+        if not isinstance(item, dict):
+            continue
+        finding_id = finding_primary_id(item)
+        if finding_id:
+            finding_by_id[finding_id] = item
+
+    timestamp_candidates: list[datetime] = []
+    for item in review_comments:
+        if not isinstance(item, dict):
+            continue
+        for key in ("last_transition_at", "updated_ts", "resolved_at", "ts", "due_at"):
+            parsed = _parse_event_ts(item.get(key))
+            if parsed is not None:
+                timestamp_candidates.append(parsed)
+    reference_ts = max(timestamp_candidates) if timestamp_candidates else datetime.now(timezone.utc)
+
+    open_count = 0
+    resolved_count = 0
+    pending_count = 0
+    overdue_count = 0
+    linked_count = 0
+    orphan_linked_count = 0
+    high_priority_open_count = 0
+    top_comment_ids: list[str] = []
+    next_comment_section: Optional[str] = None
+    next_recommended_action: Optional[str] = None
+    comment_status_counts: Dict[str, int] = {}
+    ranked_comments: list[tuple[int, datetime, Dict[str, Any]]] = []
+
+    donor_phrase = {
+        "usaid": "USAID results hierarchy and monitoring package",
+        "eu": "EU intervention logic and verification package",
+        "worldbank": "World Bank results framework and PDO package",
+        "giz": "GIZ technical cooperation results package",
+        "state_department": "State Department program logic and risk package",
+        "un_agencies": "UN results framework and verification package",
+    }.get(str(donor_id or "").strip().lower(), "donor review package")
+
+    for item in review_comments:
+        if not isinstance(item, dict):
+            continue
+        current = dict(item)
+        status = str(current.get("status") or "open").strip().lower() or "open"
+        comment_status_counts[status] = int(comment_status_counts.get(status, 0)) + 1
+        if status in {"resolved", "closed"}:
+            resolved_count += 1
+        else:
+            open_count += 1
+
+        linked_finding_id = str(current.get("linked_finding_id") or "").strip()
+        linked_finding = finding_by_id.get(linked_finding_id) if linked_finding_id else None
+        if linked_finding_id:
+            linked_count += 1
+            if linked_finding is None:
+                orphan_linked_count += 1
+
+        due_dt = _parse_event_ts(current.get("due_at"))
+        is_overdue = status not in {"resolved", "closed"} and due_dt is not None and reference_ts >= due_dt
+        if is_overdue:
+            overdue_count += 1
+        elif status not in {"resolved", "closed"}:
+            pending_count += 1
+
+        linked_finding_severity = str((linked_finding or {}).get("severity") or "").strip().lower()
+        linked_finding_status = str((linked_finding or {}).get("status") or "open").strip().lower()
+        is_high_priority = bool(
+            status not in {"resolved", "closed"}
+            and (
+                is_overdue
+                or (
+                    linked_finding is not None
+                    and linked_finding_status not in {"resolved", "closed"}
+                    and linked_finding_severity in {"high", "critical", "fatal"}
+                )
+            )
+        )
+        if is_high_priority:
+            high_priority_open_count += 1
+
+        rank = 0
+        if is_overdue:
+            rank = 3
+        elif linked_finding is None and linked_finding_id:
+            rank = 2
+        elif is_high_priority:
+            rank = 2
+        elif status not in {"resolved", "closed"}:
+            rank = 1
+        transition_dt = (
+            _parse_event_ts(current.get("last_transition_at"))
+            or _parse_event_ts(current.get("updated_ts"))
+            or _parse_event_ts(current.get("ts"))
+            or datetime.min.replace(tzinfo=timezone.utc)
+        )
+        if rank > 0:
+            ranked_comments.append((rank, transition_dt, current))
+
+    ranked_comments.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    for _, _, current in ranked_comments[:2]:
+        comment_id = str(current.get("comment_id") or "").strip()
+        if comment_id:
+            top_comment_ids.append(comment_id)
+
+    if ranked_comments:
+        current = ranked_comments[0][2]
+        next_comment_section = str(current.get("section") or "").strip() or None
+        linked_finding_id = str(current.get("linked_finding_id") or "").strip()
+        due_dt = _parse_event_ts(current.get("due_at"))
+        is_overdue = (
+            due_dt is not None
+            and reference_ts >= due_dt
+            and str(current.get("status") or "").strip().lower()
+            not in {
+                "resolved",
+                "closed",
+            }
+        )
+        if is_overdue:
+            next_recommended_action = (
+                f"Resolve or reassign overdue reviewer comments in the {donor_phrase} before the next draft review."
+            )
+        elif linked_finding_id and linked_finding_id not in finding_by_id:
+            next_recommended_action = f"Relink stale reviewer comments to active findings or close them before the next {donor_phrase} review pass."
+        elif linked_finding_id:
+            next_recommended_action = f"Address reviewer comments linked to active findings in the {donor_phrase} before the next draft review."
+        else:
+            next_recommended_action = f"Resolve remaining open reviewer comments and capture disposition in the {donor_phrase} before the next draft review."
+
+    return {
+        "open_comment_count": open_count,
+        "resolved_comment_count": resolved_count,
+        "pending_comment_count": pending_count,
+        "overdue_comment_count": overdue_count,
+        "linked_comment_count": linked_count,
+        "orphan_linked_comment_count": orphan_linked_count,
+        "high_priority_open_comment_count": high_priority_open_count,
+        "comment_status_counts": comment_status_counts,
+        "top_comment_ids": top_comment_ids,
+        "next_comment_section": next_comment_section,
+        "next_recommended_action": next_recommended_action,
     }
 
 
@@ -2950,6 +3117,12 @@ def public_job_quality_payload(
         critic_findings=[row for row in critic_flaws if isinstance(row, dict)],
         review_comments=[row for row in review_comments if isinstance(row, dict)],
     )
+    if isinstance(review_readiness_summary.get("comment_triage_summary"), dict):
+        review_readiness_summary["comment_triage_summary"] = _comment_triage_summary_payload(
+            review_comments=[row for row in review_comments if isinstance(row, dict)],
+            critic_findings=[row for row in critic_flaws if isinstance(row, dict)],
+            donor_id=state_donor_id(state_dict, default=""),
+        )
     toc_text_quality = _toc_text_quality_summary(
         [row for row in rule_checks if isinstance(row, dict)],
         [row for row in critic_flaws if isinstance(row, dict)],
@@ -3492,6 +3665,11 @@ def public_portfolio_metrics_payload(
         "open_critic_findings": 0,
         "high_severity_open_findings": 0,
         "open_review_comments": 0,
+        "resolved_review_comments": 0,
+        "pending_review_comments": 0,
+        "overdue_review_comments": 0,
+        "linked_review_comments": 0,
+        "orphan_linked_review_comments": 0,
         "low_confidence_citations": 0,
         "fallback_strategy_citations": 0,
     }
@@ -3541,6 +3719,13 @@ def public_portfolio_metrics_payload(
             review_summary.get("high_severity_open_findings") or 0
         )
         review_readiness_totals["open_review_comments"] += int(review_summary.get("open_review_comments") or 0)
+        review_readiness_totals["resolved_review_comments"] += int(review_summary.get("resolved_review_comments") or 0)
+        review_readiness_totals["pending_review_comments"] += int(review_summary.get("pending_review_comments") or 0)
+        review_readiness_totals["overdue_review_comments"] += int(review_summary.get("overdue_review_comments") or 0)
+        review_readiness_totals["linked_review_comments"] += int(review_summary.get("linked_review_comments") or 0)
+        review_readiness_totals["orphan_linked_review_comments"] += int(
+            review_summary.get("orphan_linked_review_comments") or 0
+        )
         review_readiness_totals["low_confidence_citations"] += int(review_summary.get("low_confidence_citations") or 0)
         review_readiness_totals["fallback_strategy_citations"] += int(
             review_summary.get("fallback_strategy_citations") or 0
@@ -3610,6 +3795,21 @@ def public_portfolio_metrics_payload(
             ),
             "open_review_comments_per_job_avg": (
                 round(review_readiness_totals["open_review_comments"] / job_count, 4) if job_count else None
+            ),
+            "resolved_review_comments_per_job_avg": (
+                round(review_readiness_totals["resolved_review_comments"] / job_count, 4) if job_count else None
+            ),
+            "pending_review_comments_per_job_avg": (
+                round(review_readiness_totals["pending_review_comments"] / job_count, 4) if job_count else None
+            ),
+            "overdue_review_comments_per_job_avg": (
+                round(review_readiness_totals["overdue_review_comments"] / job_count, 4) if job_count else None
+            ),
+            "linked_review_comments_per_job_avg": (
+                round(review_readiness_totals["linked_review_comments"] / job_count, 4) if job_count else None
+            ),
+            "orphan_linked_review_comments_per_job_avg": (
+                round(review_readiness_totals["orphan_linked_review_comments"] / job_count, 4) if job_count else None
             ),
             "triage_summary": _portfolio_triage_summary_payload(triage_rows),
         },
@@ -3783,6 +3983,11 @@ def public_portfolio_quality_payload(
                 "open_critic_findings": 0,
                 "high_severity_open_findings": 0,
                 "open_review_comments": 0,
+                "resolved_review_comments": 0,
+                "pending_review_comments": 0,
+                "overdue_review_comments": 0,
+                "linked_review_comments": 0,
+                "orphan_linked_review_comments": 0,
                 "low_confidence_citations": 0,
                 "fallback_strategy_citations": 0,
             },
@@ -3796,6 +4001,11 @@ def public_portfolio_quality_payload(
             "open_critic_findings",
             "high_severity_open_findings",
             "open_review_comments",
+            "resolved_review_comments",
+            "pending_review_comments",
+            "overdue_review_comments",
+            "linked_review_comments",
+            "orphan_linked_review_comments",
             "low_confidence_citations",
             "fallback_strategy_citations",
         ):
@@ -4969,6 +5179,31 @@ def public_portfolio_quality_payload(
             for row in quality_rows
             if isinstance(row.get("review_readiness_summary"), dict)
         ),
+        "resolved_review_comments": sum(
+            int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("resolved_review_comments") or 0))
+            for row in quality_rows
+            if isinstance(row.get("review_readiness_summary"), dict)
+        ),
+        "pending_review_comments": sum(
+            int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("pending_review_comments") or 0))
+            for row in quality_rows
+            if isinstance(row.get("review_readiness_summary"), dict)
+        ),
+        "overdue_review_comments": sum(
+            int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("overdue_review_comments") or 0))
+            for row in quality_rows
+            if isinstance(row.get("review_readiness_summary"), dict)
+        ),
+        "linked_review_comments": sum(
+            int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("linked_review_comments") or 0))
+            for row in quality_rows
+            if isinstance(row.get("review_readiness_summary"), dict)
+        ),
+        "orphan_linked_review_comments": sum(
+            int((cast(Dict[str, Any], row.get("review_readiness_summary")).get("orphan_linked_review_comments") or 0))
+            for row in quality_rows
+            if isinstance(row.get("review_readiness_summary"), dict)
+        ),
         "low_confidence_citations": low_confidence_citation_count,
         "fallback_strategy_citations": fallback_namespace_citation_count + strategy_reference_citation_count,
         "triage_summary": _portfolio_triage_summary_payload(
@@ -5003,6 +5238,15 @@ def public_portfolio_quality_payload(
         )
         donor_row["open_review_comments_per_job_avg"] = (
             round(int(donor_row.get("open_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_row["resolved_review_comments_per_job_avg"] = (
+            round(int(donor_row.get("resolved_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_row["pending_review_comments_per_job_avg"] = (
+            round(int(donor_row.get("pending_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_row["overdue_review_comments_per_job_avg"] = (
+            round(int(donor_row.get("overdue_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
         )
         donor_row["triage_summary"] = _portfolio_triage_summary_payload(
             [(donor_token, donor_triage_rows.get(donor_token) or [])]

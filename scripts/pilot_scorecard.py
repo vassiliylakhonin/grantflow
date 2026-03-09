@@ -79,6 +79,10 @@ class CaseScorecard:
     baseline_present: bool
     open_critic_findings: int | None
     high_severity_open_findings: int | None
+    open_review_comments: int | None
+    resolved_review_comments: int | None
+    overdue_review_comments: int | None
+    orphan_linked_review_comments: int | None
     fallback_strategy_citations: int | None
     low_confidence_citations: int | None
     smart_field_coverage_rate: float | None
@@ -170,6 +174,26 @@ def _load_case_scorecards(
                     if str(metrics_row.get("high_severity_open_findings") or "").strip()
                     else None
                 ),
+                open_review_comments=(
+                    int(metrics_row["open_review_comments"])
+                    if str(metrics_row.get("open_review_comments") or "").strip()
+                    else None
+                ),
+                resolved_review_comments=(
+                    int(metrics_row["resolved_review_comments"])
+                    if str(metrics_row.get("resolved_review_comments") or "").strip()
+                    else None
+                ),
+                overdue_review_comments=(
+                    int(metrics_row["overdue_review_comments"])
+                    if str(metrics_row.get("overdue_review_comments") or "").strip()
+                    else None
+                ),
+                orphan_linked_review_comments=(
+                    int(metrics_row["orphan_linked_review_comments"])
+                    if str(metrics_row.get("orphan_linked_review_comments") or "").strip()
+                    else None
+                ),
                 fallback_strategy_citations=(
                     int(metrics_row["fallback_strategy_citations"])
                     if str(metrics_row.get("fallback_strategy_citations") or "").strip()
@@ -225,6 +249,12 @@ def _build_scorecard(
     avg_open_findings = _avg(
         [float(case.open_critic_findings) for case in cases if case.open_critic_findings is not None]
     )
+    avg_open_comments = _avg(
+        [float(case.open_review_comments) for case in cases if case.open_review_comments is not None]
+    )
+    avg_overdue_comments = _avg(
+        [float(case.overdue_review_comments) for case in cases if case.overdue_review_comments is not None]
+    )
     avg_high_severity_findings = _avg(
         [float(case.high_severity_open_findings) for case in cases if case.high_severity_open_findings is not None]
     )
@@ -273,6 +303,10 @@ def _build_scorecard(
         )
     if any((case.open_critic_findings or 0) > 0 for case in cases):
         conditional_reasons.append("open critic findings remain in at least one case")
+    if any((case.overdue_review_comments or 0) > 0 for case in cases):
+        conditional_reasons.append("overdue reviewer comments remain in at least one case")
+    if any((case.orphan_linked_review_comments or 0) > 0 for case in cases):
+        conditional_reasons.append("orphan linked reviewer comments remain in at least one case")
     if any((case.fallback_strategy_citations or 0) > 0 for case in cases):
         conditional_reasons.append("fallback/strategy citations remain present in at least one case")
     if hitl_cases == 0:
@@ -351,6 +385,8 @@ def _build_scorecard(
     lines.append(f"- Trace-complete cases: `{trace_complete_cases}/{total_cases}`")
     lines.append(f"- Export-complete cases: `{export_complete_cases}/{total_cases}`")
     lines.append(f"- Average open critic findings per case: `{_fmt(avg_open_findings)}`")
+    lines.append(f"- Average open review comments per case: `{_fmt(avg_open_comments)}`")
+    lines.append(f"- Average overdue review comments per case: `{_fmt(avg_overdue_comments)}`")
     lines.append(f"- Average high-severity open findings per case: `{_fmt(avg_high_severity_findings)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence_citations)}`")
@@ -382,14 +418,14 @@ def _build_scorecard(
     lines.append("## Case Coverage")
     lines.append("")
     lines.append(
-        "| Preset | Donor | Status | HITL | Quality | Critic | Open Findings | Fallback | SMART | MoV | Owner | Ops Ready | Baseline |"
+        "| Preset | Donor | Status | HITL | Quality | Critic | Open Findings | Open Comments | Overdue Comments | Fallback | SMART | MoV | Owner | Ops Ready | Baseline |"
     )
-    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---|")
+    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|")
     for case in cases:
         lines.append(
             f"| `{case.preset_key}` | `{case.donor_id}` | {case.status} | "
             f"{'yes' if case.hitl_enabled else 'no'} | {_fmt(case.quality_score)} | {_fmt(case.critic_score)} | "
-            f"{_fmt(case.open_critic_findings)} | {_fmt(case.fallback_strategy_citations)} | "
+            f"{_fmt(case.open_critic_findings)} | {_fmt(case.open_review_comments)} | {_fmt(case.overdue_review_comments)} | {_fmt(case.fallback_strategy_citations)} | "
             f"{_fmt(case.smart_field_coverage_rate)} | {_fmt(case.means_of_verification_coverage_rate)} | {_fmt(case.owner_coverage_rate)} | "
             f"{'yes' if case.complete_logframe_operational_coverage else 'no'} | "
             f"{'yes' if case.baseline_present else 'no'} |"
