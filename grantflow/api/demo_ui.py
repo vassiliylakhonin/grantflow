@@ -1241,6 +1241,7 @@ def render_demo_ui_html() -> str:
                 <select id="commentsFilterStatus">
                   <option value="">all</option>
                   <option value="open">open</option>
+                  <option value="acknowledged">acknowledged</option>
                   <option value="resolved">resolved</option>
                 </select>
               </div>
@@ -1284,7 +1285,26 @@ def render_demo_ui_html() -> str:
               <button id="commentsBtn" class="ghost">Load Comments</button>
               <button id="reviewWorkflowBtn" class="ghost">Load Review Workflow</button>
               <button id="addCommentBtn" class="primary">Add Comment</button>
+              <button id="ackCommentBtn" class="ghost">Acknowledge Selected</button>
+            </div>
+            <div class="row4" style="margin-top:10px;">
               <button id="resolveCommentBtn" class="secondary">Resolve Selected</button>
+              <button id="reopenCommentBtn" class="ghost">Reopen Selected</button>
+              <div>
+                <label for="commentBulkTargetStatus">Bulk Comment Status</label>
+                <select id="commentBulkTargetStatus">
+                  <option value="acknowledged">acknowledged</option>
+                  <option value="resolved">resolved</option>
+                  <option value="open">open</option>
+                </select>
+              </div>
+              <div>
+                <label for="commentBulkScope">Bulk Scope</label>
+                <select id="commentBulkScope">
+                  <option value="filtered">filtered</option>
+                  <option value="all">all</option>
+                </select>
+              </div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div>
@@ -1292,8 +1312,11 @@ def render_demo_ui_html() -> str:
                 <input id="selectedCommentId" readonly />
               </div>
               <div style="align-self:end;">
-                <button id="reopenCommentBtn" class="ghost">Reopen Selected</button>
+                <button id="commentBulkApplyBtn" class="secondary">Apply Comment Bulk Status</button>
               </div>
+            </div>
+            <div style="margin-top:10px;">
+              <pre id="commentBulkResultJson">{}</pre>
             </div>
             <div style="margin-top:10px;">
               <div class="list" id="commentsList"></div>
@@ -1360,6 +1383,14 @@ def render_demo_ui_html() -> str:
               </div>
             </div>
             <div id="reviewWorkflowSummaryLine" class="footer-note mono" style="margin-top:10px;">workflow: timeline=- · findings=- · comments=-</div>
+            <div class="kpis" id="reviewActionQueueCards" style="margin-top:10px;">
+              <div class="kpi"><div class="label">Next Primary Action</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Finding Ack Queue</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Finding Resolve Queue</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Comment Ack Queue</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Comment Resolve Queue</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Comment Reopen Queue</div><div class="value mono">-</div></div>
+            </div>
             <div class="row3" style="margin-top:10px;">
               <button id="reviewWorkflowExportJsonBtn" class="ghost">Export Workflow JSON</button>
               <button id="reviewWorkflowExportCsvBtn" class="secondary">Export Workflow CSV</button>
@@ -1787,7 +1818,9 @@ def render_demo_ui_html() -> str:
         criticAdvisoryLabelsList: $("criticAdvisoryLabelsList"),
         criticAdvisoryNormalizationList: $("criticAdvisoryNormalizationList"),
         commentsList: $("commentsList"),
+        commentBulkResultJson: $("commentBulkResultJson"),
         reviewWorkflowTimelineList: $("reviewWorkflowTimelineList"),
+        reviewActionQueueCards: $("reviewActionQueueCards"),
         reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
         reviewWorkflowJson: $("reviewWorkflowJson"),
         reviewWorkflowTrendsBtn: $("reviewWorkflowTrendsBtn"),
@@ -2010,8 +2043,12 @@ def render_demo_ui_html() -> str:
         commentsBtn: $("commentsBtn"),
         reviewWorkflowBtn: $("reviewWorkflowBtn"),
         addCommentBtn: $("addCommentBtn"),
+        ackCommentBtn: $("ackCommentBtn"),
         resolveCommentBtn: $("resolveCommentBtn"),
         reopenCommentBtn: $("reopenCommentBtn"),
+        commentBulkTargetStatus: $("commentBulkTargetStatus"),
+        commentBulkScope: $("commentBulkScope"),
+        commentBulkApplyBtn: $("commentBulkApplyBtn"),
         clearLinkedFindingBtn: $("clearLinkedFindingBtn"),
         openPendingBtn: $("openPendingBtn"),
       };
@@ -4861,6 +4898,28 @@ def render_demo_ui_html() -> str:
           els.reviewWorkflowSummaryLine.textContent =
             `workflow: timeline=${timelineCount} · findings=${findingCount} (pending=${pendingFindingCount}, overdue=${overdueFindingCount}) · comments=${commentCount} (pending=${pendingCommentCount}, overdue=${overdueCommentCount}) · orphan_links=${orphanLinkedCount} · last=${lastActivity}`;
         }
+        const actionQueue = summary?.action_queue_summary && typeof summary.action_queue_summary === "object"
+          ? summary.action_queue_summary
+          : {};
+        renderReviewActionQueueCards(actionQueue);
+      }
+
+      function renderReviewActionQueueCards(summary) {
+        const cards = Array.isArray(els.reviewActionQueueCards?.children)
+          ? Array.from(els.reviewActionQueueCards.children)
+          : [];
+        const values = [
+          String(summary?.next_primary_action || "-"),
+          String(summary?.finding_ack_queue_count ?? "-"),
+          String(summary?.finding_resolve_queue_count ?? "-"),
+          String(summary?.comment_ack_queue_count ?? "-"),
+          String(summary?.comment_resolve_queue_count ?? "-"),
+          String(summary?.comment_reopen_queue_count ?? "-"),
+        ];
+        cards.forEach((card, index) => {
+          const valueEl = card && typeof card.querySelector === "function" ? card.querySelector(".value") : null;
+          if (valueEl) valueEl.textContent = values[index] ?? "-";
+        });
       }
 
       function renderReviewWorkflowTrends(body) {
@@ -7998,7 +8057,13 @@ def render_demo_ui_html() -> str:
         if (!jobId) throw new Error("No job_id");
         const commentId = els.selectedCommentId.value.trim();
         if (!commentId) throw new Error("Select a comment first");
-        const action = nextStatus === "resolved" ? "resolve" : "reopen";
+        const actionByStatus = {
+          acknowledged: "ack",
+          resolved: "resolve",
+          open: "reopen",
+        };
+        const action = actionByStatus[nextStatus];
+        if (!action) throw new Error(`Unsupported comment status: ${String(nextStatus)}`);
         const updated = await apiFetch(
           `/status/${encodeURIComponent(jobId)}/comments/${encodeURIComponent(commentId)}/${action}`,
           { method: "POST" }
@@ -8017,6 +8082,48 @@ def render_demo_ui_html() -> str:
           refreshPortfolioReviewWorkflowSlaTrends(),
         ]);
         return updated;
+      }
+
+      async function applyCommentBulkStatus() {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        const nextStatus = String(els.commentBulkTargetStatus.value || "").trim();
+        if (!nextStatus) throw new Error("Select bulk comment target status");
+        const scope = String(els.commentBulkScope.value || "filtered").trim().toLowerCase();
+        const payload = { next_status: nextStatus };
+        if (scope === "all") {
+          payload.apply_to_all = true;
+        } else {
+          const section = String(els.commentsFilterSection.value || "").trim();
+          const commentStatus = String(els.commentsFilterStatus.value || "").trim();
+          const versionId = String(els.commentsFilterVersionId.value || "").trim();
+          if (section) payload.section = section;
+          if (commentStatus) payload.comment_status = commentStatus;
+          if (versionId) payload.version_id = versionId;
+          if (!payload.section && !payload.comment_status && !payload.version_id) {
+            throw new Error("For filtered bulk apply, set at least one comment filter or use scope=all");
+          }
+        }
+        const result = await apiFetch(`/status/${encodeURIComponent(jobId)}/comments/bulk-status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        setJson(els.commentBulkResultJson, result);
+        await Promise.allSettled([
+          refreshComments(),
+          refreshReviewWorkflow(),
+          refreshReviewWorkflowTrends(),
+          refreshReviewWorkflowSlaHotspots(),
+          refreshReviewWorkflowSlaHotspotsTrends(),
+          refreshPortfolioReviewWorkflow(),
+          refreshPortfolioReviewWorkflowSla(),
+          refreshPortfolioReviewWorkflowSlaHotspots(),
+          refreshPortfolioReviewWorkflowSlaHotspotsTrends(),
+          refreshPortfolioReviewWorkflowTrends(),
+          refreshPortfolioReviewWorkflowSlaTrends(),
+        ]);
+        return result;
       }
 
       function togglePolling() {
@@ -8369,8 +8476,10 @@ def render_demo_ui_html() -> str:
           downloadReviewWorkflowCsv().catch((err) => showError(err))
         );
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
+        els.ackCommentBtn.addEventListener("click", () => setCommentStatus("acknowledged").catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
+        els.commentBulkApplyBtn.addEventListener("click", () => applyCommentBulkStatus().catch(showError));
         els.clearLinkedFindingBtn.addEventListener("click", clearLinkedFindingSelection);
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));

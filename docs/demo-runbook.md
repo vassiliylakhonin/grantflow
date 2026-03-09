@@ -154,6 +154,7 @@ curl -s http://127.0.0.1:8000/status/<JOB_ID>/review/workflow
 In `/review/workflow`, use:
 - `summary.reviewer_workflow_summary` for open vs acknowledged vs resolved review load
 - `summary.action_queue_summary` for the next operational move (`ack_finding`, `resolve_finding`, `ack_comment`, `resolve_comment`, `reopen_comment`)
+- Demo Console shows the same queue in the Review Workflow card, so operators can triage without reading raw JSON.
 
 ### Step D: show traceability
 
@@ -163,6 +164,12 @@ curl -s http://127.0.0.1:8000/status/<JOB_ID>/versions
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/events
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/comments
 ```
+
+Comment mutations:
+- `POST /status/{job_id}/comments/{comment_id}/ack`
+- `POST /status/{job_id}/comments/{comment_id}/resolve`
+- `POST /status/{job_id}/comments/{comment_id}/reopen`
+- `POST /status/{job_id}/comments/bulk-status`
 
 Optional review mutations:
 

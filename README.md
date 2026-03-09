@@ -153,12 +153,14 @@ Use this path for pilot conversations and technical evaluation:
    - `GET /status/{job_id}/critic`
    - `GET /status/{job_id}/review/workflow`
    - use `summary.reviewer_workflow_summary` and `summary.action_queue_summary` for live ack/resolve queues
+   - Demo Console renders the same queue as `Next primary action` plus finding/comment ack-resolve-reopen counters
 4. Show review traceability:
    - `GET /status/{job_id}/citations`
    - `GET /status/{job_id}/versions`
-   - `GET /status/{job_id}/events`
-   - `GET /status/{job_id}/comments`
-   - `POST /status/{job_id}/comments/{comment_id}/ack|resolve|reopen`
+  - `GET /status/{job_id}/events`
+  - `GET /status/{job_id}/comments`
+  - `POST /status/{job_id}/comments/{comment_id}/ack|resolve|reopen`
+  - `POST /status/{job_id}/comments/bulk-status`
 5. (Optional) Show HITL governance:
    - run with `hitl_enabled=true`
    - approve with `POST /hitl/approve`
@@ -622,6 +624,7 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
   - `POST /status/{job_id}/critic/findings/{finding_id}/ack|open|resolve`
   - `POST /status/{job_id}/critic/findings/bulk-status`
   - `POST /status/{job_id}/comments/{comment_id}/ack|resolve|reopen`
+  - `POST /status/{job_id}/comments/bulk-status`
   - `GET /status/{job_id}/events/export` supports `format=csv|json`, `gzip=true|false`
   - `GET /status/{job_id}/hitl/history/export` supports `event_type`, `checkpoint_id`, `format=csv|json`, `gzip=true|false`
   - `GET /status/{job_id}/comments/export` supports `section`, `status`, `version_id`, `format=csv|json`, `gzip=true|false`
