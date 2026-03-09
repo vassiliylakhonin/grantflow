@@ -148,7 +148,12 @@ Save returned `job_id`.
 curl -s http://127.0.0.1:8000/status/<JOB_ID>
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/quality
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/critic
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/review/workflow
 ```
+
+In `/review/workflow`, use:
+- `summary.reviewer_workflow_summary` for open vs acknowledged vs resolved review load
+- `summary.action_queue_summary` for the next operational move (`ack_finding`, `resolve_finding`, `ack_comment`, `resolve_comment`, `reopen_comment`)
 
 ### Step D: show traceability
 
@@ -156,6 +161,15 @@ curl -s http://127.0.0.1:8000/status/<JOB_ID>/critic
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/citations
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/versions
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/events
+curl -s http://127.0.0.1:8000/status/<JOB_ID>/comments
+```
+
+Optional review mutations:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments/<COMMENT_ID>/ack
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments/<COMMENT_ID>/resolve
+curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments/<COMMENT_ID>/reopen
 ```
 
 ### Step E: export review package

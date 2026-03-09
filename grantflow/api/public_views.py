@@ -1214,6 +1214,10 @@ def public_job_review_workflow_payload(
         critic_findings=findings_with_workflow,
         comment_triage_summary=cast(dict[str, Any], summary["comment_triage_summary"]),
     )
+    summary["action_queue_summary"] = _review_action_queue_summary_payload(
+        critic_findings=findings_with_workflow,
+        comment_triage_summary=cast(dict[str, Any], summary["comment_triage_summary"]),
+    )
     return {
         "job_id": str(job_id),
         "status": str(job.get("status") or ""),
@@ -2857,6 +2861,47 @@ def _reviewer_workflow_summary_payload(
         "top_stale_comment_bucket": top_stale_bucket,
         "next_comment_bucket": comment_triage_summary.get("next_comment_bucket"),
         "next_comment_action": comment_triage_summary.get("next_recommended_action"),
+    }
+
+
+def _review_action_queue_summary_payload(
+    *,
+    critic_findings: list[dict[str, Any]],
+    comment_triage_summary: dict[str, Any],
+) -> dict[str, Any]:
+    finding_ack_queue_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "open").strip().lower() == "open"
+    )
+    finding_resolve_queue_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "acknowledged"
+    )
+    comment_ack_queue_count = int(comment_triage_summary.get("open_comment_count") or 0)
+    comment_resolve_queue_count = int(comment_triage_summary.get("acknowledged_comment_count") or 0)
+    comment_reopen_queue_count = int(comment_triage_summary.get("resolved_comment_count") or 0)
+
+    next_primary_action = None
+    if finding_ack_queue_count > 0:
+        next_primary_action = "ack_finding"
+    elif finding_resolve_queue_count > 0:
+        next_primary_action = "resolve_finding"
+    elif comment_ack_queue_count > 0:
+        next_primary_action = "ack_comment"
+    elif comment_resolve_queue_count > 0:
+        next_primary_action = "resolve_comment"
+    elif comment_reopen_queue_count > 0:
+        next_primary_action = "reopen_comment"
+
+    return {
+        "finding_ack_queue_count": finding_ack_queue_count,
+        "finding_resolve_queue_count": finding_resolve_queue_count,
+        "comment_ack_queue_count": comment_ack_queue_count,
+        "comment_resolve_queue_count": comment_resolve_queue_count,
+        "comment_reopen_queue_count": comment_reopen_queue_count,
+        "next_primary_action": next_primary_action,
     }
 
 
@@ -5994,6 +6039,30 @@ def public_portfolio_review_workflow_payload(
                 ),
                 "stale_comment_bucket_counts": dict(sorted(stale_comment_bucket_counts.items())),
                 "top_stale_comment_bucket": top_stale_comment_bucket,
+            },
+            "action_queue_summary": {
+                "finding_ack_queue_count": open_finding_count,
+                "finding_resolve_queue_count": acknowledged_finding_count,
+                "comment_ack_queue_count": open_comment_count,
+                "comment_resolve_queue_count": int(comment_status_counts.get("acknowledged") or 0),
+                "comment_reopen_queue_count": resolved_comment_count,
+                "next_primary_action": (
+                    "ack_finding"
+                    if open_finding_count > 0
+                    else (
+                        "resolve_finding"
+                        if acknowledged_finding_count > 0
+                        else (
+                            "ack_comment"
+                            if open_comment_count > 0
+                            else (
+                                "resolve_comment"
+                                if int(comment_status_counts.get("acknowledged") or 0) > 0
+                                else ("reopen_comment" if resolved_comment_count > 0 else None)
+                            )
+                        )
+                    )
+                ),
             },
         },
         "top_event_type": top_event_type,

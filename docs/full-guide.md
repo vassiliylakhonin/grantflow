@@ -272,8 +272,12 @@ Review/traceability:
 - `GET /status/{job_id}/comments`
 - `GET /status/{job_id}/comments/export` (`format=csv|json`, `gzip=true|false`, optional `section`, `status`, `version_id`)
 - `POST /status/{job_id}/comments`
+- `POST /status/{job_id}/comments/{comment_id}/ack`
 - `POST /status/{job_id}/comments/{comment_id}/resolve`
 - `POST /status/{job_id}/comments/{comment_id}/reopen`
+- `GET /status/{job_id}/review/workflow` now includes:
+  - `summary.reviewer_workflow_summary`
+  - `summary.action_queue_summary`
 
 HITL:
 - `POST /hitl/approve`

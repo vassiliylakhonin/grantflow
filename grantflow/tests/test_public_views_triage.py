@@ -280,6 +280,11 @@ def test_job_review_workflow_payload_emits_comment_triage_and_reviewer_workflow_
     assert summary["reviewer_workflow_summary"]["acknowledged_items"] == 1
     assert summary["reviewer_workflow_summary"]["resolved_items"] == 1
     assert summary["reviewer_workflow_summary"]["top_stale_comment_bucket"] == "logic"
+    assert summary["action_queue_summary"]["finding_ack_queue_count"] == 1
+    assert summary["action_queue_summary"]["comment_ack_queue_count"] == 2
+    assert summary["action_queue_summary"]["comment_resolve_queue_count"] == 1
+    assert summary["action_queue_summary"]["comment_reopen_queue_count"] == 1
+    assert summary["action_queue_summary"]["next_primary_action"] == "ack_finding"
 
 
 def test_portfolio_review_workflow_payload_aggregates_reviewer_workflow_summary():
@@ -346,3 +351,6 @@ def test_portfolio_review_workflow_payload_aggregates_reviewer_workflow_summary(
     assert summary["reviewer_workflow_summary"]["open_items"] >= 2
     assert summary["reviewer_workflow_summary"]["stale_comment_bucket_counts"]["logic"] == 2
     assert summary["reviewer_workflow_summary"]["top_stale_comment_bucket"] == "logic"
+    assert summary["action_queue_summary"]["finding_ack_queue_count"] == 2
+    assert summary["action_queue_summary"]["comment_ack_queue_count"] == 2
+    assert summary["action_queue_summary"]["next_primary_action"] == "ack_finding"

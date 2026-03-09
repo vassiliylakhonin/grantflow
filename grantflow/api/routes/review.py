@@ -772,6 +772,31 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
 
 
 @review_router.post(
+    "/status/{job_id}/comments/{comment_id}/ack",
+    response_model=ReviewCommentPublicResponse,
+    response_model_exclude_none=True,
+)
+def acknowledge_status_comment(
+    job_id: str,
+    comment_id: str,
+    request: Request,
+    request_id: Optional[str] = Query(default=None),
+):
+    require_api_key_if_configured(request)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    _ensure_job_tenant_write_access(request, job)
+    return _set_review_comment_status(
+        job_id,
+        comment_id=comment_id,
+        next_status="acknowledged",
+        actor=_finding_actor_from_request(request),
+        request_id=_resolve_request_id(request, request_id),
+    )
+
+
+@review_router.post(
     "/status/{job_id}/comments/{comment_id}/resolve",
     response_model=ReviewCommentPublicResponse,
     response_model_exclude_none=True,

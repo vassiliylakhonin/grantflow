@@ -4680,6 +4680,12 @@ def test_status_comments_endpoints_create_list_and_filter():
     assert comments_body["comment_count"] >= 1
     assert any(c["comment_id"] == created["comment_id"] for c in comments_body["comments"])
 
+    ack_resp = client.post(f"/status/{job_id}/comments/{created['comment_id']}/ack")
+    assert ack_resp.status_code == 200
+    acknowledged = ack_resp.json()
+    assert acknowledged["comment_id"] == created["comment_id"]
+    assert acknowledged["status"] == "acknowledged"
+
     resolve_resp = client.post(f"/status/{job_id}/comments/{created['comment_id']}/resolve")
     assert resolve_resp.status_code == 200
     resolved = resolve_resp.json()
@@ -10921,6 +10927,9 @@ def test_openapi_declares_api_key_security_scheme():
     status_comments_post_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}
     ).get("security")
+    status_comments_ack_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/ack") or {}).get("post") or {})
+    ).get("security")
     status_comments_resolve_security = (
         (((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/resolve") or {}).get("post") or {})
     ).get("security")
@@ -11301,6 +11310,18 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    status_comments_ack_response_schema = (
+        (
+            (((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/ack") or {}).get("post") or {}).get(
+                "responses"
+            )
+            or {}
+        )
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     status_comments_resolve_response_schema = (
         (
             (
@@ -11510,6 +11531,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_review_workflow_export_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_trends_export_security == [{"ApiKeyAuth": []}]
     assert status_comments_post_security == [{"ApiKeyAuth": []}]
+    assert status_comments_ack_security == [{"ApiKeyAuth": []}]
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_reopen_security == [{"ApiKeyAuth": []}]
     assert portfolio_metrics_security == [{"ApiKeyAuth": []}]
@@ -11601,6 +11623,7 @@ def test_openapi_declares_api_key_security_scheme():
         "$ref": "#/components/schemas/JobReviewWorkflowSLARecomputePublicResponse"
     }
     assert status_comments_post_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
+    assert status_comments_ack_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_reopen_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert portfolio_metrics_response_schema == {"$ref": "#/components/schemas/PortfolioMetricsPublicResponse"}
