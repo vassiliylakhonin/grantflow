@@ -1247,6 +1247,11 @@ def public_job_review_workflow_payload(
         critic_findings=findings_with_workflow,
         comment_triage_summary=cast(dict[str, Any], summary["comment_triage_summary"]),
     )
+    summary["throughput_summary"] = _review_workflow_throughput_summary_payload(timeline=timeline)
+    summary["queue_delta_summary"] = _review_workflow_queue_delta_summary_payload(
+        action_queue_summary=cast(dict[str, Any], summary["action_queue_summary"]),
+        throughput_summary=cast(dict[str, Any], summary["throughput_summary"]),
+    )
     summary["review_workflow_policy_summary"] = _review_workflow_policy_summary_payload(
         reviewer_workflow_summary=cast(dict[str, Any], summary["reviewer_workflow_summary"]),
         action_queue_summary=cast(dict[str, Any], summary["action_queue_summary"]),
@@ -2972,6 +2977,112 @@ def _review_action_queue_summary_payload(
         "comment_resolve_queue_count": comment_resolve_queue_count,
         "comment_reopen_queue_count": comment_reopen_queue_count,
         "next_primary_action": next_primary_action,
+    }
+
+
+def _review_workflow_throughput_summary_payload(*, timeline: list[dict[str, Any]]) -> dict[str, Any]:
+    finding_ack_completed_count = 0
+    finding_resolve_completed_count = 0
+    comment_added_count = 0
+    comment_ack_completed_count = 0
+    comment_resolve_completed_count = 0
+    comment_reopen_completed_count = 0
+    finding_status_change_count = 0
+    comment_status_change_count = 0
+    activity_ts: list[str] = []
+
+    for row in timeline:
+        if not isinstance(row, dict):
+            continue
+        event_type = str(row.get("type") or "").strip()
+        status = str(row.get("status") or "").strip().lower()
+        ts = str(row.get("ts") or "").strip()
+        if ts:
+            activity_ts.append(ts)
+        if event_type == "critic_finding_status_changed":
+            finding_status_change_count += 1
+            if status == "acknowledged":
+                finding_ack_completed_count += 1
+            elif status in {"resolved", "closed"}:
+                finding_resolve_completed_count += 1
+        elif event_type == "review_comment_added":
+            comment_added_count += 1
+        elif event_type == "review_comment_status_changed":
+            comment_status_change_count += 1
+            if status == "acknowledged":
+                comment_ack_completed_count += 1
+            elif status == "resolved":
+                comment_resolve_completed_count += 1
+            elif status == "open":
+                comment_reopen_completed_count += 1
+
+    queue_actions = {
+        "ack_finding": finding_ack_completed_count,
+        "resolve_finding": finding_resolve_completed_count,
+        "ack_comment": comment_ack_completed_count,
+        "resolve_comment": comment_resolve_completed_count,
+        "reopen_comment": comment_reopen_completed_count,
+    }
+    dominant_action = None
+    dominant_action_count = 0
+    for action, count in queue_actions.items():
+        if count > dominant_action_count:
+            dominant_action = action
+            dominant_action_count = count
+
+    activity_window = None
+    if activity_ts:
+        activity_window = {
+            "start": min(activity_ts),
+            "end": max(activity_ts),
+        }
+
+    return {
+        "finding_ack_completed_count": finding_ack_completed_count,
+        "finding_resolve_completed_count": finding_resolve_completed_count,
+        "comment_added_count": comment_added_count,
+        "comment_ack_completed_count": comment_ack_completed_count,
+        "comment_resolve_completed_count": comment_resolve_completed_count,
+        "comment_reopen_completed_count": comment_reopen_completed_count,
+        "finding_status_change_count": finding_status_change_count,
+        "comment_status_change_count": comment_status_change_count,
+        "dominant_completed_action": dominant_action,
+        "dominant_completed_action_count": dominant_action_count if dominant_action is not None else None,
+        "activity_window": activity_window,
+    }
+
+
+def _review_workflow_queue_delta_summary_payload(
+    *,
+    action_queue_summary: dict[str, Any],
+    throughput_summary: dict[str, Any],
+) -> dict[str, Any]:
+    finding_ack_queue_count = int(action_queue_summary.get("finding_ack_queue_count") or 0)
+    finding_resolve_queue_count = int(action_queue_summary.get("finding_resolve_queue_count") or 0)
+    comment_ack_queue_count = int(action_queue_summary.get("comment_ack_queue_count") or 0)
+    comment_resolve_queue_count = int(action_queue_summary.get("comment_resolve_queue_count") or 0)
+    comment_reopen_queue_count = int(action_queue_summary.get("comment_reopen_queue_count") or 0)
+    finding_ack_completed_count = int(throughput_summary.get("finding_ack_completed_count") or 0)
+    finding_resolve_completed_count = int(throughput_summary.get("finding_resolve_completed_count") or 0)
+    comment_added_count = int(throughput_summary.get("comment_added_count") or 0)
+    comment_ack_completed_count = int(throughput_summary.get("comment_ack_completed_count") or 0)
+    comment_resolve_completed_count = int(throughput_summary.get("comment_resolve_completed_count") or 0)
+    comment_reopen_completed_count = int(throughput_summary.get("comment_reopen_completed_count") or 0)
+
+    return {
+        "finding_ack_queue_count": finding_ack_queue_count,
+        "finding_resolve_queue_count": finding_resolve_queue_count,
+        "comment_ack_queue_count": comment_ack_queue_count,
+        "comment_resolve_queue_count": comment_resolve_queue_count,
+        "comment_reopen_queue_count": comment_reopen_queue_count,
+        "finding_ack_net_delta": finding_ack_queue_count - finding_ack_completed_count,
+        "finding_resolve_net_delta": finding_resolve_queue_count - finding_resolve_completed_count,
+        "comment_ack_net_delta": comment_ack_queue_count - comment_ack_completed_count,
+        "comment_resolve_net_delta": comment_resolve_queue_count - comment_resolve_completed_count,
+        "comment_reopen_net_delta": comment_reopen_queue_count - comment_reopen_completed_count,
+        "comment_intake_net_delta": comment_ack_queue_count - comment_added_count,
+        "next_primary_action": action_queue_summary.get("next_primary_action"),
+        "activity_window": throughput_summary.get("activity_window"),
     }
 
 
@@ -6001,6 +6112,16 @@ def public_portfolio_review_workflow_payload(
     reviewer_workflow_open_items = 0
     reviewer_workflow_acknowledged_items = 0
     reviewer_workflow_resolved_items = 0
+    throughput_totals: Dict[str, int] = {
+        "finding_ack_completed_count": 0,
+        "finding_resolve_completed_count": 0,
+        "comment_added_count": 0,
+        "comment_ack_completed_count": 0,
+        "comment_resolve_completed_count": 0,
+        "comment_reopen_completed_count": 0,
+        "finding_status_change_count": 0,
+        "comment_status_change_count": 0,
+    }
 
     latest_timeline_all: list[Dict[str, Any]] = []
     latest_timeline_limit = 200
@@ -6064,9 +6185,14 @@ def public_portfolio_review_workflow_payload(
             if isinstance(summary_dict.get("reviewer_workflow_summary"), dict)
             else {}
         )
+        throughput_summary_dict = (
+            summary_dict.get("throughput_summary") if isinstance(summary_dict.get("throughput_summary"), dict) else {}
+        )
         reviewer_workflow_open_items += _coerce_int(workflow_summary_dict.get("open_items"))
         reviewer_workflow_acknowledged_items += _coerce_int(workflow_summary_dict.get("acknowledged_items"))
         reviewer_workflow_resolved_items += _coerce_int(workflow_summary_dict.get("resolved_items"))
+        for key in throughput_totals:
+            throughput_totals[key] += _coerce_int(throughput_summary_dict.get(key))
         stale_bucket_summary = (
             workflow_summary_dict.get("stale_comment_bucket_counts")
             if isinstance(workflow_summary_dict.get("stale_comment_bucket_counts"), dict)
@@ -6144,6 +6270,72 @@ def public_portfolio_review_workflow_payload(
         if ranked_stale_buckets and int(ranked_stale_buckets[0][1]) > 0:
             top_stale_comment_bucket = str(ranked_stale_buckets[0][0])
 
+    throughput_summary = {
+        **throughput_totals,
+        "dominant_completed_action": None,
+        "dominant_completed_action_count": None,
+        "activity_window": (
+            {
+                "start": min(
+                    (str(row.get("ts") or "") for row in latest_timeline_all if str(row.get("ts") or "").strip()),
+                    default=None,
+                ),
+                "end": max(
+                    (str(row.get("ts") or "") for row in latest_timeline_all if str(row.get("ts") or "").strip()),
+                    default=None,
+                ),
+            }
+            if latest_timeline_all
+            else None
+        ),
+    }
+    throughput_action_counts = {
+        "ack_finding": int(throughput_summary["finding_ack_completed_count"]),
+        "resolve_finding": int(throughput_summary["finding_resolve_completed_count"]),
+        "ack_comment": int(throughput_summary["comment_ack_completed_count"]),
+        "resolve_comment": int(throughput_summary["comment_resolve_completed_count"]),
+        "reopen_comment": int(throughput_summary["comment_reopen_completed_count"]),
+    }
+    dominant_completed_action = None
+    dominant_completed_action_count = 0
+    for action, count in throughput_action_counts.items():
+        if count > dominant_completed_action_count:
+            dominant_completed_action = action
+            dominant_completed_action_count = count
+    throughput_summary["dominant_completed_action"] = dominant_completed_action
+    throughput_summary["dominant_completed_action_count"] = (
+        dominant_completed_action_count if dominant_completed_action is not None else None
+    )
+
+    action_queue_summary = {
+        "finding_ack_queue_count": open_finding_count,
+        "finding_resolve_queue_count": acknowledged_finding_count,
+        "comment_ack_queue_count": open_comment_count,
+        "comment_resolve_queue_count": int(comment_status_counts.get("acknowledged") or 0),
+        "comment_reopen_queue_count": resolved_comment_count,
+        "next_primary_action": (
+            "ack_finding"
+            if open_finding_count > 0
+            else (
+                "resolve_finding"
+                if acknowledged_finding_count > 0
+                else (
+                    "ack_comment"
+                    if open_comment_count > 0
+                    else (
+                        "resolve_comment"
+                        if int(comment_status_counts.get("acknowledged") or 0) > 0
+                        else ("reopen_comment" if resolved_comment_count > 0 else None)
+                    )
+                )
+            )
+        ),
+    }
+    queue_delta_summary = _review_workflow_queue_delta_summary_payload(
+        action_queue_summary=action_queue_summary,
+        throughput_summary=throughput_summary,
+    )
+
     return {
         "job_count": job_count,
         "jobs_with_activity": jobs_with_activity,
@@ -6204,30 +6396,9 @@ def public_portfolio_review_workflow_payload(
                 "stale_comment_bucket_counts": dict(sorted(stale_comment_bucket_counts.items())),
                 "top_stale_comment_bucket": top_stale_comment_bucket,
             },
-            "action_queue_summary": {
-                "finding_ack_queue_count": open_finding_count,
-                "finding_resolve_queue_count": acknowledged_finding_count,
-                "comment_ack_queue_count": open_comment_count,
-                "comment_resolve_queue_count": int(comment_status_counts.get("acknowledged") or 0),
-                "comment_reopen_queue_count": resolved_comment_count,
-                "next_primary_action": (
-                    "ack_finding"
-                    if open_finding_count > 0
-                    else (
-                        "resolve_finding"
-                        if acknowledged_finding_count > 0
-                        else (
-                            "ack_comment"
-                            if open_comment_count > 0
-                            else (
-                                "resolve_comment"
-                                if int(comment_status_counts.get("acknowledged") or 0) > 0
-                                else ("reopen_comment" if resolved_comment_count > 0 else None)
-                            )
-                        )
-                    )
-                ),
-            },
+            "action_queue_summary": action_queue_summary,
+            "throughput_summary": throughput_summary,
+            "queue_delta_summary": queue_delta_summary,
             "review_workflow_policy_summary": _review_workflow_policy_summary_payload(
                 reviewer_workflow_summary={
                     "open_items": reviewer_workflow_open_items,
@@ -6250,30 +6421,7 @@ def public_portfolio_review_workflow_payload(
                     "stale_comment_bucket_counts": dict(sorted(stale_comment_bucket_counts.items())),
                     "top_stale_comment_bucket": top_stale_comment_bucket,
                 },
-                action_queue_summary={
-                    "finding_ack_queue_count": open_finding_count,
-                    "finding_resolve_queue_count": acknowledged_finding_count,
-                    "comment_ack_queue_count": open_comment_count,
-                    "comment_resolve_queue_count": int(comment_status_counts.get("acknowledged") or 0),
-                    "comment_reopen_queue_count": resolved_comment_count,
-                    "next_primary_action": (
-                        "ack_finding"
-                        if open_finding_count > 0
-                        else (
-                            "resolve_finding"
-                            if acknowledged_finding_count > 0
-                            else (
-                                "ack_comment"
-                                if open_comment_count > 0
-                                else (
-                                    "resolve_comment"
-                                    if int(comment_status_counts.get("acknowledged") or 0) > 0
-                                    else ("reopen_comment" if resolved_comment_count > 0 else None)
-                                )
-                            )
-                        )
-                    ),
-                },
+                action_queue_summary=action_queue_summary,
                 comment_triage_summary={
                     "overdue_comment_count": overdue_comment_count,
                     "stale_open_comment_count": sum(int(count or 0) for count in stale_comment_bucket_counts.values()),

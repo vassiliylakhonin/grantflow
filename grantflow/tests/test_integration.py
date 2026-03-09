@@ -5433,6 +5433,13 @@ def test_status_review_workflow_endpoint_aggregates_findings_comments_and_timeli
     assert summary["comment_status_counts"]["resolved"] == 1
     assert summary["timeline_event_count"] == 4
     assert summary["last_activity_at"] == "2026-02-27T10:12:00+00:00"
+    assert summary["throughput_summary"]["finding_ack_completed_count"] == 1
+    assert summary["throughput_summary"]["finding_resolve_completed_count"] == 1
+    assert summary["throughput_summary"]["comment_added_count"] == 1
+    assert summary["throughput_summary"]["comment_resolve_completed_count"] == 1
+    assert summary["queue_delta_summary"]["finding_ack_queue_count"] == 1
+    assert summary["queue_delta_summary"]["finding_ack_net_delta"] == 0
+    assert summary["queue_delta_summary"]["comment_ack_net_delta"] == 1
 
     timeline = body["timeline"]
     assert len(timeline) == 4
