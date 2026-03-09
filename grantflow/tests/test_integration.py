@@ -750,6 +750,8 @@ def test_demo_console_includes_bulk_preview_summary_helpers():
     assert "commentBulkSummaryList" in body
     assert "Preview Mode" in body
     assert "Apply Mode" in body
+    assert "Scope" in body
+    assert "Queue Impact" in body
     assert "Matched" in body
     assert "Changed" in body
     assert "Unchanged" in body
@@ -790,6 +792,8 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "describeBulkScope",
         "Copy Selected IDs",
         "Fill From Workflow View",
+        "Scope",
+        "Queue Impact",
         "finding bulk action: scope=",
         "comment bulk action: scope=",
         "No bulk preview yet.",

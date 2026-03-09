@@ -4920,7 +4920,11 @@ def render_demo_ui_html() -> str:
           .filter(Boolean);
       }
 
-      function renderBulkPreviewSummary(el, result, { notFoundKey = "", updatedKey = "", itemLabel = "items" } = {}) {
+      function renderBulkPreviewSummary(
+        el,
+        result,
+        { notFoundKey = "", updatedKey = "", itemLabel = "items", scopeLabel = "", queueLabel = "" } = {}
+      ) {
         if (!el) return;
         el.innerHTML = "";
         if (!result || typeof result !== "object") {
@@ -4937,6 +4941,8 @@ def render_demo_ui_html() -> str:
         const status = String(result.requested_status || "").trim() || "-";
         const cards = [
           { title: dryRun ? "Preview Mode" : "Apply Mode", sub: dryRun ? "dry_run=true" : persisted ? "persisted=true" : "persisted=false" },
+          { title: "Scope", sub: String(scopeLabel || "-") },
+          { title: "Queue Impact", sub: String(queueLabel || "-") },
           { title: "Matched", sub: String(matchedCount) },
           { title: "Changed", sub: String(changedCount) },
           { title: "Unchanged", sub: String(unchangedCount) },
@@ -8285,11 +8291,14 @@ def render_demo_ui_html() -> str:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        const action = describeBulkAction(nextStatus, "finding");
         setJson(els.criticBulkResultJson, result);
         renderBulkPreviewSummary(els.criticBulkSummaryList, result, {
           notFoundKey: "not_found_finding_ids",
           updatedKey: "updated_findings",
           itemLabel: "findings",
+          scopeLabel: describeBulkScope(scope, parseIdList(els.criticSelectedFindingIds.value).length, "finding ids"),
+          queueLabel: action.queueLabel,
         });
         await Promise.allSettled([
           refreshCritic(),
@@ -8369,11 +8378,14 @@ def render_demo_ui_html() -> str:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        const action = describeBulkAction(nextStatus, "comment");
         setJson(els.commentBulkResultJson, result);
         renderBulkPreviewSummary(els.commentBulkSummaryList, result, {
           notFoundKey: "not_found_comment_ids",
           updatedKey: "updated_comments",
           itemLabel: "comments",
+          scopeLabel: describeBulkScope(scope, parseIdList(els.commentSelectedCommentIds.value).length, "comment ids"),
+          queueLabel: action.queueLabel,
         });
         await Promise.allSettled([
           refreshComments(),
@@ -8515,6 +8527,8 @@ def render_demo_ui_html() -> str:
           notFoundKey: "not_found_finding_ids",
           updatedKey: "updated_findings",
           itemLabel: "findings",
+          scopeLabel: "-",
+          queueLabel: "-",
         });
         els.criticCopySelectedFindingIdsBtn.addEventListener("click", () =>
           copySelectedFindingIds().catch((err) => showError(err))
@@ -8819,6 +8833,8 @@ def render_demo_ui_html() -> str:
           notFoundKey: "not_found_comment_ids",
           updatedKey: "updated_comments",
           itemLabel: "comments",
+          scopeLabel: "-",
+          queueLabel: "-",
         });
         els.commentCopySelectedCommentIdsBtn.addEventListener("click", () =>
           copySelectedCommentIds().catch((err) => showError(err))
