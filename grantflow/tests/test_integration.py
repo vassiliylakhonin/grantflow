@@ -7585,6 +7585,8 @@ def test_portfolio_metrics_endpoint_aggregates_jobs_and_filters():
     assert body["review_readiness_summary"]["open_critic_findings"] >= 0
     assert body["review_readiness_summary"]["open_review_comments"] >= 0
     assert "open_critic_findings_per_job_avg" in body["review_readiness_summary"]
+    assert "triage_summary" in body["review_readiness_summary"]
+    assert isinstance(body["review_readiness_summary"]["triage_summary"].get("top_reviewer_actions"), list)
 
     filtered = client.get("/portfolio/metrics", params={"donor_id": "usaid", "status": "done", "hitl_enabled": "true"})
     assert filtered.status_code == 200
@@ -7940,8 +7942,11 @@ def test_portfolio_quality_endpoint_aggregates_quality_signals():
     assert body["review_readiness_summary"]["open_critic_findings"] >= 0
     assert body["review_readiness_summary"]["high_severity_open_findings"] >= 0
     assert body["review_readiness_summary"]["open_review_comments"] >= 0
+    assert "triage_summary" in body["review_readiness_summary"]
+    assert isinstance(body["review_readiness_summary"]["triage_summary"].get("top_reviewer_actions"), list)
     assert body["donor_review_readiness_breakdown"]["usaid"]["job_count"] >= 1
     assert "open_critic_findings_per_job_avg" in body["donor_review_readiness_breakdown"]["usaid"]
+    assert "triage_summary" in body["donor_review_readiness_breakdown"]["usaid"]
     assert body["critic"]["llm_finding_label_counts"]["CAUSAL_LINK_DETAIL"] >= 1
     assert body["critic"]["llm_finding_label_counts"]["BASELINE_TARGET_MISSING"] >= 1
     assert body["critic"]["llm_advisory_diagnostics_job_count"] >= 2

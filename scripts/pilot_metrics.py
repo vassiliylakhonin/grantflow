@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from grantflow.api.public_views import _critic_triage_summary_payload
+
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -51,11 +53,24 @@ def _fmt(value: float | int | None) -> str:
 def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, Any]:
     metrics_path = case_dir / "metrics.json"
     quality_path = case_dir / "quality.json"
+    critic_path = case_dir / "critic.json"
     metrics = _read_json(metrics_path) if metrics_path.exists() else {}
     quality = _read_json(quality_path) if quality_path.exists() else {}
+    critic = _read_json(critic_path) if critic_path.exists() else {}
     readiness = (
         quality.get("review_readiness_summary") if isinstance(quality.get("review_readiness_summary"), dict) else {}
     )
+    triage = quality.get("triage_summary") if isinstance(quality.get("triage_summary"), dict) else {}
+    if not triage and isinstance(critic, dict):
+        triage = critic.get("triage_summary") if isinstance(critic.get("triage_summary"), dict) else {}
+    if not triage and isinstance(critic, dict):
+        raw_findings = critic.get("fatal_flaws")
+        findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+        triage = (
+            _critic_triage_summary_payload(findings, donor_id=str(benchmark_row.get("donor_id") or "").strip())
+            if findings
+            else {}
+        )
     mel = quality.get("mel") if isinstance(quality.get("mel"), dict) else {}
     mov_rate = _safe_float(mel.get("means_of_verification_coverage_rate"))
     owner_rate = _safe_float(mel.get("owner_coverage_rate"))
@@ -84,6 +99,8 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "open_review_comments": readiness.get("open_review_comments"),
         "fallback_strategy_citations": readiness.get("fallback_strategy_citations"),
         "low_confidence_citations": readiness.get("low_confidence_citations"),
+        "next_review_bucket": triage.get("next_review_bucket"),
+        "next_recommended_action": triage.get("next_recommended_action"),
         "smart_field_coverage_rate": mel.get("smart_field_coverage_rate"),
         "means_of_verification_coverage_rate": mel.get("means_of_verification_coverage_rate"),
         "owner_coverage_rate": mel.get("owner_coverage_rate"),
@@ -121,6 +138,8 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "open_review_comments",
         "fallback_strategy_citations",
         "low_confidence_citations",
+        "next_review_bucket",
+        "next_recommended_action",
         "smart_field_coverage_rate",
         "means_of_verification_coverage_rate",
         "owner_coverage_rate",
@@ -151,6 +170,22 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
     avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
     complete_logframe_cases = sum(_safe_int(row.get("complete_logframe_operational_coverage")) == 1 for row in rows)
+    next_bucket = next(
+        (
+            str(row.get("next_review_bucket") or "").strip()
+            for row in rows
+            if str(row.get("next_review_bucket") or "").strip()
+        ),
+        "",
+    )
+    next_action = next(
+        (
+            str(row.get("next_recommended_action") or "").strip()
+            for row in rows
+            if str(row.get("next_recommended_action") or "").strip()
+        ),
+        "",
+    )
 
     lines: list[str] = []
     lines.append("# Pilot Metrics")
@@ -173,13 +208,17 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average means-of-verification coverage: `{_fmt(avg_mov_coverage)}`")
     lines.append(f"- Average owner coverage: `{_fmt(avg_owner_coverage)}`")
     lines.append(f"- Cases with complete LogFrame operational coverage: `{complete_logframe_cases}/{len(rows)}`")
+    if next_bucket:
+        lines.append(f"- Portfolio next review bucket: `{next_bucket}`")
+    if next_action:
+        lines.append(f"- Portfolio next recommended action: {next_action}")
     lines.append("")
     lines.append("## Case Table")
     lines.append("")
     lines.append(
-        "| Preset | Donor | Status | HITL | Quality | Critic | Open Findings | Fallback Citations | SMART | MoV | Owner | Complete Ops |"
+        "| Preset | Donor | Status | HITL | Quality | Critic | Open Findings | Fallback Citations | Next Bucket | SMART | MoV | Owner | Complete Ops |"
     )
-    lines.append("|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|")
+    lines.append("|---|---|---|---|---:|---:|---:|---:|---|---:|---:|---:|---|")
     for row in rows:
         lines.append(
             "| "
@@ -193,6 +232,7 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
                     _fmt(_safe_float(row.get("critic_score"))),
                     _fmt(_safe_int(row.get("open_critic_findings"))),
                     _fmt(_safe_int(row.get("fallback_strategy_citations"))),
+                    f"`{str(row.get('next_review_bucket') or '-').strip() or '-'}`",
                     _fmt(_safe_float(row.get("smart_field_coverage_rate"))),
                     _fmt(_safe_float(row.get("means_of_verification_coverage_rate"))),
                     _fmt(_safe_float(row.get("owner_coverage_rate"))),

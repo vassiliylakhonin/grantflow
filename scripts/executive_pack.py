@@ -126,6 +126,14 @@ def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
     return bullets
 
 
+def _first_nonempty(rows: list[dict[str, str]], key: str) -> str:
+    for row in rows:
+        value = str(row.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
 def _resolve_case_dir(
     rows: list[dict[str, Any]],
     *,
@@ -168,6 +176,8 @@ def _build_summary(
     portfolio_smart_avg: float | None,
     portfolio_mov_avg: float | None,
     portfolio_owner_avg: float | None,
+    portfolio_next_bucket: str,
+    portfolio_next_action: str,
     conditional_reasons: list[str],
 ) -> str:
     lines: list[str] = []
@@ -199,6 +209,10 @@ def _build_summary(
     lines.append(f"- Average SMART coverage: `{_format_num(portfolio_smart_avg)}`")
     lines.append(f"- Average MoV coverage: `{_format_num(portfolio_mov_avg)}`")
     lines.append(f"- Average owner coverage: `{_format_num(portfolio_owner_avg)}`")
+    if portfolio_next_bucket:
+        lines.append(f"- Portfolio next review bucket: `{portfolio_next_bucket}`")
+    if portfolio_next_action:
+        lines.append(f"- Portfolio next recommended action: {portfolio_next_action}")
     lines.append("")
     lines.append("## Readiness Snapshot")
     lines.append(
@@ -362,6 +376,8 @@ def main() -> int:
     portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
     portfolio_mov_avg = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in metrics_rows])
     portfolio_owner_avg = _avg([_safe_float(row.get("owner_coverage_rate")) for row in metrics_rows])
+    portfolio_next_bucket = _first_nonempty(metrics_rows, "next_review_bucket")
+    portfolio_next_action = _first_nonempty(metrics_rows, "next_recommended_action")
     scorecard_text = (pilot_pack_dir / "pilot-scorecard.md").read_text(encoding="utf-8")
     conditional_reasons = _extract_markdown_bullets(scorecard_text, "## Conditions Before Buyer Decision")
     (output_dir / "README.md").write_text(
@@ -383,6 +399,8 @@ def main() -> int:
             portfolio_smart_avg=portfolio_smart_avg,
             portfolio_mov_avg=portfolio_mov_avg,
             portfolio_owner_avg=portfolio_owner_avg,
+            portfolio_next_bucket=portfolio_next_bucket,
+            portfolio_next_action=portfolio_next_action,
             conditional_reasons=conditional_reasons,
         ),
         encoding="utf-8",

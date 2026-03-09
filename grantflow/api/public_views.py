@@ -338,6 +338,25 @@ def _critic_triage_summary_payload(
     }
 
 
+def _portfolio_triage_summary_payload(rows: list[tuple[str, list[Dict[str, Any]]]]) -> Dict[str, Any]:
+    all_findings: list[Dict[str, Any]] = []
+    top_actions: list[str] = []
+    for donor_id, findings in rows:
+        enriched = [_triage_enriched_finding(item, donor_id=donor_id) for item in findings if isinstance(item, dict)]
+        all_findings.extend(enriched)
+        for item in enriched:
+            action = str(item.get("reviewer_next_step") or item.get("recommended_action") or "").strip()
+            if action and action not in top_actions:
+                top_actions.append(action)
+            if len(top_actions) >= 3:
+                break
+        if len(top_actions) >= 3:
+            break
+    summary = _critic_triage_summary_payload(all_findings)
+    summary["top_reviewer_actions"] = top_actions[:3]
+    return summary
+
+
 def _job_state_dict(job: Dict[str, Any]) -> Dict[str, Any]:
     state = job.get("state") if isinstance(job.get("state"), dict) else {}
     return dict(normalized_state_copy(state))
@@ -3414,6 +3433,7 @@ def public_portfolio_metrics_payload(
         "low_confidence_citations": 0,
         "fallback_strategy_citations": 0,
     }
+    triage_rows: list[tuple[str, list[Dict[str, Any]]]] = []
     metrics_rows: list[Dict[str, Any]] = []
 
     for job_id, job in filtered:
@@ -3444,6 +3464,13 @@ def public_portfolio_metrics_payload(
             citations=citations,
             critic_findings=state_critic_findings(state_dict, default_source="rules"),
             review_comments=review_comments,
+        )
+        critic_findings = state_critic_findings(state_dict, default_source="rules")
+        triage_rows.append(
+            (
+                job_donor,
+                [item for item in critic_findings if isinstance(item, dict)],
+            )
         )
         if bool(review_summary.get("needs_revision")):
             review_readiness_totals["needs_revision_job_count"] += 1
@@ -3522,6 +3549,7 @@ def public_portfolio_metrics_payload(
             "open_review_comments_per_job_avg": (
                 round(review_readiness_totals["open_review_comments"] / job_count, 4) if job_count else None
             ),
+            "triage_summary": _portfolio_triage_summary_payload(triage_rows),
         },
     }
 
@@ -3626,6 +3654,7 @@ def public_portfolio_quality_payload(
     donor_needs_revision_counts: Dict[str, int] = {}
     donor_open_findings_counts: Dict[str, int] = {}
     donor_review_readiness_breakdown: Dict[str, Dict[str, Any]] = {}
+    donor_triage_rows: Dict[str, list[Dict[str, Any]]] = {}
     donor_weighted_risk_breakdown: Dict[str, Dict[str, Any]] = {}
     donor_grounded_gate_breakdown: Dict[str, Dict[str, Any]] = {}
     grounded_gate_section_fail_counts = _grounded_gate_section_counts_template()
@@ -3656,6 +3685,12 @@ def public_portfolio_quality_payload(
             cast(Dict[str, Any], q.get("review_readiness_summary"))
             if isinstance(q.get("review_readiness_summary"), dict)
             else {}
+        )
+        critic_payload: Dict[str, Any] = (
+            cast(Dict[str, Any], q.get("critic")) if isinstance(q.get("critic"), dict) else {}
+        )
+        donor_triage_rows.setdefault(job_donor, []).extend(
+            [item for item in critic_payload.get("fatal_flaws") or [] if isinstance(item, dict)]
         )
         if bool(q.get("needs_revision")):
             donor_needs_revision_counts[job_donor] = donor_needs_revision_counts.get(job_donor, 0) + 1
@@ -4874,6 +4909,22 @@ def public_portfolio_quality_payload(
         ),
         "low_confidence_citations": low_confidence_citation_count,
         "fallback_strategy_citations": fallback_namespace_citation_count + strategy_reference_citation_count,
+        "triage_summary": _portfolio_triage_summary_payload(
+            [
+                (
+                    str(row.get("_donor_id") or "").strip(),
+                    [
+                        item
+                        for item in (
+                            (cast(Dict[str, Any], row.get("critic")) if isinstance(row.get("critic"), dict) else {})
+                        ).get("fatal_flaws")
+                        or []
+                        if isinstance(item, dict)
+                    ],
+                )
+                for row in quality_rows
+            ]
+        ),
     }
     for donor_token, donor_row in donor_review_readiness_breakdown.items():
         donor_job_count = int(donor_row.get("job_count") or 0)
@@ -4890,6 +4941,9 @@ def public_portfolio_quality_payload(
         )
         donor_row["open_review_comments_per_job_avg"] = (
             round(int(donor_row.get("open_review_comments") or 0) / donor_job_count, 4) if donor_job_count else None
+        )
+        donor_row["triage_summary"] = _portfolio_triage_summary_payload(
+            [(donor_token, donor_triage_rows.get(donor_token) or [])]
         )
         donor_review_readiness_breakdown[donor_token] = donor_row
 
