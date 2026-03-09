@@ -1086,6 +1086,7 @@ def render_demo_ui_html() -> str:
                 <label for="criticBulkScope">Bulk Scope</label>
                 <select id="criticBulkScope">
                   <option value="filtered">filtered (current critic filters)</option>
+                  <option value="selected">selected finding ids</option>
                   <option value="all">all findings in job</option>
                 </select>
               </div>
@@ -1094,6 +1095,20 @@ def render_demo_ui_html() -> str:
               </div>
               <div style="align-self:end;">
                 <button id="criticBulkClearFiltersBtn" class="ghost">Clear Critic Filters</button>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label for="criticSelectedFindingIds">Selected Finding IDs (comma/newline separated)</label>
+                <textarea id="criticSelectedFindingIds" class="json" placeholder="finding-1&#10;finding-2"></textarea>
+              </div>
+              <div>
+                <label for="criticSelectedFindingId">Latest Finding ID</label>
+                <input id="criticSelectedFindingId" readonly />
+                <div class="row" style="margin-top:10px;">
+                  <button id="criticAddSelectedFindingBtn" class="ghost">Add Latest to Batch</button>
+                  <button id="criticClearSelectedFindingIdsBtn" class="ghost">Clear Selected IDs</button>
+                </div>
               </div>
             </div>
             <div class="row3" style="margin-top:10px;">
@@ -1302,6 +1317,7 @@ def render_demo_ui_html() -> str:
                 <label for="commentBulkScope">Bulk Scope</label>
                 <select id="commentBulkScope">
                   <option value="filtered">filtered</option>
+                  <option value="selected">selected comment ids</option>
                   <option value="all">all</option>
                 </select>
               </div>
@@ -1313,6 +1329,18 @@ def render_demo_ui_html() -> str:
               </div>
               <div style="align-self:end;">
                 <button id="commentBulkApplyBtn" class="secondary">Apply Comment Bulk Status</button>
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label for="commentSelectedCommentIds">Selected Comment IDs (comma/newline separated)</label>
+                <textarea id="commentSelectedCommentIds" class="json" placeholder="comment-1&#10;comment-2"></textarea>
+              </div>
+              <div style="align-self:end;">
+                <div class="row" style="margin-top:10px;">
+                  <button id="commentAddSelectedCommentBtn" class="ghost">Add Latest to Batch</button>
+                  <button id="commentClearSelectedCommentIdsBtn" class="ghost">Clear Selected IDs</button>
+                </div>
               </div>
             </div>
             <div style="margin-top:10px;">
@@ -1581,6 +1609,8 @@ def render_demo_ui_html() -> str:
         ["criticCitationConfidenceFilter", "grantflow_demo_critic_confidence"],
         ["criticBulkTargetStatus", "grantflow_demo_critic_bulk_target_status"],
         ["criticBulkScope", "grantflow_demo_critic_bulk_scope"],
+        ["criticSelectedFindingIds", "grantflow_demo_critic_selected_finding_ids"],
+        ["criticSelectedFindingId", "grantflow_demo_critic_selected_finding_id"],
         ["portfolioDonorFilter", "grantflow_demo_portfolio_donor"],
         ["portfolioStatusFilter", "grantflow_demo_portfolio_status"],
         ["portfolioHitlFilter", "grantflow_demo_portfolio_hitl"],
@@ -1617,6 +1647,7 @@ def render_demo_ui_html() -> str:
         ["reviewWorkflowSlaCommentDefaultHours", "grantflow_demo_review_workflow_sla_comment_default_hours"],
         ["reviewWorkflowSlaUseSavedProfile", "grantflow_demo_review_workflow_sla_use_saved_profile"],
         ["selectedCommentId", "grantflow_demo_selected_comment_id"],
+        ["commentSelectedCommentIds", "grantflow_demo_selected_comment_ids"],
         ["linkedFindingId", "grantflow_demo_linked_finding_id"],
         ["generatePresetSelect", "grantflow_demo_generate_preset"],
         ["strictPreflight", "grantflow_demo_strict_preflight"],
@@ -1814,11 +1845,14 @@ def render_demo_ui_html() -> str:
         criticChecksList: $("criticChecksList"),
         criticContextList: $("criticContextList"),
         criticBulkResultJson: $("criticBulkResultJson"),
+        criticSelectedFindingIds: $("criticSelectedFindingIds"),
+        criticSelectedFindingId: $("criticSelectedFindingId"),
         criticAdvisorySummaryList: $("criticAdvisorySummaryList"),
         criticAdvisoryLabelsList: $("criticAdvisoryLabelsList"),
         criticAdvisoryNormalizationList: $("criticAdvisoryNormalizationList"),
         commentsList: $("commentsList"),
         commentBulkResultJson: $("commentBulkResultJson"),
+        commentSelectedCommentIds: $("commentSelectedCommentIds"),
         reviewWorkflowTimelineList: $("reviewWorkflowTimelineList"),
         reviewActionQueueCards: $("reviewActionQueueCards"),
         reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
@@ -1944,6 +1978,8 @@ def render_demo_ui_html() -> str:
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
         criticBulkTargetStatus: $("criticBulkTargetStatus"),
         criticBulkScope: $("criticBulkScope"),
+        criticAddSelectedFindingBtn: $("criticAddSelectedFindingBtn"),
+        criticClearSelectedFindingIdsBtn: $("criticClearSelectedFindingIdsBtn"),
         portfolioDonorFilter: $("portfolioDonorFilter"),
         portfolioStatusFilter: $("portfolioStatusFilter"),
         portfolioHitlFilter: $("portfolioHitlFilter"),
@@ -1969,6 +2005,8 @@ def render_demo_ui_html() -> str:
         linkedFindingId: $("linkedFindingId"),
         commentMessage: $("commentMessage"),
         selectedCommentId: $("selectedCommentId"),
+        commentAddSelectedCommentBtn: $("commentAddSelectedCommentBtn"),
+        commentClearSelectedCommentIdsBtn: $("commentClearSelectedCommentIdsBtn"),
         generateBtn: $("generateBtn"),
         refreshAllBtn: $("refreshAllBtn"),
         pollToggleBtn: $("pollToggleBtn"),
@@ -4760,6 +4798,7 @@ def render_demo_ui_html() -> str:
           `;
           div.addEventListener("click", () => {
             els.selectedCommentId.value = c.comment_id || "";
+            mergeIdsIntoTextarea(els.commentSelectedCommentIds, [c.comment_id || ""]);
             if (c.section) els.commentSection.value = c.section;
             if (c.version_id) els.commentVersionId.value = c.version_id;
             els.linkedFindingId.value = c.linked_finding_id || "";
@@ -4790,6 +4829,24 @@ def render_demo_ui_html() -> str:
           };
         }
         return byId;
+      }
+
+      function parseIdList(raw) {
+        return Array.from(
+          new Set(
+            String(raw || "")
+              .split(/[,\n]/)
+              .map((token) => token.trim())
+              .filter(Boolean)
+          )
+        );
+      }
+
+      function mergeIdsIntoTextarea(el, ids) {
+        if (!el) return;
+        const merged = Array.from(new Set([...parseIdList(el.value), ...parseIdList((ids || []).join("\n"))]));
+        el.value = merged.join("\n");
+        persistUiState();
       }
 
       async function applyRuntimeGroundedGateReviewWorkflowDrilldown({ section = "", reasonCode = "" } = {}) {
@@ -5817,6 +5874,13 @@ def render_demo_ui_html() -> str:
               ${meta ? `<div class="sub" style="margin-top:6px;">${escapeHtml(meta)}</div>` : ""}
               ${flawId ? `<div class="sub" style="margin-top:6px;">finding_id: ${escapeHtml(String(flawId).slice(0, 12))}${linkedComments.length ? ` · linked comments: ${escapeHtml(String(linkedComments.length))}` : ""}</div>` : ""}
             `;
+            div.addEventListener("click", () => {
+              if (flawId) {
+                els.criticSelectedFindingId.value = flawId;
+                mergeIdsIntoTextarea(els.criticSelectedFindingIds, [flawId]);
+                persistUiState();
+              }
+            });
             const actionsRow = document.createElement("div");
             actionsRow.style.marginTop = "8px";
             actionsRow.style.display = "flex";
@@ -8018,6 +8082,10 @@ def render_demo_ui_html() -> str:
         const payload = { next_status: nextStatus };
         if (scope === "all") {
           payload.apply_to_all = true;
+        } else if (scope === "selected") {
+          const findingIds = parseIdList(els.criticSelectedFindingIds.value);
+          if (!findingIds.length) throw new Error("Add at least one finding id for selected bulk apply");
+          payload.finding_ids = findingIds;
         } else {
           const section = String(els.criticSectionFilter.value || "").trim();
           const severity = String(els.criticSeverityFilter.value || "").trim();
@@ -8093,6 +8161,10 @@ def render_demo_ui_html() -> str:
         const payload = { next_status: nextStatus };
         if (scope === "all") {
           payload.apply_to_all = true;
+        } else if (scope === "selected") {
+          const commentIds = parseIdList(els.commentSelectedCommentIds.value);
+          if (!commentIds.length) throw new Error("Add at least one comment id for selected bulk apply");
+          payload.comment_ids = commentIds;
         } else {
           const section = String(els.commentsFilterSection.value || "").trim();
           const commentStatus = String(els.commentsFilterStatus.value || "").trim();
@@ -8210,6 +8282,19 @@ def render_demo_ui_html() -> str:
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
         els.criticBulkApplyBtn.addEventListener("click", () => applyCriticBulkStatus().catch(showError));
+        els.criticAddSelectedFindingBtn.addEventListener("click", () => {
+          try {
+            const findingId = String(els.criticSelectedFindingId.value || "").trim();
+            if (!findingId) throw new Error("No latest finding id selected");
+            mergeIdsIntoTextarea(els.criticSelectedFindingIds, [findingId]);
+          } catch (err) {
+            showError(err);
+          }
+        });
+        els.criticClearSelectedFindingIdsBtn.addEventListener("click", () => {
+          els.criticSelectedFindingIds.value = "";
+          persistUiState();
+        });
         els.criticBulkClearFiltersBtn.addEventListener("click", () => {
           clearCriticFilters();
           if (state.lastCritic) renderCriticLists(state.lastCritic);
@@ -8479,6 +8564,19 @@ def render_demo_ui_html() -> str:
         els.ackCommentBtn.addEventListener("click", () => setCommentStatus("acknowledged").catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));
         els.reopenCommentBtn.addEventListener("click", () => setCommentStatus("open").catch(showError));
+        els.commentAddSelectedCommentBtn.addEventListener("click", () => {
+          try {
+            const commentId = String(els.selectedCommentId.value || "").trim();
+            if (!commentId) throw new Error("No latest comment id selected");
+            mergeIdsIntoTextarea(els.commentSelectedCommentIds, [commentId]);
+          } catch (err) {
+            showError(err);
+          }
+        });
+        els.commentClearSelectedCommentIdsBtn.addEventListener("click", () => {
+          els.commentSelectedCommentIds.value = "";
+          persistUiState();
+        });
         els.commentBulkApplyBtn.addEventListener("click", () => applyCommentBulkStatus().catch(showError));
         els.clearLinkedFindingBtn.addEventListener("click", clearLinkedFindingSelection);
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));

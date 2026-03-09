@@ -698,6 +698,13 @@ def test_demo_console_page_loads():
     assert "/comments/bulk-status" in body
     assert "ackCommentBtn" in body
     assert "commentBulkApplyBtn" in body
+    assert "criticSelectedFindingIds" in body
+    assert "criticSelectedFindingId" in body
+    assert "criticAddSelectedFindingBtn" in body
+    assert "commentSelectedCommentIds" in body
+    assert "commentAddSelectedCommentBtn" in body
+    assert "selected finding ids" in body
+    assert "selected comment ids" in body
     assert "reviewActionQueueCards" in body
     assert "Next Primary Action" in body
     assert "reviewWorkflowBtn" in body

@@ -170,6 +170,7 @@ Comment mutations:
 - `POST /status/{job_id}/comments/{comment_id}/resolve`
 - `POST /status/{job_id}/comments/{comment_id}/reopen`
 - `POST /status/{job_id}/comments/bulk-status`
+- In Demo Console, reviewers can batch on `filtered`, `selected ids`, or `all` for both findings and comments.
 
 Optional review mutations:
 

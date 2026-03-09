@@ -625,6 +625,7 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
   - `POST /status/{job_id}/critic/findings/bulk-status`
   - `POST /status/{job_id}/comments/{comment_id}/ack|resolve|reopen`
   - `POST /status/{job_id}/comments/bulk-status`
+  - Demo Console bulk actions support `filtered`, `selected ids`, and `all` scopes for findings/comments
   - `GET /status/{job_id}/events/export` supports `format=csv|json`, `gzip=true|false`
   - `GET /status/{job_id}/hitl/history/export` supports `event_type`, `checkpoint_id`, `format=csv|json`, `gzip=true|false`
   - `GET /status/{job_id}/comments/export` supports `section`, `status`, `version_id`, `format=csv|json`, `gzip=true|false`
