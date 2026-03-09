@@ -5,7 +5,11 @@ from typing import Any, Dict, Optional
 from fastapi import HTTPException
 
 from grantflow.api.constants import CRITIC_FINDING_SLA_HOURS, REVIEW_COMMENT_DEFAULT_SLA_HOURS
-from grantflow.api.public_views import REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS, public_job_review_workflow_payload
+from grantflow.api.public_views import (
+    REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
+    _critic_triage_summary_payload,
+    public_job_review_workflow_payload,
+)
 
 
 def _normalize_finding_sla_profile(
@@ -169,6 +173,7 @@ def _critic_findings_list_payload(
             "overdue_finding_count": overdue_finding_count,
             "finding_status_counts": finding_status_counts,
             "finding_severity_counts": finding_severity_counts,
+            "triage_summary": _critic_triage_summary_payload(filtered),
         },
         "findings": filtered,
     }

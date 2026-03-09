@@ -18,10 +18,14 @@
       ],
       "message": "Outcome chain lacks grounded support.",
       "rationale": null,
+      "recommended_action": "Reground the affected ToC claim and replace fallback or weak citations before next review.",
+      "review_bucket": "grounding",
       "section": "toc",
       "severity": "high",
       "source": "rules",
+      "staleness_band": "fresh",
       "status": "open",
+      "triage_priority": "urgent",
       "version_id": "toc_v1"
     },
     {
@@ -33,10 +37,14 @@
       "label": "BASELINE_TARGET_MISSING",
       "message": "Baselines are not explicit.",
       "rationale": null,
+      "recommended_action": "Tighten baseline, target, formula, or verification fields before the next export.",
+      "review_bucket": "measurement",
       "section": "logframe",
       "severity": "medium",
       "source": "llm",
+      "staleness_band": "fresh",
       "status": "acknowledged",
+      "triage_priority": "medium",
       "version_id": "logframe_v1"
     }
   ],
@@ -73,5 +81,31 @@
     }
   ],
   "rule_score": 7.0,
-  "status": "done"
+  "status": "done",
+  "triage_summary": {
+    "high_priority_finding_count": 0,
+    "next_recommended_action": "Reground the affected ToC claim and replace fallback or weak citations before next review.",
+    "next_review_bucket": "grounding",
+    "next_review_section": "toc",
+    "priority_counts": {
+      "high": 0,
+      "medium": 1,
+      "normal": 0,
+      "resolved": 0,
+      "urgent": 1
+    },
+    "review_bucket_counts": {
+      "compliance": 0,
+      "general": 0,
+      "grounding": 1,
+      "logic": 0,
+      "measurement": 1
+    },
+    "stale_open_finding_count": 0,
+    "top_priority_finding_ids": [
+      "finding-1",
+      "finding-2"
+    ],
+    "urgent_finding_count": 1
+  }
 }

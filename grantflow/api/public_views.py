@@ -57,6 +57,14 @@ REVIEW_WORKFLOW_EVENT_TYPES = {
 }
 REVIEW_WORKFLOW_STATE_FILTER_VALUES = {"pending", "overdue"}
 REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS = 48
+FINDING_TRIAGE_PRIORITY_ORDER = ("urgent", "high", "medium", "normal", "resolved")
+FINDING_TRIAGE_PRIORITY_RANK = {
+    "urgent": 4,
+    "high": 3,
+    "medium": 2,
+    "normal": 1,
+    "resolved": 0,
+}
 GROUNDING_FALLBACK_HIGH_THRESHOLD = 0.8
 GROUNDING_FALLBACK_MEDIUM_THRESHOLD = 0.5
 GROUNDING_NON_RETRIEVAL_HIGH_THRESHOLD = 0.8
@@ -96,6 +104,174 @@ MEL_SMART_COVERAGE_FIELDS = (
     "data_source",
     "result_level",
 )
+
+
+def _finding_review_bucket(item: Dict[str, Any]) -> str:
+    code = str(item.get("code") or "").strip().lower()
+    label = str(item.get("label") or "").strip().lower()
+    message = str(item.get("message") or "").strip().lower()
+    token = " ".join(part for part in (code, label, message) if part)
+    if any(
+        key in token
+        for key in ("ground", "evidence", "citation", "traceability", "retrieval", "fallback", "rag", "source")
+    ):
+        return "grounding"
+    if any(
+        key in token
+        for key in (
+            "baseline",
+            "target",
+            "indicator",
+            "logframe",
+            "mel",
+            "formula",
+            "frequency",
+            "verification",
+            "owner",
+            "disaggregation",
+        )
+    ):
+        return "measurement"
+    if any(key in token for key in ("objective", "outcome", "assumption", "causal", "toc", "theory of change")):
+        return "logic"
+    if any(
+        key in token
+        for key in (
+            "compliance",
+            "required",
+            "schema",
+            "donor",
+            "usaid",
+            "eu",
+            "world bank",
+            "giz",
+            "state department",
+        )
+    ):
+        return "compliance"
+    return "general"
+
+
+def _finding_triage_priority(item: Dict[str, Any]) -> str:
+    status = str(item.get("status") or "open").strip().lower()
+    severity = str(item.get("severity") or "").strip().lower()
+    workflow_state = str(item.get("workflow_state") or "").strip().lower()
+    if status == "resolved":
+        return "resolved"
+    if workflow_state == "overdue":
+        return "urgent"
+    if severity == "high" and status == "open":
+        return "urgent"
+    if severity == "high" or workflow_state == "pending":
+        return "high"
+    if status == "acknowledged":
+        return "medium"
+    return "normal"
+
+
+def _finding_staleness_band(item: Dict[str, Any]) -> str:
+    status = str(item.get("status") or "open").strip().lower()
+    if status == "resolved":
+        return "resolved"
+    workflow_state = str(item.get("workflow_state") or "").strip().lower()
+    if workflow_state == "overdue" or bool(item.get("is_overdue")):
+        return "overdue"
+    age_hours = item.get("age_hours")
+    time_to_due_hours = item.get("time_to_due_hours")
+    try:
+        age_value = float(age_hours) if age_hours is not None else None
+    except (TypeError, ValueError):
+        age_value = None
+    try:
+        time_to_due_value = float(time_to_due_hours) if time_to_due_hours is not None else None
+    except (TypeError, ValueError):
+        time_to_due_value = None
+    if (age_value is not None and age_value >= 24.0) or (time_to_due_value is not None and time_to_due_value <= 24.0):
+        return "aging"
+    return "fresh"
+
+
+def _finding_recommended_action(item: Dict[str, Any]) -> str:
+    status = str(item.get("status") or "open").strip().lower()
+    if status == "resolved":
+        return "No action; keep this finding for audit traceability."
+    bucket = _finding_review_bucket(item)
+    section = str(item.get("section") or "general").strip().lower()
+    if bucket == "grounding":
+        if section == "toc":
+            return "Reground the affected ToC claim and replace fallback or weak citations before next review."
+        if section == "logframe":
+            return "Reconnect the indicator to grounded evidence and replace fallback or weak citations before next review."
+        return "Replace fallback or weak evidence before the next reviewer pass."
+    if bucket == "measurement":
+        return "Tighten baseline, target, formula, or verification fields before the next export."
+    if bucket == "logic":
+        return "Revise the results logic or assumptions before the next draft revision."
+    if bucket == "compliance":
+        return "Align this section to donor-required structure or compliance rules before approval."
+    if section == "toc":
+        return "Revise the ToC section before the next reviewer pass."
+    if section == "logframe":
+        return "Revise the LogFrame or MEL section before the next reviewer pass."
+    return "Address this finding in the next revision cycle."
+
+
+def _triage_enriched_finding(item: Dict[str, Any]) -> Dict[str, Any]:
+    current = dict(item)
+    current["review_bucket"] = _finding_review_bucket(current)
+    current["triage_priority"] = _finding_triage_priority(current)
+    current["recommended_action"] = _finding_recommended_action(current)
+    current["staleness_band"] = _finding_staleness_band(current)
+    return current
+
+
+def _finding_priority_sort_key(item: Dict[str, Any]) -> tuple[int, int, int, str]:
+    priority = str(item.get("triage_priority") or "").strip().lower()
+    workflow_state = str(item.get("workflow_state") or "").strip().lower()
+    severity = str(item.get("severity") or "").strip().lower()
+    finding_id = finding_primary_id(item)
+    return (
+        FINDING_TRIAGE_PRIORITY_RANK.get(priority, -1),
+        1 if workflow_state == "overdue" else 0,
+        1 if severity == "high" else 0,
+        finding_id,
+    )
+
+
+def _critic_triage_summary_payload(critic_findings: list[Dict[str, Any]]) -> Dict[str, Any]:
+    findings = [_triage_enriched_finding(item) for item in critic_findings if isinstance(item, dict)]
+    unresolved = [
+        item for item in findings if str(item.get("status") or "open").strip().lower() not in {"resolved", "closed"}
+    ]
+    priority_counts = {key: 0 for key in FINDING_TRIAGE_PRIORITY_ORDER}
+    bucket_counts = {"grounding": 0, "measurement": 0, "logic": 0, "compliance": 0, "general": 0}
+    stale_open_finding_count = 0
+    for item in unresolved:
+        priority = str(item.get("triage_priority") or "").strip().lower()
+        bucket = str(item.get("review_bucket") or "").strip().lower()
+        staleness = str(item.get("staleness_band") or "").strip().lower()
+        if priority in priority_counts:
+            priority_counts[priority] += 1
+        if bucket in bucket_counts:
+            bucket_counts[bucket] += 1
+        if staleness in {"aging", "overdue"}:
+            stale_open_finding_count += 1
+    sorted_unresolved = sorted(unresolved, key=_finding_priority_sort_key, reverse=True)
+    top_priority_finding_ids = [finding_primary_id(item) for item in sorted_unresolved[:3] if finding_primary_id(item)]
+    next_item = sorted_unresolved[0] if sorted_unresolved else None
+    return {
+        "urgent_finding_count": int(priority_counts.get("urgent", 0)),
+        "high_priority_finding_count": int(priority_counts.get("high", 0)),
+        "stale_open_finding_count": stale_open_finding_count,
+        "priority_counts": priority_counts,
+        "review_bucket_counts": bucket_counts,
+        "top_priority_finding_ids": top_priority_finding_ids,
+        "next_review_section": str(next_item.get("section") or "").strip() or None if next_item else None,
+        "next_review_bucket": str(next_item.get("review_bucket") or "").strip() or None if next_item else None,
+        "next_recommended_action": (
+            str(next_item.get("recommended_action") or "").strip() or None if next_item else None
+        ),
+    }
 
 
 def _job_state_dict(job: Dict[str, Any]) -> Dict[str, Any]:
@@ -693,7 +869,7 @@ def public_job_review_workflow_payload(
         )
         current["due_at"] = due_at_dt.isoformat() if due_at_dt is not None else current.get("due_at")
         current["last_transition_at"] = last_transition_dt.isoformat() if last_transition_dt is not None else None
-        findings_with_workflow.append(current)
+        findings_with_workflow.append(_triage_enriched_finding(current))
 
     comments_with_workflow: list[Dict[str, Any]] = []
     for row in comments_list:
@@ -879,6 +1055,7 @@ def public_job_review_workflow_payload(
         "comment_status_counts": comment_status_counts,
         "timeline_event_count": len(timeline),
         "last_activity_at": last_activity_at,
+        "triage_summary": _critic_triage_summary_payload(findings_with_workflow),
     }
     return {
         "job_id": str(job_id),
@@ -1607,7 +1784,7 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
         critic_notes = {}
 
     normalized_flaws = state_critic_findings(state if isinstance(state, dict) else {}, default_source="rules")
-    fatal_flaws = [sanitize_for_public_response(item) for item in normalized_flaws]
+    fatal_flaws = [_triage_enriched_finding(sanitize_for_public_response(item)) for item in normalized_flaws]
 
     raw_comments = job.get("review_comments")
     linked_comment_ids_by_finding: dict[str, list[str]] = {}
@@ -1667,6 +1844,7 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
         "fatal_flaw_count": len(fatal_flaws),
         "fatal_flaws": fatal_flaws,
         "fatal_flaw_messages": fatal_flaw_messages,
+        "triage_summary": _critic_triage_summary_payload([item for item in fatal_flaws if isinstance(item, dict)]),
         "rule_check_count": len(rule_checks),
         "rule_checks": rule_checks,
         "llm_advisory_diagnostics": sanitize_for_public_response(critic_notes.get("llm_advisory_diagnostics")),

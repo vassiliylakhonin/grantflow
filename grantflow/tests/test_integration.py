@@ -4212,7 +4212,12 @@ def test_status_critic_findings_list_and_detail_support_filters():
     list_body = list_resp.json()
     assert list_body["job_id"] == job_id
     assert list_body["summary"]["finding_count"] == 3
+    assert list_body["summary"]["triage_summary"]["top_priority_finding_ids"][0] == "f-open"
     assert len(list_body["findings"]) == 3
+    assert list_body["findings"][0]["triage_priority"] in {"urgent", "high", "medium", "normal", "resolved"}
+    assert list_body["findings"][0]["review_bucket"] in {"grounding", "measurement", "logic", "compliance", "general"}
+    assert list_body["findings"][0]["recommended_action"]
+    assert list_body["findings"][0]["staleness_band"] in {"fresh", "aging", "overdue", "resolved"}
 
     open_resp = client.get(f"/status/{job_id}/critic/findings", params={"status": "open"})
     assert open_resp.status_code == 200
@@ -4243,6 +4248,7 @@ def test_status_critic_findings_list_and_detail_support_filters():
     detail_body = detail_resp.json()
     assert detail_body["finding_id"] == "f-ack"
     assert detail_body["status"] == "acknowledged"
+    assert detail_body["triage_priority"] in {"urgent", "high", "medium", "normal", "resolved"}
 
     invalid_status_resp = client.get(f"/status/{job_id}/critic/findings", params={"status": "invalid"})
     assert invalid_status_resp.status_code == 400
