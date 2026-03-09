@@ -48,6 +48,13 @@ def _extract_backtick_value(text: str, prefix: str) -> str:
     return "-"
 
 
+def _extract_suffix_value(text: str, prefix: str) -> str:
+    for line in text.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip() or "-"
+    return "-"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build a send-oriented index of current GrantFlow fast/full demo bundles."
@@ -75,12 +82,8 @@ def main() -> int:
     logframe_ready = _extract_backtick_value(executive_text, "- Cases with complete LogFrame operational coverage: `")
     smart_coverage = _extract_backtick_value(executive_text, "- SMART coverage (featured case): `")
     next_bucket = _extract_backtick_value(executive_text, "- Next review bucket (featured case): `")
-    next_action = "-"
-    for line in executive_text.splitlines():
-        prefix = "- Next recommended action (featured case): "
-        if line.startswith(prefix):
-            next_action = line[len(prefix) :].strip() or "-"
-            break
+    next_action = _extract_suffix_value(executive_text, "- Next recommended action (featured case): ")
+    top_reviewer_action = _extract_suffix_value(executive_text, "- Top reviewer action 1 (featured case): ")
 
     lines: list[str] = []
     lines.append("# GrantFlow Send Bundle Index")
@@ -128,6 +131,8 @@ def main() -> int:
         lines.append(f"- SMART coverage (featured case): `{smart_coverage}`")
         lines.append(f"- Next review bucket: `{next_bucket}`")
         lines.append(f"- Next recommended action: {next_action}")
+        if top_reviewer_action != "-":
+            lines.append(f"- Top reviewer action: {top_reviewer_action}")
         lines.append("")
     lines.append("## Supporting Artifacts")
     lines.append("")

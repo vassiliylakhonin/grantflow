@@ -39,6 +39,13 @@ def _extract_backtick_value(text: str, prefix: str) -> str:
     return "-"
 
 
+def _extract_suffix_value(text: str, prefix: str) -> str:
+    for line in text.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip() or "-"
+    return "-"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Build a short open-order guide for the latest GrantFlow demo/commercial artifacts."
@@ -56,6 +63,9 @@ def main() -> int:
     open_findings = _extract_backtick_value(executive_text, "- Open critic findings (featured case): `")
     fallback_citations = _extract_backtick_value(executive_text, "- Fallback/strategy citations (featured case): `")
     logframe_ready = _extract_backtick_value(executive_text, "- Cases with complete LogFrame operational coverage: `")
+    next_bucket = _extract_backtick_value(executive_text, "- Next review bucket (featured case): `")
+    next_action = _extract_suffix_value(executive_text, "- Next recommended action (featured case): ")
+    top_reviewer_action = _extract_suffix_value(executive_text, "- Top reviewer action 1 (featured case): ")
 
     lines: list[str] = []
     lines.append("# GrantFlow Latest Open Order")
@@ -88,6 +98,10 @@ def main() -> int:
         lines.append(f"- Open critic findings: `{open_findings}`")
         lines.append(f"- Fallback/strategy citations: `{fallback_citations}`")
         lines.append(f"- Complete LogFrame operational coverage: `{logframe_ready}`")
+        lines.append(f"- Next review bucket: `{next_bucket}`")
+        lines.append(f"- Next recommended action: {next_action}")
+        if top_reviewer_action != "-":
+            lines.append(f"- Top reviewer action: {top_reviewer_action}")
         lines.append("")
     lines.append("## Notes")
     lines.append("")
