@@ -192,17 +192,31 @@ def _add_critic_findings_section(doc: Document, critic_findings: list[Dict[str, 
         severity = finding.get("severity") or "unknown"
         code = finding.get("code") or "FINDING"
         section = finding.get("section") or "general"
-        title = f"[{status}] [{severity}] {section} · {code}"
+        review_title = str(finding.get("review_title") or "").strip()
+        title_suffix = review_title or str(code)
+        title = f"[{status}] [{severity}] {section} · {title_suffix}"
         doc.add_paragraph(title, style="List Bullet")
         message = str(finding.get("message") or "").strip()
         if message:
             doc.add_paragraph(message)
+        recommended_action = str(finding.get("recommended_action") or "").strip()
+        if recommended_action:
+            p = doc.add_paragraph()
+            p.add_run(f"Recommended action: {recommended_action}").italic = True
+        reviewer_next_step = str(finding.get("reviewer_next_step") or "").strip()
+        if reviewer_next_step:
+            p = doc.add_paragraph()
+            p.add_run(f"Reviewer next step: {reviewer_next_step}").italic = True
         fix_hint = str(finding.get("fix_hint") or "").strip()
         if fix_hint:
             p = doc.add_paragraph()
             p.add_run(f"Fix hint: {fix_hint}").italic = True
         finding_id = finding.get("id") or finding.get("finding_id")
         meta_bits: list[str] = []
+        if finding.get("review_bucket"):
+            meta_bits.append(f"bucket={finding.get('review_bucket')}")
+        if finding.get("triage_priority"):
+            meta_bits.append(f"priority={finding.get('triage_priority')}")
         if finding.get("version_id"):
             meta_bits.append(f"version={finding.get('version_id')}")
         if finding_id:

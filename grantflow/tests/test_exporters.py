@@ -807,7 +807,9 @@ def test_exporters_accept_critic_finding_id_alias():
     xlsx_content = build_xlsx_from_logframe({"indicators": []}, "usaid", critic_findings=findings)
     wb = load_workbook(BytesIO(xlsx_content))
     rows = list(wb["Critic Findings"].iter_rows(values_only=True))
-    assert any(row[7] == "finding-alias-1" for row in rows[1:])
+    headers = [str(cell or "") for cell in rows[0]]
+    finding_id_index = headers.index("Finding ID")
+    assert any(row[finding_id_index] == "finding-alias-1" for row in rows[1:])
 
 
 def test_excel_export_includes_donor_specific_sheets():

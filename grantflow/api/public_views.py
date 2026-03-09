@@ -203,37 +203,57 @@ def _finding_staleness_band(item: Dict[str, Any]) -> str:
     return "fresh"
 
 
-def _finding_recommended_action(item: Dict[str, Any]) -> str:
+def _finding_recommended_action(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> str:
     status = str(item.get("status") or "open").strip().lower()
     if status == "resolved":
         return "No action; keep this finding for audit traceability."
     bucket = _finding_review_bucket(item)
     section = str(item.get("section") or "general").strip().lower()
+    donor = str(donor_id or "").strip().lower()
+    donor_phrase = {
+        "usaid": "USAID results hierarchy and monitoring package",
+        "eu": "EU intervention logic and verification package",
+        "worldbank": "World Bank results framework and PDO package",
+        "giz": "GIZ technical cooperation results package",
+        "state_department": "State Department program logic and risk package",
+        "un_agencies": "UN results framework and verification package",
+    }.get(donor, "donor review package")
     if bucket == "grounding":
         if section == "toc":
-            return "Reground the affected ToC claim and replace fallback or weak citations before next review."
+            return f"Reground the affected ToC claim and replace fallback or weak citations in the {donor_phrase} before next review."
         if section == "logframe":
-            return "Reconnect the indicator to grounded evidence and replace fallback or weak citations before next review."
-        return "Replace fallback or weak evidence before the next reviewer pass."
+            return f"Reconnect the indicator to grounded evidence and replace fallback or weak citations in the {donor_phrase} before next review."
+        return f"Replace fallback or weak evidence before the next reviewer pass for the {donor_phrase}."
     if bucket == "measurement":
-        return "Tighten baseline, target, formula, or verification fields before the next export."
+        return (
+            f"Tighten baseline, target, formula, or verification fields before the next export of the {donor_phrase}."
+        )
     if bucket == "logic":
-        return "Revise the results logic or assumptions before the next draft revision."
+        return f"Revise the results logic or assumptions so the next draft aligns to the {donor_phrase}."
     if bucket == "compliance":
-        return "Align this section to donor-required structure or compliance rules before approval."
+        return (
+            f"Align this section to the required structure and compliance rules for the {donor_phrase} before approval."
+        )
     if section == "toc":
-        return "Revise the ToC section before the next reviewer pass."
+        return f"Revise the ToC section before the next reviewer pass for the {donor_phrase}."
     if section == "logframe":
-        return "Revise the LogFrame or MEL section before the next reviewer pass."
-    return "Address this finding in the next revision cycle."
+        return f"Revise the LogFrame or MEL section before the next reviewer pass for the {donor_phrase}."
+    return f"Address this finding in the next revision cycle for the {donor_phrase}."
 
 
-def _triage_enriched_finding(item: Dict[str, Any]) -> Dict[str, Any]:
+def _finding_reviewer_next_step(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> str:
+    action = _finding_recommended_action(item, donor_id=donor_id)
+    title = _finding_review_title(item)
+    return f"{title}: {action}"
+
+
+def _triage_enriched_finding(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> Dict[str, Any]:
     current = dict(item)
     current["review_title"] = _finding_review_title(current)
     current["review_bucket"] = _finding_review_bucket(current)
     current["triage_priority"] = _finding_triage_priority(current)
-    current["recommended_action"] = _finding_recommended_action(current)
+    current["recommended_action"] = _finding_recommended_action(current, donor_id=donor_id)
+    current["reviewer_next_step"] = _finding_reviewer_next_step(current, donor_id=donor_id)
     current["staleness_band"] = _finding_staleness_band(current)
     return current
 
@@ -695,6 +715,8 @@ def public_job_review_workflow_payload(
     workflow_state: Optional[str] = None,
     overdue_after_hours: int = REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
 ) -> Dict[str, Any]:
+    state_dict = _job_state_dict(job)
+    donor_id = state_donor_id(state_dict, default="")
     event_type_filter = str(event_type or "").strip() or None
     finding_id_filter = str(finding_id or "").strip() or None
     finding_code_filter = str(finding_code or "").strip().upper() or None
@@ -882,7 +904,7 @@ def public_job_review_workflow_payload(
         )
         current["due_at"] = due_at_dt.isoformat() if due_at_dt is not None else current.get("due_at")
         current["last_transition_at"] = last_transition_dt.isoformat() if last_transition_dt is not None else None
-        findings_with_workflow.append(_triage_enriched_finding(current))
+        findings_with_workflow.append(_triage_enriched_finding(current, donor_id=donor_id))
 
     comments_with_workflow: list[Dict[str, Any]] = []
     for row in comments_list:
@@ -1792,12 +1814,15 @@ def public_job_review_workflow_sla_hotspots_trends_payload(
 
 def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
     state = job.get("state")
+    donor_id = state_donor_id(_job_state_dict(job), default="")
     critic_notes = (state or {}).get("critic_notes") if isinstance(state, dict) else {}
     if not isinstance(critic_notes, dict):
         critic_notes = {}
 
     normalized_flaws = state_critic_findings(state if isinstance(state, dict) else {}, default_source="rules")
-    fatal_flaws = [_triage_enriched_finding(sanitize_for_public_response(item)) for item in normalized_flaws]
+    fatal_flaws = [
+        _triage_enriched_finding(sanitize_for_public_response(item), donor_id=donor_id) for item in normalized_flaws
+    ]
 
     raw_comments = job.get("review_comments")
     linked_comment_ids_by_finding: dict[str, list[str]] = {}
