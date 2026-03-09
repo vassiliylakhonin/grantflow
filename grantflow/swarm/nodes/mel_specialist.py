@@ -727,6 +727,99 @@ def _retrieval_indicator_justification(
     )
 
 
+def _retrieval_evidence_signal(
+    *,
+    donor_id: str,
+    excerpt: str,
+    source: str,
+    namespace: str,
+) -> str:
+    donor = str(donor_id or "").strip().lower()
+    text = " ".join(f"{excerpt} {source} {namespace}".split()).lower()
+    if donor == "usaid":
+        if any(token in text for token in ("pmp", "performance management plan", "indicator reference sheet")):
+            return "PMP and indicator reference evidence"
+        if any(token in text for token in ("cla", "learning agenda", "site visit", "spot-check")):
+            return "CLA and verification evidence"
+        return "USAID monitoring package evidence"
+    if donor == "eu":
+        if any(token in text for token in ("annex", "means of verification", "verification mission")):
+            return "verification annex evidence"
+        if any(token in text for token in ("action document", "logframe", "intervention logic")):
+            return "intervention-logic evidence"
+        return "EU intervention evidence"
+    if donor == "worldbank":
+        if any(token in text for token in ("isr", "implementation status", "aide-memoire", "aide memoire")):
+            return "ISR and aide-memoire evidence"
+        if any(token in text for token in ("pdo", "results framework", "intermediate results")):
+            return "results framework evidence"
+        return "World Bank implementation evidence"
+    if donor == "giz":
+        if any(token in text for token in ("sustainability", "partner validation", "implementation review")):
+            return "sustainability and partner validation evidence"
+        return "GIZ delivery evidence"
+    if donor in {"state_department", "us_state_department"}:
+        if any(token in text for token in ("editorial risk", "resilience review", "media partner")):
+            return "resilience review evidence"
+        if any(token in text for token in ("verification", "risk log", "partner monitoring")):
+            return "partner verification evidence"
+        return "State Department program evidence"
+    return "retrieved donor evidence"
+
+
+def _retrieval_definition_from_hit(
+    *,
+    donor_id: str,
+    namespace: str,
+    toc_statement_path: str,
+    result_level: str,
+    indicator_name: str,
+    excerpt: str,
+    source: str,
+) -> str:
+    donor = str(donor_id or "").strip().lower()
+    level = _normalize_result_level(result_level) or _infer_result_level_from_toc_path(toc_statement_path)
+    level_label = level or "outcome"
+    signal = _retrieval_evidence_signal(
+        donor_id=donor_id,
+        excerpt=excerpt,
+        source=source,
+        namespace=namespace,
+    )
+    label = str(indicator_name or "Indicator").strip() or "Indicator"
+    if donor == "usaid":
+        return (
+            f"{label} tracks a {level_label}-level USAID performance result using {signal}, "
+            "aligned to PMP-style monitoring and documented verification."
+        )
+    if donor == "eu":
+        return (
+            f"{label} tracks a {level_label}-level EU intervention result using {signal}, "
+            "explicit means of verification, and partner validation logic."
+        )
+    if donor == "worldbank":
+        if level == "impact":
+            return (
+                f"{label} tracks an impact-level Project Development Objective-style result using {signal}, "
+                "with completion-stage review and agency verification intent."
+            )
+        return (
+            f"{label} tracks a {level_label}-level World Bank results-framework result using {signal}, "
+            "with implementation-status and agency verification intent."
+        )
+    if donor == "giz":
+        return (
+            f"{label} tracks a {level_label}-level GIZ delivery result using {signal} "
+            "and sustainability-oriented review."
+        )
+    if donor in {"state_department", "us_state_department"}:
+        return (
+            f"{label} tracks a {level_label}-level State Department program result using {signal} "
+            "for delivery monitoring and resilience-oriented review."
+        )
+    return f"{label} tracks a {level_label}-level result using {signal}."
+
+
 def _default_disaggregation(indicator_name: str, *, donor_id: str, result_level: str) -> list[str]:
     name = str(indicator_name or "").strip().lower()
     donor = str(donor_id or "").strip().lower()
@@ -1583,10 +1676,22 @@ def _indicator_from_hit(
             result_level=result_level or "",
             indicator_name=name,
         )
+    definition = str(hit.get("definition") or "").strip()
+    if not definition:
+        definition = _retrieval_definition_from_hit(
+            donor_id=donor_id,
+            namespace=namespace,
+            toc_statement_path=toc_statement_path or f"retrieval_hit[{idx}]",
+            result_level=result_level or "",
+            indicator_name=name,
+            excerpt=str(hit.get("excerpt") or ""),
+            source=str(hit.get("source") or ""),
+        )
     indicator: Dict[str, Any] = {
         "indicator_id": str(hit.get("indicator_id") or f"IND_{idx + 1:03d}"),
         "name": name,
         "justification": justification,
+        "definition": definition,
         "citation": str(hit.get("label") or namespace),
         "baseline": baseline,
         "target": target,
@@ -1623,6 +1728,17 @@ def _normalize_indicator_item(
             result_level=result_level or "",
             indicator_name=name,
         )
+    definition = str(item.get("definition") or "").strip()
+    if not definition:
+        definition = _retrieval_definition_from_hit(
+            donor_id=donor_id,
+            namespace=namespace,
+            toc_statement_path=toc_statement_path or f"normalized_item[{idx}]",
+            result_level=result_level or "",
+            indicator_name=name,
+            excerpt=str(item.get("evidence_excerpt") or ""),
+            source=str(item.get("citation") or ""),
+        )
     citation = str(item.get("citation") or "").strip() or namespace
     baseline, target = _resolve_baseline_target(
         baseline_raw=item.get("baseline"),
@@ -1638,6 +1754,7 @@ def _normalize_indicator_item(
         "indicator_id": indicator_id,
         "name": name,
         "justification": justification,
+        "definition": definition,
         "citation": citation,
         "baseline": baseline,
         "target": target,
