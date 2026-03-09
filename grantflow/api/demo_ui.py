@@ -5100,8 +5100,10 @@ def render_demo_ui_html() -> str:
             if (workflowStatus) parts.push(`status=${workflowStatus}`);
             els.criticWorkflowFilterSuggestion.textContent =
               `workflow filter suggestion: bulk critic filters are empty; use workflow filters (${parts.join(" · ")})`;
+            els.criticWorkflowFilterSuggestion.className = "item severity-medium mono";
           } else {
             els.criticWorkflowFilterSuggestion.textContent = "workflow filter suggestion: -";
+            els.criticWorkflowFilterSuggestion.className = "footer-note mono";
           }
         }
       }
@@ -5127,8 +5129,10 @@ def render_demo_ui_html() -> str:
             if (workflowStatus) parts.push(`status=${workflowStatus}`);
             els.commentWorkflowFilterSuggestion.textContent =
               `workflow filter suggestion: bulk comment filters are empty; use workflow filters (${parts.join(" · ")})`;
+            els.commentWorkflowFilterSuggestion.className = "item severity-medium mono";
           } else {
             els.commentWorkflowFilterSuggestion.textContent = "workflow filter suggestion: -";
+            els.commentWorkflowFilterSuggestion.className = "footer-note mono";
           }
         }
       }

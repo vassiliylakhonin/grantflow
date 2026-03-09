@@ -810,6 +810,7 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "Copy Selected IDs",
         "Fill From Workflow View",
         "workflow filter suggestion:",
+        "item severity-medium mono",
         "Scope",
         "Filter Basis",
         "Status Transition",
