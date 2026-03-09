@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
+from grantflow.api.public_views import _comment_triage_summary_payload
+
 
 DEFAULT_PRESET_KEYS = (
     "usaid_gov_ai_kazakhstan",
@@ -141,6 +143,177 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def _iso_at_offset(*, days: int = 0, hours: int = 0) -> str:
+    dt = datetime.now(timezone.utc)
+    dt = dt.replace(microsecond=0)
+    return (
+        (dt.fromtimestamp(dt.timestamp() - (days * 86400 + hours * 3600), tz=timezone.utc))
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
+
+
+def _first_finding_id_for_section(critic_payload: dict[str, Any], section: str) -> str:
+    findings = critic_payload.get("fatal_flaws")
+    if not isinstance(findings, list):
+        return ""
+    for item in findings:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("section") or "").strip().lower() != section:
+            continue
+        token = str(item.get("finding_id") or item.get("id") or "").strip()
+        if token:
+            return token
+    for item in findings:
+        if not isinstance(item, dict):
+            continue
+        token = str(item.get("finding_id") or item.get("id") or "").strip()
+        if token:
+            return token
+    return ""
+
+
+def _seed_review_comments(
+    *,
+    preset_key: str,
+    donor_id: str,
+    critic_payload: dict[str, Any],
+) -> list[dict[str, Any]]:
+    logic_finding = _first_finding_id_for_section(critic_payload, "toc")
+    logframe_finding = _first_finding_id_for_section(critic_payload, "logframe")
+    general_finding = _first_finding_id_for_section(critic_payload, "general")
+    donor_token = donor_id.strip().lower()
+    if donor_token == "usaid":
+        return [
+            {
+                "comment_id": f"{preset_key}-comment-logic-stale",
+                "status": "open",
+                "section": "toc",
+                "author": "proposal-lead",
+                "message": "Rewrite the objective and IR chain so each result step reads as a distinct causal move, not repeated boilerplate.",
+                "version_id": "toc_v1",
+                "linked_finding_id": logic_finding or None,
+                "ts": _iso_at_offset(days=9),
+                "updated_ts": _iso_at_offset(days=8, hours=12),
+            },
+            {
+                "comment_id": f"{preset_key}-comment-grounding-ack",
+                "status": "acknowledged",
+                "section": "toc",
+                "author": "mel-lead",
+                "message": "Keep the claim, but attach stronger evidence and citation traceability before external review.",
+                "version_id": "toc_v1",
+                "linked_finding_id": logic_finding or general_finding or None,
+                "ts": _iso_at_offset(days=4),
+                "updated_ts": _iso_at_offset(days=3, hours=12),
+                "acknowledged_at": _iso_at_offset(days=3, hours=12),
+                "acknowledged_by": "mel-lead",
+            },
+            {
+                "comment_id": f"{preset_key}-comment-logframe-resolved",
+                "status": "resolved",
+                "section": "logframe",
+                "author": "review-manager",
+                "message": "Baseline and target placeholders were replaced with reviewer-defensible values.",
+                "version_id": "logframe_v1",
+                "linked_finding_id": logframe_finding or None,
+                "ts": _iso_at_offset(days=2),
+                "updated_ts": _iso_at_offset(days=1, hours=12),
+                "resolved_at": _iso_at_offset(days=1, hours=12),
+            },
+        ]
+    if donor_token == "eu":
+        return [
+            {
+                "comment_id": f"{preset_key}-comment-measurement-stale",
+                "status": "open",
+                "section": "logframe",
+                "author": "eu-reviewer",
+                "message": "Tighten means of verification and owner assignment for the intervention-logic row before formal review.",
+                "version_id": "logframe_v1",
+                "linked_finding_id": logframe_finding or general_finding or None,
+                "ts": _iso_at_offset(days=5),
+                "updated_ts": _iso_at_offset(days=4, hours=6),
+            }
+        ]
+    if donor_token == "worldbank":
+        return [
+            {
+                "comment_id": f"{preset_key}-comment-pdo-resolved",
+                "status": "resolved",
+                "section": "toc",
+                "author": "results-specialist",
+                "message": "PDO wording now matches the results-framework and ISR review package.",
+                "version_id": "toc_v1",
+                "linked_finding_id": logic_finding or general_finding or None,
+                "ts": _iso_at_offset(days=1, hours=12),
+                "updated_ts": _iso_at_offset(days=1),
+                "resolved_at": _iso_at_offset(days=1),
+            }
+        ]
+    return []
+
+
+def _apply_seeded_review_comments(
+    *,
+    preset_key: str,
+    donor_id: str,
+    quality_payload: dict[str, Any],
+    critic_payload: dict[str, Any],
+    export_payload_wrapper: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    seeded_comments = _seed_review_comments(preset_key=preset_key, donor_id=donor_id, critic_payload=critic_payload)
+    if not seeded_comments:
+        return quality_payload, export_payload_wrapper, []
+
+    payload_root = export_payload_wrapper.get("payload")
+    payload_root_dict = dict(payload_root) if isinstance(payload_root, dict) else {}
+    payload_root_dict["review_comments"] = seeded_comments
+    updated_export_payload_wrapper = dict(export_payload_wrapper)
+    updated_export_payload_wrapper["payload"] = payload_root_dict
+
+    raw_findings = critic_payload.get("fatal_flaws")
+    findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+    comment_triage = _comment_triage_summary_payload(
+        review_comments=seeded_comments,
+        critic_findings=findings,
+        donor_id=donor_id,
+    )
+    total_comment_count = len(seeded_comments)
+    resolved_comment_count = int(comment_triage.get("resolved_comment_count") or 0)
+    acknowledged_comment_count = int(comment_triage.get("acknowledged_comment_count") or 0)
+    updated_readiness = dict(
+        quality_payload.get("review_readiness_summary")
+        if isinstance(quality_payload.get("review_readiness_summary"), dict)
+        else {}
+    )
+    updated_readiness.update(
+        {
+            "open_review_comments": int(comment_triage.get("open_comment_count") or 0),
+            "resolved_review_comments": resolved_comment_count,
+            "acknowledged_review_comments": acknowledged_comment_count,
+            "pending_review_comments": int(comment_triage.get("pending_comment_count") or 0),
+            "overdue_review_comments": int(comment_triage.get("overdue_comment_count") or 0),
+            "stale_open_review_comments": int(comment_triage.get("stale_open_comment_count") or 0),
+            "linked_review_comments": int(comment_triage.get("linked_comment_count") or 0),
+            "orphan_linked_review_comments": int(comment_triage.get("orphan_linked_comment_count") or 0),
+            "review_comment_resolution_rate": (
+                round(resolved_comment_count / total_comment_count, 4) if total_comment_count else None
+            ),
+            "review_comment_acknowledgment_rate": (
+                round((resolved_comment_count + acknowledged_comment_count) / total_comment_count, 4)
+                if total_comment_count
+                else None
+            ),
+            "comment_triage_summary": comment_triage,
+        }
+    )
+    updated_quality_payload = dict(quality_payload)
+    updated_quality_payload["review_readiness_summary"] = updated_readiness
+    return updated_quality_payload, updated_export_payload_wrapper, seeded_comments
+
+
 def _apply_generate_overrides(
     payload: dict[str, Any],
     *,
@@ -263,8 +436,8 @@ def _build_summary(root: Path, rows: list[dict[str, Any]], *, llm_mode: bool, hi
     lines.append("")
     lines.append("## Cases")
     lines.append("")
-    lines.append("| Preset | Donor | Job ID | Status | Quality | Critic | Citations | HITL |")
-    lines.append("|---|---|---|---|---:|---:|---:|---|")
+    lines.append("| Preset | Donor | Job ID | Status | Quality | Critic | Citations | HITL | Seeded Comments |")
+    lines.append("|---|---|---|---|---:|---:|---:|---|---:|")
     for row in rows:
         lines.append(
             "| "
@@ -278,6 +451,7 @@ def _build_summary(root: Path, rows: list[dict[str, Any]], *, llm_mode: bool, hi
                     str(row.get("critic_score")),
                     str(row.get("citation_count")),
                     "yes" if row.get("hitl_enabled") else "no",
+                    str(row.get("seeded_review_comments") or 0),
                 ]
             )
             + " |"
@@ -298,6 +472,9 @@ def _build_summary(root: Path, rows: list[dict[str, Any]], *, llm_mode: bool, hi
     lines.append("## Notes")
     lines.append("- This bundle is intended for demos and pilot evaluation, not final donor submission.")
     lines.append("- Grounding and citation quality remain dependent on corpus quality when RAG is enabled.")
+    lines.append(
+        "- When review-comment seeding is enabled, demo artifacts include a synthetic reviewer workflow scenario for triage and throughput evidence."
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -312,6 +489,7 @@ def main() -> int:
     parser.add_argument("--poll-interval-seconds", type=float, default=0.25)
     parser.add_argument("--llm-mode", action="store_true")
     parser.add_argument("--architect-rag-enabled", action="store_true")
+    parser.add_argument("--seed-review-comments", action="store_true")
     args = parser.parse_args()
 
     base_url = str(args.api_base).rstrip("/")
@@ -392,6 +570,7 @@ def main() -> int:
             "status.json": f"{base_url}/status/{job_id}",
             "quality.json": f"{base_url}/status/{job_id}/quality",
             "critic.json": f"{base_url}/status/{job_id}/critic",
+            "comments.json": f"{base_url}/status/{job_id}/comments",
             "citations.json": f"{base_url}/status/{job_id}/citations",
             "versions.json": f"{base_url}/status/{job_id}/versions",
             "metrics.json": f"{base_url}/status/{job_id}/metrics",
@@ -405,7 +584,28 @@ def main() -> int:
             fetched[filename] = payload
             _write_json(case_dir / filename, payload)
 
-        export_payload = dict(fetched["export-payload.json"].get("payload") or {})
+        quality_payload = fetched["quality.json"]
+        export_payload_wrapper = fetched["export-payload.json"]
+        seeded_review_comments: list[dict[str, Any]] = []
+        if bool(args.seed_review_comments):
+            quality_payload, export_payload_wrapper, seeded_review_comments = _apply_seeded_review_comments(
+                preset_key=preset_key,
+                donor_id=donor_id,
+                quality_payload=quality_payload,
+                critic_payload=fetched["critic.json"],
+                export_payload_wrapper=export_payload_wrapper,
+            )
+            fetched["quality.json"] = quality_payload
+            fetched["export-payload.json"] = export_payload_wrapper
+            fetched["comments.json"] = {
+                "job_id": job_id,
+                "comments": seeded_review_comments,
+            }
+            _write_json(case_dir / "quality.json", quality_payload)
+            _write_json(case_dir / "export-payload.json", export_payload_wrapper)
+            _write_json(case_dir / "comments.json", fetched["comments.json"])
+
+        export_payload = dict(export_payload_wrapper.get("payload") or {})
         for export_format, filename in (
             ("both", "review-package.zip"),
             ("docx", "toc-review-package.docx"),
@@ -419,7 +619,6 @@ def main() -> int:
             )
             (case_dir / filename).write_bytes(content)
 
-        quality_payload = fetched["quality.json"]
         citations_payload = fetched["citations.json"]
         final_status_payload = fetched["status.json"]
         final_donor_id = str(
@@ -440,6 +639,7 @@ def main() -> int:
                 "hitl_enabled": hitl_enabled,
                 "case_dir": case_dir_name,
                 "generate_mode": generate_mode,
+                "seeded_review_comments": len(seeded_review_comments),
             }
         )
 

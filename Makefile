@@ -32,6 +32,7 @@ DEMO_PACK_PRESET_KEYS ?= usaid_gov_ai_kazakhstan,eu_digital_governance_moldova,w
 DEMO_PACK_HITL_PRESET_KEY ?= usaid_gov_ai_kazakhstan
 DEMO_PACK_LLM_MODE ?= 0
 DEMO_PACK_ARCHITECT_RAG_ENABLED ?= 0
+DEMO_PACK_SEED_REVIEW_COMMENTS ?= 1
 PILOT_PACK_DIR ?= build/pilot-pack
 PILOT_PACK_DEMO_DIR ?= $(DEMO_PACK_DIR)
 PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO ?= 0
@@ -305,7 +306,8 @@ demo-pack:
 		--preset-keys $(DEMO_PACK_PRESET_KEYS) \
 		--hitl-preset-key $(DEMO_PACK_HITL_PRESET_KEY) \
 		$(if $(filter 1 true TRUE yes YES,$(DEMO_PACK_LLM_MODE)),--llm-mode,) \
-		$(if $(filter 1 true TRUE yes YES,$(DEMO_PACK_ARCHITECT_RAG_ENABLED)),--architect-rag-enabled,)
+		$(if $(filter 1 true TRUE yes YES,$(DEMO_PACK_ARCHITECT_RAG_ENABLED)),--architect-rag-enabled,) \
+		$(if $(filter 1 true TRUE yes YES,$(DEMO_PACK_SEED_REVIEW_COMMENTS)),--seed-review-comments,)
 
 pilot-pack: demo-pack
 	mkdir -p $(PILOT_PACK_DIR)

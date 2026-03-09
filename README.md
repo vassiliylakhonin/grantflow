@@ -215,6 +215,7 @@ make dev-runtime-refresh
 ```
 
 Default output: `build/demo-pack/` with per-case JSON traces plus `.docx` / `.xlsx` / ZIP artifacts. The target expects a running local API at `http://127.0.0.1:8000`.
+By default, `demo-pack` also seeds a synthetic reviewer comment workflow into the saved demo artifacts so buyer-facing bundles show comment throughput, stale threads, and triage behavior. Disable with `DEMO_PACK_SEED_REVIEW_COMMENTS=0`.
 `make pilot-pack` wraps the live demo evidence into `build/pilot-pack/` with a top-level pilot README plus buyer/demo guidance docs.
 `make buyer-brief` turns an existing pilot pack into a short executive summary markdown for sponsor or buyer review.
 `make buyer-brief-refresh` rebuilds the pilot pack first and then writes the brief.

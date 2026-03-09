@@ -73,6 +73,7 @@ make dev-runtime-refresh
 ```
 
 This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
+It also seeds a synthetic reviewer comment workflow into the saved demo artifacts unless you set `DEMO_PACK_SEED_REVIEW_COMMENTS=0`.
 `make pilot-pack` additionally assembles a stakeholder-facing folder in `build/pilot-pack/` with the live run evidence plus buyer and pilot evaluation docs.
 `make buyer-brief` writes a concise executive summary markdown from an existing pilot pack.
 `make buyer-brief-refresh` rebuilds the pilot pack first, then writes the brief.
@@ -236,6 +237,7 @@ Useful overrides:
 make demo-pack DEMO_PACK_DIR=build/demo-pack-llm DEMO_PACK_LLM_MODE=1 DEMO_PACK_ARCHITECT_RAG_ENABLED=1
 make demo-pack DEMO_PACK_PRESET_KEYS=usaid_gov_ai_kazakhstan,worldbank_public_sector_uzbekistan
 make demo-pack DEMO_PACK_API_KEY=change-me
+make demo-pack DEMO_PACK_SEED_REVIEW_COMMENTS=0
 make pilot-pack PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
 make buyer-brief BUYER_BRIEF_OUT=build/pilot-pack/buyer-brief-custom.md
 make buyer-brief-refresh PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
