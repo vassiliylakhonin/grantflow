@@ -503,7 +503,7 @@ buyer-demo-open-refresh: pilot-refresh-fast
 	$(MAKE) buyer-demo-open BUYER_DEMO_OPEN_BUILD_DIR=$(BUYER_DEMO_OPEN_BUILD_DIR) BUYER_DEMO_OPEN_MODE=$(BUYER_DEMO_OPEN_MODE)
 
 ci-demo-smoke:
-	$(PYTHON) -m pytest grantflow/tests/test_integration.py -k "test_demo_console_page_loads or test_demo_console_includes_bulk_preview_summary_helpers or test_demo_console_exposes_end_to_end_bulk_review_controls" -q
+	$(PYTHON) -m pytest grantflow/tests/test_integration.py -k "test_demo_console_page_loads or test_demo_console_includes_bulk_preview_summary_helpers or test_demo_console_exposes_end_to_end_bulk_review_controls or test_status_comments_bulk_status_dry_run_previews_selected_ids_without_persisting or test_status_critic_bulk_status_dry_run_previews_selected_ids_without_persisting" -q
 	$(MAKE) buyer-demo-open-refresh \
 		DEMO_PACK_DIR=$(CI_DEMO_SMOKE_ROOT)/demo-pack \
 		DEMO_PACK_PRESET_KEYS=$(CI_DEMO_SMOKE_PRESET_KEY) \
