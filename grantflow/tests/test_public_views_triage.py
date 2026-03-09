@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from grantflow.api.public_views import (
     _comment_triage_summary_payload,
     _finding_recommended_action,
     _finding_review_title,
+    public_job_review_workflow_payload,
+    public_portfolio_review_workflow_payload,
 )
 
 
@@ -131,6 +135,7 @@ def test_finding_review_title_uses_semantic_mapping_for_traceability_gap():
 
 
 def test_comment_triage_summary_tracks_overdue_and_next_action():
+    now = datetime.now(timezone.utc)
     summary = _comment_triage_summary_payload(
         review_comments=[
             {
@@ -138,23 +143,23 @@ def test_comment_triage_summary_tracks_overdue_and_next_action():
                 "status": "open",
                 "section": "toc",
                 "linked_finding_id": "finding-1",
-                "ts": "2026-03-01T10:00:00+00:00",
-                "due_at": "2026-03-01T11:00:00+00:00",
+                "ts": (now - timedelta(days=3)).isoformat(),
+                "due_at": (now - timedelta(days=2, hours=20)).isoformat(),
             },
             {
                 "comment_id": "comment-2",
                 "status": "acknowledged",
                 "section": "logframe",
                 "linked_finding_id": "finding-2",
-                "ts": "2026-03-03T09:00:00+00:00",
-                "acknowledged_at": "2026-03-03T09:15:00+00:00",
+                "ts": (now - timedelta(hours=6)).isoformat(),
+                "acknowledged_at": (now - timedelta(hours=5, minutes=45)).isoformat(),
             },
             {
                 "comment_id": "comment-3",
                 "status": "resolved",
                 "section": "logframe",
-                "ts": "2026-03-03T10:00:00+00:00",
-                "resolved_at": "2026-03-03T10:30:00+00:00",
+                "ts": (now - timedelta(hours=5)).isoformat(),
+                "resolved_at": (now - timedelta(hours=4, minutes=30)).isoformat(),
             },
         ],
         critic_findings=[
@@ -180,9 +185,164 @@ def test_comment_triage_summary_tracks_overdue_and_next_action():
     assert summary["acknowledged_comment_count"] == 1
     assert summary["overdue_comment_count"] == 1
     assert summary["stale_open_comment_count"] == 1
-    assert summary["aging_band_counts"]["d1_3"] == 1
+    assert summary["aging_band_counts"]["d3_7"] == 1
     assert summary["aging_band_counts"]["lt_24h"] == 1
     assert summary["next_comment_section"] == "toc"
     assert summary["next_comment_bucket"] == "logic"
     assert summary["comment_bucket_counts"]["logic"] == 1
     assert "USAID results hierarchy" in str(summary["next_recommended_action"])
+
+
+def test_job_review_workflow_payload_emits_comment_triage_and_reviewer_workflow_summary():
+    job = {
+        "status": "done",
+        "state": {
+            "donor_id": "usaid",
+            "critic_notes": {
+                "fatal_flaws": [
+                    {
+                        "finding_id": "finding-1",
+                        "status": "open",
+                        "severity": "high",
+                        "section": "toc",
+                        "message": "Theory of Change repeats boilerplate narrative across multiple sections.",
+                    }
+                ]
+            },
+            "critic_fatal_flaws": [
+                {
+                    "finding_id": "finding-1",
+                    "status": "open",
+                    "severity": "high",
+                    "section": "toc",
+                    "message": "Theory of Change repeats boilerplate narrative across multiple sections.",
+                }
+            ],
+        },
+        "review_comments": [
+            {
+                "comment_id": "comment-1",
+                "status": "open",
+                "section": "toc",
+                "linked_finding_id": "finding-1",
+                "ts": "2026-03-01T10:00:00+00:00",
+                "updated_ts": "2026-03-01T10:30:00+00:00",
+                "due_at": "2026-03-01T11:00:00+00:00",
+            },
+            {
+                "comment_id": "comment-2",
+                "status": "acknowledged",
+                "section": "toc",
+                "linked_finding_id": "finding-1",
+                "ts": "2026-03-03T09:00:00+00:00",
+                "acknowledged_at": "2026-03-03T09:15:00+00:00",
+            },
+            {
+                "comment_id": "comment-3",
+                "status": "resolved",
+                "section": "logframe",
+                "ts": "2026-03-03T10:00:00+00:00",
+                "resolved_at": "2026-03-03T10:30:00+00:00",
+            },
+        ],
+        "job_events": [
+            {
+                "event_id": "evt-1",
+                "ts": "2026-03-01T10:30:00+00:00",
+                "type": "review_comment_added",
+                "comment_id": "comment-1",
+                "section": "toc",
+            },
+            {
+                "event_id": "evt-2",
+                "ts": "2026-03-03T09:15:00+00:00",
+                "type": "review_comment_status_changed",
+                "comment_id": "comment-2",
+                "section": "toc",
+                "status": "acknowledged",
+            },
+            {
+                "event_id": "evt-3",
+                "ts": "2026-03-03T10:30:00+00:00",
+                "type": "review_comment_status_changed",
+                "comment_id": "comment-3",
+                "section": "logframe",
+                "status": "resolved",
+            },
+        ],
+    }
+    payload = public_job_review_workflow_payload("job-1", job)
+    summary = payload["summary"]
+    assert summary["acknowledged_comment_count"] == 1
+    assert summary["comment_triage_summary"]["stale_comment_bucket_counts"]["logic"] == 2
+    assert summary["comment_triage_summary"]["next_comment_bucket"] == "logic"
+    assert summary["reviewer_workflow_summary"]["open_items"] == 3
+    assert summary["reviewer_workflow_summary"]["acknowledged_items"] == 1
+    assert summary["reviewer_workflow_summary"]["resolved_items"] == 1
+    assert summary["reviewer_workflow_summary"]["top_stale_comment_bucket"] == "logic"
+
+
+def test_portfolio_review_workflow_payload_aggregates_reviewer_workflow_summary():
+    base_job = {
+        "status": "done",
+        "state": {
+            "donor_id": "usaid",
+            "critic_notes": {
+                "fatal_flaws": [
+                    {
+                        "finding_id": "finding-1",
+                        "status": "open",
+                        "severity": "high",
+                        "section": "toc",
+                        "message": "Theory of Change repeats boilerplate narrative across multiple sections.",
+                    }
+                ]
+            },
+            "critic_fatal_flaws": [
+                {
+                    "finding_id": "finding-1",
+                    "status": "open",
+                    "severity": "high",
+                    "section": "toc",
+                    "message": "Theory of Change repeats boilerplate narrative across multiple sections.",
+                }
+            ],
+        },
+        "review_comments": [
+            {
+                "comment_id": "comment-1",
+                "status": "open",
+                "section": "toc",
+                "linked_finding_id": "finding-1",
+                "ts": "2026-03-01T10:00:00+00:00",
+                "updated_ts": "2026-03-01T10:30:00+00:00",
+                "due_at": "2026-03-01T11:00:00+00:00",
+            }
+        ],
+        "job_events": [
+            {
+                "event_id": "evt-1",
+                "ts": "2026-03-01T10:30:00+00:00",
+                "type": "review_comment_added",
+                "comment_id": "comment-1",
+                "section": "toc",
+            }
+        ],
+    }
+    portfolio = public_portfolio_review_workflow_payload(
+        {
+            "job-1": base_job,
+            "job-2": {
+                **base_job,
+                "state": {
+                    **base_job["state"],
+                    "donor_id": "eu",
+                },
+            },
+        }
+    )
+    summary = portfolio["summary"]
+    assert summary["comment_status_counts"]["open"] == 2
+    assert summary["reviewer_workflow_summary"]["open_items"] >= 2
+    assert summary["reviewer_workflow_summary"]["stale_comment_bucket_counts"]["logic"] == 2
+    assert summary["reviewer_workflow_summary"]["top_stale_comment_bucket"] == "logic"

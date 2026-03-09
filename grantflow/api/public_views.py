@@ -1194,6 +1194,7 @@ def public_job_review_workflow_payload(
         "pending_finding_count": pending_finding_count,
         "overdue_finding_count": overdue_finding_count,
         "open_comment_count": int(comment_status_counts.get("open", 0)),
+        "acknowledged_comment_count": int(comment_status_counts.get("acknowledged", 0)),
         "resolved_comment_count": int(comment_status_counts.get("resolved", 0)),
         "pending_comment_count": pending_comment_count,
         "overdue_comment_count": overdue_comment_count,
@@ -1203,7 +1204,16 @@ def public_job_review_workflow_payload(
         "timeline_event_count": len(timeline),
         "last_activity_at": last_activity_at,
         "triage_summary": _critic_triage_summary_payload(findings_with_workflow, donor_id=donor_id),
+        "comment_triage_summary": _comment_triage_summary_payload(
+            review_comments=comments_with_workflow,
+            critic_findings=findings_with_workflow,
+            donor_id=donor_id,
+        ),
     }
+    summary["reviewer_workflow_summary"] = _reviewer_workflow_summary_payload(
+        critic_findings=findings_with_workflow,
+        comment_triage_summary=cast(dict[str, Any], summary["comment_triage_summary"]),
+    )
     return {
         "job_id": str(job_id),
         "status": str(job.get("status") or ""),
@@ -2547,9 +2557,10 @@ def _review_readiness_summary_payload(
         for item in critic_findings
         if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "acknowledged"
     )
-    total_reviewer_items = len([item for item in critic_findings if isinstance(item, dict)]) + total_comment_count
-    resolved_reviewer_items = resolved_finding_count + resolved_comment_count
-    acknowledged_reviewer_items = acknowledged_finding_count + acknowledged_comment_count
+    reviewer_workflow_summary = _reviewer_workflow_summary_payload(
+        critic_findings=[item for item in critic_findings if isinstance(item, dict)],
+        comment_triage_summary=comment_triage_summary,
+    )
     return {
         "needs_revision": sanitize_for_public_response(needs_revision),
         "open_critic_findings": len(open_findings),
@@ -2572,19 +2583,7 @@ def _review_readiness_summary_payload(
             if total_comment_count
             else None
         ),
-        "reviewer_workflow_summary": {
-            "open_items": len(open_findings) + len(open_review_comments),
-            "acknowledged_items": acknowledged_reviewer_items,
-            "resolved_items": resolved_reviewer_items,
-            "resolution_rate": (
-                round(resolved_reviewer_items / total_reviewer_items, 4) if total_reviewer_items else None
-            ),
-            "acknowledgment_rate": (
-                round((resolved_reviewer_items + acknowledged_reviewer_items) / total_reviewer_items, 4)
-                if total_reviewer_items
-                else None
-            ),
-        },
+        "reviewer_workflow_summary": reviewer_workflow_summary,
         "low_confidence_citations": len(low_confidence_citations),
         "fallback_strategy_citations": len(fallback_strategy_citations),
         "comment_triage_summary": comment_triage_summary,
@@ -2613,7 +2612,8 @@ def _comment_triage_summary_payload(
             parsed = _parse_event_ts(item.get(key))
             if parsed is not None:
                 timestamp_candidates.append(parsed)
-    reference_ts = max(timestamp_candidates) if timestamp_candidates else datetime.now(timezone.utc)
+    now_ts = datetime.now(timezone.utc)
+    reference_ts = max(timestamp_candidates + [now_ts]) if timestamp_candidates else now_ts
 
     open_count = 0
     resolved_count = 0
@@ -2785,6 +2785,78 @@ def _comment_triage_summary_payload(
         "next_comment_section": next_comment_section,
         "next_comment_bucket": next_comment_bucket,
         "next_recommended_action": next_recommended_action,
+    }
+
+
+def _reviewer_workflow_summary_payload(
+    *,
+    critic_findings: list[dict[str, Any]],
+    comment_triage_summary: dict[str, Any],
+) -> dict[str, Any]:
+    open_finding_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "open").strip().lower() == "open"
+    )
+    acknowledged_finding_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "acknowledged"
+    )
+    resolved_finding_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+    )
+    total_comment_count = int(
+        (comment_triage_summary.get("open_comment_count") or 0)
+        + (comment_triage_summary.get("resolved_comment_count") or 0)
+    )
+    resolved_comment_count = int(comment_triage_summary.get("resolved_comment_count") or 0)
+    acknowledged_comment_count = int(comment_triage_summary.get("acknowledged_comment_count") or 0)
+    total_reviewer_items = len([item for item in critic_findings if isinstance(item, dict)]) + total_comment_count
+    resolved_reviewer_items = resolved_finding_count + resolved_comment_count
+    acknowledged_reviewer_items = acknowledged_finding_count + acknowledged_comment_count
+    stale_bucket_counts = (
+        comment_triage_summary.get("stale_comment_bucket_counts")
+        if isinstance(comment_triage_summary.get("stale_comment_bucket_counts"), dict)
+        else {}
+    )
+    top_stale_bucket = None
+    if stale_bucket_counts:
+        ranked = sorted(
+            (
+                (str(bucket).strip().lower() or "general", int(count or 0))
+                for bucket, count in stale_bucket_counts.items()
+            ),
+            key=lambda row: (row[1], row[0]),
+            reverse=True,
+        )
+        if ranked and ranked[0][1] > 0:
+            top_stale_bucket = ranked[0][0]
+    return {
+        "open_items": open_finding_count + int(comment_triage_summary.get("open_comment_count") or 0),
+        "acknowledged_items": acknowledged_reviewer_items,
+        "resolved_items": resolved_reviewer_items,
+        "resolution_rate": (round(resolved_reviewer_items / total_reviewer_items, 4) if total_reviewer_items else None),
+        "acknowledgment_rate": (
+            round((resolved_reviewer_items + acknowledged_reviewer_items) / total_reviewer_items, 4)
+            if total_reviewer_items
+            else None
+        ),
+        "stale_comment_bucket_counts": dict(
+            sorted(
+                (
+                    str(bucket).strip().lower() or "general",
+                    int(count or 0),
+                )
+                for bucket, count in stale_bucket_counts.items()
+                if int(count or 0) > 0
+            )
+        ),
+        "top_stale_comment_bucket": top_stale_bucket,
+        "next_comment_bucket": comment_triage_summary.get("next_comment_bucket"),
+        "next_comment_action": comment_triage_summary.get("next_recommended_action"),
     }
 
 
@@ -5692,6 +5764,7 @@ def public_portfolio_review_workflow_payload(
     finding_status_counts: Dict[str, int] = {"open": 0, "acknowledged": 0, "resolved": 0}
     finding_severity_counts: Dict[str, int] = {"high": 0, "medium": 0, "low": 0}
     comment_status_counts: Dict[str, int] = {}
+    stale_comment_bucket_counts: Dict[str, int] = {}
     timeline_event_type_counts: Dict[str, int] = {}
     timeline_kind_counts: Dict[str, int] = {}
     timeline_section_counts: Dict[str, int] = {}
@@ -5716,6 +5789,9 @@ def public_portfolio_review_workflow_payload(
     jobs_with_activity = 0
     jobs_with_overdue = 0
     activity_dt_values: list[datetime] = []
+    reviewer_workflow_open_items = 0
+    reviewer_workflow_acknowledged_items = 0
+    reviewer_workflow_resolved_items = 0
 
     latest_timeline_all: list[Dict[str, Any]] = []
     latest_timeline_limit = 200
@@ -5774,6 +5850,25 @@ def public_portfolio_review_workflow_payload(
         resolved_comment_count += _coerce_int(summary_dict.get("resolved_comment_count"))
         pending_comment_count += _coerce_int(summary_dict.get("pending_comment_count"))
         overdue_comment_count += _coerce_int(summary_dict.get("overdue_comment_count"))
+        workflow_summary_dict = (
+            summary_dict.get("reviewer_workflow_summary")
+            if isinstance(summary_dict.get("reviewer_workflow_summary"), dict)
+            else {}
+        )
+        reviewer_workflow_open_items += _coerce_int(workflow_summary_dict.get("open_items"))
+        reviewer_workflow_acknowledged_items += _coerce_int(workflow_summary_dict.get("acknowledged_items"))
+        reviewer_workflow_resolved_items += _coerce_int(workflow_summary_dict.get("resolved_items"))
+        stale_bucket_summary = (
+            workflow_summary_dict.get("stale_comment_bucket_counts")
+            if isinstance(workflow_summary_dict.get("stale_comment_bucket_counts"), dict)
+            else {}
+        )
+        for key, count in stale_bucket_summary.items():
+            token = str(key or "").strip().lower() or "general"
+            stale_comment_bucket_counts[token] = int(stale_comment_bucket_counts.get(token) or 0) + _coerce_int(
+                count,
+                default=0,
+            )
 
         _merge_counts(finding_status_counts, summary_dict.get("finding_status_counts"))
         _merge_counts(finding_severity_counts, summary_dict.get("finding_severity_counts"))
@@ -5827,6 +5922,18 @@ def public_portfolio_review_workflow_payload(
     job_count = len(filtered)
     jobs_without_activity = max(0, job_count - jobs_with_activity)
     jobs_without_overdue = max(0, job_count - jobs_with_overdue)
+    total_reviewer_items = (
+        reviewer_workflow_open_items + reviewer_workflow_acknowledged_items + reviewer_workflow_resolved_items
+    )
+    top_stale_comment_bucket = None
+    if stale_comment_bucket_counts:
+        ranked_stale_buckets = sorted(
+            stale_comment_bucket_counts.items(),
+            key=lambda row: (int(row[1]), str(row[0])),
+            reverse=True,
+        )
+        if ranked_stale_buckets and int(ranked_stale_buckets[0][1]) > 0:
+            top_stale_comment_bucket = str(ranked_stale_buckets[0][0])
 
     return {
         "job_count": job_count,
@@ -5869,6 +5976,25 @@ def public_portfolio_review_workflow_payload(
             "comment_status_counts": dict(sorted(comment_status_counts.items())),
             "timeline_event_count": timeline_event_count,
             "last_activity_at": last_activity_at,
+            "reviewer_workflow_summary": {
+                "open_items": reviewer_workflow_open_items,
+                "acknowledged_items": reviewer_workflow_acknowledged_items,
+                "resolved_items": reviewer_workflow_resolved_items,
+                "resolution_rate": (
+                    round(reviewer_workflow_resolved_items / total_reviewer_items, 4) if total_reviewer_items else None
+                ),
+                "acknowledgment_rate": (
+                    round(
+                        (reviewer_workflow_resolved_items + reviewer_workflow_acknowledged_items)
+                        / total_reviewer_items,
+                        4,
+                    )
+                    if total_reviewer_items
+                    else None
+                ),
+                "stale_comment_bucket_counts": dict(sorted(stale_comment_bucket_counts.items())),
+                "top_stale_comment_bucket": top_stale_comment_bucket,
+            },
         },
         "top_event_type": top_event_type,
         "top_event_type_count": top_event_type_count if top_event_type is not None else None,
