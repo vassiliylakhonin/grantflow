@@ -147,3 +147,24 @@ def test_worldbank_complete_payload_passes_structure_checks():
     assert any(c["code"] == "WB_RESULTS_CHAIN_PRESENT" and c["status"] == "pass" for c in checks)
     assert any(c["code"] == "WB_RESULTS_CHAIN_COMPLETE" and c["status"] == "pass" for c in checks)
     assert not any(f["severity"] == "high" for f in flaws)
+
+
+def test_usaid_missing_do_uses_reviewer_oriented_language():
+    _checks, flaws = _run_policy("usaid", {"project_goal": "Goal"})
+    flaw = next(f for f in flaws if f["code"] == "USAID_DO_MISSING")
+    assert "donor package" in flaw["message"].lower()
+    assert "reviewer expectations" in flaw["fix_hint"].lower()
+
+
+def test_eu_missing_overall_objective_uses_intervention_logic_language():
+    _checks, flaws = _run_policy("eu", {})
+    flaw = next(f for f in flaws if f["code"] == "EU_OVERALL_OBJECTIVE_MISSING")
+    assert "credible top-line anchor" in flaw["message"].lower()
+    assert "verification logic" in flaw["fix_hint"].lower()
+
+
+def test_worldbank_missing_results_chain_uses_framework_review_language():
+    _checks, flaws = _run_policy("worldbank", {"objectives": []})
+    flaw = next(f for f in flaws if f["code"] == "WB_RESULTS_CHAIN_MISSING")
+    assert "trace the pdo" in flaw["fix_hint"].lower()
+    assert "isr-style monitoring" in flaw["fix_hint"].lower()

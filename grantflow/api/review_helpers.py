@@ -173,7 +173,9 @@ def _critic_findings_list_payload(
             "overdue_finding_count": overdue_finding_count,
             "finding_status_counts": finding_status_counts,
             "finding_severity_counts": finding_severity_counts,
-            "triage_summary": _critic_triage_summary_payload(filtered),
+            "triage_summary": _critic_triage_summary_payload(
+                filtered, donor_id=str((job.get("state") or {}).get("donor_id") or "")
+            ),
         },
         "findings": filtered,
     }

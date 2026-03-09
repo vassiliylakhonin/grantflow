@@ -218,6 +218,30 @@ def _finding_recommended_action(item: Dict[str, Any], *, donor_id: Optional[str]
         "state_department": "State Department program logic and risk package",
         "un_agencies": "UN results framework and verification package",
     }.get(donor, "donor review package")
+    donor_logic_action = {
+        "usaid": "Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy.",
+        "eu": "Rework the intervention logic so the next draft cleanly distinguishes overall objective, specific objectives, expected outcomes, and verification intent.",
+        "worldbank": "Rework the PDO, objective logic, and results-chain narrative so the next draft reads like a reviewable World Bank results framework.",
+        "giz": "Rework the outcome logic, partner roles, and sustainability logic so the next draft matches a GIZ technical cooperation review package.",
+        "state_department": "Rework the program logic, stakeholder framing, and risk narrative so the next draft supports State Department reviewer and partner-risk assessment.",
+        "un_agencies": "Rework the results chain and verification logic so the next draft reads like a reviewable UN results framework.",
+    }.get(donor)
+    donor_measurement_action = {
+        "usaid": "Tighten baseline, target, indicator definition, and verification fields so the next export can support PMP-style review.",
+        "eu": "Tighten baseline, target, indicator definition, and means-of-verification fields so the next export supports EU intervention-logic review.",
+        "worldbank": "Tighten baseline, target, indicator definition, and verification fields so the next export supports results-framework and ISR-style review.",
+        "giz": "Tighten baseline, target, indicator definition, and verification fields so the next export supports GIZ delivery and sustainability review.",
+        "state_department": "Tighten baseline, target, indicator definition, and verification fields so the next export supports State Department delivery and risk review.",
+        "un_agencies": "Tighten baseline, target, indicator definition, and verification fields so the next export supports UN results monitoring and reporting.",
+    }.get(donor)
+    donor_compliance_action = {
+        "usaid": "Align this section to the expected USAID results hierarchy, assumptions, and monitoring structure before approval.",
+        "eu": "Align this section to the expected EU intervention-logic structure, objective hierarchy, and verification narrative before approval.",
+        "worldbank": "Align this section to the expected World Bank PDO, objectives, and results-framework structure before approval.",
+        "giz": "Align this section to the expected GIZ outcome, partner-role, and sustainability structure before approval.",
+        "state_department": "Align this section to the expected State Department strategic context, stakeholder, and risk structure before approval.",
+        "un_agencies": "Align this section to the expected UN objective, outcome, and verification structure before approval.",
+    }.get(donor)
     if bucket == "grounding":
         if section == "toc":
             return f"Reground the affected ToC claim and replace fallback or weak citations in the {donor_phrase} before next review."
@@ -225,13 +249,16 @@ def _finding_recommended_action(item: Dict[str, Any], *, donor_id: Optional[str]
             return f"Reconnect the indicator to grounded evidence and replace fallback or weak citations in the {donor_phrase} before next review."
         return f"Replace fallback or weak evidence before the next reviewer pass for the {donor_phrase}."
     if bucket == "measurement":
-        return (
+        return donor_measurement_action or (
             f"Tighten baseline, target, formula, or verification fields before the next export of the {donor_phrase}."
         )
     if bucket == "logic":
-        return f"Revise the results logic or assumptions so the next draft aligns to the {donor_phrase}."
-    if bucket == "compliance":
         return (
+            donor_logic_action
+            or f"Revise the results logic or assumptions so the next draft aligns to the {donor_phrase}."
+        )
+    if bucket == "compliance":
+        return donor_compliance_action or (
             f"Align this section to the required structure and compliance rules for the {donor_phrase} before approval."
         )
     if section == "toc":
@@ -271,8 +298,12 @@ def _finding_priority_sort_key(item: Dict[str, Any]) -> tuple[int, int, int, str
     )
 
 
-def _critic_triage_summary_payload(critic_findings: list[Dict[str, Any]]) -> Dict[str, Any]:
-    findings = [_triage_enriched_finding(item) for item in critic_findings if isinstance(item, dict)]
+def _critic_triage_summary_payload(
+    critic_findings: list[Dict[str, Any]],
+    *,
+    donor_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    findings = [_triage_enriched_finding(item, donor_id=donor_id) for item in critic_findings if isinstance(item, dict)]
     unresolved = [
         item for item in findings if str(item.get("status") or "open").strip().lower() not in {"resolved", "closed"}
     ]
@@ -1090,7 +1121,7 @@ def public_job_review_workflow_payload(
         "comment_status_counts": comment_status_counts,
         "timeline_event_count": len(timeline),
         "last_activity_at": last_activity_at,
-        "triage_summary": _critic_triage_summary_payload(findings_with_workflow),
+        "triage_summary": _critic_triage_summary_payload(findings_with_workflow, donor_id=donor_id),
     }
     return {
         "job_id": str(job_id),
@@ -1882,7 +1913,10 @@ def public_job_critic_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any
         "fatal_flaw_count": len(fatal_flaws),
         "fatal_flaws": fatal_flaws,
         "fatal_flaw_messages": fatal_flaw_messages,
-        "triage_summary": _critic_triage_summary_payload([item for item in fatal_flaws if isinstance(item, dict)]),
+        "triage_summary": _critic_triage_summary_payload(
+            [item for item in fatal_flaws if isinstance(item, dict)],
+            donor_id=donor_id,
+        ),
         "rule_check_count": len(rule_checks),
         "rule_checks": rule_checks,
         "llm_advisory_diagnostics": sanitize_for_public_response(critic_notes.get("llm_advisory_diagnostics")),

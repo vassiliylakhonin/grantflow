@@ -333,7 +333,11 @@ def main() -> int:
     if not featured_triage_summary:
         raw_findings = critic_payload.get("fatal_flaws")
         findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
-        featured_triage_summary = _critic_triage_summary_payload(findings) if findings else {}
+        featured_triage_summary = (
+            _critic_triage_summary_payload(findings, donor_id=str(selected_row.get("donor_id") or "").strip())
+            if findings
+            else {}
+        )
     review_ready_cases_count = 0
     for row in rows:
         case_dir = str(row.get("case_dir") or "").strip()

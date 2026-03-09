@@ -53,8 +53,8 @@ def apply_donor_specific_toc_checks(
                     code="USAID_IR_MISSING",
                     severity="high",
                     section="toc",
-                    message="USAID results hierarchy is incomplete: one or more Development Objectives are missing Intermediate Results.",
-                    fix_hint="Populate `development_objectives[].intermediate_results[]` so each DO has a reviewable DO -> IR cascade for the USAID results framework.",
+                    message="USAID results hierarchy is not review-ready: one or more Development Objectives do not yet break down into Intermediate Results.",
+                    fix_hint="Add `development_objectives[].intermediate_results[]` so each DO has a complete DO -> IR cascade that proposal reviewers can map into the USAID results framework and PMP logic.",
                 )
             else:
                 check_fn(code="USAID_IR_HIERARCHY", status="pass", section="toc", detail=f"{ir_count} IR(s)")
@@ -70,8 +70,8 @@ def apply_donor_specific_toc_checks(
                     code="USAID_OUTPUTS_MISSING",
                     severity="high",
                     section="toc",
-                    message="USAID results hierarchy is incomplete: one or more Intermediate Results are missing outputs.",
-                    fix_hint="Populate `intermediate_results[].outputs[]` under each USAID IR so reviewers can trace activities to deliverables and monitoring rows.",
+                    message="USAID results hierarchy is not review-ready: one or more Intermediate Results do not yet resolve into outputs or deliverables.",
+                    fix_hint="Populate `intermediate_results[].outputs[]` under each USAID IR so reviewers can trace implementation deliverables, monitoring rows, and evidence expectations before approval.",
                 )
             else:
                 check_fn(
@@ -83,8 +83,8 @@ def apply_donor_specific_toc_checks(
                 code="USAID_DO_MISSING",
                 severity="high",
                 section="toc",
-                message="USAID ToC is missing Development Objectives needed for a donor-reviewable results hierarchy.",
-                fix_hint="Add at least one `development_objective` with a DO -> IR -> Output cascade aligned to the intended USAID monitoring package.",
+                message="USAID ToC is missing Development Objectives, so the results hierarchy cannot yet be reviewed as a donor package.",
+                fix_hint="Add at least one `development_objective` with a DO -> IR -> Output cascade aligned to the intended USAID monitoring package and reviewer expectations.",
             )
 
         assumptions = toc_payload.get("critical_assumptions")
@@ -106,8 +106,8 @@ def apply_donor_specific_toc_checks(
                 code="USAID_ASSUMPTIONS_MISSING",
                 severity="medium",
                 section="toc",
-                message="USAID ToC is missing critical assumptions for the results hierarchy.",
-                fix_hint="Add `critical_assumptions` describing the external conditions that must hold for the DO -> IR -> Output logic to remain credible during review.",
+                message="USAID ToC is missing critical assumptions, leaving the results logic weak for review and adaptive management.",
+                fix_hint="Add `critical_assumptions` describing the external conditions that must hold for the DO -> IR -> Output logic to remain credible during review, CLA discussion, and monitoring.",
             )
         return
 
@@ -128,8 +128,8 @@ def apply_donor_specific_toc_checks(
                     code="EU_INTERVENTION_LOGIC_INCOMPLETE",
                     severity="high",
                     section="toc",
-                    message="EU intervention logic is incomplete: the overall objective is missing required identifier, title, or rationale fields.",
-                    fix_hint="Populate `overall_objective.objective_id`, `title`, and `rationale` so the overall objective is reviewable in an EU intervention-logic package.",
+                    message="EU intervention logic is not review-ready: the overall objective is missing the core fields needed to anchor the action logic.",
+                    fix_hint="Populate `overall_objective.objective_id`, `title`, and `rationale` so the overall objective can anchor the EU intervention logic, verification narrative, and results chain review.",
                 )
         else:
             check_fn(
@@ -139,8 +139,8 @@ def apply_donor_specific_toc_checks(
                 code="EU_OVERALL_OBJECTIVE_MISSING",
                 severity="high",
                 section="toc",
-                message="EU ToC is missing the `overall_objective` needed to anchor the intervention logic.",
-                fix_hint="Provide an EU intervention-logic style `overall_objective` with rationale so reviewers can distinguish overall objective, specific objectives, and expected outcomes.",
+                message="EU ToC is missing the overall objective, so the intervention logic does not yet have a credible top-line anchor for review.",
+                fix_hint="Provide an EU intervention-logic style `overall_objective` with rationale so reviewers can distinguish the overall objective, specific objectives, expected outcomes, and verification logic.",
             )
 
         specific_objectives = toc_payload.get("specific_objectives")
@@ -164,8 +164,8 @@ def apply_donor_specific_toc_checks(
                     code="EU_SPECIFIC_OBJECTIVES_INCOMPLETE",
                     severity="medium",
                     section="toc",
-                    message="EU specific objectives are incomplete for intervention-logic review.",
-                    fix_hint="Complete `objective_id`, `title`, and `rationale` for each `specific_objectives[]` entry so objective-level monitoring and verification can be traced cleanly.",
+                    message="EU specific objectives are not yet detailed enough for intervention-logic review.",
+                    fix_hint="Complete `objective_id`, `title`, and `rationale` for each `specific_objectives[]` entry so objective-level monitoring, means of verification, and delivery accountability can be traced cleanly.",
                 )
             else:
                 check_fn(
@@ -208,8 +208,8 @@ def apply_donor_specific_toc_checks(
                 code="EU_EXPECTED_OUTCOMES_MISSING",
                 severity="medium",
                 section="toc",
-                message="EU ToC is missing expected outcomes for intervention logic traceability.",
-                fix_hint="Add `expected_outcomes[]` entries with measurable expected change so the EU package shows a clear path from specific objectives to outcome evidence.",
+                message="EU ToC is missing expected outcomes, so the intervention logic cannot yet show measurable downstream change.",
+                fix_hint="Add `expected_outcomes[]` entries with measurable expected change so the EU package shows a clear path from specific objectives to outcome evidence and verification.",
             )
         return
 
@@ -290,7 +290,7 @@ def apply_donor_specific_toc_checks(
                     severity="high",
                     section="toc",
                     message=msg,
-                    fix_hint=f"{hint} This should be explicit enough for State Department reviewer triage and partner-risk review.",
+                    fix_hint=f"{hint} This should be explicit enough for State Department reviewer triage, partner-risk review, and bureau/program decision-making.",
                 )
         for key, code, label in [
             ("stakeholder_map", "STATE_STAKEHOLDER_MAP_PRESENT", "stakeholder_map"),
@@ -305,8 +305,8 @@ def apply_donor_specific_toc_checks(
                     code=f"{code}_MISSING",
                     severity="medium",
                     section="toc",
-                    message=f"State Department ToC is missing {label.replace('_', ' ')} needed for reviewer governance and partner-risk assessment.",
-                    fix_hint=f"Add `{key}` entries so stakeholder logic and risk mitigation planning are explicit in the State Department review package.",
+                    message=f"State Department ToC is missing {label.replace('_', ' ')}, leaving reviewer governance and partner-risk assessment under-specified.",
+                    fix_hint=f"Add `{key}` entries so stakeholder logic, mitigation choices, and partner-risk planning are explicit in the State Department review package.",
                 )
         return
 
@@ -322,8 +322,8 @@ def apply_donor_specific_toc_checks(
                 code="WB_PDO_MISSING",
                 severity="medium",
                 section="toc",
-                message="World Bank ToC is missing the project development objective (PDO) needed to anchor the results framework.",
-                fix_hint="Populate `project_development_objective` with a concise PDO statement so reviewers can align objectives, results chain rows, and indicator focus to the World Bank framework.",
+                message="World Bank ToC is missing the PDO, so the results framework has no clear anchor for reviewer alignment.",
+                fix_hint="Populate `project_development_objective` with a concise PDO statement so reviewers can align objectives, results-chain rows, and indicator focus to the World Bank framework.",
             )
 
         objectives = toc_payload.get("objectives")
@@ -345,8 +345,8 @@ def apply_donor_specific_toc_checks(
                     code="WB_OBJECTIVE_FIELDS_INCOMPLETE",
                     severity="high",
                     section="toc",
-                    message="World Bank objectives are incomplete for results-framework review.",
-                    fix_hint="Complete `objective_id`, `title`, and `description` for each `objectives[]` entry so the PDO and downstream results chain can be reviewed cleanly.",
+                    message="World Bank objectives are not review-ready: required fields are missing for results-framework alignment.",
+                    fix_hint="Complete `objective_id`, `title`, and `description` for each `objectives[]` entry so the PDO, implementation logic, and downstream results-chain rows can be reviewed cleanly.",
                 )
             else:
                 check_fn(code="WB_OBJECTIVES_COMPLETE", status="pass", section="toc")
@@ -356,8 +356,8 @@ def apply_donor_specific_toc_checks(
                 code="WB_OBJECTIVES_MISSING",
                 severity="high",
                 section="toc",
-                message="World Bank ToC is missing objectives needed for a reviewable results framework.",
-                fix_hint="Add at least one objective with ID, title, and description so the PDO can be decomposed into reviewable objective and indicator lines.",
+                message="World Bank ToC is missing objectives, so the results framework cannot yet be decomposed into reviewable lines.",
+                fix_hint="Add at least one objective with ID, title, and description so the PDO can be decomposed into reviewable objective and indicator lines for results-framework review.",
             )
 
         results_chain = toc_payload.get("results_chain")
@@ -386,8 +386,8 @@ def apply_donor_specific_toc_checks(
                     code="WB_RESULTS_CHAIN_INCOMPLETE",
                     severity="medium",
                     section="toc",
-                    message="World Bank results chain entries are incomplete for framework review.",
-                    fix_hint="Complete `result_id`, `title`, `description`, and `indicator_focus` for each `results_chain[]` entry so the results framework reads like a reviewer-ready chain.",
+                    message="World Bank results-chain entries are not yet detailed enough for framework review.",
+                    fix_hint="Complete `result_id`, `title`, `description`, and `indicator_focus` for each `results_chain[]` entry so the results framework reads like a reviewer-ready chain with clear monitoring focus.",
                 )
             else:
                 check_fn(code="WB_RESULTS_CHAIN_COMPLETE", status="pass", section="toc")
@@ -397,7 +397,7 @@ def apply_donor_specific_toc_checks(
                 code="WB_RESULTS_CHAIN_MISSING",
                 severity="medium",
                 section="toc",
-                message="World Bank ToC is missing the results chain needed for results-framework review.",
-                fix_hint="Add `results_chain[]` entries linked to objectives and indicator focus so reviewers can trace the PDO to concrete results rows.",
+                message="World Bank ToC is missing the results chain, so reviewers cannot trace the PDO into concrete monitored results.",
+                fix_hint="Add `results_chain[]` entries linked to objectives and indicator focus so reviewers can trace the PDO into concrete results rows, verification logic, and ISR-style monitoring.",
             )
         return

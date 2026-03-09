@@ -69,7 +69,12 @@ def _load_case_critic(pilot_pack_dir: Path, case_dir: str) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def _triage_summary_from_payloads(quality_payload: dict[str, Any], critic_payload: dict[str, Any]) -> dict[str, Any]:
+def _triage_summary_from_payloads(
+    quality_payload: dict[str, Any],
+    critic_payload: dict[str, Any],
+    *,
+    donor_id: str = "",
+) -> dict[str, Any]:
     triage = quality_payload.get("triage_summary") if isinstance(quality_payload.get("triage_summary"), dict) else {}
     if isinstance(triage, dict) and triage:
         return triage
@@ -78,7 +83,7 @@ def _triage_summary_from_payloads(quality_payload: dict[str, Any], critic_payloa
         return triage
     raw_findings = critic_payload.get("fatal_flaws")
     findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
-    return _critic_triage_summary_payload(findings) if findings else {}
+    return _critic_triage_summary_payload(findings, donor_id=donor_id) if findings else {}
 
 
 def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
@@ -210,8 +215,12 @@ def main() -> int:
         if isinstance(payload.get("review_readiness_summary"), dict)
     ]
     triage_summaries = []
-    for quality_payload, critic_payload in zip(quality_payloads, critic_payloads, strict=False):
-        triage = _triage_summary_from_payloads(quality_payload, critic_payload)
+    for row, quality_payload, critic_payload in zip(rows, quality_payloads, critic_payloads, strict=False):
+        triage = _triage_summary_from_payloads(
+            quality_payload,
+            critic_payload,
+            donor_id=str(row.get("donor_id") or "").strip(),
+        )
         if isinstance(triage, dict) and triage:
             triage_summaries.append(triage)
     mel_summaries = [payload.get("mel") for payload in quality_payloads if isinstance(payload.get("mel"), dict)]
