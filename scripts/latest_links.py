@@ -49,17 +49,23 @@ def _preferred_target_path(build_dir: Path, link_name: str) -> Path | None:
             "latest-fast-send-bundle.zip",
             "latest-fast-send-bundle-manifest.json",
         }:
-            internal_only = _internal_only_variant(build_dir, preferred_name)
-            if internal_only is not None:
-                return internal_only
+            preferred_choice = _most_recent_existing(
+                _internal_only_variant(build_dir, preferred_name),
+                build_dir / preferred_name,
+            )
+            if preferred_choice is not None:
+                return preferred_choice
         if link_name in {
             "latest-full-send-bundle",
             "latest-full-send-bundle.zip",
             "latest-full-send-bundle-manifest.json",
         }:
-            internal_only = _internal_only_variant(build_dir, preferred_name)
-            if internal_only is not None:
-                return internal_only
+            preferred_choice = _most_recent_existing(
+                _internal_only_variant(build_dir, preferred_name),
+                build_dir / preferred_name,
+            )
+            if preferred_choice is not None:
+                return preferred_choice
         preferred_path = build_dir / preferred_name
         if preferred_path.exists():
             return preferred_path
@@ -88,6 +94,13 @@ def _internal_only_variant(build_dir: Path, preferred_name: str) -> Path | None:
     else:
         alt = Path(path_string + "-internal-only")
     return alt if alt.exists() else None
+
+
+def _most_recent_existing(*paths: Path | None) -> Path | None:
+    candidates = [path for path in paths if path is not None and path.exists()]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: (path.stat().st_mtime, path.name))
 
 
 def _is_generated_pack(path: Path, *, link_name: str, expect_file: bool) -> bool:

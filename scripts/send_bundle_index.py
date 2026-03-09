@@ -235,6 +235,19 @@ def main() -> int:
         if bundle_manifest_name != "-":
             lines.append(f"- Manifest: `{bundle_manifest_name}`")
         lines.append("")
+    lines.append("## Draft Grounding Snapshot")
+    lines.append("")
+    lines.append(f"- Architect retrieval hits per case: `{architect_hits}`")
+    lines.append(f"- Architect grounded citation rate: `{architect_grounded_rate}`")
+    lines.append(f"- Architect fallback citations per case: `{architect_fallback}`")
+    if top_architect_signal != "-":
+        lines.append(f"- Top architect evidence signal: `{top_architect_signal}`")
+    lines.append(f"- MEL retrieval hits per case: `{mel_hits}`")
+    lines.append(f"- MEL grounded citation rate: `{mel_grounded_rate}`")
+    lines.append(f"- MEL fallback citations per case: `{mel_fallback}`")
+    if top_mel_signal != "-":
+        lines.append(f"- Top MEL evidence signal: `{top_mel_signal}`")
+    lines.append("")
     if executive_text:
         lines.append("## Featured Readiness Snapshot")
         lines.append("")
