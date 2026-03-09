@@ -69,6 +69,39 @@ def _donor_bucket_mix_text(donor_bucket_counts: dict[str, dict[str, int]]) -> st
     return "; ".join(parts) if parts else "-"
 
 
+def _top_blocking_thresholds(conditions: list[str], *, limit: int = 3) -> list[str]:
+    priority_tokens = (
+        "reviewer workflow resolution rate",
+        "reviewer workflow acknowledgment rate",
+        "comment threads aged >7d",
+        "review workflow sla policy",
+        "architect grounding",
+        "mel grounding",
+        "fallback/strategy citations",
+        "finding ack queue",
+    )
+    ranked: list[str] = []
+    seen: set[str] = set()
+    for token in priority_tokens:
+        for condition in conditions:
+            normalized = condition.strip()
+            if not normalized or normalized in seen:
+                continue
+            if token in normalized.lower():
+                ranked.append(normalized)
+                seen.add(normalized)
+                if len(ranked) >= limit:
+                    return ranked
+    for condition in conditions:
+        normalized = condition.strip()
+        if normalized and normalized not in seen:
+            ranked.append(normalized)
+            seen.add(normalized)
+            if len(ranked) >= limit:
+                break
+    return ranked
+
+
 def _load_case_quality(pilot_pack_dir: Path, case_dir: str) -> dict[str, Any]:
     if not case_dir:
         return {}
@@ -263,6 +296,7 @@ def _build_brief(
     pilot_pack_name: str,
     include_productization_memo: bool,
     current_conditions: list[str],
+    top_blocking_thresholds: list[str],
     triage_next_action: str | None,
     triage_next_bucket: str | None,
     triage_top_ids: list[str],
@@ -362,6 +396,11 @@ def _build_brief(
     lines.append("- Exportable review artifacts for downstream proposal workflow.")
     lines.append("")
     if current_conditions:
+        if top_blocking_thresholds:
+            lines.append("## Top Blocking Thresholds")
+            for reason in top_blocking_thresholds:
+                lines.append(f"- {reason}")
+            lines.append("")
         lines.append("## Current Conditions")
         for reason in current_conditions:
             lines.append(f"- {reason}")
@@ -869,11 +908,13 @@ def main() -> int:
         if scorecard_path.exists()
         else []
     )
+    top_blocking_thresholds = _top_blocking_thresholds(current_conditions)
     text = _build_brief(
         rows,
         pilot_pack_name=pilot_pack_dir.name,
         include_productization_memo=include_productization_memo,
         current_conditions=current_conditions,
+        top_blocking_thresholds=top_blocking_thresholds,
         triage_next_action=(triage_next_action or None),
         triage_next_bucket=(triage_next_bucket or None),
         triage_top_ids=triage_top_ids,

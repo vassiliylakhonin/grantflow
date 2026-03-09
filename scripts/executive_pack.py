@@ -147,6 +147,39 @@ def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
     return bullets
 
 
+def _top_blocking_thresholds(conditions: list[str], *, limit: int = 3) -> list[str]:
+    priority_tokens = (
+        "reviewer workflow resolution rate",
+        "reviewer workflow acknowledgment rate",
+        "comment threads aged >7d",
+        "review workflow sla policy",
+        "architect grounding",
+        "mel grounding",
+        "fallback/strategy citations",
+        "finding ack queue",
+    )
+    ranked: list[str] = []
+    seen: set[str] = set()
+    for token in priority_tokens:
+        for condition in conditions:
+            normalized = condition.strip()
+            if not normalized or normalized in seen:
+                continue
+            if token in normalized.lower():
+                ranked.append(normalized)
+                seen.add(normalized)
+                if len(ranked) >= limit:
+                    return ranked
+    for condition in conditions:
+        normalized = condition.strip()
+        if normalized and normalized not in seen:
+            ranked.append(normalized)
+            seen.add(normalized)
+            if len(ranked) >= limit:
+                break
+    return ranked
+
+
 def _first_nonempty(rows: list[dict[str, str]], key: str) -> str:
     for row in rows:
         value = str(row.get(key) or "").strip()
@@ -241,6 +274,7 @@ def _build_summary(
     portfolio_next_bucket: str,
     portfolio_next_action: str,
     conditional_reasons: list[str],
+    top_blocking_thresholds: list[str],
 ) -> str:
     lines: list[str] = []
     lines.append("# GrantFlow Executive Pack")
@@ -481,6 +515,11 @@ def _build_summary(
             lines.append(f"- Top reviewer action {index} (featured case): {action}")
     lines.append("")
     if conditional_reasons:
+        if top_blocking_thresholds:
+            lines.append("## Top Blocking Thresholds")
+            for reason in top_blocking_thresholds:
+                lines.append(f"- {reason}")
+            lines.append("")
         lines.append("## Current Conditions")
         for reason in conditional_reasons:
             lines.append(f"- {reason}")
@@ -862,6 +901,7 @@ def main() -> int:
     )
     scorecard_text = (pilot_pack_dir / "pilot-scorecard.md").read_text(encoding="utf-8")
     conditional_reasons = _extract_markdown_bullets(scorecard_text, "## Conditions Before Buyer Decision")
+    top_blocking_thresholds = _top_blocking_thresholds(conditional_reasons)
     (output_dir / "README.md").write_text(
         _build_summary(
             executive_pack_name=output_dir.name,
@@ -925,6 +965,7 @@ def main() -> int:
             portfolio_next_bucket=portfolio_next_bucket,
             portfolio_next_action=portfolio_next_action,
             conditional_reasons=conditional_reasons,
+            top_blocking_thresholds=top_blocking_thresholds,
         ),
         encoding="utf-8",
     )
