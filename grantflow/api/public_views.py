@@ -152,6 +152,18 @@ def _finding_review_bucket(item: Dict[str, Any]) -> str:
     return "general"
 
 
+def _finding_review_title(item: Dict[str, Any]) -> str:
+    label = str(item.get("label") or "").strip()
+    if label:
+        return label.replace("_", " ").title()
+    code = str(item.get("code") or "").strip()
+    if code:
+        return code.replace("_", " ").title()
+    section = str(item.get("section") or "general").strip().lower()
+    section_title = {"toc": "ToC", "logframe": "LogFrame", "general": "General"}.get(section, section.title())
+    return f"{section_title} Review Finding"
+
+
 def _finding_triage_priority(item: Dict[str, Any]) -> str:
     status = str(item.get("status") or "open").strip().lower()
     severity = str(item.get("severity") or "").strip().lower()
@@ -218,6 +230,7 @@ def _finding_recommended_action(item: Dict[str, Any]) -> str:
 
 def _triage_enriched_finding(item: Dict[str, Any]) -> Dict[str, Any]:
     current = dict(item)
+    current["review_title"] = _finding_review_title(current)
     current["review_bucket"] = _finding_review_bucket(current)
     current["triage_priority"] = _finding_triage_priority(current)
     current["recommended_action"] = _finding_recommended_action(current)

@@ -69,6 +69,8 @@ def _build_handout(
     readiness: str,
     baseline_complete_cases: str,
     featured_review_readiness: dict[str, Any],
+    featured_triage_summary: dict[str, Any],
+    featured_critic_payload: dict[str, Any],
     featured_mel_summary: dict[str, Any],
     review_ready_cases: str,
     current_conditions: list[str],
@@ -124,6 +126,25 @@ def _build_handout(
         lines.append(
             f"- Fallback/strategy citations: `{featured_review_readiness.get('fallback_strategy_citations', '-')}`"
         )
+    if featured_triage_summary:
+        if str(featured_triage_summary.get("next_review_bucket") or "").strip():
+            lines.append(f"- Next review bucket: `{featured_triage_summary.get('next_review_bucket')}`")
+        if str(featured_triage_summary.get("next_recommended_action") or "").strip():
+            lines.append(f"- Next recommended action: {featured_triage_summary.get('next_recommended_action')}")
+    top_finding_titles = []
+    if isinstance(featured_critic_payload.get("fatal_flaws"), list):
+        for item in featured_critic_payload.get("fatal_flaws") or []:
+            if not isinstance(item, dict):
+                continue
+            if str(item.get("triage_priority") or "").strip().lower() not in {"urgent", "high"}:
+                continue
+            title = str(item.get("review_title") or item.get("message") or "").strip()
+            if title:
+                top_finding_titles.append(title)
+            if len(top_finding_titles) >= 2:
+                break
+    if top_finding_titles:
+        lines.append(f"- Priority reviewer items: {', '.join(top_finding_titles)}")
     if featured_mel_summary:
         mov = featured_mel_summary.get("means_of_verification_coverage_rate")
         owner = featured_mel_summary.get("owner_coverage_rate")
@@ -218,8 +239,13 @@ def main() -> int:
         quality_payload.get("review_readiness_summary") if isinstance(quality_payload, dict) else {}
     )
     featured_review_readiness = featured_review_readiness if isinstance(featured_review_readiness, dict) else {}
+    featured_triage_summary = quality_payload.get("triage_summary") if isinstance(quality_payload, dict) else {}
+    featured_triage_summary = featured_triage_summary if isinstance(featured_triage_summary, dict) else {}
     featured_mel_summary = quality_payload.get("mel") if isinstance(quality_payload, dict) else {}
     featured_mel_summary = featured_mel_summary if isinstance(featured_mel_summary, dict) else {}
+    critic_path = pilot_pack_dir / "live-runs" / str(featured_row.get("case_dir") or "") / "critic.json"
+    featured_critic_payload = _read_json(critic_path) if critic_path.exists() else {}
+    featured_critic_payload = featured_critic_payload if isinstance(featured_critic_payload, dict) else {}
 
     review_ready_cases_count = 0
     for row in rows:
@@ -246,6 +272,8 @@ def main() -> int:
             readiness=readiness,
             baseline_complete_cases=baseline_complete_cases,
             featured_review_readiness=featured_review_readiness,
+            featured_triage_summary=featured_triage_summary,
+            featured_critic_payload=featured_critic_payload,
             featured_mel_summary=featured_mel_summary,
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
             current_conditions=current_conditions,

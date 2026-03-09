@@ -78,6 +78,9 @@ def _build_brief(
     pilot_pack_name: str,
     include_productization_memo: bool,
     current_conditions: list[str],
+    triage_next_action: str | None,
+    triage_next_bucket: str | None,
+    triage_top_ids: list[str],
 ) -> str:
     done_count = sum(1 for row in rows if str(row.get("status") or "").strip().lower() == "done")
     hitl_count = sum(1 for row in rows if bool(row.get("hitl_enabled")))
@@ -108,6 +111,17 @@ def _build_brief(
     lines.append(f"- Average critic score: `{_format_num(avg_critic)}`")
     lines.append(f"- Average citation count: `{_format_num(avg_citations)}`")
     lines.append("")
+    if triage_next_action or triage_next_bucket or triage_top_ids:
+        lines.append("## Review Triage Snapshot")
+        if triage_next_bucket:
+            lines.append(f"- Next review bucket: `{triage_next_bucket}`")
+        if triage_next_action:
+            lines.append(f"- Next recommended action: {triage_next_action}")
+        if triage_top_ids:
+            lines.append(
+                f"- Top priority finding ids: {', '.join(f'`{item}`' for item in triage_top_ids if str(item).strip())}"
+            )
+        lines.append("")
     lines.append("## What This Demonstrates")
     lines.append("- Structured draft generation through a controlled pipeline, not one-shot text output.")
     lines.append(
@@ -170,6 +184,9 @@ def main() -> int:
         for payload in quality_payloads
         if isinstance(payload.get("review_readiness_summary"), dict)
     ]
+    triage_summaries = [
+        payload.get("triage_summary") for payload in quality_payloads if isinstance(payload.get("triage_summary"), dict)
+    ]
     mel_summaries = [payload.get("mel") for payload in quality_payloads if isinstance(payload.get("mel"), dict)]
 
     open_findings_avg = _avg(
@@ -202,6 +219,37 @@ def main() -> int:
         and _safe_float(item.get("owner_coverage_rate")) == 1.0
         and _safe_float(item.get("smart_field_coverage_rate")) == 1.0
     )
+    triage_next_action = next(
+        (
+            str(item.get("next_recommended_action") or "").strip()
+            for item in triage_summaries
+            if isinstance(item, dict) and str(item.get("next_recommended_action") or "").strip()
+        ),
+        "",
+    )
+    triage_next_bucket = next(
+        (
+            str(item.get("next_review_bucket") or "").strip()
+            for item in triage_summaries
+            if isinstance(item, dict) and str(item.get("next_review_bucket") or "").strip()
+        ),
+        "",
+    )
+    triage_top_ids: list[str] = []
+    for item in triage_summaries:
+        if not isinstance(item, dict):
+            continue
+        raw_ids = item.get("top_priority_finding_ids")
+        if not isinstance(raw_ids, list):
+            continue
+        for value in raw_ids:
+            token = str(value or "").strip()
+            if token and token not in triage_top_ids:
+                triage_top_ids.append(token)
+            if len(triage_top_ids) >= 3:
+                break
+        if len(triage_top_ids) >= 3:
+            break
 
     output_path = Path(str(args.output)).resolve() if str(args.output).strip() else pilot_pack_dir / "buyer-brief.md"
     include_productization_memo = (pilot_pack_dir / "productization-gaps-memo.md").exists()
@@ -216,6 +264,9 @@ def main() -> int:
         pilot_pack_name=pilot_pack_dir.name,
         include_productization_memo=include_productization_memo,
         current_conditions=current_conditions,
+        triage_next_action=(triage_next_action or None),
+        triage_next_bucket=(triage_next_bucket or None),
+        triage_top_ids=triage_top_ids,
     )
     insert_lines = [
         "## Review Readiness Snapshot",
