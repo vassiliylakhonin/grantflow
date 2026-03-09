@@ -210,6 +210,8 @@ def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
                 "target": "4 institutions",
                 "frequency": "quarterly",
                 "formula": "Count of institutions meeting service adoption criteria",
+                "definition": "Tracks institutional service adoption as an outcome-level implementation result.",
+                "justification": "Maps service adoption outcome into a monitored proposal review row.",
                 "means_of_verification": "Verification annexes and partner review notes",
                 "owner": "Project M&E manager",
             },
@@ -220,6 +222,8 @@ def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
                 "baseline": "0 ministries",
                 "target": "2 ministries",
                 "frequency": "annual",
+                "definition": "Tracks modernization learning uptake as an impact-level governance result.",
+                "justification": "Maps learning uptake into a goal-level review and verification row.",
                 "means_of_verification": "CLA evidence and review memos",
                 "owner": "MEL lead",
             },
@@ -257,6 +261,8 @@ def test_word_export_uses_donor_specific_sections_for_usaid_eu_worldbank():
     assert "Suggested performance monitoring focus:" in usaid_text
     assert "Suggested performance indicator rows:" in usaid_text
     assert "Baseline/Target: 0 institutions -> 4 institutions" in usaid_text
+    assert "Result focus:" in usaid_text
+    assert "Measurement intent:" in usaid_text
     assert "CLA evidence and review memos" in usaid_text
     assert "EU Intervention Logic" in eu_text
     assert "Overall Objective" in eu_text
@@ -581,6 +587,8 @@ def test_excel_export_logframe_sheet_includes_smart_indicator_columns():
         "Justification",
         "Citation",
         "Readiness Hint",
+        "Result Focus",
+        "Measurement Intent",
         "Baseline",
         "Target",
         "Frequency",
@@ -596,13 +604,15 @@ def test_excel_export_logframe_sheet_includes_smart_indicator_columns():
     assert rows[1][2] == "outcome"
     assert rows[1][3] == "toc.outcomes[0]"
     assert rows[1][6] == "review-ready"
-    assert rows[1][9] == "quarterly"
-    assert rows[1][10] == "(Numerator / Denominator) * 100"
-    assert rows[1][12] == "PMP indicator tracking dataset"
-    assert rows[1][13] == "sex, age, location"
-    assert rows[1][14] == "Verified PMP records and spot-check files"
-    assert rows[1][15] == "MEL lead and implementing partner M&E team"
-    assert "validated implementation records" in str(rows[1][16])
+    assert "Share of target beneficiaries receiving digital service." in str(rows[1][7])
+    assert "Tracks outcome-level service adoption." in str(rows[1][8])
+    assert rows[1][11] == "quarterly"
+    assert rows[1][12] == "(Numerator / Denominator) * 100"
+    assert rows[1][14] == "PMP indicator tracking dataset"
+    assert rows[1][15] == "sex, age, location"
+    assert rows[1][16] == "Verified PMP records and spot-check files"
+    assert rows[1][17] == "MEL lead and implementing partner M&E team"
+    assert "validated implementation records" in str(rows[1][18])
 
 
 def test_excel_export_includes_template_meta_sheet():
@@ -689,12 +699,16 @@ def test_excel_donor_sheets_include_suggested_monitoring_focus_columns():
     assert "Suggested Monitoring Focus" in usaid_rows[0]
     assert "Suggested Means of Verification" in usaid_rows[0]
     assert "Suggested Owner" in usaid_rows[0]
+    assert "Suggested Result Focus" in usaid_rows[0]
+    assert "Suggested Measurement Intent" in usaid_rows[0]
     assert "Institutional service adoption score" in str(usaid_rows[1])
     assert "Project M&E manager" in str(usaid_rows[1])
 
     assert "Suggested Monitoring Focus" in eu_rows[0]
     assert "Suggested Means of Verification" in eu_rows[0]
     assert "Suggested Owner" in eu_rows[0]
+    assert "Suggested Result Focus" in eu_rows[0]
+    assert "Suggested Measurement Intent" in eu_rows[0]
     assert "Institutional service adoption score" in str(eu_rows[1])
     assert "Verification annexes and partner review notes" in str(eu_rows[1])
 

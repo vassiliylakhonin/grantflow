@@ -71,11 +71,17 @@ def _add_indicator_logframe_block(
         target = str(row.get("target") or "").strip() or "TBD"
         frequency = str(row.get("frequency") or "").strip()
         formula = str(row.get("formula") or "").strip()
+        definition = " ".join(str(row.get("definition") or "").split()).strip()
+        justification = " ".join(str(row.get("justification") or "").split()).strip()
         line = f"{name} | Baseline/Target: {baseline} -> {target}"
         if frequency:
             line += f" | Frequency: {frequency}"
         if formula:
             line += f" | Formula: {formula}"
+        if definition:
+            line += f" | Result focus: {definition[:110].rstrip()}{'...' if len(definition) > 110 else ''}"
+        if justification:
+            line += f" | Measurement intent: {justification[:110].rstrip()}{'...' if len(justification) > 110 else ''}"
         doc.add_paragraph(line, style="List Bullet")
 
 
@@ -825,6 +831,7 @@ def _add_mel_indicator_summary_section(doc: Document, logframe_draft: Optional[D
             details.append(f"Formula: {formula}")
         if definition:
             details.append(f"Definition: {definition}")
+            details.append(f"Result focus: {definition[:140].rstrip()}{'...' if len(definition) > 140 else ''}")
         if data_source:
             details.append(f"Data source: {data_source}")
         if means_of_verification:
@@ -837,6 +844,9 @@ def _add_mel_indicator_summary_section(doc: Document, logframe_draft: Optional[D
             details.append(f"Citation: {citation}")
         if justification:
             details.append(f"Justification: {justification}")
+            details.append(
+                f"Measurement intent: {justification[:140].rstrip()}{'...' if len(justification) > 140 else ''}"
+            )
         if details:
             doc.add_paragraph(" | ".join(details))
 

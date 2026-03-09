@@ -65,6 +65,32 @@ def _indicator_summary_cells(indicators: list[Dict[str, Any]]) -> tuple[str, str
     return baseline_target, frequency, formulas
 
 
+def _compact_text(value: Any, *, max_len: int = 120) -> str:
+    text = " ".join(str(value or "").split()).strip()
+    if not text:
+        return ""
+    if len(text) <= max_len:
+        return text
+    return f"{text[: max_len - 3].rstrip()}..."
+
+
+def _indicator_context_cells(indicators: list[Dict[str, Any]]) -> tuple[str, str]:
+    focus_rows = [row for row in indicators if isinstance(row, dict)]
+    if not focus_rows:
+        return "", ""
+    focus = "; ".join(
+        _compact_text(row.get("definition", ""), max_len=96)
+        for row in focus_rows
+        if _compact_text(row.get("definition", ""), max_len=96)
+    )
+    intent = "; ".join(
+        _compact_text(row.get("justification", ""), max_len=96)
+        for row in focus_rows
+        if _compact_text(row.get("justification", ""), max_len=96)
+    )
+    return focus, intent
+
+
 def _review_readiness_rows(
     *,
     quality_summary: dict[str, Any],
@@ -417,6 +443,8 @@ def _add_usaid_results_sheet(
         "Suggested Baseline -> Target",
         "Suggested Frequency",
         "Suggested Formula",
+        "Suggested Result Focus",
+        "Suggested Measurement Intent",
     ]
     thin_border = _apply_table_header(ws, headers)
 
@@ -440,6 +468,7 @@ def _add_usaid_results_sheet(
                 if not isinstance(indicators, list) or not indicators:
                     focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus)
                     baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus)
+                    result_focus, measurement_intent = _indicator_context_cells(outcome_focus)
                     ws.append(
                         [
                             do_id,
@@ -459,6 +488,8 @@ def _add_usaid_results_sheet(
                             baseline_target,
                             frequency,
                             formulas,
+                            result_focus,
+                            measurement_intent,
                         ]
                     )
                     for col in range(1, len(headers) + 1):
@@ -470,6 +501,7 @@ def _add_usaid_results_sheet(
                         continue
                     focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus)
                     baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus)
+                    result_focus, measurement_intent = _indicator_context_cells(outcome_focus)
                     ws.append(
                         [
                             do_id,
@@ -489,6 +521,8 @@ def _add_usaid_results_sheet(
                             baseline_target,
                             frequency,
                             formulas,
+                            result_focus,
+                            measurement_intent,
                         ]
                     )
                     for col in range(1, len(headers) + 1):
@@ -519,6 +553,8 @@ def _add_eu_results_sheet(
         "Suggested Baseline -> Target",
         "Suggested Frequency",
         "Suggested Formula",
+        "Suggested Result Focus",
+        "Suggested Measurement Intent",
     ]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
@@ -526,6 +562,7 @@ def _add_eu_results_sheet(
     if isinstance(overall, dict):
         focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus)
         baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus)
+        result_focus, measurement_intent = _indicator_context_cells(outcome_focus)
         ws.append(
             [
                 "Overall Objective",
@@ -538,6 +575,8 @@ def _add_eu_results_sheet(
                 baseline_target,
                 frequency,
                 formulas,
+                result_focus,
+                measurement_intent,
             ]
         )
         for col in range(1, len(headers) + 1):
@@ -551,6 +590,7 @@ def _add_eu_results_sheet(
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1] or outcome_focus)
             baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus[:1] or outcome_focus)
+            result_focus, measurement_intent = _indicator_context_cells(outcome_focus[:1] or outcome_focus)
             ws.append(
                 [
                     "Specific Objective",
@@ -563,6 +603,8 @@ def _add_eu_results_sheet(
                     baseline_target,
                     frequency,
                     formulas,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -576,6 +618,7 @@ def _add_eu_results_sheet(
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(output_focus[:1] or outcome_focus[:1])
             baseline_target, frequency, formulas = _indicator_summary_cells(output_focus[:1] or outcome_focus[:1])
+            result_focus, measurement_intent = _indicator_context_cells(output_focus[:1] or outcome_focus[:1])
             ws.append(
                 [
                     "Outcome",
@@ -588,6 +631,8 @@ def _add_eu_results_sheet(
                     baseline_target,
                     frequency,
                     formulas,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -595,7 +640,7 @@ def _add_eu_results_sheet(
             row_idx += 1
 
     if row_idx == 2:
-        ws.append(["", "", "", "", "", "", "", "", "", ""])
+        ws.append(["", "", "", "", "", "", "", "", "", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=row_idx, column=col).border = thin_border
         row_idx += 1
@@ -651,6 +696,8 @@ def _add_worldbank_results_sheet(
         "Suggested Baseline -> Target",
         "Suggested Frequency",
         "Suggested Formula",
+        "Suggested Result Focus",
+        "Suggested Measurement Intent",
     ]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
@@ -658,6 +705,7 @@ def _add_worldbank_results_sheet(
     if pdo:
         focus_name, focus_mov, focus_owner = _indicator_focus_cells(impact_focus or outcome_focus[:1])
         baseline_target, frequency, formulas = _indicator_summary_cells(impact_focus or outcome_focus[:1])
+        result_focus, measurement_intent = _indicator_context_cells(impact_focus or outcome_focus[:1])
         ws.append(
             [
                 "PDO",
@@ -671,6 +719,8 @@ def _add_worldbank_results_sheet(
                 baseline_target,
                 frequency,
                 formulas,
+                result_focus,
+                measurement_intent,
             ]
         )
         for col in range(1, len(headers) + 1):
@@ -684,6 +734,7 @@ def _add_worldbank_results_sheet(
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1] or impact_focus)
             baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus[:1] or impact_focus)
+            result_focus, measurement_intent = _indicator_context_cells(outcome_focus[:1] or impact_focus)
             ws.append(
                 [
                     "Objective",
@@ -697,6 +748,8 @@ def _add_worldbank_results_sheet(
                     baseline_target,
                     frequency,
                     formulas,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -710,6 +763,7 @@ def _add_worldbank_results_sheet(
                 continue
             focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus[:1] or impact_focus)
             baseline_target, frequency, formulas = _indicator_summary_cells(outcome_focus[:1] or impact_focus)
+            result_focus, measurement_intent = _indicator_context_cells(outcome_focus[:1] or impact_focus)
             ws.append(
                 [
                     "Result",
@@ -723,6 +777,8 @@ def _add_worldbank_results_sheet(
                     baseline_target,
                     frequency,
                     formulas,
+                    result_focus,
+                    measurement_intent,
                 ]
             )
             for col in range(1, len(headers) + 1):
@@ -732,7 +788,7 @@ def _add_worldbank_results_sheet(
     assumptions = toc.get("assumptions") if isinstance(toc, dict) else None
     if isinstance(assumptions, list):
         for item in assumptions:
-            ws.append(["Assumption", "", "", str(item), "", "", "", "", "", "", ""])
+            ws.append(["Assumption", "", "", str(item), "", "", "", "", "", "", "", "", ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
@@ -740,13 +796,13 @@ def _add_worldbank_results_sheet(
     risks = toc.get("risks") if isinstance(toc, dict) else None
     if isinstance(risks, list):
         for item in risks:
-            ws.append(["Risk", "", "", str(item), "", "", "", "", "", "", ""])
+            ws.append(["Risk", "", "", str(item), "", "", "", "", "", "", "", "", ""])
             for col in range(1, len(headers) + 1):
                 ws.cell(row=row_idx, column=col).border = thin_border
             row_idx += 1
 
     if row_idx == 2:
-        ws.append(["", "", "", "", "", "", "", "", "", "", ""])
+        ws.append(["", "", "", "", "", "", "", "", "", "", "", "", ""])
         for col in range(1, len(headers) + 1):
             ws.cell(row=2, column=col).border = thin_border
     _autosize_columns(ws)
@@ -1076,6 +1132,8 @@ def build_xlsx_from_logframe(
         "Justification",
         "Citation",
         "Readiness Hint",
+        "Result Focus",
+        "Measurement Intent",
         "Baseline",
         "Target",
         "Frequency",
@@ -1106,16 +1164,18 @@ def build_xlsx_from_logframe(
         ws.cell(row=row, column=5, value=_cell_text(ind.get("justification", ""))).border = thin_border
         ws.cell(row=row, column=6, value=_cell_text(ind.get("citation", ""))).border = thin_border
         ws.cell(row=row, column=7, value=_indicator_readiness_hint(ind)).border = thin_border
-        ws.cell(row=row, column=8, value=_cell_text(ind.get("baseline", "TBD"))).border = thin_border
-        ws.cell(row=row, column=9, value=_cell_text(ind.get("target", "TBD"))).border = thin_border
-        ws.cell(row=row, column=10, value=_cell_text(ind.get("frequency", ""))).border = thin_border
-        ws.cell(row=row, column=11, value=_cell_text(ind.get("formula", ""))).border = thin_border
-        ws.cell(row=row, column=12, value=_cell_text(ind.get("definition", ""))).border = thin_border
-        ws.cell(row=row, column=13, value=_cell_text(ind.get("data_source", ""))).border = thin_border
-        ws.cell(row=row, column=14, value=_cell_text(ind.get("disaggregation", ""))).border = thin_border
-        ws.cell(row=row, column=15, value=_cell_text(ind.get("means_of_verification", ""))).border = thin_border
-        ws.cell(row=row, column=16, value=_cell_text(ind.get("owner", ""))).border = thin_border
-        ws.cell(row=row, column=17, value=_cell_text(ind.get("evidence_excerpt", ""))).border = thin_border
+        ws.cell(row=row, column=8, value=_compact_text(ind.get("definition", ""), max_len=96)).border = thin_border
+        ws.cell(row=row, column=9, value=_compact_text(ind.get("justification", ""), max_len=96)).border = thin_border
+        ws.cell(row=row, column=10, value=_cell_text(ind.get("baseline", "TBD"))).border = thin_border
+        ws.cell(row=row, column=11, value=_cell_text(ind.get("target", "TBD"))).border = thin_border
+        ws.cell(row=row, column=12, value=_cell_text(ind.get("frequency", ""))).border = thin_border
+        ws.cell(row=row, column=13, value=_cell_text(ind.get("formula", ""))).border = thin_border
+        ws.cell(row=row, column=14, value=_cell_text(ind.get("definition", ""))).border = thin_border
+        ws.cell(row=row, column=15, value=_cell_text(ind.get("data_source", ""))).border = thin_border
+        ws.cell(row=row, column=16, value=_cell_text(ind.get("disaggregation", ""))).border = thin_border
+        ws.cell(row=row, column=17, value=_cell_text(ind.get("means_of_verification", ""))).border = thin_border
+        ws.cell(row=row, column=18, value=_cell_text(ind.get("owner", ""))).border = thin_border
+        ws.cell(row=row, column=19, value=_cell_text(ind.get("evidence_excerpt", ""))).border = thin_border
 
     toc_payload_raw = toc_draft if isinstance(toc_draft, dict) else {}
     if not toc_payload_raw:
