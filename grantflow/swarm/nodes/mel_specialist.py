@@ -281,19 +281,24 @@ def _statement_to_indicator_phrase(statement: str) -> str:
     compact = " ".join(str(statement or "").split()).strip().rstrip(".")
     if not compact:
         return ""
-    compact = re.sub(r"evidence hint:\s*\w+\.?", "", compact, flags=re.IGNORECASE).strip(" .;:-")
+    compact = re.sub(r"\bevidence\s+hint\s*:?\s*[^.]+\.?", "", compact, flags=re.IGNORECASE).strip(" .;:-")
     compact = re.sub(
         r"\bintervention delivers measurable change\b",
-        "results delivered",
+        "",
         compact,
         flags=re.IGNORECASE,
     )
+    compact = re.sub(r"\bresults delivered\b", "", compact, flags=re.IGNORECASE).strip(" ,;:-")
+    compact = re.sub(r"\boutcomes?\s+(in|for|across)\b", r"\1", compact, flags=re.IGNORECASE)
+    compact = re.sub(r"\bresults?\s+(in|for|across)\b", r"\1", compact, flags=re.IGNORECASE)
     compact = re.sub(
         r"\bthrough structured implementation and review cycles\b",
         "",
         compact,
         flags=re.IGNORECASE,
     ).strip(" ,;:-")
+    compact = re.sub(r"\beviden[a-z]*\b.*$", "", compact, flags=re.IGNORECASE).strip(" .;:-")
+    compact = re.sub(r"\s+\.", ".", compact)
     normalized = re.sub(r"^[\"'`]+|[\"'`]+$", "", compact)
     replacements = (
         (r"^improve\s+", "Improved "),
@@ -319,7 +324,7 @@ def _statement_focus_phrase(statement: str) -> str:
     text = " ".join(str(statement or "").split()).strip().rstrip(".")
     if not text:
         return "priority result"
-    text = re.sub(r"evidence hint:\s*\w+\.?", "", text, flags=re.IGNORECASE).strip(" .;:-")
+    text = re.sub(r"\bevidence\s+hint\s*:?\s*[^.]+\.?", "", text, flags=re.IGNORECASE).strip(" .;:-")
     text = re.sub(
         r"\bintervention delivers measurable change\b",
         "results delivery",
@@ -332,6 +337,8 @@ def _statement_focus_phrase(statement: str) -> str:
         text,
         flags=re.IGNORECASE,
     ).strip(" ,;:-")
+    text = re.sub(r"\beviden[a-z]*\b.*$", "", text, flags=re.IGNORECASE).strip(" .;:-")
+    text = re.sub(r"\s+\.", ".", text)
     normalized = re.sub(r"^[\"'`]+|[\"'`]+$", "", text)
     normalized = re.sub(
         r"^(improve|strengthen|increase|expand|enhance|reduce|develop|build|support|enable|promote)\s+",
@@ -1058,6 +1065,10 @@ def _deterministic_indicators_from_toc(
             hit.get("name")
             or _indicator_name_from_toc_statement(statement, idx=idx, result_level=inferred_result_level)
         ).strip()
+        formula = str(
+            hit.get("formula")
+            or _default_indicator_formula(name, result_level=inferred_result_level, donor_id=donor_id)
+        ).strip()
         baseline, target = _resolve_baseline_target(
             baseline_raw=hit.get("baseline") if hit else "",
             target_raw=hit.get("target") if hit else "",
@@ -1066,6 +1077,7 @@ def _deterministic_indicators_from_toc(
             idx=idx,
             donor_id=donor_id,
             result_level=str(hit.get("result_level") or "").strip() or None,
+            formula=formula,
         )
         citation = str(hit.get("label") or hit.get("source") or hit.get("doc_id") or namespace)
         justification = _deterministic_indicator_justification(
@@ -1531,6 +1543,28 @@ def _is_state_department_organizational_indicator(name: str) -> bool:
     )
 
 
+def _indicator_count_unit_from_formula(formula: str, *, donor_id: str = "", indicator_name: str = "") -> str:
+    lowered = " ".join(f"{formula} {indicator_name}".split()).lower()
+    donor = str(donor_id or "").strip().lower()
+    if any(token in lowered for token in ("civil servants", "government officials", "officials")):
+        return "civil servants"
+    if "individuals" in lowered:
+        return "individuals"
+    if "people" in lowered or (
+        donor == "usaid" and any(token in lowered for token in ("skills", "training", "capacity"))
+    ):
+        return "people"
+    if "institutions" in lowered or "agencies" in lowered:
+        return "institutions"
+    if "organizations" in lowered or "organisations" in lowered:
+        return "organizations"
+    if "smes" in lowered or "enterprises" in lowered:
+        return "smes"
+    if "policies" in lowered or "protocols" in lowered:
+        return "policies"
+    return ""
+
+
 def _suggest_baseline_target(
     *,
     indicator_name: str,
@@ -1539,8 +1573,10 @@ def _suggest_baseline_target(
     donor_id: str = "",
     result_level: Optional[str] = None,
     existing_baseline: str = "",
+    formula: str = "",
 ) -> tuple[str, str]:
     name = str(indicator_name or "").lower()
+    formula_text = str(formula or "").strip()
     seed = _baseline_target_seed(input_context)
     profile = _donor_target_profile(donor_id)
     percent_target = int(profile.get("percent_target") or 25)
@@ -1561,6 +1597,21 @@ def _suggest_baseline_target(
         return "90 days", f"{target_days} days"
     if any(token in name for token in ("percent", "%", "rate", "share", "coverage")):
         return "0%", f"{percent_target}%"
+    formula_unit = _indicator_count_unit_from_formula(formula_text, donor_id=donor_id, indicator_name=indicator_name)
+    if formula_unit == "civil servants":
+        return "0 civil servants", f"{max(seed, people_floor)} civil servants"
+    if formula_unit == "individuals":
+        return "0 individuals", f"{max(seed, people_floor)} individuals"
+    if formula_unit == "people":
+        return "0 people", f"{max(seed, people_floor)} people"
+    if formula_unit == "institutions":
+        return "0 institutions", f"{institution_target} institutions"
+    if formula_unit == "organizations":
+        return "0 organizations", f"{organization_target} organizations"
+    if formula_unit == "smes":
+        return "0 SMEs", f"{max(organization_target, institution_target)} SMEs"
+    if formula_unit == "policies":
+        return "0 policies", f"{policy_target} policies"
     if donor_id in {"state_department", "us_state_department"} and _is_state_department_organizational_indicator(name):
         return "0 organizations", f"{organization_target} organizations"
     if _is_policy_indicator(name):
@@ -1610,6 +1661,7 @@ def _resolve_baseline_target(
     idx: int,
     donor_id: str = "",
     result_level: Optional[str] = None,
+    formula: str = "",
 ) -> tuple[str, str]:
     baseline = str(baseline_raw or "").strip()
     target = str(target_raw or "").strip()
@@ -1623,6 +1675,7 @@ def _resolve_baseline_target(
             idx=idx,
             donor_id=donor_id,
             result_level=result_level,
+            formula=formula,
         )
     if baseline_placeholder:
         suggested_baseline, _ = _suggest_baseline_target(
@@ -1632,6 +1685,7 @@ def _resolve_baseline_target(
             donor_id=donor_id,
             result_level=result_level,
             existing_baseline=target,
+            formula=formula,
         )
         return suggested_baseline, target
     if target_placeholder:
@@ -1642,6 +1696,7 @@ def _resolve_baseline_target(
             donor_id=donor_id,
             result_level=result_level,
             existing_baseline=baseline,
+            formula=formula,
         )
         return baseline, suggested_target
     return baseline, target
@@ -1658,6 +1713,9 @@ def _indicator_from_hit(
     name = str(hit.get("name") or f"Indicator from {namespace} #{idx + 1}")
     toc_statement_path = str(hit.get("toc_statement_path") or "").strip() or ""
     result_level = str(hit.get("result_level") or "").strip() or None
+    formula = str(
+        hit.get("formula") or _default_indicator_formula(name, result_level=result_level or "", donor_id=donor_id)
+    ).strip()
     baseline, target = _resolve_baseline_target(
         baseline_raw=hit.get("baseline"),
         target_raw=hit.get("target"),
@@ -1666,6 +1724,7 @@ def _indicator_from_hit(
         idx=idx,
         donor_id=donor_id,
         result_level=result_level,
+        formula=formula,
     )
     justification = str(hit.get("justification") or "").strip()
     if _is_generic_indicator_justification(justification):
@@ -1740,6 +1799,9 @@ def _normalize_indicator_item(
             source=str(item.get("citation") or ""),
         )
     citation = str(item.get("citation") or "").strip() or namespace
+    formula = str(
+        item.get("formula") or _default_indicator_formula(name, result_level=result_level or "", donor_id=donor_id)
+    ).strip()
     baseline, target = _resolve_baseline_target(
         baseline_raw=item.get("baseline"),
         target_raw=item.get("target"),
@@ -1748,6 +1810,7 @@ def _normalize_indicator_item(
         idx=idx,
         donor_id=donor_id,
         result_level=result_level,
+        formula=formula,
     )
     evidence_excerpt = str(item.get("evidence_excerpt") or "").strip() or None
     normalized: Dict[str, Any] = {

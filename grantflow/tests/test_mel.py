@@ -255,7 +255,42 @@ def test_indicator_name_from_toc_statement_strips_boilerplate_narrative():
 
     assert "evidence hint" not in name.lower()
     assert "structured implementation and review cycles" not in name.lower()
-    assert "results delivered" in name.lower()
+    assert "results delivered" not in name.lower()
+    assert "measurable change" not in name.lower()
+    assert "eviden" not in name.lower()
+
+
+def test_suggest_baseline_target_prefers_formula_unit_over_generic_name():
+    baseline, target = mel_module._suggest_baseline_target(
+        indicator_name="Outcome: Improved operational execution and accountability in public sector performance",
+        input_context={"project": "Public Sector Performance", "country": "Uzbekistan"},
+        idx=1,
+        donor_id="worldbank",
+        result_level="outcome",
+        formula="Count of institutions achieving verified service-performance improvements",
+    )
+
+    assert baseline == "0 institutions"
+    assert target == "8 institutions"
+
+
+def test_indicator_from_hit_aligns_baseline_target_with_formula_unit():
+    indicator = mel_module._indicator_from_hit(
+        {
+            "name": "Outcome: Improved operational execution and accountability in public sector performance",
+            "formula": "Count of institutions achieving verified service-performance improvements",
+            "result_level": "outcome",
+            "excerpt": "ISR and aide-memoire evidence",
+            "source": "worldbank_ads301",
+        },
+        idx=1,
+        namespace="worldbank_ads301",
+        donor_id="worldbank",
+        input_context={"project": "Public Sector Performance", "country": "Uzbekistan"},
+    )
+
+    assert indicator["baseline"] == "0 institutions"
+    assert indicator["target"] == "8 institutions"
 
 
 def test_deterministic_definition_from_statement_is_donor_shaped():
