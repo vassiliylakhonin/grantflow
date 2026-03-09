@@ -1,6 +1,13 @@
 {
   "job_id": "job-1",
   "payload": {
+    "architect_citation_signals": {
+      "architect_citation_count": 0,
+      "evidence_signal_count": 0,
+      "evidence_signal_counts": {},
+      "review_hint_count": 0,
+      "review_hint_preview": []
+    },
     "critic_findings": [
       {
         "code": "TOC_GAP",

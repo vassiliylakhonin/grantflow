@@ -55,6 +55,13 @@
     "architect_retrieval_metadata_complete_citation_rate": 0.0,
     "architect_retrieval_rank_present_citation_count": 0,
     "architect_retrieval_rank_present_citation_rate": 0.0,
+    "architect_signal_summary": {
+      "architect_citation_count": 2,
+      "evidence_signal_count": 0,
+      "evidence_signal_counts": {},
+      "review_hint_count": 0,
+      "review_hint_preview": []
+    },
     "architect_strategy_reference_citation_count": 0,
     "architect_strategy_reference_citation_rate": 0.0,
     "architect_threshold_hit_rate": 0.5,

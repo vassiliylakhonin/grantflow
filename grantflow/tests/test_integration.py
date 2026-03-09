@@ -4559,6 +4559,9 @@ def test_status_export_payload_endpoint_returns_review_ready_payload():
     assert payload["review_readiness_summary"]["open_critic_findings"] == 1
     assert payload["review_readiness_summary"]["open_review_comments"] == 1
     assert payload["review_readiness_summary"]["fallback_strategy_citations"] == 0
+    assert payload["architect_citation_signals"]["architect_citation_count"] == 0
+    assert payload["architect_citation_signals"]["evidence_signal_count"] == 0
+    assert payload["architect_citation_signals"]["review_hint_preview"] == []
     export_contract = payload["export_contract"]
     assert export_contract["template_key"] == "usaid"
     assert export_contract["status"] == "warning"
@@ -4648,11 +4651,17 @@ def test_status_includes_citations_traceability(monkeypatch):
     assert citations_body["status"] == "done"
     assert citations_body["citation_count"] >= 1
     assert isinstance(citations_body["citations"], list)
+    assert isinstance(citations_body["architect_signal_summary"], dict)
     assert citations_body["citations"][0]["stage"]
     assert any("statement_path" in c for c in citations_body["citations"])
     assert any("citation_confidence" in c for c in citations_body["citations"])
     assert any("doc_id" in c for c in citations_body["citations"])
     assert any("retrieval_rank" in c for c in citations_body["citations"])
+    assert citations_body["architect_signal_summary"]["architect_citation_count"] >= 1
+    assert citations_body["architect_signal_summary"]["evidence_signal_count"] >= 1
+    assert citations_body["architect_signal_summary"]["review_hint_count"] >= 1
+    assert any(c.get("evidence_signal") for c in architect_citations)
+    assert any(c.get("review_hint") for c in architect_citations)
     for c in citations_body["citations"]:
         if c.get("citation_confidence") is not None:
             assert 0.0 <= float(c["citation_confidence"]) <= 1.0
@@ -7420,6 +7429,9 @@ def test_quality_summary_endpoint_aggregates_quality_signals():
     assert body["citations"]["architect_retrieval_confidence_present_citation_rate"] == 1.0
     assert body["citations"]["architect_retrieval_metadata_complete_citation_count"] == 0
     assert body["citations"]["architect_retrieval_metadata_complete_citation_rate"] == 0.0
+    assert body["citations"]["architect_signal_summary"]["architect_citation_count"] == 3
+    assert body["citations"]["architect_signal_summary"]["evidence_signal_count"] == 3
+    assert body["citations"]["architect_signal_summary"]["review_hint_count"] >= 1
     assert body["citations"]["mel_doc_id_present_citation_count"] == 0
     assert body["citations"]["mel_doc_id_present_citation_rate"] == 0.0
     assert body["citations"]["mel_retrieval_rank_present_citation_count"] == 0

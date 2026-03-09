@@ -693,6 +693,31 @@ def _citation_type_counts(citations: list[Dict[str, Any]]) -> Dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+def _architect_citation_signal_summary_payload(citations: list[Dict[str, Any]]) -> Dict[str, Any]:
+    architect_citations = [
+        item
+        for item in citations
+        if isinstance(item, dict) and str(item.get("stage") or "").strip().lower() == "architect"
+    ]
+    evidence_signal_counts: Dict[str, int] = {}
+    review_hint_preview: list[str] = []
+    for item in architect_citations:
+        evidence_signal = str(item.get("evidence_signal") or "").strip()
+        if evidence_signal:
+            evidence_signal_counts[evidence_signal] = int(evidence_signal_counts.get(evidence_signal, 0)) + 1
+        review_hint = str(item.get("review_hint") or "").strip()
+        if review_hint and review_hint not in review_hint_preview:
+            review_hint_preview.append(review_hint)
+    ordered_signal_counts = dict(sorted(evidence_signal_counts.items(), key=lambda pair: (-pair[1], pair[0].lower())))
+    return {
+        "architect_citation_count": len(architect_citations),
+        "evidence_signal_count": sum(ordered_signal_counts.values()),
+        "evidence_signal_counts": ordered_signal_counts,
+        "review_hint_count": len(review_hint_preview),
+        "review_hint_preview": review_hint_preview[:3],
+    }
+
+
 def _is_claim_support_citation_type(citation_type: Any) -> bool:
     token = str(citation_type or "").strip().lower()
     return token in {"rag_result", "rag_support", "rag_claim_support"}
@@ -2059,6 +2084,9 @@ def public_job_export_payload(
         critic_findings=[item for item in critic_findings if isinstance(item, dict)],
         review_comments=[item for item in review_comments if isinstance(item, dict)],
     )
+    architect_signal_summary = _architect_citation_signal_summary_payload(
+        [item for item in citations_for_summary if isinstance(item, dict)]
+    )
     if isinstance(review_readiness_summary.get("comment_triage_summary"), dict):
         review_readiness_summary["comment_triage_summary"] = _comment_triage_summary_payload(
             review_comments=[item for item in review_comments if isinstance(item, dict)],
@@ -2087,6 +2115,7 @@ def public_job_export_payload(
             "review_comments": [item for item in review_comments if isinstance(item, dict)],
             "readiness": readiness_payload,
             "review_readiness_summary": review_readiness_summary,
+            "architect_citation_signals": architect_signal_summary,
             "export_contract": sanitize_for_public_response(export_contract_gate),
         },
     }
@@ -2099,11 +2128,15 @@ def public_job_citations_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, 
         raw = state.get("citations")
         if isinstance(raw, list):
             citations = [sanitize_for_public_response(item) for item in raw if isinstance(item, dict)]
+    architect_signal_summary = _architect_citation_signal_summary_payload(
+        [item for item in citations if isinstance(item, dict)]
+    )
     return {
         "job_id": str(job_id),
         "status": str(job.get("status") or ""),
         "citation_count": len(citations),
         "citations": citations,
+        "architect_signal_summary": architect_signal_summary,
     }
 
 
@@ -3563,6 +3596,9 @@ def public_job_quality_payload(
         if architect_claim_citations
         else None
     )
+    architect_signal_summary = _architect_citation_signal_summary_payload(
+        [row for row in citations if isinstance(row, dict)]
+    )
 
     payload: Dict[str, Any] = {
         "job_id": str(job_id),
@@ -3698,6 +3734,7 @@ def public_job_quality_payload(
                 if architect_citations
                 else None
             ),
+            "architect_signal_summary": architect_signal_summary,
             "mel_claim_support_citation_count": mel_claim_support_citation_count,
             "mel_claim_support_rate": (
                 round(mel_claim_support_citation_count / len(mel_citations), 4) if mel_citations else None
