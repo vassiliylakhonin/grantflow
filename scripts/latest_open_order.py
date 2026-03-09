@@ -105,6 +105,22 @@ def main() -> int:
     lines.append(f"Generated at: {datetime.now(timezone.utc).isoformat()}")
     lines.append(f"- Build root: `{build_dir}`")
     lines.append("")
+    if send_policy_classification == "internal-only":
+        lines.append("## External Send Warning")
+        lines.append("")
+        lines.append(
+            "**DO NOT SEND EXTERNALLY:** current workflow policy is `internal-only`; keep this pack in internal review until the operational blocker is cleared."
+        )
+        if send_policy_action != "-":
+            lines.append(f"- Required next action: `{send_policy_action}`")
+        lines.append("")
+    elif send_policy_classification == "send-with-conditions":
+        lines.append("## External Send Caution")
+        lines.append("")
+        lines.append("**SEND WITH CONDITIONS:** review the current workflow blocker list before external sharing.")
+        if send_policy_action != "-":
+            lines.append(f"- Required next action: `{send_policy_action}`")
+        lines.append("")
     lines.append("## Recommended Order")
     lines.append("")
     for index, (link_name, purpose) in enumerate(LINK_ORDER, start=1):
