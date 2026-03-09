@@ -94,6 +94,11 @@ class CaseScorecard:
     comment_ack_queue_count: float | None
     comment_resolve_queue_count: float | None
     comment_reopen_queue_count: float | None
+    review_workflow_policy_status: str
+    review_workflow_policy_go_no_go_flag: str
+    review_workflow_policy_breach_count: int | None
+    review_workflow_policy_attention_count: int | None
+    review_workflow_next_operational_action: str
     comment_age_gt_7d: float | None
     stale_comment_bucket_logic: int | None
     stale_comment_bucket_grounding: int | None
@@ -232,6 +237,23 @@ def _load_case_scorecards(
                 comment_ack_queue_count=_safe_float(metrics_row.get("comment_ack_queue_count")),
                 comment_resolve_queue_count=_safe_float(metrics_row.get("comment_resolve_queue_count")),
                 comment_reopen_queue_count=_safe_float(metrics_row.get("comment_reopen_queue_count")),
+                review_workflow_policy_status=str(metrics_row.get("review_workflow_policy_status") or "").strip(),
+                review_workflow_policy_go_no_go_flag=str(
+                    metrics_row.get("review_workflow_policy_go_no_go_flag") or ""
+                ).strip(),
+                review_workflow_policy_breach_count=(
+                    int(metrics_row["review_workflow_policy_breach_count"])
+                    if str(metrics_row.get("review_workflow_policy_breach_count") or "").strip()
+                    else None
+                ),
+                review_workflow_policy_attention_count=(
+                    int(metrics_row["review_workflow_policy_attention_count"])
+                    if str(metrics_row.get("review_workflow_policy_attention_count") or "").strip()
+                    else None
+                ),
+                review_workflow_next_operational_action=str(
+                    metrics_row.get("review_workflow_next_operational_action") or ""
+                ).strip(),
                 comment_age_gt_7d=_safe_float(metrics_row.get("comment_age_gt_7d")),
                 stale_comment_bucket_logic=(
                     int(metrics_row["stale_comment_bucket_logic"])
@@ -360,6 +382,22 @@ def _build_scorecard(
     avg_comment_reopen_queue = _avg(
         [case.comment_reopen_queue_count for case in cases if case.comment_reopen_queue_count is not None]
     )
+    policy_status_rank = {"breach": 3, "attention": 2, "healthy": 1}
+    portfolio_policy_status = ""
+    portfolio_policy_go_no_go = ""
+    portfolio_policy_next_action = ""
+    total_policy_breaches = 0
+    total_policy_attention = 0
+    for case in cases:
+        current_status = str(case.review_workflow_policy_status or "").strip().lower()
+        if current_status and policy_status_rank.get(current_status, 0) > policy_status_rank.get(
+            portfolio_policy_status, 0
+        ):
+            portfolio_policy_status = current_status
+            portfolio_policy_go_no_go = str(case.review_workflow_policy_go_no_go_flag or "").strip().lower()
+            portfolio_policy_next_action = str(case.review_workflow_next_operational_action or "").strip()
+        total_policy_breaches += int(case.review_workflow_policy_breach_count or 0)
+        total_policy_attention += int(case.review_workflow_policy_attention_count or 0)
     avg_comment_age_gt_7d = _avg([case.comment_age_gt_7d for case in cases if case.comment_age_gt_7d is not None])
     stale_bucket_totals = {
         "logic": sum(int(case.stale_comment_bucket_logic or 0) for case in cases),
@@ -426,6 +464,10 @@ def _build_scorecard(
         conditional_reasons.append("stale reviewer comment threads remain in at least one case")
     if any((case.orphan_linked_review_comments or 0) > 0 for case in cases):
         conditional_reasons.append("orphan linked reviewer comments remain in at least one case")
+    if portfolio_policy_status == "breach":
+        conditional_reasons.append("review workflow SLA policy is in breach state")
+    elif portfolio_policy_status == "attention":
+        conditional_reasons.append("review workflow SLA policy requires operational cleanup before buyer handoff")
     if any((case.fallback_strategy_citations or 0) > 0 for case in cases):
         conditional_reasons.append("fallback/strategy citations remain present in at least one case")
     if hitl_cases == 0:
@@ -517,6 +559,14 @@ def _build_scorecard(
     lines.append(f"- Average comment ack queue per case: `{_fmt(avg_comment_ack_queue)}`")
     lines.append(f"- Average comment resolve queue per case: `{_fmt(avg_comment_resolve_queue)}`")
     lines.append(f"- Average comment reopen queue per case: `{_fmt(avg_comment_reopen_queue)}`")
+    if portfolio_policy_status:
+        lines.append(f"- Review workflow policy status: `{portfolio_policy_status}`")
+    if portfolio_policy_go_no_go:
+        lines.append(f"- Review workflow policy go/no-go: `{portfolio_policy_go_no_go}`")
+    lines.append(f"- Review workflow policy breach count: `{total_policy_breaches}`")
+    lines.append(f"- Review workflow policy attention count: `{total_policy_attention}`")
+    if portfolio_policy_next_action:
+        lines.append(f"- Review workflow next operational action: `{portfolio_policy_next_action}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_fmt(avg_comment_age_gt_7d)}`")
     if stale_bucket_mix:
         lines.append(f"- Stale comment bucket mix: `{stale_bucket_mix}`")

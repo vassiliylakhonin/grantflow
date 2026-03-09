@@ -353,6 +353,27 @@
     "resolved_review_comments": 0,
     "review_comment_acknowledgment_rate": 0.0,
     "review_comment_resolution_rate": 0.0,
+    "review_workflow_policy_summary": {
+      "attention_count": 5,
+      "attention_flags": [
+        "finding_ack_queue_open",
+        "finding_resolve_queue_open",
+        "comment_ack_queue_open",
+        "low_reviewer_resolution_rate",
+        "low_reviewer_acknowledgment_rate"
+      ],
+      "breach_count": 1,
+      "breaches": [
+        "comment_threads_gt_7d_present"
+      ],
+      "go_no_go_flag": "hold",
+      "max_allowed_comment_threads_gt_7d": 0,
+      "max_allowed_finding_ack_queue": 1,
+      "min_reviewer_acknowledgment_rate": 0.65,
+      "min_reviewer_resolution_rate": 0.35,
+      "next_operational_action": "clear_stale_comment_threads",
+      "status": "breach"
+    },
     "reviewer_workflow_summary": {
       "acknowledged_items": 1,
       "acknowledgment_rate": 0.3333,

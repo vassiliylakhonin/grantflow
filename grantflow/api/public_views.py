@@ -104,6 +104,10 @@ MEL_SMART_COVERAGE_FIELDS = (
     "data_source",
     "result_level",
 )
+REVIEW_WORKFLOW_POLICY_ACK_RATE_MIN = 0.65
+REVIEW_WORKFLOW_POLICY_RESOLUTION_RATE_MIN = 0.35
+REVIEW_WORKFLOW_POLICY_FINDING_ACK_BREACH_THRESHOLD = 2
+REVIEW_WORKFLOW_POLICY_COMMENT_GT7D_BREACH_THRESHOLD = 1
 
 
 def _finding_review_bucket(item: Dict[str, Any]) -> str:
@@ -1216,6 +1220,11 @@ def public_job_review_workflow_payload(
     )
     summary["action_queue_summary"] = _review_action_queue_summary_payload(
         critic_findings=findings_with_workflow,
+        comment_triage_summary=cast(dict[str, Any], summary["comment_triage_summary"]),
+    )
+    summary["review_workflow_policy_summary"] = _review_workflow_policy_summary_payload(
+        reviewer_workflow_summary=cast(dict[str, Any], summary["reviewer_workflow_summary"]),
+        action_queue_summary=cast(dict[str, Any], summary["action_queue_summary"]),
         comment_triage_summary=cast(dict[str, Any], summary["comment_triage_summary"]),
     )
     return {
@@ -2569,6 +2578,11 @@ def _review_readiness_summary_payload(
         critic_findings=[item for item in critic_findings if isinstance(item, dict)],
         comment_triage_summary=comment_triage_summary,
     )
+    review_workflow_policy_summary = _review_workflow_policy_summary_payload(
+        reviewer_workflow_summary=reviewer_workflow_summary,
+        action_queue_summary=action_queue_summary,
+        comment_triage_summary=comment_triage_summary,
+    )
     total_finding_count = len([item for item in critic_findings if isinstance(item, dict)])
     top_reviewer_actions: list[str] = []
     for item in open_findings:
@@ -2610,6 +2624,7 @@ def _review_readiness_summary_payload(
         "top_reviewer_actions": top_reviewer_actions,
         "reviewer_workflow_summary": reviewer_workflow_summary,
         "action_queue_summary": action_queue_summary,
+        "review_workflow_policy_summary": review_workflow_policy_summary,
         "low_confidence_citations": len(low_confidence_citations),
         "fallback_strategy_citations": len(fallback_strategy_citations),
         "comment_triage_summary": comment_triage_summary,
@@ -2924,6 +2939,96 @@ def _review_action_queue_summary_payload(
         "comment_resolve_queue_count": comment_resolve_queue_count,
         "comment_reopen_queue_count": comment_reopen_queue_count,
         "next_primary_action": next_primary_action,
+    }
+
+
+def _review_workflow_policy_summary_payload(
+    *,
+    reviewer_workflow_summary: dict[str, Any],
+    action_queue_summary: dict[str, Any],
+    comment_triage_summary: dict[str, Any],
+) -> dict[str, Any]:
+    finding_ack_queue_count = int(action_queue_summary.get("finding_ack_queue_count") or 0)
+    finding_resolve_queue_count = int(action_queue_summary.get("finding_resolve_queue_count") or 0)
+    comment_ack_queue_count = int(action_queue_summary.get("comment_ack_queue_count") or 0)
+    comment_resolve_queue_count = int(action_queue_summary.get("comment_resolve_queue_count") or 0)
+    comment_reopen_queue_count = int(action_queue_summary.get("comment_reopen_queue_count") or 0)
+    overdue_comment_count = int(comment_triage_summary.get("overdue_comment_count") or 0)
+    stale_open_comment_count = int(comment_triage_summary.get("stale_open_comment_count") or 0)
+    aging_band_counts = (
+        comment_triage_summary.get("aging_band_counts")
+        if isinstance(comment_triage_summary.get("aging_band_counts"), dict)
+        else {}
+    )
+    gt_7d_count = int(aging_band_counts.get("gt_7d") or 0)
+    resolution_rate_raw = reviewer_workflow_summary.get("resolution_rate")
+    acknowledgment_rate_raw = reviewer_workflow_summary.get("acknowledgment_rate")
+    try:
+        resolution_rate = float(resolution_rate_raw) if resolution_rate_raw is not None else None
+    except (TypeError, ValueError):
+        resolution_rate = None
+    try:
+        acknowledgment_rate = float(acknowledgment_rate_raw) if acknowledgment_rate_raw is not None else None
+    except (TypeError, ValueError):
+        acknowledgment_rate = None
+
+    breach_flags: list[str] = []
+    attention_flags: list[str] = []
+    if overdue_comment_count > 0:
+        breach_flags.append("overdue_review_comments_present")
+    if gt_7d_count >= REVIEW_WORKFLOW_POLICY_COMMENT_GT7D_BREACH_THRESHOLD:
+        breach_flags.append("comment_threads_gt_7d_present")
+    if finding_ack_queue_count >= REVIEW_WORKFLOW_POLICY_FINDING_ACK_BREACH_THRESHOLD:
+        breach_flags.append("finding_ack_queue_backlog")
+
+    if finding_ack_queue_count > 0 and "finding_ack_queue_backlog" not in breach_flags:
+        attention_flags.append("finding_ack_queue_open")
+    if finding_resolve_queue_count > 0:
+        attention_flags.append("finding_resolve_queue_open")
+    if comment_ack_queue_count > 0:
+        attention_flags.append("comment_ack_queue_open")
+    if comment_resolve_queue_count > 0:
+        attention_flags.append("comment_resolve_queue_open")
+    if comment_reopen_queue_count > 0:
+        attention_flags.append("comment_reopen_queue_open")
+    if stale_open_comment_count > 0 and "comment_threads_gt_7d_present" not in breach_flags:
+        attention_flags.append("stale_open_comment_threads_present")
+    if resolution_rate is not None and resolution_rate < REVIEW_WORKFLOW_POLICY_RESOLUTION_RATE_MIN:
+        attention_flags.append("low_reviewer_resolution_rate")
+    if acknowledgment_rate is not None and acknowledgment_rate < REVIEW_WORKFLOW_POLICY_ACK_RATE_MIN:
+        attention_flags.append("low_reviewer_acknowledgment_rate")
+
+    next_primary_action = str(action_queue_summary.get("next_primary_action") or "").strip() or None
+    next_operational_action = next_primary_action
+    if "overdue_review_comments_present" in breach_flags:
+        next_operational_action = "resolve_overdue_comments"
+    elif "comment_threads_gt_7d_present" in breach_flags:
+        next_operational_action = "clear_stale_comment_threads"
+    elif "finding_ack_queue_backlog" in breach_flags:
+        next_operational_action = "triage_open_findings"
+
+    if breach_flags:
+        status = "breach"
+        go_no_go_flag = "hold"
+    elif attention_flags:
+        status = "attention"
+        go_no_go_flag = "go_with_conditions"
+    else:
+        status = "healthy"
+        go_no_go_flag = "go"
+
+    return {
+        "status": status,
+        "go_no_go_flag": go_no_go_flag,
+        "breach_count": len(breach_flags),
+        "attention_count": len(attention_flags),
+        "breaches": breach_flags,
+        "attention_flags": attention_flags,
+        "next_operational_action": next_operational_action,
+        "max_allowed_finding_ack_queue": REVIEW_WORKFLOW_POLICY_FINDING_ACK_BREACH_THRESHOLD - 1,
+        "max_allowed_comment_threads_gt_7d": REVIEW_WORKFLOW_POLICY_COMMENT_GT7D_BREACH_THRESHOLD - 1,
+        "min_reviewer_resolution_rate": REVIEW_WORKFLOW_POLICY_RESOLUTION_RATE_MIN,
+        "min_reviewer_acknowledgment_rate": REVIEW_WORKFLOW_POLICY_ACK_RATE_MIN,
     }
 
 
@@ -6086,6 +6191,66 @@ def public_portfolio_review_workflow_payload(
                     )
                 ),
             },
+            "review_workflow_policy_summary": _review_workflow_policy_summary_payload(
+                reviewer_workflow_summary={
+                    "open_items": reviewer_workflow_open_items,
+                    "acknowledged_items": reviewer_workflow_acknowledged_items,
+                    "resolved_items": reviewer_workflow_resolved_items,
+                    "resolution_rate": (
+                        round(reviewer_workflow_resolved_items / total_reviewer_items, 4)
+                        if total_reviewer_items
+                        else None
+                    ),
+                    "acknowledgment_rate": (
+                        round(
+                            (reviewer_workflow_resolved_items + reviewer_workflow_acknowledged_items)
+                            / total_reviewer_items,
+                            4,
+                        )
+                        if total_reviewer_items
+                        else None
+                    ),
+                    "stale_comment_bucket_counts": dict(sorted(stale_comment_bucket_counts.items())),
+                    "top_stale_comment_bucket": top_stale_comment_bucket,
+                },
+                action_queue_summary={
+                    "finding_ack_queue_count": open_finding_count,
+                    "finding_resolve_queue_count": acknowledged_finding_count,
+                    "comment_ack_queue_count": open_comment_count,
+                    "comment_resolve_queue_count": int(comment_status_counts.get("acknowledged") or 0),
+                    "comment_reopen_queue_count": resolved_comment_count,
+                    "next_primary_action": (
+                        "ack_finding"
+                        if open_finding_count > 0
+                        else (
+                            "resolve_finding"
+                            if acknowledged_finding_count > 0
+                            else (
+                                "ack_comment"
+                                if open_comment_count > 0
+                                else (
+                                    "resolve_comment"
+                                    if int(comment_status_counts.get("acknowledged") or 0) > 0
+                                    else ("reopen_comment" if resolved_comment_count > 0 else None)
+                                )
+                            )
+                        )
+                    ),
+                },
+                comment_triage_summary={
+                    "overdue_comment_count": overdue_comment_count,
+                    "stale_open_comment_count": sum(int(count or 0) for count in stale_comment_bucket_counts.values()),
+                    "aging_band_counts": {
+                        "gt_7d": int(
+                            stale_comment_bucket_counts.get("logic", 0)
+                            + stale_comment_bucket_counts.get("grounding", 0)
+                            + stale_comment_bucket_counts.get("measurement", 0)
+                            + stale_comment_bucket_counts.get("compliance", 0)
+                            + stale_comment_bucket_counts.get("general", 0)
+                        )
+                    },
+                },
+            ),
         },
         "top_event_type": top_event_type,
         "top_event_type_count": top_event_type_count if top_event_type is not None else None,

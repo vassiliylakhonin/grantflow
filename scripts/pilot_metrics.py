@@ -12,6 +12,7 @@ from grantflow.api.public_views import (
     _comment_triage_summary_payload,
     _critic_triage_summary_payload,
     _review_action_queue_summary_payload,
+    _review_workflow_policy_summary_payload,
     _reviewer_workflow_summary_payload,
 )
 
@@ -153,6 +154,15 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             "reviewer_workflow_summary": reviewer_workflow_summary,
             "action_queue_summary": action_queue_summary,
         }
+    if not isinstance(readiness.get("review_workflow_policy_summary"), dict):
+        readiness = {
+            **readiness,
+            "review_workflow_policy_summary": _review_workflow_policy_summary_payload(
+                reviewer_workflow_summary=reviewer_workflow_summary,
+                action_queue_summary=action_queue_summary,
+                comment_triage_summary=comment_triage,
+            ),
+        }
     if (
         readiness.get("critic_finding_resolution_rate") in {None, ""}
         or readiness.get("critic_finding_acknowledgment_rate") in {None, ""}
@@ -281,6 +291,31 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             if isinstance(readiness.get("action_queue_summary"), dict)
             else None
         ),
+        "review_workflow_policy_status": (
+            readiness.get("review_workflow_policy_summary", {}).get("status")
+            if isinstance(readiness.get("review_workflow_policy_summary"), dict)
+            else None
+        ),
+        "review_workflow_policy_go_no_go_flag": (
+            readiness.get("review_workflow_policy_summary", {}).get("go_no_go_flag")
+            if isinstance(readiness.get("review_workflow_policy_summary"), dict)
+            else None
+        ),
+        "review_workflow_policy_breach_count": (
+            readiness.get("review_workflow_policy_summary", {}).get("breach_count")
+            if isinstance(readiness.get("review_workflow_policy_summary"), dict)
+            else None
+        ),
+        "review_workflow_policy_attention_count": (
+            readiness.get("review_workflow_policy_summary", {}).get("attention_count")
+            if isinstance(readiness.get("review_workflow_policy_summary"), dict)
+            else None
+        ),
+        "review_workflow_next_operational_action": (
+            readiness.get("review_workflow_policy_summary", {}).get("next_operational_action")
+            if isinstance(readiness.get("review_workflow_policy_summary"), dict)
+            else None
+        ),
         "fallback_strategy_citations": readiness.get("fallback_strategy_citations"),
         "low_confidence_citations": readiness.get("low_confidence_citations"),
         "next_review_bucket": triage.get("next_review_bucket"),
@@ -367,6 +402,11 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "comment_resolve_queue_count",
         "comment_reopen_queue_count",
         "next_primary_action",
+        "review_workflow_policy_status",
+        "review_workflow_policy_go_no_go_flag",
+        "review_workflow_policy_breach_count",
+        "review_workflow_policy_attention_count",
+        "review_workflow_next_operational_action",
         "fallback_strategy_citations",
         "low_confidence_citations",
         "next_review_bucket",
@@ -502,6 +542,20 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
         ),
         "",
     )
+    policy_status_rank = {"breach": 3, "attention": 2, "healthy": 1}
+    policy_status = ""
+    policy_go_no_go_flag = ""
+    policy_next_operational_action = ""
+    policy_breach_count = 0
+    policy_attention_count = 0
+    for row in rows:
+        current_status = str(row.get("review_workflow_policy_status") or "").strip().lower()
+        if current_status and policy_status_rank.get(current_status, 0) > policy_status_rank.get(policy_status, 0):
+            policy_status = current_status
+            policy_go_no_go_flag = str(row.get("review_workflow_policy_go_no_go_flag") or "").strip().lower()
+            policy_next_operational_action = str(row.get("review_workflow_next_operational_action") or "").strip()
+        policy_breach_count += int(_safe_int(row.get("review_workflow_policy_breach_count")) or 0)
+        policy_attention_count += int(_safe_int(row.get("review_workflow_policy_attention_count")) or 0)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "pilot_pack_name": pilot_pack_name,
@@ -544,6 +598,11 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
         "complete_logframe_operational_coverage_cases": complete_logframe_cases,
         "complete_logframe_operational_coverage_ratio": round(complete_logframe_cases / len(rows), 4) if rows else None,
         "portfolio_next_primary_action": next_primary_action or None,
+        "portfolio_review_workflow_policy_status": policy_status or None,
+        "portfolio_review_workflow_policy_go_no_go_flag": policy_go_no_go_flag or None,
+        "portfolio_review_workflow_policy_breach_count": policy_breach_count,
+        "portfolio_review_workflow_policy_attention_count": policy_attention_count,
+        "portfolio_review_workflow_next_operational_action": policy_next_operational_action or None,
         "portfolio_next_review_bucket": next_bucket or None,
         "portfolio_next_recommended_action": next_action or None,
         "portfolio_next_comment_section": next_comment_section or None,
@@ -648,6 +707,20 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
         ),
         "",
     )
+    policy_status_rank = {"breach": 3, "attention": 2, "healthy": 1}
+    policy_status = ""
+    policy_go_no_go_flag = ""
+    policy_next_operational_action = ""
+    policy_breach_count = 0
+    policy_attention_count = 0
+    for row in rows:
+        current_status = str(row.get("review_workflow_policy_status") or "").strip().lower()
+        if current_status and policy_status_rank.get(current_status, 0) > policy_status_rank.get(policy_status, 0):
+            policy_status = current_status
+            policy_go_no_go_flag = str(row.get("review_workflow_policy_go_no_go_flag") or "").strip().lower()
+            policy_next_operational_action = str(row.get("review_workflow_next_operational_action") or "").strip()
+        policy_breach_count += int(_safe_int(row.get("review_workflow_policy_breach_count")) or 0)
+        policy_attention_count += int(_safe_int(row.get("review_workflow_policy_attention_count")) or 0)
 
     lines: list[str] = []
     lines.append("# Pilot Metrics")
@@ -713,6 +786,14 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Cases with complete LogFrame operational coverage: `{complete_logframe_cases}/{len(rows)}`")
     if next_primary_action:
         lines.append(f"- Portfolio next primary action: `{next_primary_action}`")
+    if policy_status:
+        lines.append(f"- Review workflow policy status: `{policy_status}`")
+    if policy_go_no_go_flag:
+        lines.append(f"- Review workflow policy go/no-go: `{policy_go_no_go_flag}`")
+    lines.append(f"- Review workflow policy breach count: `{policy_breach_count}`")
+    lines.append(f"- Review workflow policy attention count: `{policy_attention_count}`")
+    if policy_next_operational_action:
+        lines.append(f"- Review workflow next operational action: `{policy_next_operational_action}`")
     if next_bucket:
         lines.append(f"- Portfolio next review bucket: `{next_bucket}`")
     if next_action:

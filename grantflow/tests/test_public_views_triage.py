@@ -285,6 +285,9 @@ def test_job_review_workflow_payload_emits_comment_triage_and_reviewer_workflow_
     assert summary["action_queue_summary"]["comment_resolve_queue_count"] == 1
     assert summary["action_queue_summary"]["comment_reopen_queue_count"] == 1
     assert summary["action_queue_summary"]["next_primary_action"] == "ack_finding"
+    assert summary["review_workflow_policy_summary"]["status"] == "breach"
+    assert summary["review_workflow_policy_summary"]["go_no_go_flag"] == "hold"
+    assert "overdue_review_comments_present" in summary["review_workflow_policy_summary"]["breaches"]
 
 
 def test_portfolio_review_workflow_payload_aggregates_reviewer_workflow_summary():
@@ -354,3 +357,5 @@ def test_portfolio_review_workflow_payload_aggregates_reviewer_workflow_summary(
     assert summary["action_queue_summary"]["finding_ack_queue_count"] == 2
     assert summary["action_queue_summary"]["comment_ack_queue_count"] == 2
     assert summary["action_queue_summary"]["next_primary_action"] == "ack_finding"
+    assert summary["review_workflow_policy_summary"]["status"] == "breach"
+    assert summary["review_workflow_policy_summary"]["go_no_go_flag"] == "hold"
