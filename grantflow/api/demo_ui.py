@@ -1477,6 +1477,10 @@ def render_demo_ui_html() -> str:
               <label>Suggested Ops Actions</label>
               <div class="list" id="reviewWorkflowSuggestedActionsList"></div>
             </div>
+            <div style="margin-top:10px;">
+              <label>Post-Apply Summary</label>
+              <div class="list" id="reviewWorkflowPostApplySummaryList"></div>
+            </div>
             <div class="row" style="margin-top:10px;">
               <button id="applySuggestedFindingActionBtn" class="ghost">Use Suggested Finding Action</button>
               <button id="applySuggestedCommentActionBtn" class="ghost">Use Suggested Comment Action</button>
@@ -1731,6 +1735,7 @@ def render_demo_ui_html() -> str:
         lastPortfolioWorkflowPolicy: null,
         lastSuggestedFindingAction: null,
         lastSuggestedCommentAction: null,
+        lastBulkApplySummary: null,
         qualityGroundedGateExplainExpanded: false,
         ingestChecklistProgress: {},
         zeroReadinessWarningPrefs: {},
@@ -1923,6 +1928,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
         reviewWorkflowPolicyLine: $("reviewWorkflowPolicyLine"),
         reviewWorkflowSuggestedActionsList: $("reviewWorkflowSuggestedActionsList"),
+        reviewWorkflowPostApplySummaryList: $("reviewWorkflowPostApplySummaryList"),
         applySuggestedFindingActionBtn: $("applySuggestedFindingActionBtn"),
         applySuggestedCommentActionBtn: $("applySuggestedCommentActionBtn"),
         reviewWorkflowJson: $("reviewWorkflowJson"),
@@ -5518,6 +5524,30 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function renderPostApplySummary(summary) {
+        const listEl = els.reviewWorkflowPostApplySummaryList;
+        if (!listEl) return;
+        const payload = summary && typeof summary === "object" ? summary : state.lastBulkApplySummary;
+        if (!payload || typeof payload !== "object") {
+          listEl.innerHTML = `<div class="item"><div class="sub">No applied bulk action yet.</div></div>`;
+          return;
+        }
+        const cards = [
+          { title: "Applied Queue Action", sub: String(payload.appliedQueueAction || "-") },
+          { title: "Changed", sub: String(payload.changedCount ?? "-") },
+          { title: "Unchanged", sub: String(payload.unchangedCount ?? "-") },
+          { title: "Not Found", sub: String(payload.notFoundCount ?? "-") },
+          { title: "Next Primary Action", sub: String(payload.nextPrimaryAction || "-") },
+        ];
+        listEl.innerHTML = "";
+        for (const card of cards) {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `<div class="title mono">${escapeHtml(card.title)}</div><div class="sub">${escapeHtml(card.sub)}</div>`;
+          listEl.appendChild(div);
+        }
+      }
+
       function applyCurrentSuggestedPrimaryActionPreset() {
         const findingPreset = state.lastSuggestedFindingAction;
         const commentPreset = state.lastSuggestedCommentAction;
@@ -5539,6 +5569,37 @@ def render_demo_ui_html() -> str:
         if (commentPreset) {
           applySuggestedCommentActionPreset();
         }
+      }
+
+      async function refreshWorkflowAfterBulkApply(result, queueLabel) {
+        await Promise.allSettled([
+          refreshCritic(),
+          refreshComments(),
+          refreshReviewWorkflow(),
+          refreshReviewWorkflowTrends(),
+          refreshReviewWorkflowSlaHotspots(),
+          refreshReviewWorkflowSlaHotspotsTrends(),
+          refreshPortfolioReviewWorkflow(),
+          refreshPortfolioReviewWorkflowSla(),
+          refreshPortfolioReviewWorkflowSlaHotspots(),
+          refreshPortfolioReviewWorkflowSlaHotspotsTrends(),
+          refreshPortfolioReviewWorkflowTrends(),
+          refreshPortfolioReviewWorkflowSlaTrends(),
+        ]);
+        const nextPrimaryAction = Array.isArray(els.reviewActionQueueCards?.children)
+          ? String(els.reviewActionQueueCards.children?.[0]?.querySelector(".value")?.textContent || "").trim()
+          : "-";
+        const notFoundFindingIds = Array.isArray(result?.not_found_finding_ids) ? result.not_found_finding_ids.length : 0;
+        const notFoundCommentIds = Array.isArray(result?.not_found_comment_ids) ? result.not_found_comment_ids.length : 0;
+        state.lastBulkApplySummary = {
+          appliedQueueAction: queueLabel || "-",
+          changedCount: Number(result?.changed_count ?? 0),
+          unchangedCount: Number(result?.unchanged_count ?? 0),
+          notFoundCount: notFoundFindingIds + notFoundCommentIds,
+          nextPrimaryAction: nextPrimaryAction || "-",
+        };
+        renderPostApplySummary(state.lastBulkApplySummary);
+        applyCurrentSuggestedPrimaryActionPreset();
       }
 
       function applySuggestedFindingActionPreset() {
@@ -8704,20 +8765,23 @@ def render_demo_ui_html() -> str:
           statusTransition: describeStatusTransition(result, payload.finding_status, nextStatus),
           queueLabel: action.queueLabel,
         });
-        await Promise.allSettled([
-          refreshCritic(),
-          refreshReviewWorkflow(),
-          refreshReviewWorkflowTrends(),
-          refreshReviewWorkflowSlaHotspots(),
-          refreshReviewWorkflowSlaHotspotsTrends(),
-          refreshPortfolioReviewWorkflow(),
-          refreshPortfolioReviewWorkflowSla(),
-          refreshPortfolioReviewWorkflowSlaHotspots(),
-          refreshPortfolioReviewWorkflowSlaHotspotsTrends(),
-          refreshPortfolioReviewWorkflowTrends(),
-          refreshPortfolioReviewWorkflowSlaTrends(),
-        ]);
-        if (!dryRun) applyCurrentSuggestedPrimaryActionPreset();
+        if (dryRun) {
+          await Promise.allSettled([
+            refreshCritic(),
+            refreshReviewWorkflow(),
+            refreshReviewWorkflowTrends(),
+            refreshReviewWorkflowSlaHotspots(),
+            refreshReviewWorkflowSlaHotspotsTrends(),
+            refreshPortfolioReviewWorkflow(),
+            refreshPortfolioReviewWorkflowSla(),
+            refreshPortfolioReviewWorkflowSlaHotspots(),
+            refreshPortfolioReviewWorkflowSlaHotspotsTrends(),
+            refreshPortfolioReviewWorkflowTrends(),
+            refreshPortfolioReviewWorkflowSlaTrends(),
+          ]);
+        } else {
+          await refreshWorkflowAfterBulkApply(result, action.queueLabel);
+        }
         return result;
       }
 
@@ -8794,20 +8858,23 @@ def render_demo_ui_html() -> str:
           statusTransition: describeStatusTransition(result, payload.comment_status, nextStatus),
           queueLabel: action.queueLabel,
         });
-        await Promise.allSettled([
-          refreshComments(),
-          refreshReviewWorkflow(),
-          refreshReviewWorkflowTrends(),
-          refreshReviewWorkflowSlaHotspots(),
-          refreshReviewWorkflowSlaHotspotsTrends(),
-          refreshPortfolioReviewWorkflow(),
-          refreshPortfolioReviewWorkflowSla(),
-          refreshPortfolioReviewWorkflowSlaHotspots(),
-          refreshPortfolioReviewWorkflowSlaHotspotsTrends(),
-          refreshPortfolioReviewWorkflowTrends(),
-          refreshPortfolioReviewWorkflowSlaTrends(),
-        ]);
-        if (!dryRun) applyCurrentSuggestedPrimaryActionPreset();
+        if (dryRun) {
+          await Promise.allSettled([
+            refreshComments(),
+            refreshReviewWorkflow(),
+            refreshReviewWorkflowTrends(),
+            refreshReviewWorkflowSlaHotspots(),
+            refreshReviewWorkflowSlaHotspotsTrends(),
+            refreshPortfolioReviewWorkflow(),
+            refreshPortfolioReviewWorkflowSla(),
+            refreshPortfolioReviewWorkflowSlaHotspots(),
+            refreshPortfolioReviewWorkflowSlaHotspotsTrends(),
+            refreshPortfolioReviewWorkflowTrends(),
+            refreshPortfolioReviewWorkflowSlaTrends(),
+          ]);
+        } else {
+          await refreshWorkflowAfterBulkApply(result, action.queueLabel);
+        }
         return result;
       }
 
