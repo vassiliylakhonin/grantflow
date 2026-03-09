@@ -16,6 +16,7 @@ from grantflow.api.public_views import (
     _review_workflow_throughput_summary_payload,
     _reviewer_workflow_summary_payload,
 )
+from toc_snapshot import build_toc_snapshot
 
 
 def _read_json(path: Path) -> Any:
@@ -450,6 +451,8 @@ def _build_brief(
     review_policy_status: str | None,
     review_policy_go_no_go: str | None,
     review_policy_next_operational_action: str | None,
+    representative_case_label: str,
+    representative_toc_snapshot: list[str],
 ) -> str:
     done_count = sum(1 for row in rows if str(row.get("status") or "").strip().lower() == "done")
     hitl_count = sum(1 for row in rows if bool(row.get("hitl_enabled")))
@@ -537,6 +540,12 @@ def _build_brief(
         lines.append("## Suggested Demo Console Actions")
         for action in suggested_actions:
             lines.append(f"- {action}")
+        lines.append("")
+    if representative_toc_snapshot:
+        lines.append("## Representative ToC Snapshot")
+        lines.append(f"Source case: `{representative_case_label}`")
+        for line in representative_toc_snapshot:
+            lines.append(f"- {line}")
         lines.append("")
     lines.append("## What This Demonstrates")
     lines.append("- Structured draft generation through a controlled pipeline, not one-shot text output.")
@@ -1093,6 +1102,8 @@ def main() -> int:
         else []
     )
     top_blocking_thresholds = _top_blocking_thresholds(current_conditions)
+    representative_case_label = str(rows[0].get("case_dir") or "").strip() if rows else ""
+    representative_toc_snapshot = build_toc_snapshot(export_payloads[0]) if export_payloads else []
     text = _build_brief(
         rows,
         pilot_pack_name=pilot_pack_dir.name,
@@ -1124,6 +1135,8 @@ def main() -> int:
         review_policy_status=(review_policy_status or None),
         review_policy_go_no_go=(review_policy_go_no_go or None),
         review_policy_next_operational_action=(review_policy_next_operational_action or None),
+        representative_case_label=representative_case_label,
+        representative_toc_snapshot=representative_toc_snapshot,
     )
     insert_lines = [
         "## Review Readiness Snapshot",

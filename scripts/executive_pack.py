@@ -15,6 +15,7 @@ from grantflow.api.public_views import (
     _review_action_queue_summary_payload,
     _review_workflow_policy_summary_payload,
 )
+from toc_snapshot import build_toc_snapshot
 
 
 ROOT_FILES = (
@@ -310,6 +311,7 @@ def _build_summary(
     total_cases: int,
     done_cases: int,
     featured_review_readiness: dict[str, Any],
+    featured_toc_snapshot: list[str],
     featured_triage_summary: dict[str, Any],
     featured_critic_payload: dict[str, Any],
     featured_mel_summary: dict[str, Any],
@@ -616,6 +618,11 @@ def _build_summary(
     if priority_actions:
         for index, action in enumerate(priority_actions[:2], start=1):
             lines.append(f"- Top reviewer action {index} (featured case): {action}")
+    if featured_toc_snapshot:
+        lines.append("")
+        lines.append("## Featured ToC Snapshot")
+        for item in featured_toc_snapshot:
+            lines.append(f"- {item}")
     lines.append("")
     next_ops_sequence = _next_ops_sequence(
         queue_next_primary_action=str(action_queue.get("next_primary_action") or "").strip() or None,
@@ -743,6 +750,7 @@ def main() -> int:
     export_payload = _read_json(pilot_pack_dir / "live-runs" / resolved_case_dir / "export-payload.json")
     if not isinstance(export_payload, dict):
         export_payload = {}
+    featured_toc_snapshot = build_toc_snapshot(export_payload)
     if not featured_triage_summary:
         triage_from_critic = critic_payload.get("triage_summary")
         featured_triage_summary = triage_from_critic if isinstance(triage_from_critic, dict) else {}
@@ -1048,6 +1056,7 @@ def main() -> int:
             total_cases=len(rows),
             done_cases=done_cases,
             featured_review_readiness=featured_review_readiness,
+            featured_toc_snapshot=featured_toc_snapshot,
             featured_triage_summary=featured_triage_summary,
             featured_critic_payload=critic_payload,
             featured_mel_summary=featured_mel_summary,
