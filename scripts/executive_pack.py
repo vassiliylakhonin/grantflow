@@ -13,6 +13,7 @@ from grantflow.api.public_views import (
     _comment_triage_summary_payload,
     _critic_triage_summary_payload,
     _review_action_queue_summary_payload,
+    _review_workflow_policy_summary_payload,
 )
 
 
@@ -216,6 +217,9 @@ def _build_summary(
     portfolio_stale_bucket_mix: str,
     portfolio_top_stale_bucket: str,
     portfolio_donor_stale_bucket_mix: str,
+    portfolio_policy_status: str,
+    portfolio_policy_go_no_go: str,
+    portfolio_policy_next_operational_action: str,
     portfolio_next_bucket: str,
     portfolio_next_action: str,
     conditional_reasons: list[str],
@@ -276,6 +280,12 @@ def _build_summary(
     lines.append(f"- Average comment reopen queue per case: `{_format_num(portfolio_comment_reopen_queue_avg)}`")
     lines.append(f"- Average comment threads aged 3-7d per case: `{_format_num(portfolio_comment_age_d3_7_avg)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_format_num(portfolio_comment_age_gt_7d_avg)}`")
+    if portfolio_policy_status:
+        lines.append(f"- Review workflow policy status: `{portfolio_policy_status}`")
+    if portfolio_policy_go_no_go:
+        lines.append(f"- Review workflow policy go/no-go: `{portfolio_policy_go_no_go}`")
+    if portfolio_policy_next_operational_action:
+        lines.append(f"- Review workflow next operational action: `{portfolio_policy_next_operational_action}`")
     if portfolio_stale_bucket_mix != "-":
         lines.append(f"- Stale comment bucket mix: `{portfolio_stale_bucket_mix}`")
     if portfolio_top_stale_bucket:
@@ -371,6 +381,20 @@ def _build_summary(
         if isinstance(featured_review_readiness.get("action_queue_summary"), dict)
         else {}
     )
+    workflow_policy = (
+        featured_review_readiness.get("review_workflow_policy_summary")
+        if isinstance(featured_review_readiness.get("review_workflow_policy_summary"), dict)
+        else {}
+    )
+    if workflow_policy:
+        if str(workflow_policy.get("status") or "").strip():
+            lines.append(f"- Review workflow policy status (featured case): `{workflow_policy.get('status')}`")
+        if str(workflow_policy.get("go_no_go_flag") or "").strip():
+            lines.append(f"- Review workflow policy go/no-go (featured case): `{workflow_policy.get('go_no_go_flag')}`")
+        if str(workflow_policy.get("next_operational_action") or "").strip():
+            lines.append(
+                f"- Review workflow next operational action (featured case): `{workflow_policy.get('next_operational_action')}`"
+            )
     if action_queue:
         if str(action_queue.get("next_primary_action") or "").strip():
             lines.append(f"- Next primary review action (featured case): `{action_queue.get('next_primary_action')}`")
@@ -537,6 +561,11 @@ def main() -> int:
                 ),
                 "comment_triage_summary": comment_triage,
                 "action_queue_summary": action_queue_summary,
+                "review_workflow_policy_summary": _review_workflow_policy_summary_payload(
+                    reviewer_workflow_summary={},
+                    action_queue_summary=action_queue_summary,
+                    comment_triage_summary=comment_triage,
+                ),
             }
     if not isinstance(featured_review_readiness.get("action_queue_summary"), dict):
         raw_findings = critic_payload.get("fatal_flaws")
@@ -551,6 +580,27 @@ def main() -> int:
             "action_queue_summary": _review_action_queue_summary_payload(
                 critic_findings=findings,
                 comment_triage_summary=comment_triage if isinstance(comment_triage, dict) else {},
+            ),
+        }
+    if not isinstance(featured_review_readiness.get("review_workflow_policy_summary"), dict):
+        featured_review_readiness = {
+            **featured_review_readiness,
+            "review_workflow_policy_summary": _review_workflow_policy_summary_payload(
+                reviewer_workflow_summary=(
+                    featured_review_readiness.get("reviewer_workflow_summary")
+                    if isinstance(featured_review_readiness.get("reviewer_workflow_summary"), dict)
+                    else {}
+                ),
+                action_queue_summary=(
+                    featured_review_readiness.get("action_queue_summary")
+                    if isinstance(featured_review_readiness.get("action_queue_summary"), dict)
+                    else {}
+                ),
+                comment_triage_summary=(
+                    featured_review_readiness.get("comment_triage_summary")
+                    if isinstance(featured_review_readiness.get("comment_triage_summary"), dict)
+                    else {}
+                ),
             ),
         }
     review_ready_cases_count = 0
@@ -637,6 +687,9 @@ def main() -> int:
         if any(portfolio_stale_bucket_totals.values())
         else ""
     )
+    portfolio_policy_status = _first_nonempty(metrics_rows, "review_workflow_policy_status")
+    portfolio_policy_go_no_go = _first_nonempty(metrics_rows, "review_workflow_policy_go_no_go_flag")
+    portfolio_policy_next_operational_action = _first_nonempty(metrics_rows, "review_workflow_next_operational_action")
     portfolio_next_bucket = _first_nonempty(metrics_rows, "next_review_bucket")
     portfolio_next_action = _first_nonempty(metrics_rows, "next_recommended_action")
     scorecard_text = (pilot_pack_dir / "pilot-scorecard.md").read_text(encoding="utf-8")
@@ -680,6 +733,9 @@ def main() -> int:
             portfolio_stale_bucket_mix=portfolio_stale_bucket_mix,
             portfolio_top_stale_bucket=portfolio_top_stale_bucket,
             portfolio_donor_stale_bucket_mix=portfolio_donor_stale_bucket_mix,
+            portfolio_policy_status=portfolio_policy_status,
+            portfolio_policy_go_no_go=portfolio_policy_go_no_go,
+            portfolio_policy_next_operational_action=portfolio_policy_next_operational_action,
             portfolio_next_bucket=portfolio_next_bucket,
             portfolio_next_action=portfolio_next_action,
             conditional_reasons=conditional_reasons,

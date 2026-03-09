@@ -10,8 +10,9 @@ from typing import Any
 from grantflow.api.public_views import (
     _comment_triage_summary_payload,
     _critic_triage_summary_payload,
-    _reviewer_workflow_summary_payload,
     _review_action_queue_summary_payload,
+    _review_workflow_policy_summary_payload,
+    _reviewer_workflow_summary_payload,
 )
 
 
@@ -138,6 +139,24 @@ def _review_readiness_from_payloads(
                 critic_findings=findings,
                 comment_triage_summary=comment_triage if isinstance(comment_triage, dict) else {},
             )
+        if not isinstance(enriched.get("review_workflow_policy_summary"), dict):
+            enriched["review_workflow_policy_summary"] = _review_workflow_policy_summary_payload(
+                reviewer_workflow_summary=(
+                    enriched.get("reviewer_workflow_summary")
+                    if isinstance(enriched.get("reviewer_workflow_summary"), dict)
+                    else {}
+                ),
+                action_queue_summary=(
+                    enriched.get("action_queue_summary")
+                    if isinstance(enriched.get("action_queue_summary"), dict)
+                    else {}
+                ),
+                comment_triage_summary=(
+                    enriched.get("comment_triage_summary")
+                    if isinstance(enriched.get("comment_triage_summary"), dict)
+                    else {}
+                ),
+            )
         return enriched
     payload_root = export_payload.get("payload") if isinstance(export_payload.get("payload"), dict) else {}
     review_comments = (
@@ -176,6 +195,11 @@ def _review_readiness_from_payloads(
         "comment_triage_summary": comment_triage,
         "reviewer_workflow_summary": reviewer_workflow_summary,
         "action_queue_summary": action_queue_summary,
+        "review_workflow_policy_summary": _review_workflow_policy_summary_payload(
+            reviewer_workflow_summary=reviewer_workflow_summary,
+            action_queue_summary=action_queue_summary,
+            comment_triage_summary=comment_triage,
+        ),
     }
 
 
@@ -241,6 +265,9 @@ def _build_brief(
     avg_comment_reopen_queue: float | None,
     avg_critic_finding_resolution_rate: float | None,
     avg_critic_finding_ack_rate: float | None,
+    review_policy_status: str | None,
+    review_policy_go_no_go: str | None,
+    review_policy_next_operational_action: str | None,
 ) -> str:
     done_count = sum(1 for row in rows if str(row.get("status") or "").strip().lower() == "done")
     hitl_count = sum(1 for row in rows if bool(row.get("hitl_enabled")))
@@ -270,6 +297,12 @@ def _build_brief(
     lines.append(f"- Average quality score: `{_format_num(avg_quality)}`")
     lines.append(f"- Average critic score: `{_format_num(avg_critic)}`")
     lines.append(f"- Average citation count: `{_format_num(avg_citations)}`")
+    if review_policy_status:
+        lines.append(f"- Review workflow policy status: `{review_policy_status}`")
+    if review_policy_go_no_go:
+        lines.append(f"- Review workflow policy go/no-go: `{review_policy_go_no_go}`")
+    if review_policy_next_operational_action:
+        lines.append(f"- Review workflow next operational action: `{review_policy_next_operational_action}`")
     lines.append("")
     if triage_next_action or triage_next_bucket or triage_top_ids:
         lines.append("## Review Triage Snapshot")
@@ -591,6 +624,21 @@ def main() -> int:
         ),
         "",
     )
+    policy_rank = {"breach": 3, "attention": 2, "healthy": 1}
+    review_policy_status = ""
+    review_policy_go_no_go = ""
+    review_policy_next_operational_action = ""
+    for item in readiness_summaries:
+        if not isinstance(item, dict):
+            continue
+        policy = item.get("review_workflow_policy_summary")
+        if not isinstance(policy, dict):
+            continue
+        current_status = str(policy.get("status") or "").strip().lower()
+        if current_status and policy_rank.get(current_status, 0) > policy_rank.get(review_policy_status, 0):
+            review_policy_status = current_status
+            review_policy_go_no_go = str(policy.get("go_no_go_flag") or "").strip().lower()
+            review_policy_next_operational_action = str(policy.get("next_operational_action") or "").strip()
     for item in triage_summaries:
         if not isinstance(item, dict):
             continue
@@ -713,6 +761,9 @@ def main() -> int:
         avg_comment_reopen_queue=avg_comment_reopen_queue,
         avg_critic_finding_resolution_rate=avg_critic_finding_resolution_rate,
         avg_critic_finding_ack_rate=avg_critic_finding_ack_rate,
+        review_policy_status=(review_policy_status or None),
+        review_policy_go_no_go=(review_policy_go_no_go or None),
+        review_policy_next_operational_action=(review_policy_next_operational_action or None),
     )
     insert_lines = [
         "## Review Readiness Snapshot",

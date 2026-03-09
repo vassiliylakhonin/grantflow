@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -52,6 +53,9 @@ def _build_readme(
     archive_zip_name: str | None,
     include_diligence_index: bool,
     include_executive_pack: bool,
+    send_policy_status: str | None,
+    send_policy_flag: str | None,
+    send_policy_action: str | None,
 ) -> str:
     lines: list[str] = []
     lines.append("# GrantFlow Release Demo Bundle")
@@ -59,6 +63,12 @@ def _build_readme(
     lines.append(f"Generated at: {datetime.now(timezone.utc).isoformat()}")
     lines.append(f"- Bundle name: `{bundle_name}`")
     lines.append(f"- Build root: `{build_dir}`")
+    if send_policy_status:
+        lines.append(f"- Send policy status: `{send_policy_status}`")
+    if send_policy_flag:
+        lines.append(f"- Send policy classification: `{send_policy_flag}`")
+    if send_policy_action:
+        lines.append(f"- Next operational action before external send: `{send_policy_action}`")
     lines.append("")
     lines.append("## Included")
     lines.append("- `pilot-handout.md`: single-file buyer summary")
@@ -92,6 +102,10 @@ def _build_readme(
     lines.append("## Notes")
     lines.append("- This is a demo/pilot sharing bundle, not a final donor submission package.")
     lines.append("- Human compliance review remains mandatory.")
+    if send_policy_flag == "internal-only":
+        lines.append(
+            "- Current policy classification is `internal-only`; do not send externally until workflow issues are cleared."
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -123,6 +137,31 @@ def main() -> int:
         pilot_pack_dir = latest_pilot_pack.resolve()
         _copy_if_exists(pilot_pack_dir / "pilot-portfolio-summary.json", bundle_root / "pilot-portfolio-summary.json")
         _copy_if_exists(pilot_pack_dir / "pilot-portfolio-summary.csv", bundle_root / "pilot-portfolio-summary.csv")
+    portfolio_summary_path = bundle_root / "pilot-portfolio-summary.json"
+    send_policy_status = None
+    send_policy_flag = None
+    send_policy_action = None
+    if portfolio_summary_path.exists():
+        try:
+            portfolio_summary = json.loads(portfolio_summary_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            portfolio_summary = {}
+        if isinstance(portfolio_summary, dict):
+            send_policy_status = (
+                str(portfolio_summary.get("portfolio_review_workflow_policy_status") or "").strip() or None
+            )
+            send_policy_action = (
+                str(portfolio_summary.get("portfolio_review_workflow_next_operational_action") or "").strip() or None
+            )
+            go_no_go = (
+                str(portfolio_summary.get("portfolio_review_workflow_policy_go_no_go_flag") or "").strip().lower()
+            )
+            if go_no_go == "hold":
+                send_policy_flag = "internal-only"
+            elif go_no_go == "go_with_conditions":
+                send_policy_flag = "send-with-conditions"
+            elif go_no_go == "go":
+                send_policy_flag = "send-safe"
     include_diligence_index = not bool(args.skip_diligence_index)
     if include_diligence_index:
         _copy_if_exists(build_dir / "diligence-index.md", bundle_root / "diligence-index.md")
@@ -145,6 +184,9 @@ def main() -> int:
             archive_zip_name=archive_zip_name,
             include_diligence_index=include_diligence_index,
             include_executive_pack=include_executive_pack,
+            send_policy_status=send_policy_status,
+            send_policy_flag=send_policy_flag,
+            send_policy_action=send_policy_action,
         ),
         encoding="utf-8",
     )
