@@ -58,6 +58,11 @@ def _format_num(value: float | int | None) -> str:
     return f"{value:.2f}"
 
 
+def _bucket_mix_text(bucket_counts: dict[str, int]) -> str:
+    parts = [f"{bucket}={int(count)}" for bucket, count in bucket_counts.items() if int(count) > 0]
+    return ", ".join(parts) if parts else "-"
+
+
 def _safe_int(value: Any) -> int | None:
     try:
         if value is None or value == "":
@@ -186,6 +191,8 @@ def _build_summary(
     portfolio_reviewer_workflow_ack_rate_avg: float | None,
     portfolio_comment_age_d3_7_avg: float | None,
     portfolio_comment_age_gt_7d_avg: float | None,
+    portfolio_stale_bucket_mix: str,
+    portfolio_top_stale_bucket: str,
     portfolio_next_bucket: str,
     portfolio_next_action: str,
     conditional_reasons: list[str],
@@ -235,6 +242,10 @@ def _build_summary(
     )
     lines.append(f"- Average comment threads aged 3-7d per case: `{_format_num(portfolio_comment_age_d3_7_avg)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_format_num(portfolio_comment_age_gt_7d_avg)}`")
+    if portfolio_stale_bucket_mix != "-":
+        lines.append(f"- Stale comment bucket mix: `{portfolio_stale_bucket_mix}`")
+    if portfolio_top_stale_bucket:
+        lines.append(f"- Top stale comment bucket: `{portfolio_top_stale_bucket}`")
     if portfolio_next_bucket:
         lines.append(f"- Portfolio next review bucket: `{portfolio_next_bucket}`")
     if portfolio_next_action:
@@ -302,9 +313,17 @@ def _build_summary(
         else {}
     )
     if comment_triage:
+        stale_bucket_counts = (
+            comment_triage.get("stale_comment_bucket_counts")
+            if isinstance(comment_triage.get("stale_comment_bucket_counts"), dict)
+            else {}
+        )
         next_comment_section = str(comment_triage.get("next_comment_section") or "").strip()
         next_comment_bucket = str(comment_triage.get("next_comment_bucket") or "").strip()
         next_comment_action = str(comment_triage.get("next_recommended_action") or "").strip()
+        stale_bucket_mix = _bucket_mix_text({str(key): int(value or 0) for key, value in stale_bucket_counts.items()})
+        if stale_bucket_mix != "-":
+            lines.append(f"- Stale comment bucket mix (featured case): `{stale_bucket_mix}`")
         if next_comment_section:
             lines.append(f"- Next comment section (featured case): `{next_comment_section}`")
         if next_comment_bucket:
@@ -503,6 +522,19 @@ def main() -> int:
     )
     portfolio_comment_age_d3_7_avg = _avg([_safe_float(row.get("comment_age_d3_7")) for row in metrics_rows])
     portfolio_comment_age_gt_7d_avg = _avg([_safe_float(row.get("comment_age_gt_7d")) for row in metrics_rows])
+    portfolio_stale_bucket_totals = {
+        "logic": sum(int(_safe_int(row.get("stale_comment_bucket_logic")) or 0) for row in metrics_rows),
+        "grounding": sum(int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0) for row in metrics_rows),
+        "measurement": sum(int(_safe_int(row.get("stale_comment_bucket_measurement")) or 0) for row in metrics_rows),
+        "compliance": sum(int(_safe_int(row.get("stale_comment_bucket_compliance")) or 0) for row in metrics_rows),
+        "general": sum(int(_safe_int(row.get("stale_comment_bucket_general")) or 0) for row in metrics_rows),
+    }
+    portfolio_stale_bucket_mix = _bucket_mix_text(portfolio_stale_bucket_totals)
+    portfolio_top_stale_bucket = (
+        max(portfolio_stale_bucket_totals.items(), key=lambda item: item[1])[0]
+        if any(portfolio_stale_bucket_totals.values())
+        else ""
+    )
     portfolio_next_bucket = _first_nonempty(metrics_rows, "next_review_bucket")
     portfolio_next_action = _first_nonempty(metrics_rows, "next_recommended_action")
     scorecard_text = (pilot_pack_dir / "pilot-scorecard.md").read_text(encoding="utf-8")
@@ -536,6 +568,8 @@ def main() -> int:
             portfolio_reviewer_workflow_ack_rate_avg=portfolio_reviewer_workflow_ack_rate_avg,
             portfolio_comment_age_d3_7_avg=portfolio_comment_age_d3_7_avg,
             portfolio_comment_age_gt_7d_avg=portfolio_comment_age_gt_7d_avg,
+            portfolio_stale_bucket_mix=portfolio_stale_bucket_mix,
+            portfolio_top_stale_bucket=portfolio_top_stale_bucket,
             portfolio_next_bucket=portfolio_next_bucket,
             portfolio_next_action=portfolio_next_action,
             conditional_reasons=conditional_reasons,

@@ -88,6 +88,11 @@ class CaseScorecard:
     reviewer_workflow_resolution_rate: float | None
     reviewer_workflow_acknowledgment_rate: float | None
     comment_age_gt_7d: float | None
+    stale_comment_bucket_logic: int | None
+    stale_comment_bucket_grounding: int | None
+    stale_comment_bucket_measurement: int | None
+    stale_comment_bucket_compliance: int | None
+    stale_comment_bucket_general: int | None
     fallback_strategy_citations: int | None
     low_confidence_citations: int | None
     smart_field_coverage_rate: float | None
@@ -214,6 +219,31 @@ def _load_case_scorecards(
                     metrics_row.get("reviewer_workflow_acknowledgment_rate")
                 ),
                 comment_age_gt_7d=_safe_float(metrics_row.get("comment_age_gt_7d")),
+                stale_comment_bucket_logic=(
+                    int(metrics_row["stale_comment_bucket_logic"])
+                    if str(metrics_row.get("stale_comment_bucket_logic") or "").strip()
+                    else None
+                ),
+                stale_comment_bucket_grounding=(
+                    int(metrics_row["stale_comment_bucket_grounding"])
+                    if str(metrics_row.get("stale_comment_bucket_grounding") or "").strip()
+                    else None
+                ),
+                stale_comment_bucket_measurement=(
+                    int(metrics_row["stale_comment_bucket_measurement"])
+                    if str(metrics_row.get("stale_comment_bucket_measurement") or "").strip()
+                    else None
+                ),
+                stale_comment_bucket_compliance=(
+                    int(metrics_row["stale_comment_bucket_compliance"])
+                    if str(metrics_row.get("stale_comment_bucket_compliance") or "").strip()
+                    else None
+                ),
+                stale_comment_bucket_general=(
+                    int(metrics_row["stale_comment_bucket_general"])
+                    if str(metrics_row.get("stale_comment_bucket_general") or "").strip()
+                    else None
+                ),
                 fallback_strategy_citations=(
                     int(metrics_row["fallback_strategy_citations"])
                     if str(metrics_row.get("fallback_strategy_citations") or "").strip()
@@ -292,6 +322,17 @@ def _build_scorecard(
         ]
     )
     avg_comment_age_gt_7d = _avg([case.comment_age_gt_7d for case in cases if case.comment_age_gt_7d is not None])
+    stale_bucket_totals = {
+        "logic": sum(int(case.stale_comment_bucket_logic or 0) for case in cases),
+        "grounding": sum(int(case.stale_comment_bucket_grounding or 0) for case in cases),
+        "measurement": sum(int(case.stale_comment_bucket_measurement or 0) for case in cases),
+        "compliance": sum(int(case.stale_comment_bucket_compliance or 0) for case in cases),
+        "general": sum(int(case.stale_comment_bucket_general or 0) for case in cases),
+    }
+    stale_bucket_mix = ", ".join(f"{bucket}={count}" for bucket, count in stale_bucket_totals.items() if count > 0)
+    top_stale_bucket = (
+        max(stale_bucket_totals.items(), key=lambda item: item[1])[0] if any(stale_bucket_totals.values()) else ""
+    )
     avg_high_severity_findings = _avg(
         [float(case.high_severity_open_findings) for case in cases if case.high_severity_open_findings is not None]
     )
@@ -431,6 +472,9 @@ def _build_scorecard(
     lines.append(f"- Average reviewer workflow resolution rate: `{_fmt(avg_reviewer_workflow_resolution)}`")
     lines.append(f"- Average reviewer workflow acknowledgment rate: `{_fmt(avg_reviewer_workflow_ack)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_fmt(avg_comment_age_gt_7d)}`")
+    if stale_bucket_mix:
+        lines.append(f"- Stale comment bucket mix: `{stale_bucket_mix}`")
+        lines.append(f"- Top stale comment bucket: `{top_stale_bucket}`")
     lines.append(f"- Average high-severity open findings per case: `{_fmt(avg_high_severity_findings)}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence_citations)}`")

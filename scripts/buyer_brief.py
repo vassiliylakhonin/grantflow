@@ -49,6 +49,11 @@ def _format_num(value: float | int | None) -> str:
     return f"{value:.2f}"
 
 
+def _bucket_mix_text(bucket_counts: dict[str, int]) -> str:
+    parts = [f"{bucket}={int(count)}" for bucket, count in bucket_counts.items() if int(count) > 0]
+    return ", ".join(parts) if parts else "-"
+
+
 def _load_case_quality(pilot_pack_dir: Path, case_dir: str) -> dict[str, Any]:
     if not case_dir:
         return {}
@@ -509,6 +514,18 @@ def main() -> int:
         ),
         "",
     )
+    stale_bucket_totals = {"logic": 0, "grounding": 0, "measurement": 0, "compliance": 0, "general": 0}
+    for item in comment_triage_summaries:
+        if not isinstance(item, dict):
+            continue
+        raw = item.get("stale_comment_bucket_counts")
+        if not isinstance(raw, dict):
+            continue
+        for bucket in stale_bucket_totals:
+            stale_bucket_totals[bucket] += int(raw.get(bucket) or 0)
+    top_stale_bucket = (
+        max(stale_bucket_totals.items(), key=lambda pair: pair[1])[0] if any(stale_bucket_totals.values()) else ""
+    )
 
     output_path = Path(str(args.output)).resolve() if str(args.output).strip() else pilot_pack_dir / "buyer-brief.md"
     include_productization_memo = (pilot_pack_dir / "productization-gaps-memo.md").exists()
@@ -542,6 +559,12 @@ def main() -> int:
         f"- Average reviewer workflow acknowledgment rate: `{_format_num(workflow_acknowledgment_rate_avg)}`",
         f"- Comment threads aged 3-7d per case: `{_format_num(age_d3_7_avg)}`",
         f"- Comment threads aged >7d per case: `{_format_num(age_gt_7d_avg)}`",
+        *(
+            [f"- Stale comment bucket mix: `{_bucket_mix_text(stale_bucket_totals)}`"]
+            if any(stale_bucket_totals.values())
+            else []
+        ),
+        *([f"- Top stale comment bucket: `{top_stale_bucket}`"] if top_stale_bucket else []),
         f"- Fallback/strategy citations per case: `{_format_num(fallback_citations_avg)}`",
         f"- Low-confidence citations per case: `{_format_num(low_confidence_avg)}`",
         *([f"- Next comment section: `{next_comment_section}`"] if next_comment_section else []),

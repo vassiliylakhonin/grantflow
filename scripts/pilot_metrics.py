@@ -10,6 +10,8 @@ from typing import Any
 
 from grantflow.api.public_views import _comment_triage_summary_payload, _critic_triage_summary_payload
 
+STALE_BUCKET_KEYS = ("logic", "grounding", "measurement", "compliance", "general")
+
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -48,6 +50,18 @@ def _fmt(value: float | int | None) -> str:
     if float(value).is_integer():
         return str(int(value))
     return f"{value:.3f}"
+
+
+def _bucket_map(summary: dict[str, Any] | None) -> dict[str, int]:
+    raw = summary.get("stale_comment_bucket_counts") if isinstance(summary, dict) else {}
+    if not isinstance(raw, dict):
+        return {}
+    return {token: int(raw.get(token) or 0) for token in STALE_BUCKET_KEYS if int(raw.get(token) or 0) > 0}
+
+
+def _bucket_mix_text(bucket_counts: dict[str, float | int]) -> str:
+    parts = [f"{bucket}={int(count)}" for bucket, count in bucket_counts.items() if int(count) > 0]
+    return ", ".join(parts) if parts else "-"
 
 
 def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, Any]:
@@ -118,6 +132,7 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
     mov_rate = _safe_float(mel.get("means_of_verification_coverage_rate"))
     owner_rate = _safe_float(mel.get("owner_coverage_rate"))
     smart_rate = _safe_float(mel.get("smart_field_coverage_rate"))
+    stale_bucket_counts = _bucket_map(comment_triage if isinstance(comment_triage, dict) else {})
 
     return {
         "case_dir": case_dir.name,
@@ -186,6 +201,11 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "comment_age_gt_7d": (
             comment_triage.get("aging_band_counts", {}).get("gt_7d") if isinstance(comment_triage, dict) else None
         ),
+        "stale_comment_bucket_logic": stale_bucket_counts.get("logic", 0),
+        "stale_comment_bucket_grounding": stale_bucket_counts.get("grounding", 0),
+        "stale_comment_bucket_measurement": stale_bucket_counts.get("measurement", 0),
+        "stale_comment_bucket_compliance": stale_bucket_counts.get("compliance", 0),
+        "stale_comment_bucket_general": stale_bucket_counts.get("general", 0),
         "smart_field_coverage_rate": mel.get("smart_field_coverage_rate"),
         "means_of_verification_coverage_rate": mel.get("means_of_verification_coverage_rate"),
         "owner_coverage_rate": mel.get("owner_coverage_rate"),
@@ -245,6 +265,11 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "comment_age_d1_3",
         "comment_age_d3_7",
         "comment_age_gt_7d",
+        "stale_comment_bucket_logic",
+        "stale_comment_bucket_grounding",
+        "stale_comment_bucket_measurement",
+        "stale_comment_bucket_compliance",
+        "stale_comment_bucket_general",
         "smart_field_coverage_rate",
         "means_of_verification_coverage_rate",
         "owner_coverage_rate",
@@ -286,6 +311,16 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     )
     avg_comment_age_d3_7 = _avg([_safe_int(row.get("comment_age_d3_7")) for row in rows])
     avg_comment_age_gt_7d = _avg([_safe_int(row.get("comment_age_gt_7d")) for row in rows])
+    stale_bucket_totals = {
+        "logic": sum(int(_safe_int(row.get("stale_comment_bucket_logic")) or 0) for row in rows),
+        "grounding": sum(int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0) for row in rows),
+        "measurement": sum(int(_safe_int(row.get("stale_comment_bucket_measurement")) or 0) for row in rows),
+        "compliance": sum(int(_safe_int(row.get("stale_comment_bucket_compliance")) or 0) for row in rows),
+        "general": sum(int(_safe_int(row.get("stale_comment_bucket_general")) or 0) for row in rows),
+    }
+    top_stale_bucket = (
+        max(stale_bucket_totals.items(), key=lambda item: item[1])[0] if any(stale_bucket_totals.values()) else ""
+    )
     avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
     avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
     avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
@@ -357,6 +392,9 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average reviewer workflow acknowledgment rate: `{_fmt(avg_reviewer_workflow_ack_rate)}`")
     lines.append(f"- Average comment threads aged 3-7d per case: `{_fmt(avg_comment_age_d3_7)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_fmt(avg_comment_age_gt_7d)}`")
+    if any(stale_bucket_totals.values()):
+        lines.append(f"- Stale comment bucket mix: `{_bucket_mix_text(stale_bucket_totals)}`")
+        lines.append(f"- Top stale comment bucket: `{top_stale_bucket}`")
     lines.append(f"- Average fallback/strategy citations per case: `{_fmt(avg_fallback_citations)}`")
     lines.append(f"- Average low-confidence citations per case: `{_fmt(avg_low_confidence)}`")
     lines.append(f"- Average SMART field coverage: `{_fmt(avg_smart_coverage)}`")

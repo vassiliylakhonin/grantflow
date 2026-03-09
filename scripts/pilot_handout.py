@@ -44,6 +44,11 @@ def _safe_float(value: Any) -> float | None:
         return None
 
 
+def _bucket_mix_text(bucket_counts: dict[str, int]) -> str:
+    parts = [f"{bucket}={int(count)}" for bucket, count in bucket_counts.items() if int(count) > 0]
+    return ", ".join(parts) if parts else "-"
+
+
 def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
     lines = text.splitlines()
     bullets: list[str] = []
@@ -184,12 +189,20 @@ def _build_handout(
         else {}
     )
     if comment_triage:
+        stale_bucket_counts = (
+            comment_triage.get("stale_comment_bucket_counts")
+            if isinstance(comment_triage.get("stale_comment_bucket_counts"), dict)
+            else {}
+        )
         if str(comment_triage.get("next_comment_section") or "").strip():
             lines.append(f"- Next comment section: `{comment_triage.get('next_comment_section')}`")
         if str(comment_triage.get("next_comment_bucket") or "").strip():
             lines.append(f"- Next comment bucket: `{comment_triage.get('next_comment_bucket')}`")
         if str(comment_triage.get("next_recommended_action") or "").strip():
             lines.append(f"- Next comment action: {comment_triage.get('next_recommended_action')}")
+        stale_bucket_mix = _bucket_mix_text({str(key): int(value or 0) for key, value in stale_bucket_counts.items()})
+        if stale_bucket_mix != "-":
+            lines.append(f"- Stale comment bucket mix: `{stale_bucket_mix}`")
     top_finding_titles, top_reviewer_actions = _top_reviewer_items(featured_critic_payload)
     fallback_next_action = str(featured_triage_summary.get("next_recommended_action") or "").strip()
     if fallback_next_action and fallback_next_action not in top_reviewer_actions:
