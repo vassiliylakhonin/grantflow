@@ -34,6 +34,8 @@ def _sample_citations():
             "citation_confidence": 0.82,
             "result_level": "outcome",
             "statement_path": "toc.development_objectives[0].description",
+            "evidence_signal": "PMP and indicator reference evidence",
+            "review_hint": "Use this citation to support the indicator row in the USAID monitoring package.",
         },
         {
             "stage": "architect",
@@ -49,6 +51,8 @@ def _sample_citations():
             "citation_confidence": 0.75,
             "result_level": "general",
             "statement_path": "toc.project_goal",
+            "evidence_signal": "strategy guidance only",
+            "review_hint": "Use as strategy context only; replace with grounded evidence before external review.",
         },
     ]
 
@@ -125,6 +129,8 @@ def test_word_export_includes_citation_traceability_section():
     assert "conf 0.82" in text
     assert "level outcome" in text
     assert "path toc.development_objectives[0].description" in text
+    assert "evidence PMP and indicator reference evidence" in text
+    assert "Review hint: Use this citation to support the indicator row in the USAID monitoring package." in text
     assert "Critic Findings" in text
     assert "ToC Schema Invalid" in text
     assert "Review Comments" in text
@@ -548,10 +554,20 @@ def test_excel_export_includes_citations_sheet():
     ws = wb["Citations"]
     rows = list(ws.iter_rows(values_only=True))
     assert rows[0][:7] == ("Stage", "Type", "Used For", "Label", "Confidence", "Result Level", "Statement Path")
+    headers = [str(cell or "") for cell in rows[0]]
+    assert "Evidence Signal" in headers
+    assert "Review Hint" in headers
     assert any(row[3] == "USAID ADS 201 p.12" for row in rows[1:])
     assert any(abs(float(row[4]) - 0.82) < 1e-9 for row in rows[1:] if row[4] is not None)
     assert any(row[5] == "outcome" for row in rows[1:])
     assert any(row[6] == "toc.development_objectives[0].description" for row in rows[1:])
+    evidence_idx = headers.index("Evidence Signal")
+    review_hint_idx = headers.index("Review Hint")
+    assert any(row[evidence_idx] == "PMP and indicator reference evidence" for row in rows[1:])
+    assert any(
+        row[review_hint_idx] == "Use this citation to support the indicator row in the USAID monitoring package."
+        for row in rows[1:]
+    )
 
     findings_rows = list(wb["Critic Findings"].iter_rows(values_only=True))
     assert findings_rows[0][:4] == ("Status", "Severity", "Section", "Code")

@@ -389,6 +389,8 @@ def _add_citations_sheet(wb: Workbook, citations: list[Dict[str, Any]]) -> None:
         "Page",
         "Chunk",
         "Chunk ID",
+        "Evidence Signal",
+        "Review Hint",
         "Excerpt",
     ]
     ws.append(headers)
@@ -407,6 +409,8 @@ def _add_citations_sheet(wb: Workbook, citations: list[Dict[str, Any]]) -> None:
                 c.get("page", ""),
                 c.get("chunk", ""),
                 c.get("chunk_id", ""),
+                c.get("evidence_signal", ""),
+                c.get("review_hint", ""),
                 (c.get("excerpt", "") or "")[:500],
             ]
         )

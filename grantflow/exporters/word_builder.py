@@ -340,6 +340,7 @@ def _citation_summary_line(citation: Dict[str, Any]) -> str:
     confidence = citation.get("citation_confidence")
     statement_path = citation.get("statement_path")
     result_level = citation.get("result_level")
+    evidence_signal = citation.get("evidence_signal")
 
     parts = []
     if stage:
@@ -359,6 +360,8 @@ def _citation_summary_line(citation: Dict[str, Any]) -> str:
         parts.append(f"(level {result_level})")
     if statement_path:
         parts.append(f"(path {statement_path})")
+    if evidence_signal:
+        parts.append(f"(evidence {evidence_signal})")
     if page is not None:
         parts.append(f"(p.{page})")
     if chunk is not None:
@@ -376,6 +379,10 @@ def _add_citation_traceability_section(doc: Document, citations: list[Dict[str, 
     )
     for citation in citations:
         doc.add_paragraph(_citation_summary_line(citation), style="List Bullet")
+        review_hint = str(citation.get("review_hint") or "").strip()
+        if review_hint:
+            p = doc.add_paragraph()
+            p.add_run(f"Review hint: {review_hint[:240]}").italic = True
         excerpt = (citation.get("excerpt") or "").strip()
         if excerpt:
             p = doc.add_paragraph()
