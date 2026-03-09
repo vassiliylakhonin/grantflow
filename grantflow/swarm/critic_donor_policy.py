@@ -233,8 +233,8 @@ def apply_donor_specific_toc_checks(
                     code="GIZ_PARTNER_ROLE_MISSING",
                     severity="medium",
                     section="toc",
-                    message="GIZ outcomes should identify partner roles.",
-                    fix_hint="Populate `outcomes[].partner_role` for technical cooperation implementation responsibility.",
+                    message="GIZ outcomes are missing partner-role ownership, so the technical cooperation package is not yet operationally review-ready.",
+                    fix_hint="Populate `outcomes[].partner_role` so reviewers can trace implementation responsibility, delivery ownership, and sustainability follow-through in the GIZ package.",
                 )
             else:
                 check_fn(code="GIZ_PARTNER_ROLE_PRESENT", status="pass", section="toc")
@@ -244,8 +244,8 @@ def apply_donor_specific_toc_checks(
                 code="GIZ_OUTCOMES_MISSING",
                 severity="high",
                 section="toc",
-                message="GIZ ToC is missing outcomes.",
-                fix_hint="Add practical outcomes aligned with technical cooperation objectives and partners.",
+                message="GIZ ToC is missing outcomes, so the technical cooperation package has no reviewable results chain.",
+                fix_hint="Add practical outcomes aligned with technical cooperation objectives, delivery responsibilities, and partner roles.",
             )
 
         sustainability = toc_payload.get("sustainability_factors")
@@ -267,8 +267,8 @@ def apply_donor_specific_toc_checks(
                 code="GIZ_SUSTAINABILITY_FACTORS_MISSING",
                 severity="medium",
                 section="toc",
-                message="GIZ ToC should include sustainability factors.",
-                fix_hint="Add `sustainability_factors` covering institutionalization and continuation after project support.",
+                message="GIZ ToC is missing sustainability factors, leaving the continuation and institutionalization logic weak for review.",
+                fix_hint="Add `sustainability_factors` covering institutionalization, partner ownership, and continuation after project support.",
             )
         return
 
@@ -289,7 +289,7 @@ def apply_donor_specific_toc_checks(
                     code=f"{code}_MISSING",
                     severity="high",
                     section="toc",
-                    message=msg,
+                    message=f"{msg[:-1]}, so the State Department package is missing a core reviewer triage anchor.",
                     fix_hint=f"{hint} This should be explicit enough for State Department reviewer triage, partner-risk review, and bureau/program decision-making.",
                 )
         for key, code, label in [

@@ -168,3 +168,22 @@ def test_worldbank_missing_results_chain_uses_framework_review_language():
     flaw = next(f for f in flaws if f["code"] == "WB_RESULTS_CHAIN_MISSING")
     assert "trace the pdo" in flaw["fix_hint"].lower()
     assert "isr-style monitoring" in flaw["fix_hint"].lower()
+
+
+def test_giz_missing_partner_role_uses_operational_review_language():
+    _checks, flaws = _run_policy(
+        "giz",
+        {
+            "outcomes": [{"title": "Outcome 1", "partner_role": ""}],
+            "sustainability_factors": ["Institutional uptake"],
+        },
+    )
+    flaw = next(f for f in flaws if f["code"] == "GIZ_PARTNER_ROLE_MISSING")
+    assert "operationally review-ready" in flaw["message"].lower()
+    assert "delivery ownership" in flaw["fix_hint"].lower()
+
+
+def test_state_department_missing_context_uses_triage_anchor_language():
+    _checks, flaws = _run_policy("state_department", {"stakeholder_map": [], "risk_mitigation": []})
+    flaw = next(f for f in flaws if f["code"] == "STATE_STRATEGIC_CONTEXT_PRESENT_MISSING")
+    assert "core reviewer triage anchor" in flaw["message"].lower()

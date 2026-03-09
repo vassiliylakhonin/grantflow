@@ -475,6 +475,28 @@ def test_rule_based_critic_uses_usaid_specific_traceability_language():
     )
 
 
+def test_rule_based_critic_uses_donor_specific_schema_language():
+    state = {
+        "donor_id": "eu",
+        "input_context": {"project": "Digital governance", "country": "Moldova"},
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": False, "errors": ["missing field"], "schema_name": "EUTOC"},
+        "toc_draft": {"toc": {"overall_objective": {"title": "Objective"}}},
+        "logframe_draft": {"indicators": []},
+        "citations": [],
+    }
+
+    report = evaluate_rule_based_critic(state)
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+    by_code = {f["code"]: f for f in flaws}
+
+    assert "eu intervention-logic structure" in by_code["TOC_SCHEMA_INVALID"]["fix_hint"].lower()
+    assert "eu intervention logic and verification package" in by_code["TOC_SCHEMA_INVALID"]["message"].lower()
+
+
 def test_rule_based_critic_fails_when_toc_text_is_placeholder_dominant():
     state = {
         "input_context": {"project": "AI governance training", "country": "Kazakhstan"},

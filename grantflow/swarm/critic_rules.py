@@ -113,6 +113,19 @@ def _donor_measurement_phrase(state: Dict[str, Any]) -> str:
     }.get(donor, "review")
 
 
+def _donor_schema_phrase(state: Dict[str, Any]) -> str:
+    donor = _critic_donor_id(state)
+    return {
+        "usaid": "USAID results hierarchy, assumptions, and monitoring structure",
+        "eu": "EU intervention-logic structure, objective hierarchy, and verification narrative",
+        "worldbank": "World Bank PDO, objective hierarchy, and results-framework structure",
+        "giz": "GIZ outcome, partner-role, and sustainability structure",
+        "state_department": "State Department strategic context, stakeholder, and risk structure",
+        "us_state_department": "State Department strategic context, stakeholder, and risk structure",
+        "un_agencies": "UN objective, outcome, and verification structure",
+    }.get(donor, "donor schema and review structure")
+
+
 class CriticFatalFlaw(BaseModel):
     id: Optional[str] = Field(default=None, description="Canonical finding identifier within a job")
     finding_id: Optional[str] = Field(default=None, description="Stable finding identifier within a job")
@@ -366,8 +379,11 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
             severity="high",
             section="toc",
             state=state,
-            message="Theory of Change draft is missing.",
-            fix_hint="Run architect step and ensure ToC generation succeeds before critic review.",
+            message=f"Theory of Change draft is missing, so the {_donor_review_package_phrase(state)} cannot yet be reviewed.",
+            fix_hint=(
+                "Run architect step and ensure ToC generation succeeds before critic review so the draft can be "
+                f"checked against the {_donor_schema_phrase(state)}."
+            ),
         )
     else:
         checks.append(RuleCheckResult(code="TOC_PRESENT", status="pass", section="toc"))
@@ -532,8 +548,14 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
                 severity="high",
                 section="toc",
                 state=state,
-                message="ToC does not match donor-specific schema contract.",
-                fix_hint="Revise architect output to satisfy strategy.get_toc_schema() validation errors.",
+                message=(
+                    "ToC does not match the donor-specific schema contract, so the draft is not yet reviewable as a "
+                    f"{_donor_review_package_phrase(state)}."
+                ),
+                fix_hint=(
+                    "Revise architect output to satisfy `strategy.get_toc_schema()` validation errors and restore the "
+                    f"{_donor_schema_phrase(state)}."
+                ),
             )
     else:
         checks.append(
@@ -995,7 +1017,10 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
             section="logframe",
             state=state,
             message=f"LogFrame/MEL indicators are missing, so the {_donor_review_package_phrase(state)} cannot yet be reviewed end to end.",
-            fix_hint="Run MEL specialist and ensure indicator extraction or fallback indicator generation succeeds.",
+            fix_hint=(
+                "Run MEL specialist and ensure indicator extraction or fallback indicator generation succeeds so the "
+                f"draft can be reviewed against the {_donor_schema_phrase(state)}."
+            ),
         )
 
     mel_citations = [c for c in _iter_citations(state, stage="mel")]
