@@ -7,7 +7,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from grantflow.api.public_views import _comment_triage_summary_payload, _critic_triage_summary_payload
+from grantflow.api.public_views import (
+    _comment_triage_summary_payload,
+    _critic_triage_summary_payload,
+    _reviewer_workflow_summary_payload,
+    _review_action_queue_summary_payload,
+)
 
 
 def _read_json(path: Path) -> Any:
@@ -117,22 +122,43 @@ def _review_readiness_from_payloads(
         "review_comment_resolution_rate": None,
         "review_comment_acknowledgment_rate": None,
     }
+    raw_findings = critic_payload.get("fatal_flaws")
+    findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
     if isinstance(readiness.get("comment_triage_summary"), dict):
-        return {**comment_defaults, **readiness}
+        enriched = {**comment_defaults, **readiness}
+        if not isinstance(enriched.get("action_queue_summary"), dict):
+            comment_triage = enriched.get("comment_triage_summary")
+            enriched["action_queue_summary"] = _review_action_queue_summary_payload(
+                critic_findings=findings,
+                comment_triage_summary=comment_triage if isinstance(comment_triage, dict) else {},
+            )
+        if not isinstance(enriched.get("reviewer_workflow_summary"), dict):
+            comment_triage = enriched.get("comment_triage_summary")
+            enriched["reviewer_workflow_summary"] = _reviewer_workflow_summary_payload(
+                critic_findings=findings,
+                comment_triage_summary=comment_triage if isinstance(comment_triage, dict) else {},
+            )
+        return enriched
     payload_root = export_payload.get("payload") if isinstance(export_payload.get("payload"), dict) else {}
     review_comments = (
         [row for row in payload_root.get("review_comments") or [] if isinstance(row, dict)]
         if isinstance(payload_root, dict)
         else []
     )
-    raw_findings = critic_payload.get("fatal_flaws")
-    findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
     if not review_comments:
         return {**comment_defaults, **readiness}
     comment_triage = _comment_triage_summary_payload(
         review_comments=review_comments,
         critic_findings=findings,
         donor_id=donor_id,
+    )
+    reviewer_workflow_summary = _reviewer_workflow_summary_payload(
+        critic_findings=findings,
+        comment_triage_summary=comment_triage,
+    )
+    action_queue_summary = _review_action_queue_summary_payload(
+        critic_findings=findings,
+        comment_triage_summary=comment_triage,
     )
     return {
         **comment_defaults,
@@ -148,6 +174,8 @@ def _review_readiness_from_payloads(
         "review_comment_resolution_rate": readiness.get("review_comment_resolution_rate"),
         "review_comment_acknowledgment_rate": readiness.get("review_comment_acknowledgment_rate"),
         "comment_triage_summary": comment_triage,
+        "reviewer_workflow_summary": reviewer_workflow_summary,
+        "action_queue_summary": action_queue_summary,
     }
 
 
@@ -205,6 +233,12 @@ def _build_brief(
     triage_next_bucket: str | None,
     triage_top_ids: list[str],
     triage_top_actions: list[str],
+    queue_next_primary_action: str | None,
+    avg_finding_ack_queue: float | None,
+    avg_finding_resolve_queue: float | None,
+    avg_comment_ack_queue: float | None,
+    avg_comment_resolve_queue: float | None,
+    avg_comment_reopen_queue: float | None,
 ) -> str:
     done_count = sum(1 for row in rows if str(row.get("status") or "").strip().lower() == "done")
     hitl_count = sum(1 for row in rows if bool(row.get("hitl_enabled")))
@@ -237,6 +271,8 @@ def _build_brief(
     lines.append("")
     if triage_next_action or triage_next_bucket or triage_top_ids:
         lines.append("## Review Triage Snapshot")
+        if queue_next_primary_action:
+            lines.append(f"- Next primary review action: `{queue_next_primary_action}`")
         if triage_next_bucket:
             lines.append(f"- Next review bucket: `{triage_next_bucket}`")
         if triage_next_action:
@@ -385,6 +421,61 @@ def main() -> int:
             if isinstance(item, dict)
         ]
     )
+    avg_finding_ack_queue = _avg(
+        [
+            _safe_float(
+                item.get("action_queue_summary", {}).get("finding_ack_queue_count")
+                if isinstance(item.get("action_queue_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    avg_finding_resolve_queue = _avg(
+        [
+            _safe_float(
+                item.get("action_queue_summary", {}).get("finding_resolve_queue_count")
+                if isinstance(item.get("action_queue_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    avg_comment_ack_queue = _avg(
+        [
+            _safe_float(
+                item.get("action_queue_summary", {}).get("comment_ack_queue_count")
+                if isinstance(item.get("action_queue_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    avg_comment_resolve_queue = _avg(
+        [
+            _safe_float(
+                item.get("action_queue_summary", {}).get("comment_resolve_queue_count")
+                if isinstance(item.get("action_queue_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
+    avg_comment_reopen_queue = _avg(
+        [
+            _safe_float(
+                item.get("action_queue_summary", {}).get("comment_reopen_queue_count")
+                if isinstance(item.get("action_queue_summary"), dict)
+                else None
+            )
+            for item in readiness_summaries
+            if isinstance(item, dict)
+        ]
+    )
     age_d3_7_avg = _avg(
         [
             _safe_int(
@@ -452,6 +543,16 @@ def main() -> int:
     )
     triage_top_ids: list[str] = []
     triage_top_actions: list[str] = []
+    queue_next_primary_action = next(
+        (
+            str(item.get("action_queue_summary", {}).get("next_primary_action") or "").strip()
+            for item in readiness_summaries
+            if isinstance(item, dict)
+            and isinstance(item.get("action_queue_summary"), dict)
+            and str(item.get("action_queue_summary", {}).get("next_primary_action") or "").strip()
+        ),
+        "",
+    )
     for item in triage_summaries:
         if not isinstance(item, dict):
             continue
@@ -566,6 +667,12 @@ def main() -> int:
         triage_next_bucket=(triage_next_bucket or None),
         triage_top_ids=triage_top_ids,
         triage_top_actions=triage_top_actions,
+        queue_next_primary_action=(queue_next_primary_action or None),
+        avg_finding_ack_queue=avg_finding_ack_queue,
+        avg_finding_resolve_queue=avg_finding_resolve_queue,
+        avg_comment_ack_queue=avg_comment_ack_queue,
+        avg_comment_resolve_queue=avg_comment_resolve_queue,
+        avg_comment_reopen_queue=avg_comment_reopen_queue,
     )
     insert_lines = [
         "## Review Readiness Snapshot",
@@ -579,6 +686,11 @@ def main() -> int:
         f"- Average review comment acknowledgment rate: `{_format_num(acknowledgment_rate_avg)}`",
         f"- Average reviewer workflow resolution rate: `{_format_num(workflow_resolution_rate_avg)}`",
         f"- Average reviewer workflow acknowledgment rate: `{_format_num(workflow_acknowledgment_rate_avg)}`",
+        f"- Average finding ack queue per case: `{_format_num(avg_finding_ack_queue)}`",
+        f"- Average finding resolve queue per case: `{_format_num(avg_finding_resolve_queue)}`",
+        f"- Average comment ack queue per case: `{_format_num(avg_comment_ack_queue)}`",
+        f"- Average comment resolve queue per case: `{_format_num(avg_comment_resolve_queue)}`",
+        f"- Average comment reopen queue per case: `{_format_num(avg_comment_reopen_queue)}`",
         f"- Comment threads aged 3-7d per case: `{_format_num(age_d3_7_avg)}`",
         f"- Comment threads aged >7d per case: `{_format_num(age_gt_7d_avg)}`",
         *(

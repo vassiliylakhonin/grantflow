@@ -7,7 +7,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from grantflow.api.public_views import _comment_triage_summary_payload, _critic_triage_summary_payload
+from grantflow.api.public_views import (
+    _comment_triage_summary_payload,
+    _critic_triage_summary_payload,
+    _review_action_queue_summary_payload,
+)
 
 
 def _read_json(path: Path) -> Any:
@@ -203,6 +207,19 @@ def _build_handout(
         stale_bucket_mix = _bucket_mix_text({str(key): int(value or 0) for key, value in stale_bucket_counts.items()})
         if stale_bucket_mix != "-":
             lines.append(f"- Stale comment bucket mix: `{stale_bucket_mix}`")
+    action_queue = (
+        featured_review_readiness.get("action_queue_summary")
+        if isinstance(featured_review_readiness.get("action_queue_summary"), dict)
+        else {}
+    )
+    if action_queue:
+        if str(action_queue.get("next_primary_action") or "").strip():
+            lines.append(f"- Next primary review action: `{action_queue.get('next_primary_action')}`")
+        lines.append(f"- Finding ack queue: `{action_queue.get('finding_ack_queue_count', '-')}`")
+        lines.append(f"- Finding resolve queue: `{action_queue.get('finding_resolve_queue_count', '-')}`")
+        lines.append(f"- Comment ack queue: `{action_queue.get('comment_ack_queue_count', '-')}`")
+        lines.append(f"- Comment resolve queue: `{action_queue.get('comment_resolve_queue_count', '-')}`")
+        lines.append(f"- Comment reopen queue: `{action_queue.get('comment_reopen_queue_count', '-')}`")
     top_finding_titles, top_reviewer_actions = _top_reviewer_items(featured_critic_payload)
     fallback_next_action = str(featured_triage_summary.get("next_recommended_action") or "").strip()
     if fallback_next_action and fallback_next_action not in top_reviewer_actions:
@@ -354,6 +371,10 @@ def main() -> int:
                 critic_findings=findings,
                 donor_id=str(featured_row.get("donor_id") or "").strip(),
             )
+            action_queue_summary = _review_action_queue_summary_payload(
+                critic_findings=findings,
+                comment_triage_summary=comment_triage,
+            )
             featured_review_readiness = {
                 **featured_review_readiness,
                 "open_review_comments": comment_triage.get("open_comment_count"),
@@ -369,7 +390,23 @@ def main() -> int:
                     "review_comment_acknowledgment_rate"
                 ),
                 "comment_triage_summary": comment_triage,
+                "action_queue_summary": action_queue_summary,
             }
+    if not isinstance(featured_review_readiness.get("action_queue_summary"), dict):
+        raw_findings = featured_critic_payload.get("fatal_flaws")
+        findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+        comment_triage = (
+            featured_review_readiness.get("comment_triage_summary")
+            if isinstance(featured_review_readiness.get("comment_triage_summary"), dict)
+            else {}
+        )
+        featured_review_readiness = {
+            **featured_review_readiness,
+            "action_queue_summary": _review_action_queue_summary_payload(
+                critic_findings=findings,
+                comment_triage_summary=comment_triage if isinstance(comment_triage, dict) else {},
+            ),
+        }
 
     review_ready_cases_count = 0
     for row in rows:

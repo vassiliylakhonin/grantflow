@@ -8,7 +8,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from grantflow.api.public_views import _comment_triage_summary_payload, _critic_triage_summary_payload
+from grantflow.api.public_views import (
+    _comment_triage_summary_payload,
+    _critic_triage_summary_payload,
+    _review_action_queue_summary_payload,
+    _reviewer_workflow_summary_payload,
+)
 
 STALE_BUCKET_KEYS = ("logic", "grounding", "measurement", "compliance", "general")
 
@@ -104,6 +109,30 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
             "orphan_linked_review_comments": comment_triage.get("orphan_linked_comment_count"),
             "comment_triage_summary": comment_triage,
         }
+    action_queue_summary = (
+        readiness.get("action_queue_summary") if isinstance(readiness.get("action_queue_summary"), dict) else {}
+    )
+    reviewer_workflow_summary = (
+        readiness.get("reviewer_workflow_summary")
+        if isinstance(readiness.get("reviewer_workflow_summary"), dict)
+        else {}
+    )
+    if not action_queue_summary and isinstance(critic, dict):
+        raw_findings = critic.get("fatal_flaws")
+        findings = [row for row in raw_findings if isinstance(row, dict)] if isinstance(raw_findings, list) else []
+        action_queue_summary = _review_action_queue_summary_payload(
+            critic_findings=findings,
+            comment_triage_summary=comment_triage,
+        )
+        reviewer_workflow_summary = _reviewer_workflow_summary_payload(
+            critic_findings=findings,
+            comment_triage_summary=comment_triage,
+        )
+        readiness = {
+            **readiness,
+            "reviewer_workflow_summary": reviewer_workflow_summary,
+            "action_queue_summary": action_queue_summary,
+        }
     comment_defaults = {
         "open_review_comments": 0,
         "resolved_review_comments": 0,
@@ -174,6 +203,36 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "reviewer_workflow_acknowledgment_rate": (
             readiness.get("reviewer_workflow_summary", {}).get("acknowledgment_rate")
             if isinstance(readiness.get("reviewer_workflow_summary"), dict)
+            else None
+        ),
+        "finding_ack_queue_count": (
+            readiness.get("action_queue_summary", {}).get("finding_ack_queue_count")
+            if isinstance(readiness.get("action_queue_summary"), dict)
+            else None
+        ),
+        "finding_resolve_queue_count": (
+            readiness.get("action_queue_summary", {}).get("finding_resolve_queue_count")
+            if isinstance(readiness.get("action_queue_summary"), dict)
+            else None
+        ),
+        "comment_ack_queue_count": (
+            readiness.get("action_queue_summary", {}).get("comment_ack_queue_count")
+            if isinstance(readiness.get("action_queue_summary"), dict)
+            else None
+        ),
+        "comment_resolve_queue_count": (
+            readiness.get("action_queue_summary", {}).get("comment_resolve_queue_count")
+            if isinstance(readiness.get("action_queue_summary"), dict)
+            else None
+        ),
+        "comment_reopen_queue_count": (
+            readiness.get("action_queue_summary", {}).get("comment_reopen_queue_count")
+            if isinstance(readiness.get("action_queue_summary"), dict)
+            else None
+        ),
+        "next_primary_action": (
+            readiness.get("action_queue_summary", {}).get("next_primary_action")
+            if isinstance(readiness.get("action_queue_summary"), dict)
             else None
         ),
         "fallback_strategy_citations": readiness.get("fallback_strategy_citations"),
@@ -254,6 +313,12 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "review_comment_acknowledgment_rate",
         "reviewer_workflow_resolution_rate",
         "reviewer_workflow_acknowledgment_rate",
+        "finding_ack_queue_count",
+        "finding_resolve_queue_count",
+        "comment_ack_queue_count",
+        "comment_resolve_queue_count",
+        "comment_reopen_queue_count",
+        "next_primary_action",
         "fallback_strategy_citations",
         "low_confidence_citations",
         "next_review_bucket",
@@ -311,6 +376,11 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     )
     avg_comment_age_d3_7 = _avg([_safe_int(row.get("comment_age_d3_7")) for row in rows])
     avg_comment_age_gt_7d = _avg([_safe_int(row.get("comment_age_gt_7d")) for row in rows])
+    avg_finding_ack_queue = _avg([_safe_int(row.get("finding_ack_queue_count")) for row in rows])
+    avg_finding_resolve_queue = _avg([_safe_int(row.get("finding_resolve_queue_count")) for row in rows])
+    avg_comment_ack_queue = _avg([_safe_int(row.get("comment_ack_queue_count")) for row in rows])
+    avg_comment_resolve_queue = _avg([_safe_int(row.get("comment_resolve_queue_count")) for row in rows])
+    avg_comment_reopen_queue = _avg([_safe_int(row.get("comment_reopen_queue_count")) for row in rows])
     stale_bucket_totals = {
         "logic": sum(int(_safe_int(row.get("stale_comment_bucket_logic")) or 0) for row in rows),
         "grounding": sum(int(_safe_int(row.get("stale_comment_bucket_grounding")) or 0) for row in rows),
@@ -365,6 +435,14 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
         ),
         "",
     )
+    next_primary_action = next(
+        (
+            str(row.get("next_primary_action") or "").strip()
+            for row in rows
+            if str(row.get("next_primary_action") or "").strip()
+        ),
+        "",
+    )
 
     lines: list[str] = []
     lines.append("# Pilot Metrics")
@@ -390,6 +468,11 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average review comment acknowledgment rate: `{_fmt(avg_comment_ack_rate)}`")
     lines.append(f"- Average reviewer workflow resolution rate: `{_fmt(avg_reviewer_workflow_resolution_rate)}`")
     lines.append(f"- Average reviewer workflow acknowledgment rate: `{_fmt(avg_reviewer_workflow_ack_rate)}`")
+    lines.append(f"- Average finding ack queue per case: `{_fmt(avg_finding_ack_queue)}`")
+    lines.append(f"- Average finding resolve queue per case: `{_fmt(avg_finding_resolve_queue)}`")
+    lines.append(f"- Average comment ack queue per case: `{_fmt(avg_comment_ack_queue)}`")
+    lines.append(f"- Average comment resolve queue per case: `{_fmt(avg_comment_resolve_queue)}`")
+    lines.append(f"- Average comment reopen queue per case: `{_fmt(avg_comment_reopen_queue)}`")
     lines.append(f"- Average comment threads aged 3-7d per case: `{_fmt(avg_comment_age_d3_7)}`")
     lines.append(f"- Average comment threads aged >7d per case: `{_fmt(avg_comment_age_gt_7d)}`")
     if any(stale_bucket_totals.values()):
@@ -419,6 +502,8 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average means-of-verification coverage: `{_fmt(avg_mov_coverage)}`")
     lines.append(f"- Average owner coverage: `{_fmt(avg_owner_coverage)}`")
     lines.append(f"- Cases with complete LogFrame operational coverage: `{complete_logframe_cases}/{len(rows)}`")
+    if next_primary_action:
+        lines.append(f"- Portfolio next primary action: `{next_primary_action}`")
     if next_bucket:
         lines.append(f"- Portfolio next review bucket: `{next_bucket}`")
     if next_action:
