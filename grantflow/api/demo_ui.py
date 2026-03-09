@@ -1091,6 +1091,9 @@ def render_demo_ui_html() -> str:
                 </select>
               </div>
               <div style="align-self:end;">
+                <button id="criticBulkPreviewBtn" class="ghost">Preview Bulk Status</button>
+              </div>
+              <div style="align-self:end;">
                 <button id="criticBulkApplyBtn" class="secondary">Apply Bulk Status</button>
               </div>
               <div style="align-self:end;">
@@ -1101,6 +1104,10 @@ def render_demo_ui_html() -> str:
               <div>
                 <label for="criticSelectedFindingIds">Selected Finding IDs (comma/newline separated)</label>
                 <textarea id="criticSelectedFindingIds" class="json" placeholder="finding-1&#10;finding-2"></textarea>
+                <div class="row" style="margin-top:10px;">
+                  <button id="criticCopySelectedFindingIdsBtn" class="ghost">Copy Selected IDs</button>
+                  <button id="criticLoadFindingIdsFromWorkflowBtn" class="ghost">Fill From Workflow View</button>
+                </div>
               </div>
               <div>
                 <label for="criticSelectedFindingId">Latest Finding ID</label>
@@ -1328,6 +1335,9 @@ def render_demo_ui_html() -> str:
                 <input id="selectedCommentId" readonly />
               </div>
               <div style="align-self:end;">
+                <button id="commentBulkPreviewBtn" class="ghost">Preview Comment Bulk Status</button>
+              </div>
+              <div style="align-self:end;">
                 <button id="commentBulkApplyBtn" class="secondary">Apply Comment Bulk Status</button>
               </div>
             </div>
@@ -1335,6 +1345,10 @@ def render_demo_ui_html() -> str:
               <div>
                 <label for="commentSelectedCommentIds">Selected Comment IDs (comma/newline separated)</label>
                 <textarea id="commentSelectedCommentIds" class="json" placeholder="comment-1&#10;comment-2"></textarea>
+                <div class="row" style="margin-top:10px;">
+                  <button id="commentCopySelectedCommentIdsBtn" class="ghost">Copy Selected IDs</button>
+                  <button id="commentLoadCommentIdsFromWorkflowBtn" class="ghost">Fill From Workflow View</button>
+                </div>
               </div>
               <div style="align-self:end;">
                 <div class="row" style="margin-top:10px;">
@@ -1978,8 +1992,11 @@ def render_demo_ui_html() -> str:
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
         criticBulkTargetStatus: $("criticBulkTargetStatus"),
         criticBulkScope: $("criticBulkScope"),
+        criticBulkPreviewBtn: $("criticBulkPreviewBtn"),
         criticAddSelectedFindingBtn: $("criticAddSelectedFindingBtn"),
         criticClearSelectedFindingIdsBtn: $("criticClearSelectedFindingIdsBtn"),
+        criticCopySelectedFindingIdsBtn: $("criticCopySelectedFindingIdsBtn"),
+        criticLoadFindingIdsFromWorkflowBtn: $("criticLoadFindingIdsFromWorkflowBtn"),
         portfolioDonorFilter: $("portfolioDonorFilter"),
         portfolioStatusFilter: $("portfolioStatusFilter"),
         portfolioHitlFilter: $("portfolioHitlFilter"),
@@ -1999,6 +2016,9 @@ def render_demo_ui_html() -> str:
         commentsFilterSection: $("commentsFilterSection"),
         commentsFilterStatus: $("commentsFilterStatus"),
         commentsFilterVersionId: $("commentsFilterVersionId"),
+        commentBulkPreviewBtn: $("commentBulkPreviewBtn"),
+        commentCopySelectedCommentIdsBtn: $("commentCopySelectedCommentIdsBtn"),
+        commentLoadCommentIdsFromWorkflowBtn: $("commentLoadCommentIdsFromWorkflowBtn"),
         commentSection: $("commentSection"),
         commentAuthor: $("commentAuthor"),
         commentVersionId: $("commentVersionId"),
@@ -4849,6 +4869,41 @@ def render_demo_ui_html() -> str:
         persistUiState();
       }
 
+      function parseRenderedJson(el, label) {
+        const text = String(el?.textContent || "").trim();
+        if (!text || text === "{}") throw new Error(`Load ${label} first`);
+        try {
+          return JSON.parse(text);
+        } catch (err) {
+          throw new Error(`Unable to parse ${label}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+
+      async function copyTextToClipboard(text, emptyMessage) {
+        const value = String(text || "").trim();
+        if (!value) throw new Error(emptyMessage);
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
+          throw new Error("Clipboard API is not available in this browser");
+        }
+        await navigator.clipboard.writeText(value);
+      }
+
+      function collectWorkflowFindingIds() {
+        const payload = parseRenderedJson(els.reviewWorkflowJson, "review workflow");
+        const findings = Array.isArray(payload.findings) ? payload.findings : [];
+        return findings
+          .map((finding) => String(finding?.finding_id || finding?.id || "").trim())
+          .filter(Boolean);
+      }
+
+      function collectWorkflowCommentIds() {
+        const payload = parseRenderedJson(els.reviewWorkflowJson, "review workflow");
+        const comments = Array.isArray(payload.comments) ? payload.comments : [];
+        return comments
+          .map((comment) => String(comment?.comment_id || comment?.id || "").trim())
+          .filter(Boolean);
+      }
+
       async function applyRuntimeGroundedGateReviewWorkflowDrilldown({ section = "", reasonCode = "" } = {}) {
         const jobId = currentJobId();
         if (!jobId) throw new Error("Set or generate a job_id first");
@@ -7155,11 +7210,7 @@ def render_demo_ui_html() -> str:
           await refreshExportPayload();
         }
         const text = (els.exportPayloadJson?.textContent || "").trim();
-        if (!text || text === "{}") throw new Error("Load export payload first");
-        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== "function") {
-          throw new Error("Clipboard API is not available in this browser");
-        }
-        await navigator.clipboard.writeText(text);
+        await copyTextToClipboard(text === "{}" ? "" : text, "Load export payload first");
       }
 
       async function ensurePortfolioQualityLoaded() {
@@ -8072,7 +8123,7 @@ def render_demo_ui_html() -> str:
         return updated;
       }
 
-      async function applyCriticBulkStatus() {
+      async function applyCriticBulkStatus({ dryRun = false } = {}) {
         const jobId = currentJobId();
         if (!jobId) throw new Error("No job_id");
         const nextStatus = String(els.criticBulkTargetStatus.value || "").trim();
@@ -8080,6 +8131,7 @@ def render_demo_ui_html() -> str:
         const scope = String(els.criticBulkScope.value || "filtered").trim().toLowerCase();
 
         const payload = { next_status: nextStatus };
+        if (dryRun) payload.dry_run = true;
         if (scope === "all") {
           payload.apply_to_all = true;
         } else if (scope === "selected") {
@@ -8152,13 +8204,14 @@ def render_demo_ui_html() -> str:
         return updated;
       }
 
-      async function applyCommentBulkStatus() {
+      async function applyCommentBulkStatus({ dryRun = false } = {}) {
         const jobId = currentJobId();
         if (!jobId) throw new Error("No job_id");
         const nextStatus = String(els.commentBulkTargetStatus.value || "").trim();
         if (!nextStatus) throw new Error("Select bulk comment target status");
         const scope = String(els.commentBulkScope.value || "filtered").trim().toLowerCase();
         const payload = { next_status: nextStatus };
+        if (dryRun) payload.dry_run = true;
         if (scope === "all") {
           payload.apply_to_all = true;
         } else if (scope === "selected") {
@@ -8196,6 +8249,26 @@ def render_demo_ui_html() -> str:
           refreshPortfolioReviewWorkflowSlaTrends(),
         ]);
         return result;
+      }
+
+      async function copySelectedFindingIds() {
+        await copyTextToClipboard(els.criticSelectedFindingIds.value, "No selected finding ids to copy");
+      }
+
+      async function copySelectedCommentIds() {
+        await copyTextToClipboard(els.commentSelectedCommentIds.value, "No selected comment ids to copy");
+      }
+
+      function loadFindingIdsFromWorkflow() {
+        const ids = collectWorkflowFindingIds();
+        if (!ids.length) throw new Error("No finding ids found in current workflow view");
+        mergeIdsIntoTextarea(els.criticSelectedFindingIds, ids);
+      }
+
+      function loadCommentIdsFromWorkflow() {
+        const ids = collectWorkflowCommentIds();
+        if (!ids.length) throw new Error("No comment ids found in current workflow view");
+        mergeIdsIntoTextarea(els.commentSelectedCommentIds, ids);
       }
 
       function togglePolling() {
@@ -8282,6 +8355,7 @@ def render_demo_ui_html() -> str:
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
         els.criticBulkApplyBtn.addEventListener("click", () => applyCriticBulkStatus().catch(showError));
+        els.criticBulkPreviewBtn.addEventListener("click", () => applyCriticBulkStatus({ dryRun: true }).catch(showError));
         els.criticAddSelectedFindingBtn.addEventListener("click", () => {
           try {
             const findingId = String(els.criticSelectedFindingId.value || "").trim();
@@ -8294,6 +8368,16 @@ def render_demo_ui_html() -> str:
         els.criticClearSelectedFindingIdsBtn.addEventListener("click", () => {
           els.criticSelectedFindingIds.value = "";
           persistUiState();
+        });
+        els.criticCopySelectedFindingIdsBtn.addEventListener("click", () =>
+          copySelectedFindingIds().catch((err) => showError(err))
+        );
+        els.criticLoadFindingIdsFromWorkflowBtn.addEventListener("click", () => {
+          try {
+            loadFindingIdsFromWorkflow();
+          } catch (err) {
+            showError(err);
+          }
         });
         els.criticBulkClearFiltersBtn.addEventListener("click", () => {
           clearCriticFilters();
@@ -8577,6 +8661,17 @@ def render_demo_ui_html() -> str:
           els.commentSelectedCommentIds.value = "";
           persistUiState();
         });
+        els.commentCopySelectedCommentIdsBtn.addEventListener("click", () =>
+          copySelectedCommentIds().catch((err) => showError(err))
+        );
+        els.commentLoadCommentIdsFromWorkflowBtn.addEventListener("click", () => {
+          try {
+            loadCommentIdsFromWorkflow();
+          } catch (err) {
+            showError(err);
+          }
+        });
+        els.commentBulkPreviewBtn.addEventListener("click", () => applyCommentBulkStatus({ dryRun: true }).catch(showError));
         els.commentBulkApplyBtn.addEventListener("click", () => applyCommentBulkStatus().catch(showError));
         els.clearLinkedFindingBtn.addEventListener("click", clearLinkedFindingSelection);
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));

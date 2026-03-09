@@ -171,6 +171,7 @@ Comment mutations:
 - `POST /status/{job_id}/comments/{comment_id}/reopen`
 - `POST /status/{job_id}/comments/bulk-status`
 - In Demo Console, reviewers can batch on `filtered`, `selected ids`, or `all` for both findings and comments.
+- In Demo Console, reviewers can also preview bulk changes with `dry_run=true`, copy selected IDs, and fill selected IDs from the current workflow view.
 
 Optional review mutations:
 
