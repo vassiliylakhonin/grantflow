@@ -764,7 +764,7 @@ def test_fallback_structured_toc_uses_worldbank_specific_results_chain_phrasing(
     )
 
     assert engine == "contract_synthesizer"
-    assert "service delivery performance" in payload["project_development_objective"].lower()
+    assert payload["project_development_objective"].lower() == "improve public sector performance and service delivery in uzbekistan."
     assert payload["objectives"]
     assert any("institutional performance" in row["title"].lower() for row in payload["objectives"])
     assert payload["results_chain"]
@@ -772,3 +772,55 @@ def test_fallback_structured_toc_uses_worldbank_specific_results_chain_phrasing(
         "participating agencies implement workflow" in row["description"].lower() for row in payload["results_chain"]
     )
     assert any("processing time" in row["indicator_focus"].lower() for row in payload["results_chain"])
+
+
+def test_fallback_structured_toc_uses_usaid_specific_compact_objective_phrasing():
+    strategy = DonorFactory.get_strategy("usaid")
+    payload, engine = _fallback_structured_toc(
+        strategy.get_toc_schema(),
+        donor_id="usaid",
+        project="Responsible AI Skills for Civil Service Modernization",
+        country="Kazakhstan",
+        revision_hint="",
+        evidence_hits=[],
+    )
+
+    assert engine == "contract_synthesizer"
+    assert (
+        payload["project_goal"]
+        == "Improve responsible ai skills for civil service modernization outcomes in Kazakhstan."
+    )
+    assert payload["development_objectives"]
+    assert any("civil servants" in row["description"].lower() for row in payload["development_objectives"])
+    assert payload["critical_assumptions"]
+    assert any("public institutions" in row.lower() for row in payload["critical_assumptions"])
+
+
+def test_fallback_structured_toc_does_not_leak_noisy_evidence_hint_into_generic_descriptions():
+    strategy = DonorFactory.get_strategy("usaid")
+    payload, _engine = _fallback_structured_toc(
+        strategy.get_toc_schema(),
+        donor_id="usaid",
+        project="Responsible AI Skills for Civil Service Modernization",
+        country="Kazakhstan",
+        revision_hint="",
+        evidence_hits=[
+            {
+                "excerpt": (
+                    "Evidence hint: present. Grounding gate warning: architect_retrieval_no_hits. "
+                    "Replace repeated boilerplate in the next revision."
+                )
+            }
+        ],
+    )
+
+    all_text = " ".join(
+        [
+            payload["project_goal"],
+            *(row["description"] for row in payload["development_objectives"]),
+            *(row for row in payload["critical_assumptions"]),
+        ]
+    ).lower()
+    assert "evidence hint" not in all_text
+    assert "architect_retrieval_no_hits" not in all_text
+    assert "replace repeated boilerplate" not in all_text

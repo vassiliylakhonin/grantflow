@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import types
 from typing import Any, Dict, Iterable, Optional, Tuple, Type, Union, get_args, get_origin
 
@@ -45,6 +46,58 @@ ARCHITECT_PLACEHOLDER_TOKENS = {
     "--",
     "null",
 }
+
+
+def _compact_phrase(text: str) -> str:
+    compact = " ".join(str(text or "").split()).strip()
+    if not compact:
+        return ""
+    compact = compact.rstrip(".")
+    compact = compact.replace(" and ", " & ") if compact.count(" and ") >= 2 else compact
+    compact = compact.replace("  ", " ")
+    return compact
+
+
+def _compact_project_label(project: str) -> str:
+    label = _compact_phrase(project or "Project")
+    lowered = label.lower()
+    for pattern in (
+        r"\bresults delivered\b",
+        r"\bmeasurable change\b",
+        r"\bevidence hint\s*:?\s*[^.]+\.?",
+        r"\bthrough structured implementation and review cycles\b",
+        r"\bintervention delivers\b",
+    ):
+        lowered = re.sub(pattern, "", lowered, flags=re.IGNORECASE)
+    lowered = re.sub(r"\s+\.", ".", lowered)
+    lowered = re.sub(r"\s{2,}", " ", lowered).strip(" .,-")
+    return lowered or "project priorities"
+
+
+def _compact_evidence_hint(excerpt: str, *, max_chars: int = 96) -> str:
+    hint = " ".join(str(excerpt or "").split()).strip()
+    if not hint:
+        return ""
+    hint = re.sub(r"\b(evidence hint|critic|grounding gate warning)\b[^.]*", "", hint, flags=re.IGNORECASE)
+    hint = re.sub(r"\s{2,}", " ", hint).strip(" .,-")
+    if len(hint) <= max_chars:
+        return hint
+    return f"{hint[:max_chars].rstrip()}..."
+
+
+def _worldbank_project_phrase(project_label: str) -> str:
+    label = str(project_label or "").strip().lower()
+    if not label:
+        return "public service delivery"
+    if "public sector performance" in label and "service delivery" not in label:
+        return "public sector performance and service delivery"
+    if "service delivery" in label and "performance" in label:
+        return label
+    if "service delivery" in label:
+        return f"{label} performance"
+    if "performance" in label:
+        return label
+    return f"{label} service delivery performance"
 
 
 def _model_validate(schema_cls: Type[BaseModel], payload: Dict[str, Any]) -> BaseModel:
@@ -225,11 +278,13 @@ def _text_for_field(
     lower_path = str(path or "").lower()
     donor_key = str(donor_id or "").strip().lower()
     base_project = project or "Project"
+    project_label = _compact_project_label(base_project)
+    evidence_excerpt = _compact_evidence_hint(evidence_hint)
     suffix = f" {index + 1}" if index >= 0 else ""
 
     if donor_key == "eu":
         if lower_path.endswith("overall_objective.title"):
-            return f"Improve {base_project.lower()} performance and accountability in {country or 'target locations'}"
+            return f"Improve {project_label} performance and accountability in {country or 'target locations'}"
         if lower_path.endswith("overall_objective.rationale"):
             return (
                 f"Addresses implementation bottlenecks in {country or 'the target context'} and aligns the action "
@@ -239,8 +294,8 @@ def _text_for_field(
             token in lower_path for token in ("specific_objectives[", "specific_objective[")
         ) and lower_path.endswith(".title"):
             eu_titles = [
-                f"Strengthen institutional capacity for {base_project.lower()} delivery",
-                f"Improve adoption of {base_project.lower()} workflows by frontline actors",
+                f"Strengthen institutional capacity for {project_label} delivery",
+                f"Improve adoption of {project_label} workflows by frontline actors",
             ]
             return eu_titles[index % len(eu_titles)]
         if any(
@@ -263,36 +318,55 @@ def _text_for_field(
         ):
             return (
                 f"By the end of implementation, target institutions in {country or 'the target context'} demonstrate "
-                f"measurable improvements in delivery quality, timeliness, and accountability related to {base_project.lower()}."
+                f"measurable improvements in delivery quality, timeliness, and accountability related to {project_label}."
             )[:420]
 
     if donor_key == "worldbank":
+        wb_phrase = _worldbank_project_phrase(project_label)
+        wb_delivery_phrase = wb_phrase if wb_phrase.endswith("service delivery") else f"{wb_phrase} delivery"
         if lname == "project_development_objective":
-            return f"Improve {base_project.lower()} service delivery performance in {country or 'target locations'}."
+            return f"Improve {wb_phrase} in {country or 'target locations'}."
         if any(token in lower_path for token in ("objectives[", "objective[")) and lower_path.endswith(".title"):
             wb_titles = [
-                f"Strengthen institutional performance for {base_project.lower()} delivery",
-                f"Improve operational execution and accountability in {base_project.lower()} systems",
+                f"Strengthen institutional performance for {wb_phrase}",
+                f"Improve operational execution and accountability in {wb_phrase} systems",
             ]
             return wb_titles[index % len(wb_titles)]
         if any(token in lower_path for token in ("objectives[", "objective[")) and lower_path.endswith(".description"):
             return (
-                f"Improve implementation reliability, coordination, and service responsiveness for {base_project.lower()} "
+                f"Improve implementation reliability, coordination, and service responsiveness for {wb_phrase} "
                 f"priorities in {country or 'the target context'}."
             )[:420]
         if "results_chain[" in lower_path and lower_path.endswith(".title"):
             wb_results = [
-                f"Agencies adopt operational improvements for {base_project.lower()}",
-                f"Service delivery workflows for {base_project.lower()} are executed more consistently",
+                f"Agencies adopt operational improvements for {wb_phrase}",
+                f"Service delivery workflows for {wb_phrase} are executed more consistently",
             ]
             return wb_results[index % len(wb_results)]
         if "results_chain[" in lower_path and lower_path.endswith(".description"):
             return (
                 f"Participating agencies implement workflow, supervision, and accountability improvements that reduce "
-                f"delays and increase the quality of {base_project.lower()} delivery."
+                f"delays and increase the quality of {wb_delivery_phrase}."
             )[:420]
         if lower_path.endswith("indicator_focus"):
             return "Processing time, service completion rate, and institutional compliance"
+
+    if donor_key == "usaid":
+        if lower_path == "project_goal":
+            return f"Improve {project_label} outcomes in {country or 'target locations'}."
+        if "development_objectives[" in lower_path and lower_path.endswith(".description"):
+            usaid_objectives = [
+                f"Strengthen institutional capacity to deliver {project_label}.",
+                f"Increase adoption of {project_label} workflows by civil servants and implementing partners.",
+            ]
+            return usaid_objectives[index % len(usaid_objectives)]
+        if "critical_assumptions[" in lower_path:
+            return (
+                f"Public institutions, implementing partners, and oversight stakeholders continue supporting {project_label} "
+                "delivery during the review period."
+            )[:420]
+        if "indicators[" in lower_path and lname == "name":
+            return f"Indicator for {project_label}"
 
     if lname.endswith("_id") or lname == "id":
         prefix = field_name.replace("_id", "").replace("_", " ").strip().title() or "Item"
@@ -302,16 +376,18 @@ def _text_for_field(
     if "country" in lname:
         return country or "TBD country"
     if "goal" in lname:
-        return f"Improve {base_project} outcomes in {country or 'target locations'}."
+        return f"Improve {project_label} outcomes in {country or 'target locations'}."
     if "objective" in lname:
-        return f"{base_project} objective{suffix} aligned with {donor_id} priorities."
+        return f"{project_label.capitalize()} objective{suffix} aligned with {donor_id} priorities."
     if "title" in lname:
-        return f"{base_project} result{suffix}"
+        return f"{project_label.capitalize()} result{suffix}"
+    if "name" in lname:
+        return f"{project_label.capitalize()} indicator{suffix}"
     if "description" in lname or "rationale" in lname or "expected_change" in lname:
-        hint = f" Evidence hint: {evidence_hint}" if evidence_hint else ""
+        hint = f" Evidence anchor: {evidence_excerpt}" if evidence_excerpt else ""
         return (
-            f"{base_project} intervention delivers measurable change in {country or 'target context'} "
-            f"through structured implementation and review cycles.{hint}"
+            f"{project_label.capitalize()} delivers measurable implementation change in {country or 'target context'} "
+            f"through clearer delivery, accountability, and review routines.{hint}"
         )[:420]
     if "assumption" in lname or "risk" in lname:
         if revision_hint:
