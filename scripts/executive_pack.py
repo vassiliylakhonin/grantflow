@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import shutil
 from datetime import datetime, timezone
@@ -55,6 +56,44 @@ def _format_num(value: float | int | None) -> str:
     return f"{value:.2f}"
 
 
+def _safe_int(value: Any) -> int | None:
+    try:
+        if value is None or value == "":
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _avg(values: list[float | int | None]) -> float | None:
+    clean = [float(value) for value in values if value is not None]
+    if not clean:
+        return None
+    return sum(clean) / len(clean)
+
+
+def _read_csv_rows(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return [dict(row) for row in csv.DictReader(handle)]
+
+
+def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
+    lines = text.splitlines()
+    bullets: list[str] = []
+    capture = False
+    for line in lines:
+        if line.strip() == heading:
+            capture = True
+            continue
+        if capture and line.startswith("## "):
+            break
+        if capture and line.startswith("- "):
+            bullets.append(line[2:].strip())
+    return bullets
+
+
 def _resolve_case_dir(
     rows: list[dict[str, Any]],
     *,
@@ -89,6 +128,13 @@ def _build_summary(
     featured_review_readiness: dict[str, Any],
     featured_mel_summary: dict[str, Any],
     review_ready_cases: str,
+    portfolio_open_findings_avg: float | None,
+    portfolio_fallback_avg: float | None,
+    portfolio_low_confidence_avg: float | None,
+    portfolio_smart_avg: float | None,
+    portfolio_mov_avg: float | None,
+    portfolio_owner_avg: float | None,
+    conditional_reasons: list[str],
 ) -> str:
     lines: list[str] = []
     lines.append("# GrantFlow Executive Pack")
@@ -111,6 +157,15 @@ def _build_summary(
     lines.append(f"- Featured preset: `{selected_row.get('preset_key')}`")
     lines.append(f"- Featured job id: `{selected_row.get('job_id')}`")
     lines.append("")
+    lines.append("## Portfolio Readiness Snapshot")
+    lines.append(f"- Cases with complete LogFrame operational coverage: `{review_ready_cases}`")
+    lines.append(f"- Average open critic findings per case: `{_format_num(portfolio_open_findings_avg)}`")
+    lines.append(f"- Average fallback/strategy citations per case: `{_format_num(portfolio_fallback_avg)}`")
+    lines.append(f"- Average low-confidence citations per case: `{_format_num(portfolio_low_confidence_avg)}`")
+    lines.append(f"- Average SMART coverage: `{_format_num(portfolio_smart_avg)}`")
+    lines.append(f"- Average MoV coverage: `{_format_num(portfolio_mov_avg)}`")
+    lines.append(f"- Average owner coverage: `{_format_num(portfolio_owner_avg)}`")
+    lines.append("")
     lines.append("## Readiness Snapshot")
     lines.append(
         f"- Open critic findings (featured case): `{featured_review_readiness.get('open_critic_findings', '-')}`"
@@ -124,7 +179,6 @@ def _build_summary(
     lines.append(
         f"- Low-confidence citations (featured case): `{featured_review_readiness.get('low_confidence_citations', '-')}`"
     )
-    lines.append(f"- Cases with complete LogFrame operational coverage: `{review_ready_cases}`")
     lines.append(
         f"- SMART coverage (featured case): "
         f"`{_format_num(_safe_float(featured_mel_summary.get('smart_field_coverage_rate')))}"
@@ -141,6 +195,11 @@ def _build_summary(
         "`"
     )
     lines.append("")
+    if conditional_reasons:
+        lines.append("## Current Conditions")
+        for reason in conditional_reasons:
+            lines.append(f"- {reason}")
+        lines.append("")
     lines.append("## Open In Order")
     lines.append("1. `buyer-brief.md`")
     lines.append("2. `pilot-scorecard.md`")
@@ -229,6 +288,15 @@ def main() -> int:
         owner = _safe_float(mel.get("owner_coverage_rate"))
         if smart == 1.0 and mov == 1.0 and owner == 1.0:
             review_ready_cases_count += 1
+    metrics_rows = _read_csv_rows(pilot_pack_dir / "pilot-metrics.csv")
+    portfolio_open_findings_avg = _avg([_safe_int(row.get("open_critic_findings")) for row in metrics_rows])
+    portfolio_fallback_avg = _avg([_safe_int(row.get("fallback_strategy_citations")) for row in metrics_rows])
+    portfolio_low_confidence_avg = _avg([_safe_int(row.get("low_confidence_citations")) for row in metrics_rows])
+    portfolio_smart_avg = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in metrics_rows])
+    portfolio_mov_avg = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in metrics_rows])
+    portfolio_owner_avg = _avg([_safe_float(row.get("owner_coverage_rate")) for row in metrics_rows])
+    scorecard_text = (pilot_pack_dir / "pilot-scorecard.md").read_text(encoding="utf-8")
+    conditional_reasons = _extract_markdown_bullets(scorecard_text, "## Conditions Before Buyer Decision")
     (output_dir / "README.md").write_text(
         _build_summary(
             executive_pack_name=output_dir.name,
@@ -240,6 +308,13 @@ def main() -> int:
             featured_review_readiness=featured_review_readiness,
             featured_mel_summary=featured_mel_summary,
             review_ready_cases=f"{review_ready_cases_count}/{len(rows)}",
+            portfolio_open_findings_avg=portfolio_open_findings_avg,
+            portfolio_fallback_avg=portfolio_fallback_avg,
+            portfolio_low_confidence_avg=portfolio_low_confidence_avg,
+            portfolio_smart_avg=portfolio_smart_avg,
+            portfolio_mov_avg=portfolio_mov_avg,
+            portfolio_owner_avg=portfolio_owner_avg,
+            conditional_reasons=conditional_reasons,
         ),
         encoding="utf-8",
     )
