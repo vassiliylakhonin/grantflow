@@ -2565,11 +2565,31 @@ def _review_readiness_summary_payload(
         critic_findings=[item for item in critic_findings if isinstance(item, dict)],
         comment_triage_summary=comment_triage_summary,
     )
+    action_queue_summary = _review_action_queue_summary_payload(
+        critic_findings=[item for item in critic_findings if isinstance(item, dict)],
+        comment_triage_summary=comment_triage_summary,
+    )
+    total_finding_count = len([item for item in critic_findings if isinstance(item, dict)])
+    top_reviewer_actions: list[str] = []
+    for item in open_findings:
+        action = str(item.get("reviewer_next_step") or item.get("recommended_action") or "").strip()
+        if action and action not in top_reviewer_actions:
+            top_reviewer_actions.append(action)
+        if len(top_reviewer_actions) >= 2:
+            break
     return {
         "needs_revision": sanitize_for_public_response(needs_revision),
         "open_critic_findings": len(open_findings),
         "resolved_critic_findings": resolved_finding_count,
         "acknowledged_critic_findings": acknowledged_finding_count,
+        "critic_finding_resolution_rate": (
+            round(resolved_finding_count / total_finding_count, 4) if total_finding_count else None
+        ),
+        "critic_finding_acknowledgment_rate": (
+            round((resolved_finding_count + acknowledged_finding_count) / total_finding_count, 4)
+            if total_finding_count
+            else None
+        ),
         "high_severity_open_findings": len(high_severity_open_findings),
         "open_review_comments": len(open_review_comments),
         "resolved_review_comments": resolved_comment_count,
@@ -2587,7 +2607,9 @@ def _review_readiness_summary_payload(
             if total_comment_count
             else None
         ),
+        "top_reviewer_actions": top_reviewer_actions,
         "reviewer_workflow_summary": reviewer_workflow_summary,
+        "action_queue_summary": action_queue_summary,
         "low_confidence_citations": len(low_confidence_citations),
         "fallback_strategy_citations": len(fallback_strategy_citations),
         "comment_triage_summary": comment_triage_summary,

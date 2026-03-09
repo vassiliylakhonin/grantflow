@@ -134,13 +134,23 @@ def test_word_export_includes_citation_traceability_section():
     assert "Fatal flaw count: 1" in text
     assert "Review Readiness" in text
     assert "Open critic findings: 1" in text
+    assert "Acknowledged critic findings: 1" in text
+    assert "Resolved critic findings: 0" in text
     assert "High-severity open findings: 1" in text
     assert "Open review comments: 0" in text
     assert "Fallback/strategy citations: 1" in text
     assert "Acknowledged review comments: 0" in text
     assert "Resolved review comments: 1" in text
+    assert "Critic finding resolution rate:" in text
+    assert "Critic finding acknowledgment rate:" in text
     assert "Reviewer workflow resolution rate:" in text
     assert "Reviewer workflow acknowledgment rate:" in text
+    assert "Next primary review action: resolve_finding" in text
+    assert "Finding ack queue: 0" in text
+    assert "Finding resolve queue: 1" in text
+    assert "Comment ack queue: 0" in text
+    assert "Comment resolve queue: 0" in text
+    assert "Comment reopen queue: 1" in text
     assert "Comment threads aged 3-7d:" in text
     assert "Top reviewer action 1:" in text
     assert "Reviewer next step:" in text
@@ -564,11 +574,21 @@ def test_excel_export_includes_citations_sheet():
     readiness_rows = list(wb["Review Readiness"].iter_rows(values_only=True))
     readiness_map = {str(row[0]): row[1] for row in readiness_rows[1:] if row and row[0]}
     assert readiness_map["Open critic findings"] == 1
+    assert readiness_map["Acknowledged critic findings"] == 1
+    assert readiness_map["Resolved critic findings"] == 0
     assert readiness_map["High-severity open findings"] == 1
     assert readiness_map["Open review comments"] == 0
     assert readiness_map["Acknowledged review comments"] == 0
     assert readiness_map["Resolved review comments"] == 1
     assert readiness_map["Fallback/strategy citations"] == 1
+    assert readiness_map["Next primary review action"] == "resolve_finding"
+    assert readiness_map["Finding ack queue"] == 0
+    assert readiness_map["Finding resolve queue"] == 1
+    assert readiness_map["Comment ack queue"] == 0
+    assert readiness_map["Comment resolve queue"] == 0
+    assert readiness_map["Comment reopen queue"] == 1
+    assert "Critic finding resolution rate" in readiness_map
+    assert "Critic finding acknowledgment rate" in readiness_map
     assert "Reviewer workflow resolution rate" in readiness_map
     assert "Reviewer workflow acknowledgment rate" in readiness_map
     assert "Comment threads aged 3-7d" in readiness_map

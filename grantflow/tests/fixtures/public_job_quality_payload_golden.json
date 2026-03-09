@@ -297,13 +297,21 @@
   "review_readiness_summary": {
     "acknowledged_critic_findings": 1,
     "acknowledged_review_comments": 0,
+    "action_queue_summary": {
+      "comment_ack_queue_count": 1,
+      "comment_reopen_queue_count": 0,
+      "comment_resolve_queue_count": 0,
+      "finding_ack_queue_count": 1,
+      "finding_resolve_queue_count": 1,
+      "next_primary_action": "ack_finding"
+    },
     "comment_triage_summary": {
       "acknowledged_comment_count": 0,
       "aging_band_counts": {
         "d1_3": 0,
         "d3_7": 0,
-        "gt_7d": 0,
-        "lt_24h": 1
+        "gt_7d": 1,
+        "lt_24h": 0
       },
       "comment_bucket_counts": {
         "grounding": 1
@@ -321,12 +329,16 @@
       "overdue_comment_count": 0,
       "pending_comment_count": 1,
       "resolved_comment_count": 0,
-      "stale_comment_bucket_counts": {},
-      "stale_open_comment_count": 0,
+      "stale_comment_bucket_counts": {
+        "grounding": 1
+      },
+      "stale_open_comment_count": 1,
       "top_comment_ids": [
         "comment-1"
       ]
     },
+    "critic_finding_acknowledgment_rate": 0.5,
+    "critic_finding_resolution_rate": 0.0,
     "fallback_strategy_citations": 1,
     "high_severity_open_findings": 1,
     "linked_review_comments": 1,
@@ -344,11 +356,21 @@
     "reviewer_workflow_summary": {
       "acknowledged_items": 1,
       "acknowledgment_rate": 0.3333,
-      "open_items": 3,
+      "next_comment_action": "Resolve the evidence-grounding comment thread and attach stronger source support in the donor review package before the next draft review.",
+      "next_comment_bucket": "grounding",
+      "open_items": 2,
       "resolution_rate": 0.0,
-      "resolved_items": 0
+      "resolved_items": 0,
+      "stale_comment_bucket_counts": {
+        "grounding": 1
+      },
+      "top_stale_comment_bucket": "grounding"
     },
-    "stale_open_review_comments": 0
+    "stale_open_review_comments": 1,
+    "top_reviewer_actions": [
+      "ToC Evidence Gap: Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
+      "Baseline Target Missing: Replace placeholder baseline and target values with reviewer-defensible measures before the next export of the USAID results hierarchy and monitoring package."
+    ]
   },
   "status": "done",
   "strict_preflight": true,

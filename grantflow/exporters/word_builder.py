@@ -97,6 +97,16 @@ def _review_readiness_rows(
         for item in critic_findings
         if isinstance(item, dict) and str(item.get("status") or "open").strip().lower() not in {"resolved", "closed"}
     ]
+    finding_ack_queue_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "open").strip().lower() == "open"
+    )
+    finding_resolve_queue_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "acknowledged"
+    )
     high_findings = [
         item
         for item in open_findings
@@ -121,6 +131,27 @@ def _review_readiness_rows(
     rows = [
         ("Needs revision", quality_summary.get("needs_revision")),
         ("Open critic findings", len(open_findings)),
+        (
+            "Acknowledged critic findings",
+            len(
+                [
+                    item
+                    for item in critic_findings
+                    if isinstance(item, dict) and str(item.get("status") or "").strip().lower() == "acknowledged"
+                ]
+            ),
+        ),
+        (
+            "Resolved critic findings",
+            len(
+                [
+                    item
+                    for item in critic_findings
+                    if isinstance(item, dict)
+                    and str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+                ]
+            ),
+        ),
         ("High-severity open findings", len(high_findings)),
         ("Open review comments", len(open_comments)),
         ("Low-confidence citations", len(low_confidence)),
@@ -166,11 +197,84 @@ def _review_readiness_rows(
         [
             ("Acknowledged review comments", len(acknowledged_comments)),
             ("Resolved review comments", len(resolved_comments)),
+            (
+                "Critic finding resolution rate",
+                (
+                    round(
+                        len(
+                            [
+                                item
+                                for item in critic_findings
+                                if isinstance(item, dict)
+                                and str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+                            ]
+                        )
+                        / len(critic_findings),
+                        4,
+                    )
+                    if critic_findings
+                    else None
+                ),
+            ),
+            (
+                "Critic finding acknowledgment rate",
+                (
+                    round(
+                        (
+                            len(
+                                [
+                                    item
+                                    for item in critic_findings
+                                    if isinstance(item, dict)
+                                    and str(item.get("status") or "").strip().lower() in {"resolved", "closed"}
+                                ]
+                            )
+                            + len(
+                                [
+                                    item
+                                    for item in critic_findings
+                                    if isinstance(item, dict)
+                                    and str(item.get("status") or "").strip().lower() == "acknowledged"
+                                ]
+                            )
+                        )
+                        / len(critic_findings),
+                        4,
+                    )
+                    if critic_findings
+                    else None
+                ),
+            ),
             ("Reviewer workflow resolution rate", round(resolved_items / total_items, 4) if total_items else None),
             (
                 "Reviewer workflow acknowledgment rate",
                 round((resolved_items + acknowledged_items) / total_items, 4) if total_items else None,
             ),
+            (
+                "Next primary review action",
+                (
+                    "ack_finding"
+                    if finding_ack_queue_count > 0
+                    else (
+                        "resolve_finding"
+                        if finding_resolve_queue_count > 0
+                        else (
+                            "ack_comment"
+                            if len(open_comments) > 0
+                            else (
+                                "resolve_comment"
+                                if len(acknowledged_comments) > 0
+                                else ("reopen_comment" if len(resolved_comments) > 0 else None)
+                            )
+                        )
+                    )
+                ),
+            ),
+            ("Finding ack queue", finding_ack_queue_count),
+            ("Finding resolve queue", finding_resolve_queue_count),
+            ("Comment ack queue", len(open_comments)),
+            ("Comment resolve queue", len(acknowledged_comments)),
+            ("Comment reopen queue", len(resolved_comments)),
         ]
     )
 
