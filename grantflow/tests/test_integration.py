@@ -450,12 +450,14 @@ def test_demo_console_page_loads():
     assert "criticBulkPreviewBtn" in body
     assert "criticBulkActionHint" in body
     assert "criticBulkClearFiltersBtn" in body
+    assert "criticSyncWorkflowFiltersBtn" in body
     assert "criticBulkResultJson" in body
     assert "criticBulkSummaryList" in body
     assert "Apply Bulk Status" in body
     assert "Preview Bulk Status" in body
     assert "finding bulk action:" in body
     assert "Clear Critic Filters" in body
+    assert "Use Workflow Filters" in body
     assert "criticAdvisorySummaryList" in body
     assert "criticAdvisoryLabelsList" in body
     assert "criticAdvisoryNormalizationList" in body
@@ -714,6 +716,7 @@ def test_demo_console_page_loads():
     assert "commentLoadCommentIdsFromWorkflowBtn" in body
     assert "commentBulkPreviewBtn" in body
     assert "commentBulkActionHint" in body
+    assert "commentSyncWorkflowFiltersBtn" in body
     assert "commentBulkSummaryList" in body
     assert "selected finding ids" in body
     assert "selected comment ids" in body
@@ -783,7 +786,9 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "commentLoadCommentIdsFromWorkflowBtn",
         "commentBulkSummaryList",
         "criticBulkActionHint",
+        "criticSyncWorkflowFiltersBtn",
         "commentBulkActionHint",
+        "commentSyncWorkflowFiltersBtn",
         "reviewWorkflowJson",
         "renderBulkPreviewSummary",
         "collectWorkflowFindingIds",
@@ -795,6 +800,8 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "describeCriticFilterBasis",
         "describeCommentFilterBasis",
         "describeStatusTransition",
+        "syncCriticFiltersFromWorkflow",
+        "syncCommentFiltersFromWorkflow",
         "Copy Selected IDs",
         "Fill From Workflow View",
         "Scope",

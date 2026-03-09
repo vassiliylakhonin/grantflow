@@ -1099,6 +1099,9 @@ def render_demo_ui_html() -> str:
               <div style="align-self:end;">
                 <button id="criticBulkClearFiltersBtn" class="ghost">Clear Critic Filters</button>
               </div>
+              <div style="align-self:end;">
+                <button id="criticSyncWorkflowFiltersBtn" class="ghost">Use Workflow Filters</button>
+              </div>
             </div>
             <div id="criticBulkActionHint" class="footer-note mono" style="margin-top:10px;">
               finding bulk action: scope=filtered finding ids · queue=finding ack queue
@@ -1333,6 +1336,9 @@ def render_demo_ui_html() -> str:
                   <option value="selected">selected comment ids</option>
                   <option value="all">all</option>
                 </select>
+              </div>
+              <div style="align-self:end;">
+                <button id="commentSyncWorkflowFiltersBtn" class="ghost">Use Workflow Filters</button>
               </div>
             </div>
             <div id="commentBulkActionHint" class="footer-note mono" style="margin-top:10px;">
@@ -2006,6 +2012,7 @@ def render_demo_ui_html() -> str:
         criticBulkScope: $("criticBulkScope"),
         criticBulkPreviewBtn: $("criticBulkPreviewBtn"),
         criticBulkActionHint: $("criticBulkActionHint"),
+        criticSyncWorkflowFiltersBtn: $("criticSyncWorkflowFiltersBtn"),
         criticAddSelectedFindingBtn: $("criticAddSelectedFindingBtn"),
         criticClearSelectedFindingIdsBtn: $("criticClearSelectedFindingIdsBtn"),
         criticCopySelectedFindingIdsBtn: $("criticCopySelectedFindingIdsBtn"),
@@ -2032,6 +2039,7 @@ def render_demo_ui_html() -> str:
         commentsFilterVersionId: $("commentsFilterVersionId"),
         commentBulkPreviewBtn: $("commentBulkPreviewBtn"),
         commentBulkActionHint: $("commentBulkActionHint"),
+        commentSyncWorkflowFiltersBtn: $("commentSyncWorkflowFiltersBtn"),
         commentCopySelectedCommentIdsBtn: $("commentCopySelectedCommentIdsBtn"),
         commentLoadCommentIdsFromWorkflowBtn: $("commentLoadCommentIdsFromWorkflowBtn"),
         commentBulkSummaryList: $("commentBulkSummaryList"),
@@ -5085,6 +5093,32 @@ def render_demo_ui_html() -> str:
         if (els.commentBulkActionHint) {
           els.commentBulkActionHint.textContent = `comment bulk action: scope=${describeBulkScope(scope, selectedCount, "comment ids")} · queue=${action.queueLabel}`;
         }
+      }
+
+      function syncCriticFiltersFromWorkflow() {
+        const section = String(els.reviewWorkflowFindingSectionFilter?.value || "").trim();
+        const findingStatus = String(els.reviewWorkflowCommentStatusFilter?.value || "").trim();
+        if (section) els.criticSectionFilter.value = section;
+        if (["open", "acknowledged", "resolved"].includes(findingStatus)) {
+          els.criticFindingStatusFilter.value = findingStatus;
+        }
+        els.criticBulkScope.value = "filtered";
+        persistUiState();
+        updateCriticBulkActionUi();
+      }
+
+      function syncCommentFiltersFromWorkflow() {
+        const section = String(els.reviewWorkflowFindingSectionFilter?.value || "").trim();
+        const commentStatus = String(els.reviewWorkflowCommentStatusFilter?.value || "").trim();
+        if (["toc", "logframe", "general"].includes(section)) {
+          els.commentsFilterSection.value = section;
+        }
+        if (["open", "resolved", "acknowledged"].includes(commentStatus)) {
+          els.commentsFilterStatus.value = commentStatus;
+        }
+        els.commentBulkScope.value = "filtered";
+        persistUiState();
+        updateCommentBulkActionUi();
       }
 
       async function applyRuntimeGroundedGateReviewWorkflowDrilldown({ section = "", reasonCode = "" } = {}) {
@@ -8603,6 +8637,13 @@ def render_demo_ui_html() -> str:
           if (state.lastCritic) renderCriticLists(state.lastCritic);
           else refreshCritic().catch(showError);
         });
+        els.criticSyncWorkflowFiltersBtn.addEventListener("click", () => {
+          try {
+            syncCriticFiltersFromWorkflow();
+          } catch (err) {
+            showError(err);
+          }
+        });
         els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
         els.workerHeartbeatBtn.addEventListener("click", () => refreshWorkerHeartbeat().catch(showError));
         els.workerHeartbeatPollToggleBtn.addEventListener("click", toggleWorkerHeartbeatPolling);
@@ -8904,6 +8945,13 @@ def render_demo_ui_html() -> str:
         });
         els.commentBulkPreviewBtn.addEventListener("click", () => applyCommentBulkStatus({ dryRun: true }).catch(showError));
         els.commentBulkApplyBtn.addEventListener("click", () => applyCommentBulkStatus().catch(showError));
+        els.commentSyncWorkflowFiltersBtn.addEventListener("click", () => {
+          try {
+            syncCommentFiltersFromWorkflow();
+          } catch (err) {
+            showError(err);
+          }
+        });
         [els.commentBulkTargetStatus, els.commentBulkScope, els.commentSelectedCommentIds].forEach((el) => {
           el?.addEventListener("change", updateCommentBulkActionUi);
           el?.addEventListener("input", updateCommentBulkActionUi);
