@@ -147,6 +147,59 @@ def _extract_markdown_bullets(text: str, heading: str) -> list[str]:
     return bullets
 
 
+def _next_ops_sequence(
+    *,
+    queue_next_primary_action: str | None,
+    review_policy_next_operational_action: str | None,
+    triage_next_action: str | None,
+    conditional_reasons: list[str],
+    limit: int = 3,
+) -> list[str]:
+    normalized_map = {
+        "ack_finding": "Acknowledge the open critic findings queue and assign section owners for the next review cycle.",
+        "resolve_finding": "Resolve acknowledged critic findings after the revised draft is regenerated.",
+        "ack_comment": "Acknowledge open reviewer comments and route them to the correct section owner.",
+        "resolve_comment": "Resolve reviewer comments that already have enough revised evidence to close.",
+        "reopen_comment": "Reopen comment threads that still block reviewer acceptance after re-checking the revised draft.",
+        "triage_open_findings": "Triage the remaining open findings and bind them to the next reviewer action queue.",
+        "resolve_overdue_comments": "Resolve overdue reviewer comments before the next buyer-facing checkpoint.",
+        "clear_stale_comment_threads": "Clear stale reviewer comment threads before external sharing or pilot sign-off.",
+    }
+    sequence: list[str] = []
+    seen: set[str] = set()
+    for candidate in (
+        str(queue_next_primary_action or "").strip(),
+        str(review_policy_next_operational_action or "").strip(),
+        str(triage_next_action or "").strip(),
+    ):
+        if not candidate:
+            continue
+        text = normalized_map.get(candidate, candidate)
+        if text not in seen:
+            sequence.append(text)
+            seen.add(text)
+        if len(sequence) >= limit:
+            return sequence
+    for condition in conditional_reasons:
+        lowered = condition.lower()
+        if "baseline comparison" in lowered:
+            text = "Capture baseline metrics for every case before the bounded pilot decision meeting."
+        elif "comment threads aged >7d" in lowered or "stale reviewer comment" in lowered:
+            text = "Reduce stale reviewer comment threads older than seven days before external sharing."
+        elif "reviewer workflow resolution rate" in lowered:
+            text = "Increase reviewer resolution throughput so open review items close inside the target SLA."
+        elif "reviewer workflow acknowledgment rate" in lowered:
+            text = "Increase reviewer acknowledgment throughput so new review items are triaged inside the target SLA."
+        else:
+            continue
+        if text not in seen:
+            sequence.append(text)
+            seen.add(text)
+        if len(sequence) >= limit:
+            break
+    return sequence
+
+
 def _top_blocking_thresholds(conditions: list[str], *, limit: int = 3) -> list[str]:
     priority_tokens = (
         "reviewer workflow resolution rate",
@@ -514,6 +567,17 @@ def _build_summary(
         for index, action in enumerate(priority_actions[:2], start=1):
             lines.append(f"- Top reviewer action {index} (featured case): {action}")
     lines.append("")
+    next_ops_sequence = _next_ops_sequence(
+        queue_next_primary_action=str(action_queue.get("next_primary_action") or "").strip() or None,
+        review_policy_next_operational_action=str(workflow_policy.get("next_operational_action") or "").strip() or None,
+        triage_next_action=str(featured_triage_summary.get("next_recommended_action") or "").strip() or None,
+        conditional_reasons=conditional_reasons,
+    )
+    if next_ops_sequence:
+        lines.append("## Next Ops Sequence")
+        for index, step in enumerate(next_ops_sequence, start=1):
+            lines.append(f"{index}. {step}")
+        lines.append("")
     if conditional_reasons:
         if top_blocking_thresholds:
             lines.append("## Top Blocking Thresholds")
