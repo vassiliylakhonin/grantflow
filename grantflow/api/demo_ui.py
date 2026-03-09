@@ -919,6 +919,7 @@ def render_demo_ui_html() -> str:
               <button id="downloadPortfolioReviewWorkflowCsvBtn" class="secondary">Export Workflow CSV</button>
             </div>
             <div id="portfolioReviewWorkflowSummaryLine" class="footer-note mono">portfolio workflow: findings=- · comments=- · overdue=- · events=- · active_jobs=-/-</div>
+            <div id="portfolioReviewWorkflowPolicyLine" class="footer-note mono">portfolio policy: status=- · go/no-go=- · send_class=- · next=-</div>
             <div class="list" id="portfolioReviewWorkflowList" style="margin-top:10px;"></div>
             <div style="margin-top:10px;">
               <pre id="portfolioReviewWorkflowJson">{}</pre>
@@ -1449,6 +1450,7 @@ def render_demo_ui_html() -> str:
               </div>
             </div>
             <div id="reviewWorkflowSummaryLine" class="footer-note mono" style="margin-top:10px;">workflow: timeline=- · findings=- · comments=-</div>
+            <div id="reviewWorkflowPolicyLine" class="footer-note mono">workflow policy: status=- · go/no-go=- · next=-</div>
             <div class="kpis" id="reviewActionQueueCards" style="margin-top:10px;">
               <div class="kpi"><div class="label">Next Primary Action</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Finding Ack Queue</div><div class="value mono">-</div></div>
@@ -1894,6 +1896,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowTimelineList: $("reviewWorkflowTimelineList"),
         reviewActionQueueCards: $("reviewActionQueueCards"),
         reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
+        reviewWorkflowPolicyLine: $("reviewWorkflowPolicyLine"),
         reviewWorkflowJson: $("reviewWorkflowJson"),
         reviewWorkflowTrendsBtn: $("reviewWorkflowTrendsBtn"),
         reviewWorkflowTrendsExportJsonBtn: $("reviewWorkflowTrendsExportJsonBtn"),
@@ -1962,6 +1965,7 @@ def render_demo_ui_html() -> str:
         portfolioQualityCards: $("portfolioQualityCards"),
         portfolioWarningMetaLine: $("portfolioWarningMetaLine"),
         portfolioReviewWorkflowSummaryLine: $("portfolioReviewWorkflowSummaryLine"),
+        portfolioReviewWorkflowPolicyLine: $("portfolioReviewWorkflowPolicyLine"),
         portfolioReviewWorkflowList: $("portfolioReviewWorkflowList"),
         portfolioReviewWorkflowSlaSummaryLine: $("portfolioReviewWorkflowSlaSummaryLine"),
         portfolioReviewWorkflowSlaList: $("portfolioReviewWorkflowSlaList"),
@@ -5269,10 +5273,25 @@ def render_demo_ui_html() -> str:
           els.reviewWorkflowSummaryLine.textContent =
             `workflow: timeline=${timelineCount} · findings=${findingCount} (pending=${pendingFindingCount}, overdue=${overdueFindingCount}) · comments=${commentCount} (pending=${pendingCommentCount}, overdue=${overdueCommentCount}) · orphan_links=${orphanLinkedCount} · last=${lastActivity}`;
         }
+        const workflowPolicy = summary?.review_workflow_policy_summary && typeof summary.review_workflow_policy_summary === "object"
+          ? summary.review_workflow_policy_summary
+          : {};
+        if (els.reviewWorkflowPolicyLine) {
+          els.reviewWorkflowPolicyLine.textContent =
+            `workflow policy: status=${String(workflowPolicy?.status || "-")} · go/no-go=${String(workflowPolicy?.go_no_go_flag || "-")} · next=${String(workflowPolicy?.next_operational_action || "-")}`;
+        }
         const actionQueue = summary?.action_queue_summary && typeof summary.action_queue_summary === "object"
           ? summary.action_queue_summary
           : {};
         renderReviewActionQueueCards(actionQueue);
+      }
+
+      function sendClassificationForGoNoGo(goNoGo) {
+        const normalized = String(goNoGo || "").trim().toLowerCase();
+        if (normalized === "go") return "send-safe";
+        if (normalized === "go_with_conditions") return "send-with-conditions";
+        if (normalized === "hold") return "internal-only";
+        return "-";
       }
 
       function renderReviewActionQueueCards(summary) {
@@ -5399,6 +5418,14 @@ def render_demo_ui_html() -> str:
         if (els.portfolioReviewWorkflowSummaryLine) {
           els.portfolioReviewWorkflowSummaryLine.textContent =
             `portfolio workflow: findings=${findingCount} · comments=${commentCount} · overdue=${overdueTotal} · events=${timelineEventCount} · active_jobs=${jobsWithActivity}/${jobCount}`;
+        }
+        const workflowPolicy = summary?.review_workflow_policy_summary && typeof summary.review_workflow_policy_summary === "object"
+          ? summary.review_workflow_policy_summary
+          : {};
+        if (els.portfolioReviewWorkflowPolicyLine) {
+          const goNoGo = String(workflowPolicy?.go_no_go_flag || "-");
+          els.portfolioReviewWorkflowPolicyLine.textContent =
+            `portfolio policy: status=${String(workflowPolicy?.status || "-")} · go/no-go=${goNoGo} · send_class=${sendClassificationForGoNoGo(goNoGo)} · next=${String(workflowPolicy?.next_operational_action || "-")}`;
         }
 
         const listEl = els.portfolioReviewWorkflowList;

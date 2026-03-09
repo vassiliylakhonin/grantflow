@@ -563,6 +563,7 @@ def test_demo_console_page_loads():
     assert "portfolioQualityCards" in body
     assert "portfolioReviewWorkflowBtn" in body
     assert "portfolioReviewWorkflowSummaryLine" in body
+    assert "portfolioReviewWorkflowPolicyLine" in body
     assert "portfolioReviewWorkflowList" in body
     assert "portfolioReviewWorkflowJson" in body
     assert "copyPortfolioReviewWorkflowJsonBtn" in body
@@ -731,6 +732,7 @@ def test_demo_console_page_loads():
     assert "Next Primary Action" in body
     assert "reviewWorkflowBtn" in body
     assert "reviewWorkflowSummaryLine" in body
+    assert "reviewWorkflowPolicyLine" in body
     assert "reviewWorkflowTrendsSummaryLine" in body
     assert "reviewWorkflowTimelineList" in body
     assert "reviewWorkflowTrendSparkline" in body
@@ -760,6 +762,8 @@ def test_demo_console_includes_bulk_preview_summary_helpers():
     assert "Filter Basis" in body
     assert "Status Transition" in body
     assert "Queue Impact" in body
+    assert "workflow policy:" in body
+    assert "portfolio policy:" in body
     assert "Matched" in body
     assert "Changed" in body
     assert "Unchanged" in body
@@ -794,6 +798,8 @@ def test_demo_console_exposes_end_to_end_bulk_review_controls():
         "commentBulkActionHint",
         "commentWorkflowFilterSuggestion",
         "commentSyncWorkflowFiltersBtn",
+        "reviewWorkflowPolicyLine",
+        "portfolioReviewWorkflowPolicyLine",
         "reviewWorkflowJson",
         "renderBulkPreviewSummary",
         "collectWorkflowFindingIds",
