@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict
 
 from grantflow.swarm.state_contract import state_donor_id, state_input_context
@@ -62,6 +63,23 @@ _CONTEXT_HINT_KEYS = (
     "target_beneficiaries",
     "budget",
     "duration_months",
+)
+
+_REVISION_NOISE_PATTERNS = (
+    re.compile(r"^\s*address the following issues\b.*$", re.IGNORECASE),
+    re.compile(r"^\s*grounding gate warning\b.*$", re.IGNORECASE),
+    re.compile(r"^\s*critic\b.*$", re.IGNORECASE),
+    re.compile(r"^\s*warning\b.*$", re.IGNORECASE),
+    re.compile(r"^\s*issue\b.*$", re.IGNORECASE),
+)
+_REVISION_DROP_PHRASES = (
+    "architect_retrieval_no_hits",
+    "fallback_dominant",
+    "low_confidence",
+    "traceability_gap",
+    "replace repeated boilerplate",
+    "reviewer-ready",
+    "next draft",
 )
 
 
@@ -162,6 +180,29 @@ def toc_query_hints(toc_payload: Any, *, max_items: int = 4) -> str:
     return " | ".join(hints)
 
 
+def sanitize_revision_hint_for_query(revision_hint: str, *, max_items: int = 2, max_chars: int = 180) -> str:
+    raw = str(revision_hint or "").strip()
+    if not raw:
+        return ""
+    candidates: list[str] = []
+    for chunk in re.split(r"[\n\r]+|[;|]+", raw):
+        text = " ".join(str(chunk or "").split()).strip(" -:.")
+        if not text:
+            continue
+        lowered = text.lower()
+        if any(pattern.match(text) for pattern in _REVISION_NOISE_PATTERNS):
+            continue
+        if any(phrase in lowered for phrase in _REVISION_DROP_PHRASES):
+            continue
+        if len(text) < 12:
+            continue
+        candidates.append(text)
+        if len(candidates) >= max_items:
+            break
+    joined = " | ".join(candidates)
+    return joined[:max_chars].strip()
+
+
 def build_stage_query_text(
     *,
     state: Dict[str, Any],
@@ -170,12 +211,14 @@ def build_stage_query_text(
     country: str,
     revision_hint: str = "",
     toc_payload: Any = None,
+    include_revision_hint: bool = True,
 ) -> str:
     donor_id = state_donor_id(state, default="donor")
     input_context = state_input_context(state)
     context_hints = context_query_hints(input_context)
     donor_terms = donor_query_preset_terms(donor_id)
     toc_hints = toc_query_hints(toc_payload)
+    query_revision_hint = sanitize_revision_hint_for_query(revision_hint) if include_revision_hint else ""
     parts: list[str] = [
         str(stage or "").strip(),
         str(project or "").strip(),
@@ -183,7 +226,7 @@ def build_stage_query_text(
         donor_id,
         context_hints,
         toc_hints,
-        revision_hint.strip(),
+        query_revision_hint,
         donor_terms,
     ]
     deduped: list[str] = []

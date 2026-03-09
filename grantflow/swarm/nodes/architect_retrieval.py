@@ -7,10 +7,21 @@ from grantflow.core.config import config
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
-from grantflow.swarm.retrieval_query import build_stage_query_text
+from grantflow.swarm.retrieval_query import build_stage_query_text, donor_query_preset_list
 from grantflow.swarm.state_contract import state_donor_id, state_input_context, state_revision_hint
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+_COMPACT_STOPWORDS = {
+    "and",
+    "for",
+    "from",
+    "into",
+    "that",
+    "the",
+    "this",
+    "through",
+    "with",
+}
 _GENERIC_EXCERPT_TOKENS = {
     "annex",
     "appendix",
@@ -65,11 +76,62 @@ def build_architect_query_text(state: Dict[str, Any]) -> str:
         country=country,
         revision_hint=revision_hint,
         toc_payload=(state.get("toc_draft") or {}).get("toc") if isinstance(state.get("toc_draft"), dict) else None,
+        include_revision_hint=False,
     )
 
 
 def _tokenize(text: Any) -> set[str]:
     return {m.group(0).lower() for m in _TOKEN_RE.finditer(str(text or "")) if len(m.group(0)) >= 3}
+
+
+def _keyword_phrase(text: Any, *, max_words: int = 8) -> str:
+    words: list[str] = []
+    seen: set[str] = set()
+    for match in _TOKEN_RE.finditer(str(text or "")):
+        token = match.group(0).lower()
+        if len(token) < 3 or token in _COMPACT_STOPWORDS or token in seen:
+            continue
+        seen.add(token)
+        words.append(token)
+        if len(words) >= max_words:
+            break
+    return " ".join(words)
+
+
+def _compact_toc_clues(state: Dict[str, Any], *, max_items: int = 2) -> str:
+    toc = (state.get("toc_draft") or {}).get("toc") if isinstance(state.get("toc_draft"), dict) else None
+    if not isinstance(toc, dict):
+        return ""
+    hints: list[str] = []
+    for key in (
+        "project_goal",
+        "project_development_objective",
+        "program_goal",
+        "programme_objective",
+        "brief",
+    ):
+        phrase = _keyword_phrase(toc.get(key))
+        if phrase:
+            hints.append(phrase)
+        if len(hints) >= max_items:
+            break
+    for key in ("objectives", "specific_objectives", "expected_outcomes", "results_chain"):
+        if len(hints) >= max_items:
+            break
+        rows = toc.get(key)
+        if not isinstance(rows, list):
+            continue
+        for row in rows[:2]:
+            if not isinstance(row, dict):
+                continue
+            phrase = _keyword_phrase(
+                row.get("title") or row.get("description") or row.get("expected_change") or row.get("indicator_focus")
+            )
+            if phrase:
+                hints.append(phrase)
+            if len(hints) >= max_items:
+                break
+    return " ".join(hints[:max_items])
 
 
 def _statement_priority_tokens(statement_path: str | None) -> set[str]:
@@ -173,20 +235,19 @@ def _query_variants(state: Dict[str, Any], base_query: str, *, max_variants: int
     project = str(input_context.get("project") or "").strip()
     country = str(input_context.get("country") or "").strip()
     donor_id = state_donor_id(state, default="donor")
-    problem = str(input_context.get("problem") or "").strip()
-    expected_change = str(input_context.get("expected_change") or "").strip()
-    key_activities = input_context.get("key_activities")
-    if isinstance(key_activities, list):
-        activities = ", ".join(str(item).strip() for item in key_activities[:4] if str(item).strip())
-    else:
-        activities = ""
+    sector = str(input_context.get("sector") or "").strip()
+    theme = str(input_context.get("theme") or "").strip()
+    donor_terms = donor_query_preset_list(donor_id)
+    donor_phrase = " ".join(donor_terms[:4])
+    project_keywords = _keyword_phrase(project, max_words=6)
+    sector_keywords = _keyword_phrase(f"{sector} {theme}", max_words=4)
+    toc_keywords = _compact_toc_clues(state, max_items=2)
 
     candidates = [
+        f"{project_keywords} {country} {donor_id} {donor_phrase}".strip(),
+        f"{country} {donor_id} {sector_keywords} {donor_phrase}".strip(),
+        f"{project_keywords} {country} {toc_keywords} {donor_phrase}".strip(),
         base_query.strip(),
-        f"{project} {country} {donor_id} theory of change objectives outcomes results chain assumptions".strip(),
-        f"{project} {country} implementation pathways indicators donor compliance risks constraints".strip(),
-        f"{project} {country} problem: {problem[:180]} expected change: {expected_change[:180]}".strip(),
-        f"{project} {country} key activities {activities}".strip(),
     ]
 
     unique: list[str] = []

@@ -510,7 +510,17 @@ def main() -> int:
     parser.add_argument("--timeout-seconds", type=float, default=60.0)
     parser.add_argument("--poll-interval-seconds", type=float, default=0.25)
     parser.add_argument("--llm-mode", action="store_true")
-    parser.add_argument("--architect-rag-enabled", action="store_true")
+    parser.add_argument(
+        "--architect-rag-enabled",
+        dest="architect_rag_enabled",
+        action="store_true",
+        default=True,
+    )
+    parser.add_argument(
+        "--no-architect-rag-enabled",
+        dest="architect_rag_enabled",
+        action="store_false",
+    )
     parser.add_argument("--seed-review-comments", action="store_true")
     args = parser.parse_args()
 

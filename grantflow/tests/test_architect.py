@@ -169,6 +169,46 @@ def test_retrieve_architect_evidence_normalizes_traceability_and_deduplicates_hi
     assert summary["hits"][0]["traceability_complete"] is True
 
 
+def test_architect_query_variants_prioritize_compact_donor_shaped_queries(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_query(*, namespace, query_texts, n_results):  # noqa: ARG001
+        captured["query_texts"] = query_texts
+        return {"documents": [[]], "metadatas": [[]], "ids": [[]], "distances": [[]]}
+
+    monkeypatch.setattr(architect_retrieval_module.vector_store, "query", fake_query)
+
+    retrieve_architect_evidence(
+        {
+            "donor_id": "worldbank",
+            "input_context": {
+                "project": "Public Sector Performance and Service Delivery Capacity Strengthening",
+                "country": "Uzbekistan",
+                "sector": "governance",
+                "theme": "service_delivery",
+            },
+            "revision_hint": (
+                "Address the following issues before finalizing the draft: "
+                "Replace repeated boilerplate. Grounding gate warning: architect_retrieval_no_hits."
+            ),
+            "toc_draft": {
+                "toc": {
+                    "project_development_objective": "Improve service delivery performance in Uzbekistan",
+                    "results_chain": [{"description": "Agencies implement workflow improvements"}],
+                }
+            },
+        },
+        "worldbank_ads301",
+    )
+    variants = list(captured.get("query_texts") or [])
+    assert variants
+    assert "architect_retrieval_no_hits" not in variants[0].lower()
+    assert "replace repeated boilerplate" not in variants[0].lower()
+    assert len(variants[0].split()) < len(variants[-1].split())
+    assert "worldbank" in variants[0].lower()
+    assert "results framework" in variants[0].lower() or "project development objective" in variants[0].lower()
+
+
 def test_architect_claim_citation_policy_marks_low_confidence_hits():
     toc_payload = {"project_goal": "Improve water sanitation outcomes", "objectives": []}
     citations = build_architect_claim_citations(

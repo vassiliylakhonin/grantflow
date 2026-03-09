@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from grantflow.swarm.retrieval_query import build_stage_query_text, donor_query_preset_terms
+from grantflow.swarm.retrieval_query import (
+    build_stage_query_text,
+    donor_query_preset_terms,
+    sanitize_revision_hint_for_query,
+)
 
 
 def test_donor_query_preset_terms_are_donor_aware():
@@ -40,6 +44,47 @@ def test_build_stage_query_text_includes_context_hints_and_toc_clues():
     assert "project development objective" in lowered
     assert "sector: governance" in lowered
     assert "theme: service_delivery" in lowered
+
+
+def test_build_stage_query_text_can_skip_revision_hint_for_retrieval_queries():
+    state = {
+        "donor_id": "usaid",
+        "input_context": {
+            "project": "Civil Service AI",
+            "country": "Kazakhstan",
+            "sector": "governance",
+        },
+    }
+    query = build_stage_query_text(
+        state=state,
+        stage="architect",
+        project="Civil Service AI",
+        country="Kazakhstan",
+        revision_hint="Address the following issues before finalizing the draft: Replace repeated boilerplate. Grounding gate warning: architect_retrieval_no_hits.",
+        toc_payload={"project_goal": "Improve responsible AI adoption in the civil service"},
+        include_revision_hint=False,
+    )
+    lowered = query.lower()
+    assert "civil service ai" in lowered
+    assert "kazakhstan" in lowered
+    assert "improve responsible ai adoption in the civil service" in lowered
+    assert "replace repeated boilerplate" not in lowered
+    assert "architect_retrieval_no_hits" not in lowered
+
+
+def test_sanitize_revision_hint_for_query_drops_noisy_critic_prose():
+    raw = """
+    Address the following issues before finalizing the draft:
+    Replace repeated boilerplate with section-specific causal logic.
+    Grounding gate warning: architect_retrieval_no_hits.
+    Strengthen measurability for outcome indicators.
+    """
+    sanitized = sanitize_revision_hint_for_query(raw)
+    lowered = sanitized.lower()
+    assert "address the following issues" not in lowered
+    assert "architect_retrieval_no_hits" not in lowered
+    assert "replace repeated boilerplate" not in lowered
+    assert "strengthen measurability" in lowered
 
 
 def test_build_stage_query_text_includes_eu_and_worldbank_toc_specific_hints():
