@@ -15,7 +15,7 @@ from grantflow.api.review_service import (
     _normalize_critic_fatal_flaws_for_job,
     _normalize_review_comments_for_job,
 )
-from grantflow.api.constants import CRITIC_FINDING_STATUSES, REVIEW_COMMENT_SECTIONS
+from grantflow.api.constants import CRITIC_FINDING_STATUSES, REVIEW_COMMENT_SECTIONS, REVIEW_COMMENT_STATUSES
 from grantflow.api.filters import _validated_filter_token
 from grantflow.api.idempotency import (
     _global_idempotency_replay_response,
@@ -42,6 +42,7 @@ from grantflow.api.review_mutations import (
     _recompute_review_workflow_sla,
     _set_critic_fatal_flaw_status,
     _set_critic_fatal_flaws_status_bulk,
+    _set_review_comments_status_bulk,
     _set_review_comment_status,
 )
 from grantflow.api.schemas import (
@@ -64,6 +65,8 @@ from grantflow.api.schemas import (
     JobReviewWorkflowSLARecomputePublicResponse,
     JobReviewWorkflowSLATrendsPublicResponse,
     JobReviewWorkflowTrendsPublicResponse,
+    ReviewCommentsBulkStatusPublicResponse,
+    ReviewCommentsBulkStatusRequest,
     ReviewCommentPublicResponse,
     ReviewWorkflowSLARecomputeRequest,
 )
@@ -768,6 +771,35 @@ def add_status_comment(job_id: str, req: JobCommentCreateRequest, request: Reque
         linked_finding_id=linked_finding_id,
         linked_finding_severity=linked_finding_severity,
         request_id=_resolve_request_id(request, req.request_id),
+    )
+
+
+@review_router.post(
+    "/status/{job_id}/comments/bulk-status",
+    response_model=ReviewCommentsBulkStatusPublicResponse,
+    response_model_exclude_none=True,
+)
+def bulk_status_comments(job_id: str, req: ReviewCommentsBulkStatusRequest, request: Request):
+    require_api_key_if_configured(request)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    _ensure_job_tenant_write_access(request, job)
+    next_status = str(req.next_status or "").strip().lower()
+    if next_status not in REVIEW_COMMENT_STATUSES:
+        raise HTTPException(status_code=400, detail="Unsupported review comment status")
+    return _set_review_comments_status_bulk(
+        job_id,
+        next_status=next_status,
+        actor=_finding_actor_from_request(request),
+        dry_run=bool(req.dry_run),
+        request_id=_resolve_request_id(request, req.request_id),
+        if_match_status=(req.if_match_status or None),
+        apply_to_all=bool(req.apply_to_all),
+        section=(req.section or None),
+        comment_status=(req.comment_status or None),
+        version_id=(req.version_id or None),
+        comment_ids=req.comment_ids,
     )
 
 

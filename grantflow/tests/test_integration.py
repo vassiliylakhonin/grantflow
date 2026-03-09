@@ -695,6 +695,11 @@ def test_demo_console_page_loads():
     assert "Reopen Finding" in body
     assert "linkedFindingId" in body
     assert "/critic/findings/bulk-status" in body
+    assert "/comments/bulk-status" in body
+    assert "ackCommentBtn" in body
+    assert "commentBulkApplyBtn" in body
+    assert "reviewActionQueueCards" in body
+    assert "Next Primary Action" in body
     assert "reviewWorkflowBtn" in body
     assert "reviewWorkflowSummaryLine" in body
     assert "reviewWorkflowTrendsSummaryLine" in body
@@ -2265,6 +2270,11 @@ def test_status_write_endpoints_block_cross_tenant_when_tenant_authz_enabled(mon
         (
             "POST",
             f"/status/{job_id}/critic/findings/bulk-status",
+            {"next_status": "acknowledged", "apply_to_all": True},
+        ),
+        (
+            "POST",
+            f"/status/{job_id}/comments/bulk-status",
             {"next_status": "acknowledged", "apply_to_all": True},
         ),
         ("POST", f"/status/{job_id}/review/workflow/sla/recompute", {}),
@@ -4905,6 +4915,78 @@ def test_status_comments_status_request_id_is_idempotent():
     matching = [e for e in status_events if e.get("comment_id") == comment_id]
     assert len(matching) == 1
     assert matching[0].get("request_id") == "rid-comment-status-1"
+
+
+def test_status_comments_bulk_status_supports_filters_and_apply_all():
+    response = client.post(
+        "/generate",
+        json={
+            "donor_id": "usaid",
+            "input_context": {"project": "Public Finance", "country": "Uzbekistan"},
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert response.status_code == 200
+    job_id = response.json()["job_id"]
+    _wait_for_terminal_status(job_id)
+
+    toc_versions_resp = client.get(f"/status/{job_id}/versions", params={"section": "toc"})
+    assert toc_versions_resp.status_code == 200
+    toc_version_id = toc_versions_resp.json()["versions"][-1]["version_id"]
+
+    c1 = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "toc", "message": "Tighten causal chain.", "version_id": toc_version_id},
+    )
+    c2 = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "toc", "message": "Clarify evidence path.", "version_id": toc_version_id},
+    )
+    c3 = client.post(
+        f"/status/{job_id}/comments",
+        json={"section": "general", "message": "Keep delivery note open."},
+    )
+    assert c1.status_code == c2.status_code == c3.status_code == 200
+    comment_ids = [c1.json()["comment_id"], c2.json()["comment_id"], c3.json()["comment_id"]]
+
+    bulk_filtered = client.post(
+        f"/status/{job_id}/comments/bulk-status",
+        json={"next_status": "acknowledged", "section": "toc", "version_id": toc_version_id},
+    )
+    assert bulk_filtered.status_code == 200
+    bulk_filtered_body = bulk_filtered.json()
+    assert bulk_filtered_body["requested_status"] == "acknowledged"
+    assert bulk_filtered_body["matched_count"] == 2
+    assert bulk_filtered_body["changed_count"] == 2
+    assert bulk_filtered_body["filters"]["section"] == "toc"
+    assert bulk_filtered_body["filters"]["version_id"] == toc_version_id
+    assert {item["comment_id"] for item in bulk_filtered_body["updated_comments"]} == {comment_ids[0], comment_ids[1]}
+    assert all(item["status"] == "acknowledged" for item in bulk_filtered_body["updated_comments"])
+
+    conflict = client.post(
+        f"/status/{job_id}/comments/bulk-status",
+        json={"next_status": "resolved", "apply_to_all": True, "if_match_status": "open"},
+    )
+    assert conflict.status_code == 409
+    conflict_detail = conflict.json().get("detail") or {}
+    assert conflict_detail.get("reason") == "comment_status_conflict"
+
+    bulk_apply_all = client.post(
+        f"/status/{job_id}/comments/bulk-status",
+        json={"next_status": "resolved", "apply_to_all": True},
+    )
+    assert bulk_apply_all.status_code == 200
+    bulk_apply_all_body = bulk_apply_all.json()
+    assert bulk_apply_all_body["matched_count"] == 3
+    assert bulk_apply_all_body["changed_count"] == 3
+    assert bulk_apply_all_body["not_found_comment_ids"] == []
+    assert all(item["status"] == "resolved" for item in bulk_apply_all_body["updated_comments"])
+
+    comments_resp = client.get(f"/status/{job_id}/comments", params={"status": "resolved"})
+    assert comments_resp.status_code == 200
+    resolved_ids = {item["comment_id"] for item in comments_resp.json()["comments"]}
+    assert set(comment_ids).issubset(resolved_ids)
 
 
 def test_status_comments_endpoint_rejects_invalid_section_or_version():
@@ -10525,6 +10607,19 @@ def test_read_endpoints_require_api_key_when_configured(monkeypatch):
     )
     assert reopen_comment_auth.status_code == 200
 
+    bulk_comment_unauth = client.post(
+        f"/status/{job_id}/comments/bulk-status",
+        json={"next_status": "acknowledged", "apply_to_all": True},
+    )
+    assert bulk_comment_unauth.status_code == 401
+
+    bulk_comment_auth = client.post(
+        f"/status/{job_id}/comments/bulk-status",
+        json={"next_status": "acknowledged", "apply_to_all": True},
+        headers={"X-API-Key": "test-secret"},
+    )
+    assert bulk_comment_auth.status_code == 200
+
     portfolio_metrics_unauth = client.get("/portfolio/metrics")
     assert portfolio_metrics_unauth.status_code == 401
 
@@ -10927,6 +11022,9 @@ def test_openapi_declares_api_key_security_scheme():
     status_comments_post_security = (
         ((spec.get("paths") or {}).get("/status/{job_id}/comments") or {}).get("post") or {}
     ).get("security")
+    status_comments_bulk_status_security = (
+        (((spec.get("paths") or {}).get("/status/{job_id}/comments/bulk-status") or {}).get("post") or {})
+    ).get("security")
     status_comments_ack_security = (
         (((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/ack") or {}).get("post") or {})
     ).get("security")
@@ -11310,6 +11408,18 @@ def test_openapi_declares_api_key_security_scheme():
         .get("application/json", {})
         .get("schema")
     )
+    status_comments_bulk_status_response_schema = (
+        (
+            (((spec.get("paths") or {}).get("/status/{job_id}/comments/bulk-status") or {}).get("post") or {}).get(
+                "responses"
+            )
+            or {}
+        )
+        .get("200", {})
+        .get("content", {})
+        .get("application/json", {})
+        .get("schema")
+    )
     status_comments_ack_response_schema = (
         (
             (((spec.get("paths") or {}).get("/status/{job_id}/comments/{comment_id}/ack") or {}).get("post") or {}).get(
@@ -11531,6 +11641,7 @@ def test_openapi_declares_api_key_security_scheme():
     assert status_review_workflow_export_security == [{"ApiKeyAuth": []}]
     assert status_review_workflow_trends_export_security == [{"ApiKeyAuth": []}]
     assert status_comments_post_security == [{"ApiKeyAuth": []}]
+    assert status_comments_bulk_status_security == [{"ApiKeyAuth": []}]
     assert status_comments_ack_security == [{"ApiKeyAuth": []}]
     assert status_comments_resolve_security == [{"ApiKeyAuth": []}]
     assert status_comments_reopen_security == [{"ApiKeyAuth": []}]
@@ -11623,6 +11734,9 @@ def test_openapi_declares_api_key_security_scheme():
         "$ref": "#/components/schemas/JobReviewWorkflowSLARecomputePublicResponse"
     }
     assert status_comments_post_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
+    assert status_comments_bulk_status_response_schema == {
+        "$ref": "#/components/schemas/ReviewCommentsBulkStatusPublicResponse"
+    }
     assert status_comments_ack_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_resolve_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}
     assert status_comments_reopen_response_schema == {"$ref": "#/components/schemas/ReviewCommentPublicResponse"}

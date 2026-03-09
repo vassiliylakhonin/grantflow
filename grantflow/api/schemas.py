@@ -118,6 +118,20 @@ class CriticFindingsBulkStatusRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ReviewCommentsBulkStatusRequest(BaseModel):
+    next_status: str
+    apply_to_all: bool = False
+    dry_run: bool = False
+    request_id: Optional[str] = None
+    if_match_status: Optional[str] = None
+    section: Optional[str] = None
+    comment_status: Optional[str] = None
+    version_id: Optional[str] = None
+    comment_ids: Optional[list[str]] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ReviewWorkflowSLARecomputeRequest(BaseModel):
     finding_sla_hours: Optional[Dict[str, int]] = None
     default_comment_sla_hours: Optional[int] = None
@@ -595,6 +609,34 @@ class CriticFindingsBulkStatusPublicResponse(BaseModel):
     not_found_finding_ids: list[str]
     filters: CriticFindingsBulkStatusFiltersPublicResponse
     updated_findings: list[CriticFatalFlawPublicResponse]
+
+    model_config = ConfigDict(extra="allow")
+
+
+class ReviewCommentsBulkStatusFiltersPublicResponse(BaseModel):
+    apply_to_all: bool = False
+    if_match_status: Optional[str] = None
+    section: Optional[str] = None
+    comment_status: Optional[str] = None
+    version_id: Optional[str] = None
+    comment_ids: Optional[list[str]] = None
+
+    model_config = ConfigDict(extra="allow")
+
+
+class ReviewCommentsBulkStatusPublicResponse(BaseModel):
+    job_id: str
+    status: str
+    requested_status: str
+    actor: str
+    dry_run: bool = False
+    persisted: bool = True
+    matched_count: int
+    changed_count: int
+    unchanged_count: int
+    not_found_comment_ids: list[str]
+    filters: ReviewCommentsBulkStatusFiltersPublicResponse
+    updated_comments: list[ReviewCommentPublicResponse]
 
     model_config = ConfigDict(extra="allow")
 

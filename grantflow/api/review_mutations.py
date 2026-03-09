@@ -5,7 +5,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import HTTPException
 
-from grantflow.api.constants import CRITIC_FINDING_STATUSES
+from grantflow.api.constants import CRITIC_FINDING_STATUSES, REVIEW_COMMENT_SECTIONS, REVIEW_COMMENT_STATUSES
 from grantflow.api.idempotency import (
     _idempotency_fingerprint,
     _idempotency_replay_response,
@@ -723,5 +723,222 @@ def _set_review_comment_status(
         fingerprint=idempotency_fingerprint,
         response=response,
         persisted=True,
+    )
+    return response
+
+
+def _set_review_comments_status_bulk(
+    job_id: str,
+    *,
+    next_status: str,
+    actor: Optional[str] = None,
+    dry_run: bool = False,
+    request_id: Optional[str] = None,
+    if_match_status: Optional[str] = None,
+    apply_to_all: bool = False,
+    section: Optional[str] = None,
+    comment_status: Optional[str] = None,
+    version_id: Optional[str] = None,
+    comment_ids: Optional[list[str]] = None,
+) -> Dict[str, Any]:
+    if next_status not in REVIEW_COMMENT_STATUSES:
+        raise HTTPException(status_code=400, detail="Unsupported review comment status")
+
+    expected_status = str(if_match_status or "").strip().lower() or None
+    if expected_status and expected_status not in REVIEW_COMMENT_STATUSES:
+        raise HTTPException(status_code=400, detail="Unsupported if_match_status")
+    comment_status_filter = str(comment_status or "").strip().lower() or None
+    if comment_status_filter and comment_status_filter not in REVIEW_COMMENT_STATUSES:
+        raise HTTPException(status_code=400, detail="Unsupported comment_status filter")
+    if expected_status and comment_status_filter and expected_status != comment_status_filter:
+        raise HTTPException(
+            status_code=400, detail="if_match_status must match comment_status filter when both provided"
+        )
+    section_filter = str(section or "").strip().lower() or None
+    if section_filter and section_filter not in REVIEW_COMMENT_SECTIONS:
+        raise HTTPException(status_code=400, detail="Unsupported section filter")
+    version_id_filter = str(version_id or "").strip() or None
+
+    requested_comment_ids_raw = comment_ids if isinstance(comment_ids, list) else []
+    requested_comment_ids: list[str] = []
+    for item in requested_comment_ids_raw:
+        token = str(item or "").strip()
+        if not token:
+            continue
+        if token not in requested_comment_ids:
+            requested_comment_ids.append(token)
+    requested_comment_ids_set = set(requested_comment_ids)
+
+    has_selector = bool(requested_comment_ids or comment_status_filter or section_filter or version_id_filter)
+    if not has_selector and not apply_to_all:
+        raise HTTPException(status_code=400, detail="Provide at least one selector or set apply_to_all=true")
+
+    request_id_token = _normalize_request_id(request_id)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    idempotency_fingerprint = _idempotency_fingerprint(
+        {
+            "op": "review_comments_bulk_status",
+            "job_id": str(job_id),
+            "next_status": str(next_status),
+            "dry_run": bool(dry_run),
+            "request_selectors": {
+                "apply_to_all": bool(apply_to_all),
+                "if_match_status": expected_status,
+                "section": section_filter,
+                "comment_status": comment_status_filter,
+                "version_id": version_id_filter,
+                "comment_ids": requested_comment_ids,
+            },
+        }
+    )
+    replay = _idempotency_replay_response(
+        job,
+        scope="review_comments_bulk_status",
+        request_id=request_id_token,
+        fingerprint=idempotency_fingerprint,
+    )
+    if replay is not None:
+        return replay
+
+    existing = job.get("review_comments")
+    comments = [c for c in existing if isinstance(c, dict)] if isinstance(existing, list) else []
+    available_ids = {
+        str(item.get("comment_id") or "").strip() for item in comments if str(item.get("comment_id") or "").strip()
+    }
+    not_found_comment_ids = [item for item in requested_comment_ids if item not in available_ids]
+
+    now_iso = _utcnow_iso()
+    actor_value = str(actor or "").strip() or "api_user"
+    batch_id = str(uuid.uuid4())
+
+    changed = False
+    changed_items: list[Dict[str, Any]] = []
+    matched_items: list[Dict[str, Any]] = []
+    conflict_items: list[Dict[str, Any]] = []
+    next_comments: list[Dict[str, Any]] = []
+
+    for item in comments:
+        current = dict(item)
+        current_comment_id = str(current.get("comment_id") or "").strip()
+        current_status = str(current.get("status") or "open").strip().lower() or "open"
+        current_section = str(current.get("section") or "").strip().lower() or "general"
+        current_version_id = str(current.get("version_id") or "").strip() or None
+
+        match = bool(apply_to_all)
+        if not apply_to_all:
+            match = True
+            if requested_comment_ids_set and current_comment_id not in requested_comment_ids_set:
+                match = False
+            if comment_status_filter and current_status != comment_status_filter:
+                match = False
+            if section_filter and current_section != section_filter:
+                match = False
+            if version_id_filter and current_version_id != version_id_filter:
+                match = False
+        if not match:
+            next_comments.append(current)
+            continue
+
+        current_with_due = _ensure_comment_due_at(current, job=job, now_iso=now_iso)
+        if expected_status and current_status != expected_status:
+            conflict_items.append(
+                {
+                    "comment_id": current_comment_id,
+                    "current_status": current_status,
+                    "expected_status": expected_status,
+                }
+            )
+            next_comments.append(current_with_due)
+            continue
+
+        comment_changed = current_with_due != current
+        updated = dict(current_with_due)
+        normalized_current_status = str(updated.get("status") or "open").strip().lower() or "open"
+        if normalized_current_status != next_status:
+            updated["status"] = next_status
+            updated["updated_ts"] = now_iso
+            updated["updated_by"] = actor_value
+            if next_status == "acknowledged":
+                updated["acknowledged_at"] = now_iso
+                updated["acknowledged_by"] = actor_value
+                updated.pop("resolved_at", None)
+                updated.pop("resolved_by", None)
+            elif next_status == "resolved":
+                updated["resolved_at"] = now_iso
+                updated["resolved_by"] = actor_value
+            elif next_status == "open":
+                updated.pop("resolved_at", None)
+                updated.pop("resolved_by", None)
+                updated.pop("acknowledged_at", None)
+                updated.pop("acknowledged_by", None)
+                updated = _ensure_comment_due_at(updated, job=job, now_iso=now_iso, reset=True)
+            comment_changed = True
+
+        matched_items.append(updated)
+        next_comments.append(updated)
+        if comment_changed:
+            changed = True
+            changed_items.append(updated)
+
+    if conflict_items:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "reason": "comment_status_conflict",
+                "message": "One or more comments changed status since last read; refresh and retry.",
+                "if_match_status": expected_status,
+                "conflict_count": len(conflict_items),
+                "conflicts": conflict_items,
+            },
+        )
+
+    if changed and not dry_run:
+        _update_job(job_id, review_comments=next_comments[-500:])
+        for updated in changed_items:
+            _record_job_event(
+                job_id,
+                "review_comment_status_changed",
+                comment_id=str(updated.get("comment_id") or ""),
+                status=next_status,
+                section=updated.get("section"),
+                actor=actor_value,
+                batch_id=batch_id,
+                request_id=request_id_token,
+            )
+
+    matched_count = len(matched_items)
+    changed_count = len(changed_items)
+    response = {
+        "job_id": str(job_id),
+        "status": str((job or {}).get("status") or ""),
+        "requested_status": next_status,
+        "actor": actor_value,
+        "dry_run": bool(dry_run),
+        "persisted": not bool(dry_run),
+        "matched_count": matched_count,
+        "changed_count": changed_count,
+        "unchanged_count": max(0, matched_count - changed_count),
+        "not_found_comment_ids": not_found_comment_ids,
+        "filters": {
+            "apply_to_all": bool(apply_to_all),
+            "if_match_status": expected_status,
+            "section": section_filter,
+            "comment_status": comment_status_filter,
+            "version_id": version_id_filter,
+            "comment_ids": requested_comment_ids or None,
+        },
+        "updated_comments": matched_items,
+    }
+    if request_id_token:
+        response["request_id"] = request_id_token
+    _store_idempotency_response(
+        job_id,
+        scope="review_comments_bulk_status",
+        request_id=request_id_token,
+        fingerprint=idempotency_fingerprint,
+        response=response,
+        persisted=not bool(dry_run),
     )
     return response
