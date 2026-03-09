@@ -735,6 +735,23 @@ def test_demo_console_page_loads():
     assert "reviewWorkflowStateFilter" in body
     assert "reviewWorkflowOverdueHoursFilter" in body
     assert "reviewWorkflowClearFiltersBtn" in body
+
+
+def test_demo_console_includes_bulk_preview_summary_helpers():
+    response = client.get("/demo")
+    assert response.status_code == 200
+    body = response.text
+    assert "renderBulkPreviewSummary" in body
+    assert "criticBulkSummaryList" in body
+    assert "commentBulkSummaryList" in body
+    assert "Preview Mode" in body
+    assert "Apply Mode" in body
+    assert "Matched" in body
+    assert "Changed" in body
+    assert "Unchanged" in body
+    assert "Not Found" in body
+    assert "Target Status" in body
+    assert "Missing IDs" in body
     assert "reviewWorkflowExportJsonBtn" in body
     assert "reviewWorkflowExportCsvBtn" in body
     assert "reviewWorkflowTrendsBtn" in body
