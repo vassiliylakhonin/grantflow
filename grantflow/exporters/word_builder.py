@@ -13,6 +13,25 @@ from grantflow.exporters.template_profile import build_export_template_profile, 
 from grantflow.exporters.toc_normalization import normalize_toc_for_export, unwrap_toc_payload
 
 
+def _compact_export_text(value: Any, *, max_len: int | None = None) -> str:
+    text = " ".join(str(value or "").split()).strip()
+    if not text:
+        return ""
+    for token in (
+        "Evidence hint:",
+        "Grounding gate warning:",
+        "architect_retrieval_no_hits",
+    ):
+        idx = text.lower().find(token.lower())
+        if idx >= 0:
+            text = text[:idx].rstrip(" .,-")
+    text = text.replace(" service delivery delivery", " service delivery")
+    text = text.replace("  ", " ").strip()
+    if max_len and len(text) > max_len:
+        return f"{text[: max_len - 3].rstrip()}..."
+    return text
+
+
 def _normalized_indicator_rows(logframe_draft: Optional[Dict[str, Any]]) -> list[Dict[str, Any]]:
     if not isinstance(logframe_draft, dict):
         return []
@@ -520,7 +539,7 @@ def _render_usaid_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Opt
     outcome_focus = _indicator_focus_rows(indicators, result_level="outcome", limit=2)
     impact_focus = _indicator_focus_rows(indicators, result_level="impact", limit=1)
     doc.add_heading("USAID Results Framework", level=1)
-    goal = str(toc.get("project_goal") or "").strip()
+    goal = _compact_export_text(toc.get("project_goal"))
     if goal:
         doc.add_heading("Project Goal", level=2)
         doc.add_paragraph(goal)
@@ -534,7 +553,7 @@ def _render_usaid_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Opt
             if not isinstance(do, dict):
                 continue
             do_id = str(do.get("do_id") or "").strip()
-            do_title = str(do.get("description") or "").strip()
+            do_title = _compact_export_text(do.get("description"))
             doc.add_heading(f"{do_id or 'DO'} — {do_title or 'Development Objective'}", level=3)
             _add_indicator_focus_block(doc, indicators=outcome_focus, label="Suggested performance monitoring focus")
             _add_indicator_logframe_block(doc, indicators=outcome_focus, label="Suggested performance indicator rows")
@@ -545,7 +564,7 @@ def _render_usaid_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Opt
                 if not isinstance(ir, dict):
                     continue
                 ir_id = str(ir.get("ir_id") or "").strip()
-                ir_desc = str(ir.get("description") or "").strip()
+                ir_desc = _compact_export_text(ir.get("description"))
                 doc.add_paragraph(f"IR: {ir_id or '-'} — {ir_desc or '-'}", style="List Bullet")
                 outputs = ir.get("outputs")
                 if not isinstance(outputs, list):
@@ -554,7 +573,7 @@ def _render_usaid_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Opt
                     if not isinstance(out, dict):
                         continue
                     output_id = str(out.get("output_id") or "").strip()
-                    output_desc = str(out.get("description") or "").strip()
+                    output_desc = _compact_export_text(out.get("description"))
                     doc.add_paragraph(f"Output: {output_id or '-'} — {output_desc or '-'}", style="List Bullet")
                     indicators = out.get("indicators")
                     if not isinstance(indicators, list):
@@ -563,7 +582,7 @@ def _render_usaid_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Opt
                         if not isinstance(indicator, dict):
                             continue
                         code = str(indicator.get("indicator_code") or "").strip()
-                        name = str(indicator.get("name") or "").strip()
+                        name = _compact_export_text(indicator.get("name"))
                         target = str(indicator.get("target") or "").strip()
                         citation = str(indicator.get("citation") or "").strip()
                         line = f"Indicator: {code or '-'} — {name or '-'}"
@@ -589,8 +608,8 @@ def _render_eu_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Option
     rendered = False
     if isinstance(overall, dict):
         objective_id = str(overall.get("objective_id") or "").strip()
-        title = str(overall.get("title") or "").strip()
-        rationale = str(overall.get("rationale") or "").strip()
+        title = _compact_export_text(overall.get("title"))
+        rationale = _compact_export_text(overall.get("rationale"))
         doc.add_heading("Overall Objective", level=2)
         if objective_id or title:
             doc.add_paragraph(f"{objective_id or 'Objective'} — {title or '-'}")
@@ -607,8 +626,8 @@ def _render_eu_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Option
             if not isinstance(row, dict):
                 continue
             objective_id = str(row.get("objective_id") or "").strip()
-            title = str(row.get("title") or "").strip()
-            rationale = str(row.get("rationale") or "").strip()
+            title = _compact_export_text(row.get("title"))
+            rationale = _compact_export_text(row.get("rationale"))
             doc.add_paragraph(f"{objective_id or 'SO'} — {title or '-'}", style="List Bullet")
             if rationale:
                 doc.add_paragraph(rationale)
@@ -627,8 +646,8 @@ def _render_eu_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Option
             if not isinstance(row, dict):
                 continue
             outcome_id = str(row.get("outcome_id") or "").strip()
-            title = str(row.get("title") or "").strip()
-            expected_change = str(row.get("expected_change") or "").strip()
+            title = _compact_export_text(row.get("title"))
+            expected_change = _compact_export_text(row.get("expected_change"))
             doc.add_paragraph(f"{outcome_id or 'Outcome'} — {title or '-'}", style="List Bullet")
             if expected_change:
                 doc.add_paragraph(expected_change)
@@ -668,7 +687,7 @@ def _render_worldbank_toc(
     impact_focus = _indicator_focus_rows(indicators, result_level="impact", limit=1)
     doc.add_heading("World Bank Results Framework", level=1)
     rendered = False
-    pdo = str(toc.get("project_development_objective") or "").strip()
+    pdo = _compact_export_text(toc.get("project_development_objective"))
     if pdo:
         doc.add_heading("Project Development Objective (PDO)", level=2)
         doc.add_paragraph(pdo)
@@ -689,8 +708,8 @@ def _render_worldbank_toc(
             if not isinstance(obj, dict):
                 continue
             objective_id = str(obj.get("objective_id") or "").strip()
-            title = str(obj.get("title") or "").strip()
-            description = str(obj.get("description") or "").strip()
+            title = _compact_export_text(obj.get("title"))
+            description = _compact_export_text(obj.get("description"))
             doc.add_heading(f"{objective_id or 'Objective'} — {title or '-'}", level=3)
             _add_indicator_focus_block(
                 doc,
@@ -713,9 +732,9 @@ def _render_worldbank_toc(
             if not isinstance(row, dict):
                 continue
             result_id = str(row.get("result_id") or "").strip()
-            title = str(row.get("title") or "").strip()
-            description = str(row.get("description") or "").strip()
-            indicator_focus = str(row.get("indicator_focus") or "").strip()
+            title = _compact_export_text(row.get("title"))
+            description = _compact_export_text(row.get("description"))
+            indicator_focus = _compact_export_text(row.get("indicator_focus"))
             doc.add_paragraph(f"{result_id or 'Result'} — {title or '-'}", style="List Bullet")
             if description:
                 doc.add_paragraph(description)

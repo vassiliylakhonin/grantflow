@@ -13,6 +13,25 @@ from grantflow.exporters.template_profile import build_export_template_profile, 
 from grantflow.exporters.toc_normalization import normalize_toc_for_export, unwrap_toc_payload
 
 
+def _compact_export_text(value: Any, *, max_len: int | None = None) -> str:
+    text = " ".join(str(value or "").split()).strip()
+    if not text:
+        return ""
+    for token in (
+        "Evidence hint:",
+        "Grounding gate warning:",
+        "architect_retrieval_no_hits",
+    ):
+        idx = text.lower().find(token.lower())
+        if idx >= 0:
+            text = text[:idx].rstrip(" .,-")
+    text = text.replace(" service delivery delivery", " service delivery")
+    text = text.replace("  ", " ").strip()
+    if max_len and len(text) > max_len:
+        return f"{text[: max_len - 3].rstrip()}..."
+    return text
+
+
 def _normalized_indicator_rows(logframe_draft: Optional[Dict[str, Any]]) -> list[Dict[str, Any]]:
     if not isinstance(logframe_draft, dict):
         return []
@@ -664,17 +683,17 @@ def _add_usaid_results_sheet(
         if not isinstance(do, dict):
             continue
         do_id = do.get("do_id", "")
-        do_desc = do.get("description", "")
+        do_desc = _compact_export_text(do.get("description", ""))
         for ir in do.get("intermediate_results") or []:
             if not isinstance(ir, dict):
                 continue
             ir_id = ir.get("ir_id", "")
-            ir_desc = ir.get("description", "")
+            ir_desc = _compact_export_text(ir.get("description", ""))
             for output in ir.get("outputs") or []:
                 if not isinstance(output, dict):
                     continue
                 output_id = output.get("output_id", "")
-                output_desc = output.get("description", "")
+                output_desc = _compact_export_text(output.get("description", ""))
                 indicators = output.get("indicators") or []
                 if not isinstance(indicators, list) or not indicators:
                     focus_name, focus_mov, focus_owner = _indicator_focus_cells(outcome_focus)
@@ -722,7 +741,7 @@ def _add_usaid_results_sheet(
                             output_id,
                             output_desc,
                             ind.get("indicator_code", ""),
-                            ind.get("name", ""),
+                            _compact_export_text(ind.get("name", "")),
                             ind.get("target", ""),
                             ind.get("justification", ""),
                             ind.get("citation", ""),
@@ -778,8 +797,8 @@ def _add_eu_results_sheet(
             [
                 "Overall Objective",
                 overall.get("objective_id", ""),
-                overall.get("title", ""),
-                overall.get("rationale", ""),
+                _compact_export_text(overall.get("title", "")),
+                _compact_export_text(overall.get("rationale", "")),
                 focus_name,
                 focus_mov,
                 focus_owner,
@@ -806,8 +825,8 @@ def _add_eu_results_sheet(
                 [
                     "Specific Objective",
                     row.get("objective_id", ""),
-                    row.get("title", ""),
-                    row.get("rationale", ""),
+                    _compact_export_text(row.get("title", "")),
+                    _compact_export_text(row.get("rationale", "")),
                     focus_name,
                     focus_mov,
                     focus_owner,
@@ -834,8 +853,8 @@ def _add_eu_results_sheet(
                 [
                     "Outcome",
                     row.get("outcome_id", ""),
-                    row.get("title", ""),
-                    row.get("expected_change", ""),
+                    _compact_export_text(row.get("title", "")),
+                    _compact_export_text(row.get("expected_change", "")),
                     focus_name,
                     focus_mov,
                     focus_owner,
@@ -912,7 +931,7 @@ def _add_worldbank_results_sheet(
     ]
     thin_border = _apply_table_header(ws, headers)
     row_idx = 2
-    pdo = str(toc.get("project_development_objective") or "").strip() if isinstance(toc, dict) else ""
+    pdo = _compact_export_text(toc.get("project_development_objective") or "") if isinstance(toc, dict) else ""
     if pdo:
         focus_name, focus_mov, focus_owner = _indicator_focus_cells(impact_focus or outcome_focus[:1])
         baseline_target, frequency, formulas = _indicator_summary_cells(impact_focus or outcome_focus[:1])
@@ -950,8 +969,8 @@ def _add_worldbank_results_sheet(
                 [
                     "Objective",
                     obj.get("objective_id", ""),
-                    obj.get("title", ""),
-                    obj.get("description", ""),
+                    _compact_export_text(obj.get("title", "")),
+                    _compact_export_text(obj.get("description", "")),
                     "",
                     focus_name,
                     focus_mov,
@@ -979,9 +998,9 @@ def _add_worldbank_results_sheet(
                 [
                     "Result",
                     row.get("result_id", ""),
-                    row.get("title", ""),
-                    row.get("description", ""),
-                    row.get("indicator_focus", ""),
+                    _compact_export_text(row.get("title", "")),
+                    _compact_export_text(row.get("description", "")),
+                    _compact_export_text(row.get("indicator_focus", "")),
                     focus_name,
                     focus_mov,
                     focus_owner,

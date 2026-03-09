@@ -1174,3 +1174,50 @@ def test_worldbank_exporters_accept_variant_payload_shapes():
     assert any(row[0] == "PDO" and "Increase municipal service performance" in str(row[3]) for row in rows[1:])
     assert any(row[0] == "Objective" and row[1] == "OBJ1" for row in rows[1:])
     assert any(row[0] == "Result" and row[1] == "OUT1" for row in rows[1:])
+
+
+def test_exporters_compact_noisy_architect_toc_text_in_word_and_excel():
+    toc_payload = {
+        "toc": {
+            "project_development_objective": (
+                "Improve public sector performance and service delivery in Uzbekistan. "
+                "Evidence hint: present. Grounding gate warning: architect_retrieval_no_hits."
+            ),
+            "objectives": [
+                {
+                    "objective_id": "OBJ1",
+                    "title": "Strengthen institutional performance for public sector performance and service delivery",
+                    "description": (
+                        "Improve implementation reliability for public sector performance and service delivery priorities. "
+                        "Evidence hint: present. Replace repeated boilerplate."
+                    ),
+                }
+            ],
+            "results_chain": [
+                {
+                    "result_id": "R1",
+                    "title": "Agencies adopt operational improvements for public sector performance and service delivery",
+                    "description": (
+                        "Participating agencies implement workflow improvements that increase the quality of "
+                        "public sector performance and service delivery delivery."
+                    ),
+                    "indicator_focus": "Processing time and institutional compliance",
+                }
+            ],
+        }
+    }
+
+    wb_doc = Document(BytesIO(build_docx_from_toc(toc_payload, "worldbank")))
+    wb_text = "\n".join(p.text for p in wb_doc.paragraphs)
+    assert "Evidence hint:" not in wb_text
+    assert "architect_retrieval_no_hits" not in wb_text
+    assert "service delivery delivery" not in wb_text
+    assert "Improve public sector performance and service delivery in Uzbekistan" in wb_text
+
+    wb_xlsx = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "worldbank", toc_draft=toc_payload)))
+    rows = list(wb_xlsx["WB_Results"].iter_rows(values_only=True))
+    rendered = "\n".join(" | ".join("" if cell is None else str(cell) for cell in row) for row in rows[1:])
+    assert "Evidence hint:" not in rendered
+    assert "architect_retrieval_no_hits" not in rendered
+    assert "service delivery delivery" not in rendered
+    assert "Improve public sector performance and service delivery in Uzbekistan" in rendered
