@@ -46,6 +46,18 @@ def _readlink_name(path: Path) -> str:
     return str(path.readlink()) if path.is_symlink() else path.name
 
 
+def _format_num(value: object) -> str:
+    if value is None or value == "":
+        return "-"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value).strip() or "-"
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.2f}"
+
+
 def _build_readme(
     *,
     build_dir: Path,
@@ -56,6 +68,14 @@ def _build_readme(
     send_policy_status: str | None,
     send_policy_flag: str | None,
     send_policy_action: str | None,
+    architect_hits: str,
+    architect_grounded_rate: str,
+    architect_fallback: str,
+    top_architect_signal: str,
+    mel_hits: str,
+    mel_grounded_rate: str,
+    mel_fallback: str,
+    top_mel_signal: str,
 ) -> str:
     lines: list[str] = []
     lines.append("# GrantFlow Release Demo Bundle")
@@ -69,6 +89,18 @@ def _build_readme(
         lines.append(f"- Send policy classification: `{send_policy_flag}`")
     if send_policy_action:
         lines.append(f"- Next operational action before external send: `{send_policy_action}`")
+    lines.append("")
+    lines.append("## Grounding Readiness")
+    lines.append(f"- Architect retrieval hits per case: `{architect_hits}`")
+    lines.append(f"- Architect grounded citation rate: `{architect_grounded_rate}`")
+    lines.append(f"- Architect fallback citations per case: `{architect_fallback}`")
+    if top_architect_signal != "-":
+        lines.append(f"- Top architect evidence signal: `{top_architect_signal}`")
+    lines.append(f"- MEL retrieval hits per case: `{mel_hits}`")
+    lines.append(f"- MEL grounded citation rate: `{mel_grounded_rate}`")
+    lines.append(f"- MEL fallback citations per case: `{mel_fallback}`")
+    if top_mel_signal != "-":
+        lines.append(f"- Top MEL evidence signal: `{top_mel_signal}`")
     lines.append("")
     lines.append("## Included")
     lines.append("- `pilot-handout.md`: single-file buyer summary")
@@ -135,6 +167,7 @@ def main() -> int:
     send_policy_status = None
     send_policy_flag = None
     send_policy_action = None
+    portfolio_summary: dict[str, object] = {}
 
     latest_pilot_pack = build_dir / "latest-pilot-pack"
     pilot_pack_dir = (
@@ -164,6 +197,15 @@ def main() -> int:
                     send_policy_flag = "send-with-conditions"
                 elif go_no_go == "go":
                     send_policy_flag = "send-safe"
+
+    architect_hits = _format_num(portfolio_summary.get("avg_architect_retrieval_hits_count"))
+    architect_grounded_rate = _format_num(portfolio_summary.get("avg_architect_retrieval_grounded_citation_rate"))
+    architect_fallback = _format_num(portfolio_summary.get("avg_architect_fallback_namespace_citation_count"))
+    top_architect_signal = str(portfolio_summary.get("top_architect_evidence_signal") or "").strip() or "-"
+    mel_hits = _format_num(portfolio_summary.get("avg_mel_retrieval_hits_count"))
+    mel_grounded_rate = _format_num(portfolio_summary.get("avg_mel_retrieval_grounded_citation_rate"))
+    mel_fallback = _format_num(portfolio_summary.get("avg_mel_fallback_namespace_citation_count"))
+    top_mel_signal = str(portfolio_summary.get("top_mel_evidence_signal") or "").strip() or "-"
 
     bundle_name = _suffix_bundle_name(bundle_name_input, send_policy_flag)
 
@@ -199,6 +241,16 @@ def main() -> int:
         "send_policy_status": send_policy_status,
         "send_policy_classification": send_policy_flag,
         "next_operational_action_before_external_send": send_policy_action,
+        "grounding_readiness": {
+            "architect_retrieval_hits_per_case": architect_hits,
+            "architect_grounded_citation_rate": architect_grounded_rate,
+            "architect_fallback_citations_per_case": architect_fallback,
+            "top_architect_evidence_signal": top_architect_signal,
+            "mel_retrieval_hits_per_case": mel_hits,
+            "mel_grounded_citation_rate": mel_grounded_rate,
+            "mel_fallback_citations_per_case": mel_fallback,
+            "top_mel_evidence_signal": top_mel_signal,
+        },
         "includes": {
             "pilot_handout": (bundle_root / "pilot-handout.md").exists(),
             "latest_open_order": (bundle_root / "latest-open-order.md").exists(),
@@ -221,6 +273,14 @@ def main() -> int:
             send_policy_status=send_policy_status,
             send_policy_flag=send_policy_flag,
             send_policy_action=send_policy_action,
+            architect_hits=architect_hits,
+            architect_grounded_rate=architect_grounded_rate,
+            architect_fallback=architect_fallback,
+            top_architect_signal=top_architect_signal,
+            mel_hits=mel_hits,
+            mel_grounded_rate=mel_grounded_rate,
+            mel_fallback=mel_fallback,
+            top_mel_signal=top_mel_signal,
         ),
         encoding="utf-8",
     )
