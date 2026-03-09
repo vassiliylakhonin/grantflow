@@ -109,6 +109,13 @@ def _build_readme(
     return "\n".join(lines) + "\n"
 
 
+def _suffix_bundle_name(bundle_name: str, send_policy_flag: str | None) -> str:
+    normalized = str(send_policy_flag or "").strip().lower()
+    if normalized == "internal-only" and not bundle_name.endswith("-internal-only"):
+        return f"{bundle_name}-internal-only"
+    return bundle_name
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Assemble a send-ready GrantFlow release demo bundle from the current latest stack."
@@ -123,7 +130,42 @@ def main() -> int:
 
     build_dir = Path(str(args.build_dir)).resolve()
     output_dir = Path(str(args.output_dir)).resolve()
-    bundle_name = str(args.bundle_name).strip() or "grantflow-demo-bundle"
+    bundle_name_input = str(args.bundle_name).strip() or "grantflow-demo-bundle"
+
+    send_policy_status = None
+    send_policy_flag = None
+    send_policy_action = None
+
+    latest_pilot_pack = build_dir / "latest-pilot-pack"
+    pilot_pack_dir = (
+        latest_pilot_pack.resolve() if (latest_pilot_pack.exists() or latest_pilot_pack.is_symlink()) else None
+    )
+    if pilot_pack_dir:
+        portfolio_summary_probe = pilot_pack_dir / "pilot-portfolio-summary.json"
+        if portfolio_summary_probe.exists():
+            try:
+                portfolio_summary = json.loads(portfolio_summary_probe.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                portfolio_summary = {}
+            if isinstance(portfolio_summary, dict):
+                send_policy_status = (
+                    str(portfolio_summary.get("portfolio_review_workflow_policy_status") or "").strip() or None
+                )
+                send_policy_action = (
+                    str(portfolio_summary.get("portfolio_review_workflow_next_operational_action") or "").strip()
+                    or None
+                )
+                go_no_go = (
+                    str(portfolio_summary.get("portfolio_review_workflow_policy_go_no_go_flag") or "").strip().lower()
+                )
+                if go_no_go == "hold":
+                    send_policy_flag = "internal-only"
+                elif go_no_go == "go_with_conditions":
+                    send_policy_flag = "send-with-conditions"
+                elif go_no_go == "go":
+                    send_policy_flag = "send-safe"
+
+    bundle_name = _suffix_bundle_name(bundle_name_input, send_policy_flag)
 
     bundle_root = output_dir / bundle_name
     if bundle_root.exists():
@@ -132,36 +174,9 @@ def main() -> int:
 
     _copy_if_exists(build_dir / "pilot-handout.md", bundle_root / "pilot-handout.md")
     _copy_if_exists(build_dir / "latest-open-order.md", bundle_root / "latest-open-order.md")
-    latest_pilot_pack = build_dir / "latest-pilot-pack"
-    if latest_pilot_pack.exists() or latest_pilot_pack.is_symlink():
-        pilot_pack_dir = latest_pilot_pack.resolve()
+    if pilot_pack_dir:
         _copy_if_exists(pilot_pack_dir / "pilot-portfolio-summary.json", bundle_root / "pilot-portfolio-summary.json")
         _copy_if_exists(pilot_pack_dir / "pilot-portfolio-summary.csv", bundle_root / "pilot-portfolio-summary.csv")
-    portfolio_summary_path = bundle_root / "pilot-portfolio-summary.json"
-    send_policy_status = None
-    send_policy_flag = None
-    send_policy_action = None
-    if portfolio_summary_path.exists():
-        try:
-            portfolio_summary = json.loads(portfolio_summary_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            portfolio_summary = {}
-        if isinstance(portfolio_summary, dict):
-            send_policy_status = (
-                str(portfolio_summary.get("portfolio_review_workflow_policy_status") or "").strip() or None
-            )
-            send_policy_action = (
-                str(portfolio_summary.get("portfolio_review_workflow_next_operational_action") or "").strip() or None
-            )
-            go_no_go = (
-                str(portfolio_summary.get("portfolio_review_workflow_policy_go_no_go_flag") or "").strip().lower()
-            )
-            if go_no_go == "hold":
-                send_policy_flag = "internal-only"
-            elif go_no_go == "go_with_conditions":
-                send_policy_flag = "send-with-conditions"
-            elif go_no_go == "go":
-                send_policy_flag = "send-safe"
     include_diligence_index = not bool(args.skip_diligence_index)
     if include_diligence_index:
         _copy_if_exists(build_dir / "diligence-index.md", bundle_root / "diligence-index.md")
@@ -176,6 +191,25 @@ def main() -> int:
     if archive_zip is not None and not bool(args.skip_archive):
         archive_zip_name = archive_zip.name
         _copy_if_exists(archive_zip, bundle_root / "artifacts" / archive_zip.name)
+
+    manifest = {
+        "bundle_name": bundle_name,
+        "bundle_name_input": bundle_name_input,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "send_policy_status": send_policy_status,
+        "send_policy_classification": send_policy_flag,
+        "next_operational_action_before_external_send": send_policy_action,
+        "includes": {
+            "pilot_handout": (bundle_root / "pilot-handout.md").exists(),
+            "latest_open_order": (bundle_root / "latest-open-order.md").exists(),
+            "pilot_portfolio_summary_json": (bundle_root / "pilot-portfolio-summary.json").exists(),
+            "pilot_portfolio_summary_csv": (bundle_root / "pilot-portfolio-summary.csv").exists(),
+            "diligence_index": (bundle_root / "diligence-index.md").exists(),
+            "executive_pack": (bundle_root / "executive-pack").exists(),
+            "archive_zip": archive_zip_name is not None,
+        },
+    }
+    (bundle_root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
     (bundle_root / "README.md").write_text(
         _build_readme(
