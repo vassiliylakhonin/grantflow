@@ -6,6 +6,7 @@ Quick companion docs:
 - productization readiness memo: `docs/productization-gaps-memo.md`
 - pilot evaluation template: `docs/pilot-evaluation-checklist.md`
 - pilot day-1 checklist: `docs/pilot-day1-checklist.md`
+- pilot role mapping worksheet: `docs/pilot-role-mapping-worksheet.md`
 - enterprise access pattern: `docs/enterprise-access-layer.md`
 
 ## 1) Product Scope

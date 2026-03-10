@@ -37,6 +37,15 @@ If you want tenant gating for the pilot, also fill:
 - `GRANTFLOW_ALLOWED_TENANTS=tenant_a`
 - `GRANTFLOW_DEFAULT_TENANT=tenant_a`
 
+Before anyone logs in or hits the API, fill:
+- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-worksheet.md`
+
+That prevents ambiguity around:
+- who runs drafts
+- who reviews findings/comments
+- who approves HITL checkpoints
+- who owns ingest and pilot metrics
+
 ## 2. Start The Opinionated Pilot Stack
 
 ```bash
@@ -120,6 +129,7 @@ Start with:
 
 Then use:
 - `docs/pilot-evaluation-checklist.md`
+- `docs/pilot-role-mapping-worksheet.md`
 - `docs/pilot-user-roles.md`
 - `docs/role-based-demo-script.md`
 

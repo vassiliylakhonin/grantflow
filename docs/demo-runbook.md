@@ -6,6 +6,7 @@ Related role-based materials:
 - `docs/pilot-user-roles.md`
 - `docs/role-based-demo-script.md`
 - `docs/pilot-day1-checklist.md`
+- `docs/pilot-role-mapping-worksheet.md`
 - `docs/enterprise-access-layer.md`
 
 ## 1) Demo Objective

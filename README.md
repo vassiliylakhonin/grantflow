@@ -21,6 +21,7 @@ Proposal operations platform for high-stakes donor workflows. GrantFlow is a com
   - `docs/operations-runbook.md`
   - `docs/demo-runbook.md`
   - `docs/pilot-day1-checklist.md`
+  - `docs/pilot-role-mapping-worksheet.md`
   - `docs/enterprise-access-layer.md`
   - `docs/troubleshooting.md`
   - `docs/architecture.md`
@@ -204,6 +205,7 @@ Then open:
 
 Use:
 - `docs/pilot-day1-checklist.md`
+- `docs/pilot-role-mapping-worksheet.md`
 - `docs/pilot-evaluation-checklist.md`
 
 ## Enterprise Access Layer
