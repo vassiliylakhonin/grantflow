@@ -19,6 +19,10 @@ FIELDNAMES = [
     "pilot_quality_score",
     "pilot_critic_score",
     "pilot_citation_count",
+    "baseline_type",
+    "baseline_method",
+    "baseline_source",
+    "baseline_confidence",
     "baseline_time_to_first_draft_seconds",
     "baseline_time_to_terminal_seconds",
     "baseline_review_loops",
@@ -57,6 +61,10 @@ def _build_rows(metrics_rows: list[dict[str, str]]) -> list[dict[str, str]]:
                 "pilot_quality_score": str(source.get("quality_score") or ""),
                 "pilot_critic_score": str(source.get("critic_score") or ""),
                 "pilot_citation_count": str(source.get("citation_count") or ""),
+                "baseline_type": "measured",
+                "baseline_method": "",
+                "baseline_source": "",
+                "baseline_confidence": "",
                 "baseline_time_to_first_draft_seconds": str(source.get("baseline_time_to_first_draft_seconds") or ""),
                 "baseline_time_to_terminal_seconds": str(source.get("baseline_time_to_terminal_seconds") or ""),
                 "baseline_review_loops": str(source.get("baseline_review_loops") or ""),
@@ -77,11 +85,20 @@ def _build_markdown(rows: list[dict[str, str]], *, pilot_pack_name: str) -> str:
     lines.append("")
     lines.append("## How To Use")
     lines.append("1. Fill baseline columns for each representative case before the pilot starts.")
-    lines.append("2. Record the owner and capture date for each row.")
+    lines.append("2. Record source, method, owner, and capture date for each row.")
     lines.append("3. Keep pilot columns unchanged; they are copied from `pilot-metrics.csv`.")
-    lines.append("4. Re-run `make pilot-scorecard` after baseline values are filled.")
+    lines.append(
+        "4. Save the completed sheet as `measured-baseline.csv` in the pilot pack directory or pass it to `pilot-metrics`."
+    )
+    lines.append("5. Re-run `make pilot-metrics` and `make pilot-scorecard` after measured values are filled.")
     lines.append("")
     lines.append("## Fields To Fill")
+    lines.append("- `baseline_type` (`measured` for real pilot evidence)")
+    lines.append("- `baseline_method`")
+    lines.append("- `baseline_source` (`CRM export`, `proposal tracker`, `manual timing log`, etc.)")
+    lines.append(
+        "- `baseline_confidence` (`1.0` for measured log-backed values; lower only if partially reconstructed)"
+    )
     lines.append("- `baseline_time_to_first_draft_seconds`")
     lines.append("- `baseline_time_to_terminal_seconds`")
     lines.append("- `baseline_review_loops`")
@@ -114,7 +131,10 @@ def _build_markdown(rows: list[dict[str, str]], *, pilot_pack_name: str) -> str:
         )
     lines.append("")
     lines.append("## Notes")
-    lines.append("- This file is an operator worksheet for pilot setup, not a final evaluation artifact.")
+    lines.append("- This file is an operator worksheet for pilot setup.")
+    lines.append(
+        "- For real pilot evidence, save the completed version as `measured-baseline.csv` and re-run the pilot artifact generators."
+    )
     return "\n".join(lines) + "\n"
 
 

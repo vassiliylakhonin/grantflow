@@ -83,6 +83,7 @@ It also seeds a synthetic reviewer comment workflow into the saved demo artifact
 `make buyer-brief-refresh` rebuilds the pilot pack first, then writes the brief.
 `make pilot-metrics` writes metric tables from an existing pilot pack.
 `make pilot-metrics-refresh` rebuilds the pilot pack first, then writes the metric tables.
+If `measured-baseline.csv` exists in the pilot pack, `pilot-metrics` merges it and computes real before/after deltas and improvement rates.
 `make pilot-scorecard` writes a short go/no-go memo from an existing pilot pack.
 `make pilot-scorecard-refresh` rebuilds the pilot pack, metrics, and brief first, then writes the scorecard.
 `make pilot-evidence-pack` assembles a compact pilot evidence bundle from the current pilot, executive, and case-study artifacts.
@@ -99,9 +100,11 @@ It also seeds a synthetic reviewer comment workflow into the saved demo artifact
 `make diligence-index-refresh` rebuilds the full chain first, then writes the index.
 `make baseline-fill-template` writes a fillable baseline worksheet from `pilot-metrics.csv`.
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
+Save the completed worksheet as `measured-baseline.csv` and then rerun `make pilot-metrics` to produce measured deltas.
 `make benchmark-baseline` writes an illustrative benchmark baseline overlay for demo-only evidence bundles.
 `make benchmark-baseline-refresh` rebuilds pilot metrics first, then writes that illustrative overlay.
 The overlay prefers curated assumptions from `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot_benchmark_assumptions.json` and uses conservative formula fallback for any case not listed there.
+Measured baseline always takes precedence over benchmark baseline in `pilot-metrics`, `pilot-scorecard`, and `pilot-evidence-pack`.
 `make clean-demo-artifacts-dry-run` lists generated bundles slated for cleanup.
 `make clean-demo-artifacts` removes generated bundles and leaves unrelated files alone.
 `make latest-links` writes stable `build/latest-*` symlinks to the newest generated bundles, including fast/full send bundles and their zip files.

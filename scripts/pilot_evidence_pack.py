@@ -154,17 +154,35 @@ def _before_after_rows(
                 baseline_type = (
                     str(benchmark_row.get("benchmark_baseline_type") or "illustrative").strip() or "illustrative"
                 )
+        baseline_method = str(row.get("baseline_method") or "").strip()
+        baseline_source = str(row.get("baseline_source") or "").strip()
+        baseline_confidence = str(row.get("baseline_confidence") or "").strip()
+        if not baseline_method and benchmark_row:
+            baseline_method = str(benchmark_row.get("baseline_method") or "").strip()
+        if not baseline_source and benchmark_row:
+            baseline_source = str(benchmark_row.get("baseline_source") or "").strip()
+        if not baseline_confidence and benchmark_row:
+            baseline_confidence = str(benchmark_row.get("baseline_confidence") or "").strip()
         out.append(
             {
                 "preset_key": str(row.get("preset_key") or "").strip(),
                 "donor_id": str(row.get("donor_id") or "").strip(),
                 "baseline_present": "yes" if baseline_type in {"measured", "illustrative"} else "no",
                 "baseline_type": baseline_type,
+                "baseline_method": baseline_method,
+                "baseline_source": baseline_source,
+                "baseline_confidence": baseline_confidence,
                 "baseline_first": _format_seconds(baseline_first),
                 "current_first": _format_seconds(_safe_float(row.get("time_to_first_draft_seconds"))),
                 "baseline_terminal": _format_seconds(baseline_terminal),
                 "current_terminal": _format_seconds(_safe_float(row.get("time_to_terminal_seconds"))),
                 "baseline_loops": str(baseline_loops) if baseline_loops is not None else "-",
+                "delta_first": _format_seconds(_safe_float(row.get("delta_time_to_first_draft_seconds"))),
+                "delta_terminal": _format_seconds(_safe_float(row.get("delta_time_to_terminal_seconds"))),
+                "delta_loops": _format_num(_safe_float(row.get("delta_review_loops"))),
+                "improvement_first": _format_num(_safe_float(row.get("time_to_first_draft_improvement_rate"))),
+                "improvement_terminal": _format_num(_safe_float(row.get("time_to_terminal_improvement_rate"))),
+                "improvement_loops": _format_num(_safe_float(row.get("review_loops_improvement_rate"))),
                 "current_finding_ack_queue": _format_num(_safe_float(row.get("finding_ack_queue_count"))),
                 "current_open_review_comments": _format_num(_safe_int(row.get("open_review_comments"))),
             }
@@ -222,6 +240,12 @@ def _build_readme(
     lines.append(
         f"- Next operational action: `{str(portfolio_summary.get('portfolio_review_workflow_next_operational_action') or '-').strip() or '-'}`"
     )
+    lines.append(
+        f"- Measured baseline cases: `{_format_num(_safe_int(portfolio_summary.get('measured_baseline_case_count')))}`"
+    )
+    lines.append(
+        f"- Illustrative baseline cases: `{_format_num(_safe_int(portfolio_summary.get('illustrative_baseline_case_count')))}`"
+    )
     lines.append("")
     lines.append("## Draft Evidence Layer")
     lines.append(
@@ -267,13 +291,24 @@ def _build_readme(
     lines.append("")
     lines.append("## Before/After Snapshot")
     lines.append("")
-    if any(row.get("baseline_type") == "illustrative" for row in before_after):
+    has_measured = any(row.get("baseline_type") == "measured" for row in before_after)
+    has_illustrative = any(row.get("baseline_type") == "illustrative" for row in before_after)
+    if has_measured:
+        lines.append("Measured rows below use captured pilot baseline data.")
+        lines.append("")
+    if has_illustrative:
         lines.append("Illustrative rows below use a demo benchmark baseline, not measured customer baseline data.")
         lines.append("")
+    if not has_measured and has_illustrative:
+        lines.append("No measured baseline rows are present yet; delta values below are illustrative-only where shown.")
+        lines.append("")
+    if not has_measured and not has_illustrative:
+        lines.append("No before/after baseline is captured yet; this pack currently reflects live pilot state only.")
+        lines.append("")
     lines.append(
-        "| Preset | Donor | Baseline Type | Baseline Present | Baseline First Draft | Current First Draft | Baseline Terminal | Current Terminal | Baseline Review Loops | Current Finding Ack Queue | Current Open Review Comments |"
+        "| Preset | Donor | Baseline Type | Baseline First Draft | Current First Draft | Delta | Improvement | Baseline Terminal | Current Terminal | Delta | Improvement | Baseline Review Loops | Delta Loops | Current Finding Ack Queue | Current Open Review Comments |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|---|---:|---:|")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---:|---:|")
     for row in before_after:
         lines.append(
             "| "
@@ -282,12 +317,16 @@ def _build_readme(
                     f"`{row['preset_key']}`",
                     f"`{row['donor_id']}`",
                     f"`{row['baseline_type']}`",
-                    row["baseline_present"],
                     row["baseline_first"],
                     row["current_first"],
+                    row["delta_first"],
+                    row["improvement_first"],
                     row["baseline_terminal"],
                     row["current_terminal"],
+                    row["delta_terminal"],
+                    row["improvement_terminal"],
                     row["baseline_loops"],
+                    row["delta_loops"],
                     row["current_finding_ack_queue"],
                     row["current_open_review_comments"],
                 ]
@@ -315,6 +354,7 @@ def _build_readme(
     if case_study_name:
         lines.append(f"- `case-study/{case_study_name}/`: representative case")
     lines.append("- `baseline-fill-template.csv` and `baseline-fill-template.md` when available")
+    lines.append("- `measured-baseline.csv` when measured pilot baseline has been captured")
     if benchmark_rows:
         lines.append("- `benchmark-baseline.csv` and `benchmark-baseline.md`: illustrative demo-only baseline overlay")
     return "\n".join(lines) + "\n"
@@ -367,6 +407,7 @@ def main() -> int:
         _copy_tree_if_exists(case_study_dir / case_study_name, output_dir / "case-study" / case_study_name)
     _copy_if_exists(pilot_pack_dir / "baseline-fill-template.csv", output_dir / "baseline-fill-template.csv")
     _copy_if_exists(pilot_pack_dir / "baseline-fill-template.md", output_dir / "baseline-fill-template.md")
+    _copy_if_exists(pilot_pack_dir / "measured-baseline.csv", output_dir / "measured-baseline.csv")
     _copy_if_exists(pilot_pack_dir / "benchmark-baseline.csv", output_dir / "benchmark-baseline.csv")
     _copy_if_exists(pilot_pack_dir / "benchmark-baseline.md", output_dir / "benchmark-baseline.md")
 
@@ -376,6 +417,7 @@ def main() -> int:
         "top_blocking_thresholds": _top_blockers(_parse_conditions(scorecard_text)),
         "before_after_rows": _before_after_rows(metrics_rows, benchmark_rows=benchmark_rows),
         "representative_case": _representative_case(metrics_rows),
+        "measured_baseline_present": (pilot_pack_dir / "measured-baseline.csv").exists(),
         "benchmark_baseline_present": bool(benchmark_rows),
         "case_study": case_study_name or "",
     }

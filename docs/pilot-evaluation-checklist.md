@@ -20,6 +20,12 @@ For each case, capture current-state metrics:
 - major compliance/rework issues found in review
 - number of artifact handoff steps (ToC, LogFrame, MEL, comments, versions)
 
+Operational workflow:
+- generate `baseline-fill-template.csv` from the current pilot pack
+- save the completed measured sheet as `measured-baseline.csv`
+- record `baseline_method`, `baseline_source`, `baseline_confidence`, `baseline_owner`, and `baseline_capture_date`
+- re-run `make pilot-metrics` and `make pilot-scorecard`
+
 ## 3) Pilot Execution (During Pilot)
 
 For each case:
@@ -75,4 +81,3 @@ No-Go / Extend if:
 - gains are inconclusive
 - output quality depends on unresolved corpus/process issues
 - review/governance controls do not map to operating model
-

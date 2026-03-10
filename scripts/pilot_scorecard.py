@@ -77,6 +77,8 @@ class CaseScorecard:
     export_complete: bool
     hitl_history_present: bool
     baseline_present: bool
+    measured_baseline_present: bool
+    baseline_type: str
     open_critic_findings: int | None
     high_severity_open_findings: int | None
     open_review_comments: int | None
@@ -169,15 +171,9 @@ def _load_case_scorecards(
         missing_trace_files = _missing_files(case_path, REQUIRED_TRACE_FILES)
         missing_export_files = _missing_files(case_path, REQUIRED_EXPORT_FILES)
         hitl_history_present = (case_path / "hitl-history.json").exists()
-        baseline_present = any(
-            str(metrics_row.get(key) or "").strip()
-            for key in (
-                "baseline_time_to_first_draft_seconds",
-                "baseline_time_to_terminal_seconds",
-                "baseline_review_loops",
-                "baseline_notes",
-            )
-        )
+        baseline_type = str(metrics_row.get("baseline_type") or "").strip().lower()
+        baseline_present = baseline_type in {"measured", "illustrative"}
+        measured_baseline_present = baseline_type == "measured"
 
         cases.append(
             CaseScorecard(
@@ -192,6 +188,8 @@ def _load_case_scorecards(
                 export_complete=not missing_export_files,
                 hitl_history_present=hitl_history_present,
                 baseline_present=baseline_present,
+                measured_baseline_present=measured_baseline_present,
+                baseline_type=baseline_type,
                 open_critic_findings=(
                     int(metrics_row["open_critic_findings"])
                     if str(metrics_row.get("open_critic_findings") or "").strip()
@@ -354,6 +352,8 @@ def _build_scorecard(
     trace_complete_cases = sum(1 for case in cases if case.trace_complete)
     export_complete_cases = sum(1 for case in cases if case.export_complete)
     baseline_cases = sum(1 for case in cases if case.baseline_present)
+    measured_baseline_cases = sum(1 for case in cases if case.measured_baseline_present)
+    illustrative_baseline_cases = sum(1 for case in cases if case.baseline_type == "illustrative")
     complete_logframe_cases = sum(1 for case in cases if case.complete_logframe_operational_coverage)
     hitl_cases = sum(1 for case in cases if case.hitl_enabled)
     hitl_history_cases = sum(1 for case in cases if case.hitl_enabled and case.hitl_history_present)
@@ -458,6 +458,7 @@ def _build_scorecard(
     avg_owner = _avg([case.owner_coverage_rate for case in cases])
     done_rate = _pct(done_cases, total_cases)
     baseline_rate = _pct(baseline_cases, total_cases)
+    measured_baseline_rate = _pct(measured_baseline_cases, total_cases)
     complete_logframe_rate = _pct(complete_logframe_cases, total_cases)
 
     fail_reasons: list[str] = []
@@ -502,9 +503,9 @@ def _build_scorecard(
             f"MEL fallback citations above threshold ({_fmt(avg_mel_fallback)}, target <= {_fmt(max_avg_mel_fallback)})"
         )
 
-    if baseline_cases < total_cases:
+    if measured_baseline_cases < total_cases:
         conditional_reasons.append(
-            f"baseline comparison not yet captured for all cases ({baseline_cases}/{total_cases})"
+            f"measured baseline comparison not yet captured for all cases ({measured_baseline_cases}/{total_cases})"
         )
     if complete_logframe_cases < total_cases:
         conditional_reasons.append(
@@ -595,10 +596,10 @@ def _build_scorecard(
             "docx/xlsx/zip for every case",
         ),
         (
-            "Baseline comparison coverage",
-            _gate_status(baseline_cases == total_cases, conditional=True),
-            f"{baseline_cases}/{total_cases}",
-            "capture before buyer go/no-go review",
+            "Measured baseline coverage",
+            _gate_status(measured_baseline_cases == total_cases, conditional=True),
+            f"{measured_baseline_cases}/{total_cases}",
+            "capture real before/after metrics before buyer go/no-go review",
         ),
         (
             "LogFrame operational coverage",
@@ -765,7 +766,11 @@ def _build_scorecard(
         if hitl_cases
         else "- HITL-enabled cases with history: `0/0`"
     )
-    lines.append(f"- Baseline-complete cases: `{baseline_cases}/{total_cases}` ({baseline_rate:.0%})")
+    lines.append(
+        f"- Baseline-complete cases (measured or illustrative): `{baseline_cases}/{total_cases}` ({baseline_rate:.0%})"
+    )
+    lines.append(f"- Measured baseline cases: `{measured_baseline_cases}/{total_cases}` ({measured_baseline_rate:.0%})")
+    lines.append(f"- Illustrative baseline cases: `{illustrative_baseline_cases}/{total_cases}`")
     lines.append("")
     lines.append("## Gate Summary")
     lines.append("")
@@ -787,7 +792,7 @@ def _build_scorecard(
             f"{_fmt(case.open_critic_findings)} | {_fmt(case.open_review_comments)} | {_fmt(case.overdue_review_comments)} | {_fmt(case.fallback_strategy_citations)} | "
             f"{_fmt(case.smart_field_coverage_rate)} | {_fmt(case.means_of_verification_coverage_rate)} | {_fmt(case.owner_coverage_rate)} | "
             f"{'yes' if case.complete_logframe_operational_coverage else 'no'} | "
-            f"{'yes' if case.baseline_present else 'no'} |"
+            f"{'measured' if case.measured_baseline_present else ('illustrative' if case.baseline_present else 'no')} |"
         )
     lines.append("")
     if fail_reasons:
@@ -805,7 +810,7 @@ def _build_scorecard(
         lines.append("1. Fix failed gates and regenerate the pilot pack.")
         lines.append("2. Re-run `make pilot-scorecard-refresh` before sharing externally.")
     elif verdict == "Proceed with conditions":
-        lines.append("1. Capture baseline metrics in `pilot-metrics.csv` for each case.")
+        lines.append("1. Capture measured baseline metrics in `measured-baseline.csv` for each case.")
         lines.append("2. Re-run `make pilot-scorecard` to refresh the decision memo.")
         lines.append("3. Use this scorecard with `buyer-brief.md` for the pilot go/no-go conversation.")
     else:

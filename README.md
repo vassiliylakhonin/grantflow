@@ -229,6 +229,7 @@ By default, `demo-pack` also seeds a synthetic reviewer comment workflow into th
 `make buyer-brief-refresh` rebuilds the pilot pack first and then writes the brief.
 `make pilot-metrics` builds per-case `csv`, reviewer-facing `md`, and machine-readable portfolio summary `json/csv` artifacts from an existing pilot pack.
 `make pilot-metrics-refresh` rebuilds the pilot pack first and then writes the metric tables.
+If `measured-baseline.csv` is present, `pilot-metrics` merges it and computes real before/after deltas plus improvement rates.
 `make pilot-scorecard` builds a buyer-facing go/no-go memo from an existing pilot pack.
 `make pilot-scorecard-refresh` rebuilds the pilot pack, metrics, and brief first, then writes the scorecard.
 `make pilot-evidence-pack` builds a compact pilot evidence bundle with blocking thresholds, before/after baseline coverage, and a representative case.
@@ -245,9 +246,11 @@ By default, `demo-pack` also seeds a synthetic reviewer comment workflow into th
 `make diligence-index-refresh` rebuilds the full chain first, then writes the index.
 `make baseline-fill-template` builds a fillable baseline worksheet from an existing `pilot-metrics.csv`.
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
+Save the completed worksheet as `measured-baseline.csv` to turn illustrative baseline coverage into measured pilot evidence.
 `make benchmark-baseline` builds an illustrative benchmark baseline overlay for demo-only before/after storytelling.
 `make benchmark-baseline-refresh` rebuilds pilot metrics first, then writes the illustrative benchmark baseline overlay.
 The benchmark overlay prefers curated repo-tracked assumptions for representative demo presets and falls back to conservative formula-based defaults for everything else.
+Measured baseline always overrides illustrative benchmark baseline in pilot metrics, scorecards, and evidence packs.
 `make clean-demo-artifacts-dry-run` lists generated demo/commercial bundles that would be removed from `build/`.
 `make clean-demo-artifacts` removes only those generated bundles via an allowlist.
 `make latest-links` creates stable `build/latest-*` symlinks to the newest generated packs, including fast/full send bundles and their zip files.

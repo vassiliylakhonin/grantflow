@@ -19,10 +19,40 @@ from grantflow.api.public_views import (
 )
 
 STALE_BUCKET_KEYS = ("logic", "grounding", "measurement", "compliance", "general")
+BASELINE_FIELD_DEFAULTS = {
+    "baseline_type": "",
+    "baseline_method": "",
+    "baseline_source": "",
+    "baseline_confidence": "",
+    "baseline_time_to_first_draft_seconds": "",
+    "baseline_time_to_terminal_seconds": "",
+    "baseline_review_loops": "",
+    "baseline_owner": "",
+    "baseline_capture_date": "",
+    "baseline_notes": "",
+}
+
+MEASURED_BASELINE_FIELD_KEYS = (
+    "baseline_type",
+    "baseline_method",
+    "baseline_source",
+    "baseline_confidence",
+    "baseline_time_to_first_draft_seconds",
+    "baseline_time_to_terminal_seconds",
+    "baseline_review_loops",
+    "baseline_owner",
+    "baseline_capture_date",
+    "baseline_notes",
+)
 
 
 def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _read_csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return [dict(row) for row in csv.DictReader(handle)]
 
 
 def _safe_float(value: Any) -> float | None:
@@ -58,6 +88,107 @@ def _fmt(value: float | int | None) -> str:
     if float(value).is_integer():
         return str(int(value))
     return f"{value:.3f}"
+
+
+def _rate_delta(current: float | None, baseline: float | None) -> float | None:
+    if current is None or baseline is None or baseline <= 0:
+        return None
+    return (baseline - current) / baseline
+
+
+def _merge_measured_baseline(
+    rows: list[dict[str, Any]],
+    *,
+    measured_rows: list[dict[str, str]] | None,
+) -> list[dict[str, Any]]:
+    if not measured_rows:
+        return rows
+    by_case: dict[str, dict[str, str]] = {}
+    by_preset: dict[str, dict[str, str]] = {}
+    for row in measured_rows:
+        case_dir = str(row.get("case_dir") or "").strip()
+        preset_key = str(row.get("preset_key") or "").strip()
+        if case_dir:
+            by_case[case_dir] = row
+        if preset_key:
+            by_preset[preset_key] = row
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        enriched = dict(row)
+        baseline_row = by_case.get(str(row.get("case_dir") or "").strip()) or by_preset.get(
+            str(row.get("preset_key") or "").strip()
+        )
+        if baseline_row:
+            for key, default in BASELINE_FIELD_DEFAULTS.items():
+                value = str(baseline_row.get(key) or "").strip()
+                enriched[key] = value if value else default
+        else:
+            for key, default in BASELINE_FIELD_DEFAULTS.items():
+                enriched.setdefault(key, default)
+        baseline_type = str(enriched.get("baseline_type") or "").strip().lower()
+        current_first = _safe_float(enriched.get("time_to_first_draft_seconds"))
+        current_terminal = _safe_float(enriched.get("time_to_terminal_seconds"))
+        current_loops = _safe_float(enriched.get("status_change_count"))
+        baseline_first = _safe_float(enriched.get("baseline_time_to_first_draft_seconds"))
+        baseline_terminal = _safe_float(enriched.get("baseline_time_to_terminal_seconds"))
+        baseline_loops = _safe_float(enriched.get("baseline_review_loops"))
+        enriched["baseline_present"] = 1 if baseline_type in {"measured", "illustrative"} else 0
+        enriched["measured_baseline_present"] = 1 if baseline_type == "measured" else 0
+        enriched["delta_time_to_first_draft_seconds"] = (
+            (baseline_first - current_first) if baseline_first is not None and current_first is not None else ""
+        )
+        enriched["delta_time_to_terminal_seconds"] = (
+            (baseline_terminal - current_terminal)
+            if baseline_terminal is not None and current_terminal is not None
+            else ""
+        )
+        enriched["delta_review_loops"] = (
+            (baseline_loops - current_loops) if baseline_loops is not None and current_loops is not None else ""
+        )
+        enriched["time_to_first_draft_improvement_rate"] = _rate_delta(current_first, baseline_first) or ""
+        enriched["time_to_terminal_improvement_rate"] = _rate_delta(current_terminal, baseline_terminal) or ""
+        enriched["review_loops_improvement_rate"] = _rate_delta(current_loops, baseline_loops) or ""
+        out.append(enriched)
+    return out
+
+
+def _merge_benchmark_baseline(
+    rows: list[dict[str, Any]],
+    *,
+    benchmark_rows: list[dict[str, str]] | None,
+) -> list[dict[str, Any]]:
+    if not benchmark_rows:
+        for row in rows:
+            for key, default in BASELINE_FIELD_DEFAULTS.items():
+                row.setdefault(key, default)
+        return rows
+    by_case = {
+        str(row.get("case_dir") or "").strip(): row for row in benchmark_rows if str(row.get("case_dir") or "").strip()
+    }
+    by_preset = {
+        str(row.get("preset_key") or "").strip(): row
+        for row in benchmark_rows
+        if str(row.get("preset_key") or "").strip()
+    }
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        enriched = dict(row)
+        if str(enriched.get("baseline_type") or "").strip():
+            out.append(enriched)
+            continue
+        benchmark_row = by_case.get(str(row.get("case_dir") or "").strip()) or by_preset.get(
+            str(row.get("preset_key") or "").strip()
+        )
+        if benchmark_row:
+            for key in MEASURED_BASELINE_FIELD_KEYS:
+                value = str(benchmark_row.get(key) or "").strip()
+                if value:
+                    enriched[key] = value
+        else:
+            for key, default in BASELINE_FIELD_DEFAULTS.items():
+                enriched.setdefault(key, default)
+        out.append(enriched)
+    return out
 
 
 def _bucket_map(summary: dict[str, Any] | None) -> dict[str, int]:
@@ -509,10 +640,15 @@ def _build_case_row(case_dir: Path, benchmark_row: dict[str, Any]) -> dict[str, 
         "complete_logframe_operational_coverage": (
             1 if mov_rate == 1.0 and owner_rate == 1.0 and smart_rate == 1.0 else 0
         ),
-        "baseline_time_to_first_draft_seconds": "",
-        "baseline_time_to_terminal_seconds": "",
-        "baseline_review_loops": "",
-        "baseline_notes": "",
+        **BASELINE_FIELD_DEFAULTS,
+        "baseline_present": 0,
+        "measured_baseline_present": 0,
+        "delta_time_to_first_draft_seconds": "",
+        "delta_time_to_terminal_seconds": "",
+        "delta_review_loops": "",
+        "time_to_first_draft_improvement_rate": "",
+        "time_to_terminal_improvement_rate": "",
+        "review_loops_improvement_rate": "",
     }
 
 
@@ -611,7 +747,21 @@ def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "baseline_time_to_first_draft_seconds",
         "baseline_time_to_terminal_seconds",
         "baseline_review_loops",
+        "baseline_type",
+        "baseline_method",
+        "baseline_source",
+        "baseline_confidence",
+        "baseline_owner",
+        "baseline_capture_date",
         "baseline_notes",
+        "baseline_present",
+        "measured_baseline_present",
+        "delta_time_to_first_draft_seconds",
+        "delta_time_to_terminal_seconds",
+        "delta_review_loops",
+        "time_to_first_draft_improvement_rate",
+        "time_to_terminal_improvement_rate",
+        "review_loops_improvement_rate",
     ]
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -628,6 +778,7 @@ def _write_summary_csv(path: Path, summary: dict[str, Any]) -> None:
 
 
 def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> dict[str, Any]:
+    measured_rows = [row for row in rows if str(row.get("baseline_type") or "").strip().lower() == "measured"]
     avg_quality = _avg([_safe_float(row.get("quality_score")) for row in rows])
     avg_critic = _avg([_safe_float(row.get("critic_score")) for row in rows])
     avg_first_draft = _avg([_safe_float(row.get("time_to_first_draft_seconds")) for row in rows])
@@ -729,6 +880,59 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
     avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
     avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
     avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
+    measured_baseline_cases = sum(_safe_int(row.get("measured_baseline_present")) == 1 for row in rows)
+    illustrative_baseline_cases = sum(
+        str(row.get("baseline_type") or "").strip().lower() == "illustrative" for row in rows
+    )
+    avg_baseline_confidence_measured = _avg(
+        [
+            _safe_float(row.get("baseline_confidence"))
+            for row in measured_rows
+            if _safe_float(row.get("baseline_confidence")) is not None
+        ]
+    )
+    avg_first_draft_delta = _avg(
+        [
+            _safe_float(row.get("delta_time_to_first_draft_seconds"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_terminal_delta = _avg(
+        [
+            _safe_float(row.get("delta_time_to_terminal_seconds"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_review_loops_delta = _avg(
+        [
+            _safe_float(row.get("delta_review_loops"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_first_draft_improvement = _avg(
+        [
+            _safe_float(row.get("time_to_first_draft_improvement_rate"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_terminal_improvement = _avg(
+        [
+            _safe_float(row.get("time_to_terminal_improvement_rate"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_review_loops_improvement = _avg(
+        [
+            _safe_float(row.get("review_loops_improvement_rate"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
     complete_logframe_cases = sum(_safe_int(row.get("complete_logframe_operational_coverage")) == 1 for row in rows)
     next_bucket = next(
         (
@@ -878,6 +1082,17 @@ def _build_summary_payload(rows: list[dict[str, Any]], *, pilot_pack_name: str) 
         "avg_smart_field_coverage_rate": avg_smart_coverage,
         "avg_means_of_verification_coverage_rate": avg_mov_coverage,
         "avg_owner_coverage_rate": avg_owner_coverage,
+        "measured_baseline_case_count": measured_baseline_cases,
+        "illustrative_baseline_case_count": illustrative_baseline_cases,
+        "measured_baseline_coverage_ratio": round(measured_baseline_cases / len(rows), 4) if rows else None,
+        "illustrative_baseline_coverage_ratio": round(illustrative_baseline_cases / len(rows), 4) if rows else None,
+        "avg_measured_baseline_confidence": avg_baseline_confidence_measured,
+        "avg_time_to_first_draft_delta_seconds_measured": avg_first_draft_delta,
+        "avg_time_to_terminal_delta_seconds_measured": avg_terminal_delta,
+        "avg_review_loops_delta_measured": avg_review_loops_delta,
+        "avg_time_to_first_draft_improvement_rate_measured": avg_first_draft_improvement,
+        "avg_time_to_terminal_improvement_rate_measured": avg_terminal_improvement,
+        "avg_review_loops_improvement_rate_measured": avg_review_loops_improvement,
         "complete_logframe_operational_coverage_cases": complete_logframe_cases,
         "complete_logframe_operational_coverage_ratio": round(complete_logframe_cases / len(rows), 4) if rows else None,
         "portfolio_next_primary_action": next_primary_action or None,
@@ -974,6 +1189,60 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     avg_smart_coverage = _avg([_safe_float(row.get("smart_field_coverage_rate")) for row in rows])
     avg_mov_coverage = _avg([_safe_float(row.get("means_of_verification_coverage_rate")) for row in rows])
     avg_owner_coverage = _avg([_safe_float(row.get("owner_coverage_rate")) for row in rows])
+    measured_baseline_cases = sum(_safe_int(row.get("measured_baseline_present")) == 1 for row in rows)
+    illustrative_baseline_cases = sum(
+        str(row.get("baseline_type") or "").strip().lower() == "illustrative" for row in rows
+    )
+    avg_baseline_confidence_measured = _avg(
+        [
+            _safe_float(row.get("baseline_confidence"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+            and _safe_float(row.get("baseline_confidence")) is not None
+        ]
+    )
+    avg_first_draft_delta = _avg(
+        [
+            _safe_float(row.get("delta_time_to_first_draft_seconds"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_terminal_delta = _avg(
+        [
+            _safe_float(row.get("delta_time_to_terminal_seconds"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_review_loops_delta = _avg(
+        [
+            _safe_float(row.get("delta_review_loops"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_first_draft_improvement = _avg(
+        [
+            _safe_float(row.get("time_to_first_draft_improvement_rate"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_terminal_improvement = _avg(
+        [
+            _safe_float(row.get("time_to_terminal_improvement_rate"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
+    avg_review_loops_improvement = _avg(
+        [
+            _safe_float(row.get("review_loops_improvement_rate"))
+            for row in rows
+            if str(row.get("baseline_type") or "").strip().lower() == "measured"
+        ]
+    )
     complete_logframe_cases = sum(_safe_int(row.get("complete_logframe_operational_coverage")) == 1 for row in rows)
     next_bucket = next(
         (
@@ -1149,6 +1418,21 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
     lines.append(f"- Average means-of-verification coverage: `{_fmt(avg_mov_coverage)}`")
     lines.append(f"- Average owner coverage: `{_fmt(avg_owner_coverage)}`")
     lines.append(f"- Cases with complete LogFrame operational coverage: `{complete_logframe_cases}/{len(rows)}`")
+    lines.append(f"- Measured baseline cases: `{measured_baseline_cases}/{len(rows)}`")
+    lines.append(f"- Illustrative baseline cases: `{illustrative_baseline_cases}/{len(rows)}`")
+    lines.append(f"- Measured baseline coverage ratio: `{_fmt(measured_baseline_cases / len(rows) if rows else None)}`")
+    lines.append(
+        f"- Illustrative baseline coverage ratio: `{_fmt(illustrative_baseline_cases / len(rows) if rows else None)}`"
+    )
+    if measured_baseline_cases:
+        lines.append(f"- Average measured baseline confidence: `{_fmt(avg_baseline_confidence_measured)}`")
+    if measured_baseline_cases:
+        lines.append(f"- Average measured first-draft delta (s): `{_fmt(avg_first_draft_delta)}`")
+        lines.append(f"- Average measured terminal delta (s): `{_fmt(avg_terminal_delta)}`")
+        lines.append(f"- Average measured review-loops delta: `{_fmt(avg_review_loops_delta)}`")
+        lines.append(f"- Average measured first-draft improvement rate: `{_fmt(avg_first_draft_improvement)}`")
+        lines.append(f"- Average measured terminal improvement rate: `{_fmt(avg_terminal_improvement)}`")
+        lines.append(f"- Average measured review-loops improvement rate: `{_fmt(avg_review_loops_improvement)}`")
     if next_primary_action:
         lines.append(f"- Portfolio next primary action: `{next_primary_action}`")
     if policy_status:
@@ -1202,18 +1486,23 @@ def _build_markdown(rows: list[dict[str, Any]], *, pilot_pack_name: str) -> str:
             + " |"
         )
     lines.append("")
-    lines.append("## Baseline Comparison Template")
-    lines.append("- Use `pilot-metrics.csv` to fill baseline values before stakeholder review.")
+    lines.append("## Baseline Comparison")
     lines.append(
-        "- Recommended baseline fields: `baseline_time_to_first_draft_seconds`, `baseline_time_to_terminal_seconds`, `baseline_review_loops`."
+        "- For real pilot evidence, fill `baseline-fill-template.csv` and save it as `measured-baseline.csv` in the pilot pack."
     )
-    lines.append("- Compare those manually captured baseline numbers against pilot values in this pack.")
+    lines.append(
+        "- Then re-run `make pilot-metrics` so measured deltas are merged into `pilot-metrics.csv`, `pilot-metrics.md`, and `pilot-portfolio-summary.*`."
+    )
+    lines.append(
+        "- `benchmark-baseline.*` remains illustrative demo-only context and must not be treated as measured pilot evidence."
+    )
     return "\n".join(lines) + "\n"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build pilot metrics tables from an existing GrantFlow pilot pack.")
     parser.add_argument("--pilot-pack-dir", default="build/pilot-pack")
+    parser.add_argument("--measured-baseline-csv", default="")
     parser.add_argument("--csv-out", default="")
     parser.add_argument("--md-out", default="")
     parser.add_argument("--summary-json-out", default="")
@@ -1238,6 +1527,19 @@ def main() -> int:
         if not case_dir.exists():
             raise SystemExit(f"Missing case directory: {case_dir}")
         rows.append(_build_case_row(case_dir, benchmark_row))
+
+    benchmark_baseline_csv = pilot_pack_dir / "benchmark-baseline.csv"
+    rows = _merge_benchmark_baseline(
+        rows, benchmark_rows=_read_csv_rows(benchmark_baseline_csv) if benchmark_baseline_csv.exists() else []
+    )
+
+    measured_baseline_csv = (
+        Path(str(args.measured_baseline_csv)).resolve()
+        if str(args.measured_baseline_csv).strip()
+        else pilot_pack_dir / "measured-baseline.csv"
+    )
+    measured_rows = _read_csv_rows(measured_baseline_csv) if measured_baseline_csv.exists() else []
+    rows = _merge_measured_baseline(rows, measured_rows=measured_rows)
 
     csv_out = Path(str(args.csv_out)).resolve() if str(args.csv_out).strip() else pilot_pack_dir / "pilot-metrics.csv"
     md_out = Path(str(args.md_out)).resolve() if str(args.md_out).strip() else pilot_pack_dir / "pilot-metrics.md"
