@@ -8,6 +8,7 @@ Quick companion docs:
 - pilot day-1 checklist: `docs/pilot-day1-checklist.md`
 - pilot role mapping worksheet: `docs/pilot-role-mapping-worksheet.md`
 - pilot role mapping example: `docs/pilot-role-mapping-example.md`
+- pilot kickoff agenda: `docs/pilot-kickoff-agenda.md`
 - enterprise access pattern: `docs/enterprise-access-layer.md`
 
 ## 1) Product Scope

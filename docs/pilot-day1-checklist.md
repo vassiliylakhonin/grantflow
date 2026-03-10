@@ -131,6 +131,7 @@ Start with:
 Then use:
 - `docs/pilot-evaluation-checklist.md`
 - `docs/pilot-role-mapping-worksheet.md`
+- `docs/pilot-kickoff-agenda.md`
 - `docs/pilot-user-roles.md`
 - `docs/role-based-demo-script.md`
 
