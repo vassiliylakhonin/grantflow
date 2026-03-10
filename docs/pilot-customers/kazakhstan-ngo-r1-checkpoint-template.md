@@ -16,14 +16,18 @@ Use this template immediately after the first completed `R1` cycle across the th
 
 - donor: `un_agencies`
 - current_status:
+- case_start:
+- first_reviewable_draft_at:
+- r1_completed_at:
 - reached_reviewable_draft: `yes/no`
 - time_to_first_reviewable_draft_hours:
+- r1_cycle_hours:
 - current_review_loops:
 - active_reviewers:
-- open_findings_count:
+- findings_comments_total:
 - duplicate_or_conflicting_comments_observed: `yes/no`
 - duplicate_or_conflicting_comment_notes:
-- major_mel_rewrites_after_r2_so_far:
+- major_mel_rewrites_after_r1:
 - operator_notes:
 - reviewer_notes:
 - approver_notes:
@@ -32,14 +36,18 @@ Use this template immediately after the first completed `R1` cycle across the th
 
 - donor: `eu`
 - current_status:
+- case_start:
+- first_reviewable_draft_at:
+- r1_completed_at:
 - reached_reviewable_draft: `yes/no`
 - time_to_first_reviewable_draft_hours:
+- r1_cycle_hours:
 - current_review_loops:
 - active_reviewers:
-- open_findings_count:
+- findings_comments_total:
 - duplicate_or_conflicting_comments_observed: `yes/no`
 - duplicate_or_conflicting_comment_notes:
-- major_mel_rewrites_after_r2_so_far:
+- major_mel_rewrites_after_r1:
 - operator_notes:
 - reviewer_notes:
 - approver_notes:
@@ -48,14 +56,18 @@ Use this template immediately after the first completed `R1` cycle across the th
 
 - donor: `usaid`
 - current_status:
+- case_start:
+- first_reviewable_draft_at:
+- r1_completed_at:
 - reached_reviewable_draft: `yes/no`
 - time_to_first_reviewable_draft_hours:
+- r1_cycle_hours:
 - current_review_loops:
 - active_reviewers:
-- open_findings_count:
+- findings_comments_total:
 - duplicate_or_conflicting_comments_observed: `yes/no`
 - duplicate_or_conflicting_comment_notes:
-- major_mel_rewrites_after_r2_so_far:
+- major_mel_rewrites_after_r1:
 - operator_notes:
 - reviewer_notes:
 - approver_notes:
