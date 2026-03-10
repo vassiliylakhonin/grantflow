@@ -197,6 +197,7 @@ What it currently supports:
 - financial proposal companion summary with cost-structure and payment-schedule notes
 - submission package completeness checklist for the technical proposal and annex set
 - attachment manifest for annex-by-annex packaging control
+- annex-packer artifacts in ZIP export (`annex_manifest.json` + readiness summary) for procurement handoff
 - review/control/export workflow using the same findings, comments, HITL, and artifact packaging layers
 
 What it does not yet claim:

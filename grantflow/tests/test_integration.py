@@ -5,6 +5,7 @@ import gzip
 import io
 import json
 import time
+import zipfile
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14056,6 +14057,92 @@ def test_export_both_zip():
     assert export.status_code == 200
     assert export.headers["content-type"].startswith("application/zip")
     assert b"PK" == export.content[:2]
+
+
+def test_export_both_zip_includes_evaluation_rfq_annex_packer_artifacts():
+    toc_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "rfq_profile": "katch_final_assessment",
+        "toc": {
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+            "brief": "Final assessment technical response",
+            "organization_information": ["Registered NGO with M&E and field delivery capacity."],
+            "evaluation_purpose": ["Assess performance, outcomes, and learning questions."],
+            "technical_approach_summary": ["Mixed-method final assessment with field verification."],
+            "methodology_components": [
+                {"method": "Outcome harvesting", "purpose": "Capture outcome evidence", "evidence": "Stakeholder interviews"}
+            ],
+            "submission_package_checklist": [
+                {
+                    "artifact": "Technical proposal narrative",
+                    "owner": "Proposal manager",
+                    "status": "ready",
+                    "notes": "Final reviewer-ready narrative package",
+                }
+            ],
+            "attachment_manifest": [
+                {
+                    "attachment": "Registration certificate",
+                    "required_for": "Organization information and legal-status package",
+                    "owner": "Operations / compliance",
+                    "status": "ready",
+                    "notes": "Attach current registration evidence in PDF format.",
+                }
+            ],
+            "compliance_matrix": [
+                {
+                    "requirement": "Organization information and legal status package",
+                    "response_section": "Organization Information",
+                    "evidence": "Registration certificate and audited financials",
+                    "status": "ready",
+                    "notes": "Attached in annex package",
+                }
+            ],
+        },
+    }
+    logframe_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "indicators": [
+            {
+                "indicator_id": "IND_001",
+                "name": "Deliverable milestone: Inception Report",
+                "result_level": "output",
+                "baseline": "0 deliverables",
+                "target": "1 deliverable",
+                "frequency": "bi-weekly",
+                "formula": "Count of required deliverables completed and accepted against the agreed evaluation work plan",
+                "definition": "Tracks whether the inception package is completed with reviewer-ready documentation.",
+                "justification": "Maps the deliverable schedule into an evaluation RFQ management indicator.",
+                "means_of_verification": "Accepted deliverable package and QA checklist",
+                "owner": "Evaluation team lead and operations coordinator",
+            }
+        ],
+    }
+    export = client.post(
+        "/export",
+        json={
+            "donor_id": "un_agencies",
+            "toc_draft": toc_draft,
+            "logframe_draft": logframe_draft,
+            "format": "both",
+        },
+    )
+    assert export.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(export.content)) as archive:
+        names = set(archive.namelist())
+        assert "proposal.docx" in names
+        assert "mel.xlsx" in names
+        assert "annex_packer/annex_manifest.json" in names
+        assert "annex_packer/submission_readiness.md" in names
+        manifest = json.loads(archive.read("annex_packer/annex_manifest.json").decode("utf-8"))
+        assert manifest["proposal_mode"] == "evaluation_rfq"
+        assert manifest["template_key"] == "evaluation_rfq"
+        assert manifest["submission_readiness_summary"]["readiness_status"] == "ready"
+        summary = archive.read("annex_packer/submission_readiness.md").decode("utf-8")
+        assert "# Annex Packer Summary" in summary
+        assert "Technical proposal narrative" in summary
+        assert "Registration certificate" in summary
 
 
 def test_export_docx_includes_mel_indicator_summary_section():

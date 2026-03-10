@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import zipfile
 from typing import Optional
 
@@ -82,6 +83,78 @@ from grantflow.api.tenant import (
 )
 from grantflow.api.routers import exports_router
 from grantflow.api.queue_admin_service import _redis_queue_admin_runner
+from grantflow.exporters.donor_contracts import evaluate_export_contract
+
+
+def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, export_contract: dict) -> dict[str, bytes]:
+    contract = evaluate_export_contract(donor_id=donor_id, toc_payload=toc_draft)
+    if str(contract.get("template_key") or "") != "evaluation_rfq":
+        return {}
+
+    toc_root = toc_draft.get("toc") if isinstance(toc_draft.get("toc"), dict) else toc_draft
+    if not isinstance(toc_root, dict):
+        toc_root = {}
+    submission_rows = [row for row in (toc_root.get("submission_package_checklist") or []) if isinstance(row, dict)]
+    attachment_rows = [row for row in (toc_root.get("attachment_manifest") or []) if isinstance(row, dict)]
+    compliance_rows = [row for row in (toc_root.get("compliance_matrix") or []) if isinstance(row, dict)]
+    summary = contract.get("submission_readiness_summary") if isinstance(contract, dict) else {}
+    if not isinstance(summary, dict):
+        summary = {}
+
+    manifest = {
+        "proposal_mode": "evaluation_rfq",
+        "template_key": contract.get("template_key"),
+        "template_display_name": contract.get("template_display_name"),
+        "donor_id": donor_id,
+        "submission_readiness_summary": summary,
+        "export_contract_status": export_contract.get("status"),
+        "export_contract_mode": export_contract.get("mode"),
+        "export_contract_summary": export_contract.get("summary"),
+        "submission_package_checklist": submission_rows,
+        "attachment_manifest": attachment_rows,
+        "compliance_matrix": compliance_rows,
+    }
+    lines = [
+        "# Annex Packer Summary",
+        "",
+        f"- Donor: `{donor_id}`",
+        f"- Template: `{contract.get('template_key') or '-'}`",
+        f"- Submission completeness score: `{summary.get('completeness_score', 0)}`",
+        f"- Submission readiness status: `{summary.get('readiness_status') or '-'}`",
+        f"- Top submission gap: `{summary.get('top_gap') or '-'}`",
+        f"- Export contract status: `{export_contract.get('status') or '-'}`",
+        f"- Export contract summary: `{export_contract.get('summary') or '-'}`",
+        "",
+        "## Submission Package",
+    ]
+    if submission_rows:
+        for row in submission_rows:
+            lines.append(
+                f"- `{row.get('artifact') or '-'}` | owner=`{row.get('owner') or '-'}` | status=`{row.get('status') or '-'}`"
+            )
+    else:
+        lines.append("- none")
+    lines.extend(["", "## Attachment Manifest"])
+    if attachment_rows:
+        for row in attachment_rows:
+            lines.append(
+                f"- `{row.get('attachment') or '-'}` | required_for=`{row.get('required_for') or '-'}` | owner=`{row.get('owner') or '-'}` | status=`{row.get('status') or '-'}`"
+            )
+    else:
+        lines.append("- none")
+    lines.extend(["", "## Compliance Matrix"])
+    if compliance_rows:
+        for row in compliance_rows:
+            lines.append(
+                f"- `{row.get('requirement') or '-'}` | section=`{row.get('response_section') or '-'}` | status=`{row.get('status') or '-'}`"
+            )
+    else:
+        lines.append("- none")
+
+    return {
+        "annex_packer/annex_manifest.json": (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8"),
+        "annex_packer/submission_readiness.md": ("\n".join(lines) + "\n").encode("utf-8"),
+    }
 
 
 def _app_module():
@@ -1280,6 +1353,12 @@ def export_artifacts(req: ExportRequest, request: Request):
             with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as archive:
                 archive.writestr("proposal.docx", docx_bytes)
                 archive.writestr("mel.xlsx", xlsx_bytes)
+                for filename, content in _evaluation_rfq_annex_pack_artifacts(
+                    donor_id=donor_id,
+                    toc_draft=toc_draft,
+                    export_contract=export_contract_gate,
+                ).items():
+                    archive.writestr(filename, content)
             buf.seek(0)
             return StreamingResponse(
                 buf,
