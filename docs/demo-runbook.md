@@ -2,6 +2,10 @@
 
 This runbook is the recommended way to demo GrantFlow with existing repository capabilities.
 
+Related role-based materials:
+- `docs/pilot-user-roles.md`
+- `docs/role-based-demo-script.md`
+
 ## 1) Demo Objective
 
 Show that GrantFlow is a controlled proposal workflow system:

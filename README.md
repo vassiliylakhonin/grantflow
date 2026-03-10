@@ -24,6 +24,8 @@ Proposal operations platform for high-stakes donor workflows. GrantFlow is a com
   - `docs/architecture.md`
   - `docs/contributor-map.md`
   - `docs/buyer-one-pager.md`
+  - `docs/pilot-user-roles.md`
+  - `docs/role-based-demo-script.md`
   - `SECURITY.md`
 
 ## What It Is
