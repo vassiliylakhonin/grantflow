@@ -116,6 +116,10 @@ The customer accepted the following as the pilot success bar:
 3. Customer assembles donor/source corpus for `UN`, `EU`, and `USAID`
 4. Team confirms whether finance/compliance enters review in `R1` or `R2`
 
+Status update on `2026-03-16`:
+- all four actions completed
+- pilot has moved into live phase
+
 ## Recommended Internal Read
 
 This is a strong pilot account because:

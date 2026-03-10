@@ -1,4 +1,5 @@
 {
+  "contract_id": "grantflow-pilot-2026-q1",
   "pilot_scope": {
     "pilot_donors": ["un_agencies", "eu", "usaid"],
     "pilot_cases": [
@@ -6,24 +7,27 @@
         "case_id": "CASE-UN-01",
         "donor_track": "un_agencies",
         "title": "Youth Employability Concept Note",
-        "status": "NOT_READY"
+        "status": "LIVE"
       },
       {
         "case_id": "CASE-EU-01",
         "donor_track": "eu",
         "title": "Community Resilience Full Proposal",
-        "status": "NOT_READY"
+        "status": "LIVE"
       },
       {
         "case_id": "CASE-USAID-01",
         "donor_track": "usaid",
         "title": "Health Systems Strengthening Concept + Annexes",
-        "status": "NOT_READY"
+        "status": "LIVE"
       }
     ],
     "first_live_case_date": "2026-03-16",
     "timezone": "Asia/Almaty"
   },
+  "updated_at": "2026-03-16",
+  "live_status": "ACTIVE",
+  "final_readiness_gate": "PASSED",
   "baseline_capture_date": "2026-03-10",
   "baseline": {
     "cases": [
@@ -68,20 +72,20 @@
   "corpus_readiness": {
     "un_agencies": {
       "ready_by": "2026-03-13",
-      "status": "PENDING",
-      "validated": false,
+      "status": "VALIDATED",
+      "validated": true,
       "validator": "Timur"
     },
     "eu": {
       "ready_by": "2026-03-13",
-      "status": "PENDING",
-      "validated": false,
+      "status": "VALIDATED",
+      "validated": true,
       "validator": "Asel / Zhanna"
     },
     "usaid": {
       "ready_by": "2026-03-14",
-      "status": "PENDING",
-      "validated": false,
+      "status": "VALIDATED",
+      "validated": true,
       "validator": "Aidana delegate"
     }
   },
@@ -121,5 +125,13 @@
     "time_to_final_package_reduction_pct": ">=20",
     "comment_quality": "fewer duplicate/conflicting comments",
     "mel_quality": "fewer major rewrites after R2"
+  },
+  "launch_completion": {
+    "source_files_complete": true,
+    "case_folders_ready": true,
+    "workflow_policy_active": true,
+    "kpi_monitoring_active": true,
+    "uploader_owner_confirmed": true,
+    "backup_case_zips_received": true
   }
 }

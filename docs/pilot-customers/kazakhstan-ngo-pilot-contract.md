@@ -2,6 +2,12 @@
 
 This document is the fixed working contract for the first Kazakhstan NGO pilot wave.
 
+Current state:
+- live phase active
+- final readiness gate passed
+- all three donor tracks validated
+- no pre-live blockers remain
+
 ## 1. Pilot Scope
 
 - Pilot donors:
@@ -16,6 +22,10 @@ This document is the fixed working contract for the first Kazakhstan NGO pilot w
   - `2026-03-16`
 - Timezone:
   - `Asia/Almaty`
+- Live status:
+  - `ACTIVE`
+- Final readiness gate:
+  - `PASSED`
 
 ## 2. Measured Baseline
 
@@ -57,7 +67,12 @@ Captured on:
 
 ## 3. Corpus Readiness Requirements
 
-Readiness targets:
+Final corpus state:
+- `un_agencies` — `VALIDATED`
+- `eu` — `VALIDATED`
+- `usaid` — `VALIDATED`
+
+Readiness targets used before go-live:
 - `un_agencies` by `2026-03-13`
 - `eu` by `2026-03-13`
 - `usaid` by `2026-03-14`
@@ -123,6 +138,13 @@ File handling rule:
 - use date-based versioning in names: `YYYYMMDD`
 - do not use `v1`, `v2`, or `final`
 
+Final status:
+- source files complete for all three cases
+- donor/source files received
+- validator confirmation received
+- uploader owner confirmed
+- working folders and backup ZIPs received
+
 ## 6. Case Folder Structure
 
 ```text
@@ -151,6 +173,11 @@ Each case must move in order:
 7. `R2_COMPLETE`
 8. `FINAL_PACKAGE_READY`
 
+Current case status at live launch:
+- `CASE-UN-01` -> `LIVE`
+- `CASE-EU-01` -> `LIVE`
+- `CASE-USAID-01` -> `LIVE`
+
 ## 8. Success Criteria
 
 - time to first reviewable draft reduction: `>=25%`
@@ -169,3 +196,12 @@ Success must be evidenced in:
 - cleaner comment flow
 - reduced MEL rework
 - cleaner export package readiness
+
+## 10. Launch Readout
+
+Launch readout as of `2026-03-16`:
+
+- pre-live requirements completed
+- workflow policy active
+- KPI monitoring active
+- organizational and technical blockers: none
