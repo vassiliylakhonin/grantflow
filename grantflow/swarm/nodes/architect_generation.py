@@ -382,7 +382,10 @@ def _text_for_field(
 
     if donor_key == "giz":
         if lower_path in {"programme_objective", "program_objective"}:
-            return f"Improve {project_label} delivery and sustainability outcomes in {country or 'target locations'}."
+            return (
+                f"Improve {project_label} delivery, adaptive implementation, and sustainability outcomes in "
+                f"{country or 'target locations'}."
+            )
         if "outcomes[" in lower_path and lower_path.endswith(".title"):
             giz_titles = [
                 f"Delivery partners implement stronger {project_label} practices",
@@ -392,7 +395,7 @@ def _text_for_field(
         if "outcomes[" in lower_path and lower_path.endswith(".description"):
             return (
                 f"Participating partners and target groups in {country or 'the target context'} apply clearer "
-                f"{project_label} delivery, coordination, and sustainability practices."
+                f"{project_label} delivery, adaptive implementation, coordination, and sustainability practices."
             )[:420]
         if "sustainability_factors[" in lower_path:
             return (
@@ -400,7 +403,10 @@ def _text_for_field(
                 f"ownership arrangements needed to sustain {project_label}."
             )[:420]
         if "partner_roles[" in lower_path:
-            return "Partner role: delivery partner coordinates implementation, field learning, and sustainability follow-up."
+            return (
+                "Partner role: delivery partner coordinates implementation, field learning, partner ownership, "
+                "and sustainability follow-up."
+            )
 
     if donor_key == "un_agencies":
         un_phrase = _un_programme_phrase(project_label)
@@ -501,18 +507,18 @@ def _text_for_field(
         if "objectives[" in lower_path and lower_path.endswith(".expected_change"):
             return (
                 f"Partner institutions and frontline actors in {country or 'the target context'} demonstrate stronger "
-                f"risk-aware delivery, coordination, and resilience practices for {state_phrase}."
+                f"risk-aware delivery, safeguarding, coordination, and resilience practices for {state_phrase}."
             )[:420]
         if "stakeholder_map[" in lower_path:
             stakeholders = [
-                "Independent media outlets, journalist networks, and partner civil society organizations coordinate delivery and safeguarding.",
-                "Oversight actors, partner institutions, and community-facing stakeholders support verification, feedback, and risk response.",
+                "Independent media outlets, journalist networks, and partner civil society organizations coordinate delivery, safeguarding, and protective response routines.",
+                "Oversight actors, partner institutions, and community-facing stakeholders support verification, information-integrity feedback, and risk response.",
             ]
             return stakeholders[index % len(stakeholders)][:420]
         if "risk_mitigation[" in lower_path:
             mitigations = [
                 "Adapt partner support, security routines, and contingency planning to political pressure and information-space risk.",
-                "Maintain verification, safeguarding, and escalation procedures so sensitive partners can continue delivery under stress.",
+                "Maintain verification, safeguarding, information-integrity, and escalation procedures so sensitive partners can continue delivery under stress.",
             ]
             return mitigations[index % len(mitigations)][:420]
 

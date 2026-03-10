@@ -473,10 +473,13 @@ def test_fallback_structured_toc_uses_giz_specific_programme_phrasing():
     )
 
     programme_objective = str(payload.get("programme_objective") or "")
-    assert "delivery and sustainability outcomes" in programme_objective.lower()
+    assert "adaptive implementation" in programme_objective.lower()
+    assert "delivery" in programme_objective.lower()
+    assert "sustainability outcomes" in programme_objective.lower()
     outcomes = payload.get("outcomes") or []
     assert outcomes
     assert "delivery partners implement stronger" in str(outcomes[0].get("title") or "").lower()
+    assert "adaptive implementation" in str(outcomes[0].get("description") or "").lower()
     sustainability = payload.get("sustainability_factors") or []
     assert sustainability
     assert "partner institutions continue financing" in str(sustainability[0]).lower()
@@ -574,9 +577,14 @@ def test_fallback_structured_toc_uses_state_department_specific_program_logic_ph
     assert objectives
     assert "political and operational pressure" in str(objectives[0].get("objective") or "").lower()
     assert "democracy, human rights, and governance" in str(objectives[0].get("line_of_effort") or "").lower()
+    assert "safeguarding" in str(objectives[0].get("expected_change") or "").lower()
+    stakeholders = payload.get("stakeholder_map") or []
+    assert stakeholders
+    assert "information-integrity feedback" in str(stakeholders[-1]).lower()
     risks = payload.get("risk_mitigation") or []
     assert risks
     assert "contingency planning" in str(risks[0]).lower()
+    assert "information-integrity" in str(risks[-1]).lower()
 
 
 def test_architect_llm_validation_failure_retries_once_and_recovers(monkeypatch):

@@ -377,6 +377,7 @@ def test_mel_state_department_defaults_are_media_resilience_shaped():
 
     assert "independent-media resilience evidence" in str(indicator["definition"]).lower()
     assert "editorial risk logs" in str(indicator["means_of_verification"]).lower()
+    assert "safeguarding notes" in str(indicator["means_of_verification"]).lower()
     assert "media partner leads" in str(indicator["owner"]).lower()
     assert "partner risk reviews" in str(indicator["data_source"]).lower()
 
@@ -395,6 +396,7 @@ def test_mel_state_department_civic_defaults_are_rights_and_governance_shaped():
 
     assert "civic-actor monitoring evidence" in str(indicator["definition"]).lower()
     assert "stakeholder verification" in str(indicator["means_of_verification"]).lower()
+    assert "information-integrity review notes" in str(indicator["means_of_verification"]).lower()
     assert "civic engagement leads" in str(indicator["owner"]).lower()
     assert "civic risk reviews" in str(indicator["data_source"]).lower()
     assert (
@@ -475,8 +477,9 @@ def test_mel_giz_defaults_include_implementation_validation():
     )
 
     assert "implementation validation" in str(indicator["definition"]).lower()
+    assert "implementation leads" in str(indicator["owner"]).lower()
     assert "sustainability focal points" in str(indicator["owner"]).lower()
-    assert "implementation review notes" in str(indicator["means_of_verification"]).lower()
+    assert "adaptive implementation review notes" in str(indicator["means_of_verification"]).lower()
 
 
 def test_mel_llm_mode_uses_structured_output_when_available(monkeypatch):

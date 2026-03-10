@@ -579,18 +579,18 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
     if donor == "giz":
         return (
             f"{label} measured at {level} level with partner delivery evidence, implementation validation, "
-            "and sustainability-oriented review."
+            "adaptive implementation review, and sustainability-oriented review."
         )
     if donor in {"state_department", "us_state_department"}:
         if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
             return (
                 f"{label} measured at {level} level using independent-media resilience evidence, partner "
-                "verification checks, and periodic risk review."
+                "verification checks, safeguarding review, and periodic information-space risk review."
             )
         if _is_state_department_civic_indicator(name):
             return (
                 f"{label} measured at {level} level using civic-actor monitoring evidence, partner verification "
-                "checks, and periodic risk-context review."
+                "checks, information-integrity review, and periodic risk-context review."
             )
         return (
             f"{label} measured at {level} level using program management evidence, verification checks, and "
@@ -730,13 +730,13 @@ def _deterministic_definition_from_statement(
         )
     if donor == "giz":
         return (
-            f"{label} tracks {focus} as a {level}-level GIZ delivery result with partner evidence and "
-            "sustainability-oriented review."
+            f"{label} tracks {focus} as a {level}-level GIZ delivery result with partner evidence, implementation "
+            "validation, and sustainability-oriented review."
         )
     if donor in {"state_department", "us_state_department"}:
         return (
             f"{label} tracks {focus} as a {level}-level State Department program result using partner verification, "
-            "delivery monitoring, and resilience-oriented review."
+            "risk-aware delivery monitoring, and resilience-oriented review."
         )
     if donor == "un_agencies":
         return (
@@ -797,12 +797,12 @@ def _retrieval_indicator_justification(
     if donor == "giz":
         return (
             f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
-            "for delivery monitoring and sustainability-oriented review."
+            "for delivery monitoring, implementation validation, and sustainability-oriented review."
         )
     if donor in {"state_department", "us_state_department"}:
         return (
             f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
-            "for program delivery and resilience-focused review."
+            "for risk-aware program delivery, partner verification, and resilience-focused review."
         )
     if donor == "un_agencies":
         return (
@@ -849,7 +849,7 @@ def _retrieval_evidence_signal(
     if donor in {"state_department", "us_state_department"}:
         if any(token in text for token in ("editorial risk", "resilience review", "media partner")):
             return "resilience review evidence"
-        if any(token in text for token in ("verification", "risk log", "partner monitoring")):
+        if any(token in text for token in ("verification", "risk log", "partner monitoring", "safeguarding")):
             return "partner verification evidence"
         return "State Department program evidence"
     if donor == "un_agencies":
@@ -903,13 +903,13 @@ def _retrieval_definition_from_hit(
         )
     if donor == "giz":
         return (
-            f"{label} tracks a {level_label}-level GIZ delivery result using {signal} "
-            "and sustainability-oriented review."
+            f"{label} tracks a {level_label}-level GIZ delivery result using {signal}, "
+            "implementation validation, and sustainability-oriented review."
         )
     if donor in {"state_department", "us_state_department"}:
         return (
             f"{label} tracks a {level_label}-level State Department program result using {signal} "
-            "for delivery monitoring and resilience-oriented review."
+            "for risk-aware delivery monitoring, partner verification, and resilience-oriented review."
         )
     if donor == "un_agencies":
         return (
@@ -958,7 +958,7 @@ def _default_owner_for_donor(donor_id: str, *, result_level: str, indicator_name
             return "PIU results lead and implementing agency performance focal points"
         return "PIU M&E specialist and implementing agency focal points"
     if donor == "giz":
-        return "Programme M&E advisor, delivery partners, and sustainability focal points"
+        return "Programme M&E advisor, delivery partners, implementation leads, and sustainability focal points"
     if donor in {"state_department", "us_state_department"}:
         if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
             return "Program manager, partner MEL focal point, and media partner leads"
@@ -1019,12 +1019,15 @@ def _default_means_of_verification_for_donor(donor_id: str, *, result_level: str
         }
         return mapping.get(level, mapping["outcome"])
     if donor == "giz":
-        return "Partner monitoring records, validation meetings, implementation review notes, and sustainability review notes"
+        return (
+            "Partner monitoring records, validation meetings, adaptive implementation review notes, "
+            "and sustainability review notes"
+        )
     if donor in {"state_department", "us_state_department"}:
         if any(token in name for token in ("media", "journalist", "newsroom", "civil society", "resilience")):
-            return "Partner monitoring records, editorial risk logs, and resilience review documentation"
+            return "Partner monitoring records, editorial risk logs, safeguarding notes, and resilience review documentation"
         if _is_state_department_civic_indicator(name):
-            return "Partner monitoring records, stakeholder verification notes, and risk review documentation"
+            return "Partner monitoring records, stakeholder verification notes, information-integrity review notes, and risk review documentation"
         return "Program monitoring records, partner verification notes, and risk review documentation"
     if donor == "un_agencies":
         return "Partner monitoring records, field verification notes, and programme or sector review documentation"
