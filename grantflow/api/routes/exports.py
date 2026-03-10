@@ -262,12 +262,349 @@ def _rfq_file_title(normalized_toc: dict) -> str:
     return "Evaluation RFQ"
 
 
+def _dedupe_ordered(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in values:
+        key = " ".join(str(item or "").split()).strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(str(item).strip())
+    return out
+
+
+def _katch_submission_kit_artifacts(normalized_toc: dict) -> dict[str, bytes]:
+    rfq_title = "RFQ-2025-001-KATCH-10019"
+    methods = [item for item in (normalized_toc.get("methodology_components") or []) if isinstance(item, dict)]
+    method_names = {_clean_md_text(item.get("method")).lower() for item in methods}
+    has_outcome_harvesting = "outcome harvesting" in method_names
+    has_social_media = "social media analysis" in method_names
+    has_fgd = "focus group discussions" in method_names
+    has_survey = "beneficiary survey" in method_names or "survey of beneficiaries" in method_names
+    questions = [str(item).strip() for item in (normalized_toc.get("evaluation_questions") or []) if str(item).strip()]
+    katch_milestones = [
+        ("Draft Inception Report", "Jul 14, 2025"),
+        ("Final Inception Report", "Jul 28, 2025"),
+        ("Workshop + Draft Report", "Sep 15, 2025"),
+        ("Final Report + Brief", "Sep 30, 2025"),
+    ]
+    deliverables = _dedupe_ordered(
+        [
+            "Draft Inception Report with Evaluation Design & Work Plan",
+            "Final Inception Report",
+            "Bi-weekly progress updates",
+            "Virtual workshop/presentation (15 Sep 2025)",
+            "Draft Evaluation Report",
+            "Final Evaluation Report (English, ≤50 pages, PII-free)",
+            "Stand-alone brief (2–3 pages, non-technical audience)",
+            "Cleaned datasets and supporting study materials per Winrock requirements",
+        ]
+    )
+    technical_lines = [
+        f"# TECHNICAL PROPOSAL ({rfq_title})",
+        "",
+        "## 1. Organization Information (1 page)",
+        "",
+        "Legal Name: [Your Organization Name]",
+        "Address: [Full legal address]",
+        "Authorized Contact: [Name, Title, phone, email]",
+        "Registration Status: [Registration number, country]",
+        "Legal Status in Central Asia: [If applicable]",
+        "[Your Organization] is a [brief type: consulting firm / NGO / research entity] specialized in monitoring, evaluation, and learning (MEL) in multidimensional development projects, including child protection, counter-trafficking in persons (CTIP), migration, and social services systems strengthening. We apply mixed-method and utilization-focused evaluations that generate decision-ready findings for donors and implementing partners.",
+        "Annexes attached:",
+        "- Business registration certificate",
+        "- Latest audited financial statement",
+        "",
+        "## 2. Analysis and Proposed Approaches / Methodologies (max 5 pages)",
+        "",
+        "### 2.1 Understanding of the Assignment",
+        "",
+        "We understand the KATCH Final Assessment as a summative, learning-oriented evaluation to assess:",
+        "- relevance,",
+        "- effectiveness,",
+        "- efficiency,",
+        "- sustainability, and",
+        "- outcomes of KATCH (Apr 2023–Mar 2026),",
+        "with practical recommendations for future programming by Winrock and USDOS.",
+        "",
+        "### 2.2 Evaluation Approach",
+        "",
+        "We propose a Theory-Based, RBM-aligned mixed-method evaluation anchored in KATCH’s Theory of Change and Results Framework.",
+        "Core principles:",
+        "- Utilization-focused: findings structured for direct use by Winrock/USDOS.",
+        "- Contribution-oriented: realistic assessment of KATCH contribution to observed change.",
+        "- Triangulated evidence: combine qualitative, quantitative, and document-based evidence.",
+        "- Do No Harm and trauma-informed practice in all interactions.",
+        "",
+        "### 2.3 Evaluation Questions",
+        "",
+        "We will refine RFQ evaluation questions jointly with KATCH during inception. Final questions will remain under five RFQ criteria:",
+    ]
+    criteria_defaults = ["Relevance", "Effectiveness", "Efficiency", "Sustainability", "Outcomes (including unintended outcomes)"]
+    technical_lines.extend([f"- {item}" for item in criteria_defaults])
+    if questions:
+        technical_lines.extend(["", "Working question set from the current draft context:"])
+        technical_lines.extend([f"- {question}" for question in questions])
+    technical_lines.extend(["", "### 2.4 Data Collection Methods", ""])
+    technical_lines.extend(
+        [
+            "A) Desk Review",
+            "KATCH ToC, Results Framework, MEL Plan, RMP/CPI, quarterly reports",
+            "Rapid situational assessment",
+            "Micro-grant documentation",
+            "Relevant national policy/legal documents",
+            "",
+            "B) Key Informant Interviews (KIIs)",
+            "Semi-structured interviews with:",
+            "KATCH field and home office staff",
+            "Implementing partners",
+            "Government stakeholders (national and subnational)",
+            "International actors / donors / CSO representatives",
+            "SAG members and Child CTIP Champions (as appropriate)",
+            "",
+            "C) Focus Group Discussions (FGDs)",
+            "FGDs in sampled locations in southern Kazakhstan to gather implementation-level insights, barriers, and sustainability views.",
+            "",
+            "D) Beneficiary Survey (up to 50 respondents)",
+            "Co-designed and administered with experienced local partners to ensure safeguarding and contextual appropriateness.",
+            "",
+            "E) Outcome Harvesting",
+            "Systematic identification and verification of intended and unintended outcomes (positive/negative), with substantiation of KATCH contribution.",
+            "",
+            "F) Social Media Analysis",
+            "Assessment of awareness outputs and engagement through selected social platforms:",
+            "content volume and type,",
+            "reach and interaction metrics,",
+            "repost/share dynamics,",
+            "narrative resonance and project recognizability.",
+            "",
+        ]
+    )
+    if not has_outcome_harvesting or not has_social_media or not has_fgd or not has_survey:
+        technical_lines.extend(
+            [
+                "Current draft coverage note:",
+                f"- Outcome Harvesting present: {'yes' if has_outcome_harvesting else 'expected in final technical response'}",
+                f"- Social Media Analysis present: {'yes' if has_social_media else 'expected in final technical response'}",
+                f"- Focus Group Discussions present: {'yes' if has_fgd else 'expected in final technical response'}",
+                f"- Beneficiary Survey present: {'yes' if has_survey else 'expected in final technical response'}",
+                "",
+            ]
+        )
+    technical_lines.extend(
+        [
+            "### 2.5 Sampling and Coverage",
+            "",
+            "Sampling will follow feasibility, ethical safeguards, and representativeness across key stakeholder categories listed in RFQ. We will apply purposive sampling plus snowball expansion where required.",
+            "",
+            "### 2.6 Data Analysis",
+            "",
+            "Qualitative: thematic coding, framework analysis mapped to evaluation criteria and questions.",
+            "Quantitative: descriptive statistics and trend review of available project performance data.",
+            "Integrated analysis: triangulation matrix by evaluation question; confidence ratings for key findings (high/medium/low).",
+            "",
+            "### 2.7 Ethical Considerations and Safeguarding",
+            "",
+            "We will apply Winrock’s Do No Harm requirements:",
+            "voluntary participation and informed consent,",
+            "confidentiality and anonymization,",
+            "secure data handling,",
+            "trauma-informed interview methods,",
+            "child safeguarding protocols (approved adult accompaniment where required).",
+            "No personally identifiable information (PII) will be included in submitted reports.",
+            "",
+            "### 2.8 Potential Limitations and Mitigation",
+            "",
+            "Stakeholder availability constraints → early scheduling + remote alternatives",
+            "Sensitive respondent profiles → trauma-informed facilitation + opt-out options",
+            "Data quality variability across sites → daily QA, interviewer debriefs, coding calibration",
+            "Attribution complexity → contribution framing and evidence-strength grading",
+            "",
+            "## 3. Work Plan (max 1 page)",
+            "",
+            "| Phase | Key Activities | Timeline |",
+            "| --- | --- | --- |",
+            "| Phase I – Engagement & Inception | Kick-off; document review; refined evaluation matrix; tools and sampling; inception report | Jun 30 – Jul 28, 2025 |",
+            "| Phase II – Data Collection | KIIs, FGDs, beneficiary survey, social media review, quality checks | Jul 29 – Aug 31, 2025 |",
+            "| Phase III – Analysis & Reporting | Analysis, workshop preparation, draft report, revision, final report + brief | Sep 1 – Sep 30, 2025 |",
+            "",
+            "Milestones aligned to RFQ:",
+        ]
+    )
+    technical_lines.extend([f"- {name}: {date}" for name, date in katch_milestones])
+    technical_lines.extend(
+        [
+            "",
+            "## 4. Proposed LOE (1 page)",
+            "",
+            "| Activity | Team Leader | Evaluation Expert | Data Analyst | Field/Support | Total PD |",
+            "| --- | --- | --- | --- | --- | --- |",
+            "| Inception & design | 8 | 6 | 2 | 1 | 17 |",
+            "| Tool finalization & piloting | 3 | 4 | 2 | 3 | 12 |",
+            "| Field data collection oversight | 7 | 8 | 2 | 8 | 25 |",
+            "| Data processing & analysis | 5 | 4 | 6 | 2 | 17 |",
+            "| Reporting & workshop | 5 | 2 | 2 | 1 | 10 |",
+            "| Total person-days | 28 | 24 | 14 | 15 | 81 |",
+            "",
+            "## 5. Technical Experience & Past Performance (max 2 pages)",
+            "",
+            "Project 1: [Title, country, year]",
+            "Scope: Final evaluation in [TIP/migration/child protection]",
+            "Value: [USD]",
+            "Client: [Name]",
+            "Contact: [Name, phone, email]",
+            "",
+            "Project 2: [Title, country, year]",
+            "Scope: Endline/midline mixed-method assessment in development sector",
+            "Value: [USD]",
+            "Client: [Name]",
+            "Contact: [Name, phone, email]",
+            "",
+            "Project 3: [Title, country, year]",
+            "Scope: Systems-strengthening/performance review for donor-funded project",
+            "Value: [USD]",
+            "Client: [Name]",
+            "Contact: [Name, phone, email]",
+            "",
+            "(Add real cases from the last 3–5 years.)",
+            "",
+            "## 6. Personnel and Team Composition",
+            "",
+            "Team Leader / Evaluation Specialist — [Name]",
+            "Master’s in [field] / senior equivalent experience",
+            "3+ years in donor-funded evaluations",
+            "Expertise in CTIP/child protection/migration evaluations",
+            "Fluent English; strong report drafting and stakeholder facilitation",
+            "",
+            "Evaluation Expert / Analyst — [Name]",
+            "Qualitative and quantitative methods",
+            "Tool design, interview/FGD facilitation, synthesis and recommendations",
+            "",
+            "Data Analyst — [Name]",
+            "Data management, coding support, descriptive analysis, visualization",
+            "",
+            "Field Support Team — [Names/roles]",
+            "Logistics, scheduling, transcription/translation, consent handling support",
+            "",
+            "(CVs in Annex; each key CV ≤5 pages.)",
+            "",
+            "## 7. Deliverables",
+            "",
+        ]
+    )
+    technical_lines.extend([f"- {item}" for item in deliverables])
+
+    financial_lines = [
+        f"# FINANCIAL PROPOSAL ({rfq_title})",
+        "",
+        "Currency: USD",
+        "Contract Type: Firm Fixed Price",
+        "Total Price: 15,000 USD (inclusive of all taxes)",
+        "",
+        "## A. Budget Table",
+        "",
+        "| Cost Category | Unit | Qty | Unit Cost (USD) | Total (USD) |",
+        "| --- | --- | --- | --- | --- |",
+        "| Team Leader professional fee | person-day | 28 | [x] | [ ] |",
+        "| Evaluation Expert fee | person-day | 24 | [x] | [ ] |",
+        "| Data Analyst fee | person-day | 14 | [x] | [ ] |",
+        "| Field support / coordination | lump sum | 1 | [x] | [ ] |",
+        "| Travel & per diem | lump sum | 1 | [x] | [ ] |",
+        "| Communications (internet/mobile) | lump sum | 1 | [x] | [ ] |",
+        "| Software / qualitative analysis tools | lump sum | 1 | [x] | [ ] |",
+        "| Printing/supplies | lump sum | 1 | [x] | [ ] |",
+        "| Translation/transcription support | lump sum | 1 | [x] | [ ] |",
+        "| Grand Total |  |  |  | 15,000 |",
+        "",
+        "## B. Budget Narrative",
+        "",
+        "The budget is based on the proposed level of effort, anticipated field coordination requirements across KATCH target regions, data collection and processing needs, and reporting deliverables aligned with RFQ deadlines. Costs are reasonable and sufficient to complete all deliverables to required quality standards.",
+        "",
+        "## C. Fixed Price by Deliverable",
+        "",
+        "| Deliverable Milestone | Payment % | Amount (USD) |",
+        "| --- | --- | --- |",
+        "| Approved Final Inception Report (Jul 28, 2025) | 20% | 3,000 |",
+        "| Approved Workshop + Draft Evaluation Report (Sep 15, 2025) | 30% | 4,500 |",
+        "| Approved Final Evaluation Report + Stand-alone Brief (Sep 30, 2025) | 50% | 7,500 |",
+        "| Total | 100% | 15,000 |",
+    ]
+
+    annex_lines = [
+        "# ANNEX TEMPLATES",
+        "",
+        "## Annex A. Evaluation Matrix (short template)",
+        "",
+        "| Evaluation Question | Indicator / Judgment Criteria | Data Source | Method | Respondents | Analysis Method |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    if questions:
+        for question in questions:
+            annex_lines.append(f"| {question} | [Insert criteria] | [Insert source] | [Insert method] | [Insert respondents] | [Insert analysis method] |")
+    else:
+        annex_lines.append("| [Insert question] | [Insert criteria] | [Insert source] | [Insert method] | [Insert respondents] | [Insert analysis method] |")
+    annex_lines.extend(
+        [
+            "",
+            "## Annex B. Risk Register Template",
+            "",
+            "| Risk | Probability | Impact | Mitigation | Owner |",
+            "| --- | --- | --- | --- | --- |",
+            "| [Insert risk] | [L/M/H] | [L/M/H] | [Insert mitigation] | [Insert owner] |",
+            "",
+            "## Annex C. Bi-weekly Update Template",
+            "",
+            "Reporting period",
+            "Activities completed",
+            "Activities upcoming",
+            "Risks/issues requiring action",
+            "Support needed from KATCH/Winrock",
+            "",
+            "## Annex D. Report Structure (aligned to Appendix C)",
+            "",
+            "Cover, Acronyms, ToC",
+            "Executive Summary (≤2 pp)",
+            "Sections 1–5 per RFQ",
+            "Required annexes (tools, indicator table, bibliography, ToR, etc.)",
+            "PII exclusion statement",
+        ]
+    )
+
+    ready_email = "\n".join(
+        [
+            f"Subject: KATCH FINAL ASSESSMENT - {rfq_title}",
+            "Dear KATCH Procurement Team,",
+            "Please find attached our Technical and Financial Proposals for RFQ-2025-001-KATCH-10019 (KATCH Final Assessment).",
+            "Our submission is fully aligned with the scope of work, required methodology, deliverables, ethical standards, and timeline specified in the RFQ.",
+            "Please let us know if any additional documents are required.",
+            "Sincerely,",
+            "[Name]",
+            "[Title]",
+            "[Organization]",
+            "[Phone]",
+            "[Email]",
+            "",
+        ]
+    )
+
+    base = "rfq_submission_kit"
+    return {
+        f"{base}/FILE 1 - TECHNICAL PROPOSAL ({rfq_title}).md": ("\n".join(technical_lines) + "\n").encode("utf-8"),
+        f"{base}/FILE 2 - FINANCIAL PROPOSAL ({rfq_title}).md": ("\n".join(financial_lines) + "\n").encode("utf-8"),
+        f"{base}/FILE 3 - ANNEX TEMPLATES.md": ("\n".join(annex_lines) + "\n").encode("utf-8"),
+        f"{base}/FILE 4 - READY EMAIL (EN).txt": ready_email.encode("utf-8"),
+    }
+
+
 def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, export_contract: dict) -> dict[str, bytes]:
     contract = evaluate_export_contract(donor_id=donor_id, toc_payload=toc_draft)
     if str(contract.get("template_key") or "") != "evaluation_rfq":
         return {}
 
     normalized_toc = normalize_toc_for_export("evaluation_rfq", toc_draft)
+    if str(normalized_toc.get("rfq_profile") or "").strip().lower() == KATCH_EVALUATION_RFQ_PROFILE:
+        return _katch_submission_kit_artifacts(normalized_toc)
     rfq_title = _rfq_file_title(normalized_toc)
     organization_information = _clean_md_text(normalized_toc.get("organization_information"))
     evaluation_purpose = _clean_md_text(normalized_toc.get("evaluation_purpose"))
