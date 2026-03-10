@@ -245,6 +245,7 @@ By default, `demo-pack` also seeds a synthetic reviewer comment workflow into th
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
 `make benchmark-baseline` builds an illustrative benchmark baseline overlay for demo-only before/after storytelling.
 `make benchmark-baseline-refresh` rebuilds pilot metrics first, then writes the illustrative benchmark baseline overlay.
+The benchmark overlay prefers curated repo-tracked assumptions for representative demo presets and falls back to conservative formula-based defaults for everything else.
 `make clean-demo-artifacts-dry-run` lists generated demo/commercial bundles that would be removed from `build/`.
 `make clean-demo-artifacts` removes only those generated bundles via an allowlist.
 `make latest-links` creates stable `build/latest-*` symlinks to the newest generated packs, including fast/full send bundles and their zip files.

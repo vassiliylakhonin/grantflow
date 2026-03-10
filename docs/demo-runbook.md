@@ -97,6 +97,7 @@ It also seeds a synthetic reviewer comment workflow into the saved demo artifact
 `make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
 `make benchmark-baseline` writes an illustrative benchmark baseline overlay for demo-only evidence bundles.
 `make benchmark-baseline-refresh` rebuilds pilot metrics first, then writes that illustrative overlay.
+The overlay prefers curated assumptions from `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot_benchmark_assumptions.json` and uses conservative formula fallback for any case not listed there.
 `make clean-demo-artifacts-dry-run` lists generated bundles slated for cleanup.
 `make clean-demo-artifacts` removes generated bundles and leaves unrelated files alone.
 `make latest-links` writes stable `build/latest-*` symlinks to the newest generated bundles, including fast/full send bundles and their zip files.

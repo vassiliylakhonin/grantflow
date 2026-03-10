@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from datetime import datetime, timezone
 from math import ceil
 from pathlib import Path
+from typing import Any
 
 
 FIELDNAMES = [
@@ -29,6 +31,10 @@ FIELDNAMES = [
 def _read_metrics_csv(path: Path) -> list[dict[str, str]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _read_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _write_csv(path: Path, rows: list[dict[str, str]]) -> None:
@@ -75,31 +81,64 @@ def _derive_review_loops_baseline(current_loops: int | None) -> int:
     return max(current_loops + 2, ceil(current_loops * 1.5), 5)
 
 
-def _build_rows(metrics_rows: list[dict[str, str]]) -> list[dict[str, str]]:
+def _load_curated_assumptions(path: Path | None) -> dict[str, dict[str, Any]]:
+    if path is None or not path.exists():
+        return {}
+    payload = _read_json(path)
+    if not isinstance(payload, dict):
+        raise SystemExit(f"Benchmark assumptions file must contain an object: {path}")
+    out: dict[str, dict[str, Any]] = {}
+    for preset_key, row in payload.items():
+        if isinstance(preset_key, str) and isinstance(row, dict):
+            out[preset_key.strip()] = row
+    return out
+
+
+def _build_rows(metrics_rows: list[dict[str, str]], *, curated: dict[str, dict[str, Any]]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     capture_date = datetime.now(timezone.utc).date().isoformat()
     for source in metrics_rows:
         current_first = _safe_float(source.get("time_to_first_draft_seconds"))
         current_terminal = _safe_float(source.get("time_to_terminal_seconds"))
         current_loops = _safe_int(source.get("status_change_count"))
+        preset_key = str(source.get("preset_key") or "")
+        curated_row = curated.get(preset_key.strip(), {})
+        baseline_first = (
+            _safe_int(str(curated_row.get("baseline_time_to_first_draft_seconds")))
+            if curated_row.get("baseline_time_to_first_draft_seconds") is not None
+            else _derive_first_draft_baseline(current_first)
+        )
+        baseline_terminal = (
+            _safe_int(str(curated_row.get("baseline_time_to_terminal_seconds")))
+            if curated_row.get("baseline_time_to_terminal_seconds") is not None
+            else _derive_terminal_baseline(current_terminal)
+        )
+        baseline_loops = (
+            _safe_int(str(curated_row.get("baseline_review_loops")))
+            if curated_row.get("baseline_review_loops") is not None
+            else _derive_review_loops_baseline(current_loops)
+        )
         rows.append(
             {
                 "case_dir": str(source.get("case_dir") or ""),
-                "preset_key": str(source.get("preset_key") or ""),
+                "preset_key": preset_key,
                 "donor_id": str(source.get("donor_id") or ""),
                 "pilot_time_to_first_draft_seconds": str(source.get("time_to_first_draft_seconds") or ""),
                 "pilot_time_to_terminal_seconds": str(source.get("time_to_terminal_seconds") or ""),
                 "pilot_review_loops": str(source.get("status_change_count") or ""),
-                "benchmark_baseline_type": "illustrative",
-                "benchmark_method": "conservative_demo_benchmark_v1",
-                "baseline_time_to_first_draft_seconds": str(_derive_first_draft_baseline(current_first)),
-                "baseline_time_to_terminal_seconds": str(_derive_terminal_baseline(current_terminal)),
-                "baseline_review_loops": str(_derive_review_loops_baseline(current_loops)),
+                "benchmark_baseline_type": str(curated_row.get("benchmark_baseline_type") or "illustrative"),
+                "benchmark_method": str(curated_row.get("benchmark_method") or "conservative_demo_benchmark_v1"),
+                "baseline_time_to_first_draft_seconds": str(baseline_first),
+                "baseline_time_to_terminal_seconds": str(baseline_terminal),
+                "baseline_review_loops": str(baseline_loops),
                 "baseline_owner": "GrantFlow demo benchmark",
                 "baseline_capture_date": capture_date,
-                "baseline_notes": (
-                    "Illustrative benchmark baseline for demo and pilot-pack storytelling only. "
-                    "This is not a measured customer baseline and must be replaced before a real pilot decision."
+                "baseline_notes": str(
+                    curated_row.get("baseline_notes")
+                    or (
+                        "Illustrative benchmark baseline for demo and pilot-pack storytelling only. "
+                        "This is not a measured customer baseline and must be replaced before a real pilot decision."
+                    )
                 ),
             }
         )
@@ -118,9 +157,9 @@ def _build_markdown(rows: list[dict[str, str]], *, pilot_pack_name: str) -> str:
     lines.append("It is not measured customer data and must not be presented as actual pre-pilot performance.")
     lines.append("")
     lines.append("## Benchmark Method")
-    lines.append("- First-draft baseline: conservative uplift over current pilot first-draft time, minimum 4h.")
-    lines.append("- Terminal baseline: conservative uplift over current pilot terminal time, minimum 24h.")
-    lines.append("- Review-loop baseline: current review loop count plus buffer, minimum 5.")
+    lines.append("- Preferred path: curated demo assumptions per representative preset when available.")
+    lines.append("- Fallback path: conservative uplift over current pilot timings and review loops.")
+    lines.append("- Formula fallback minimums: first draft 4h, terminal 24h, review loops 5.")
     lines.append("")
     lines.append("## Case Table")
     lines.append("")
@@ -156,6 +195,7 @@ def main() -> int:
     )
     parser.add_argument("--pilot-pack-dir", default="build/pilot-pack")
     parser.add_argument("--metrics-csv", default="")
+    parser.add_argument("--assumptions-json", default="docs/pilot_benchmark_assumptions.json")
     parser.add_argument("--csv-out", default="")
     parser.add_argument("--md-out", default="")
     args = parser.parse_args()
@@ -171,7 +211,9 @@ def main() -> int:
     if not metrics_rows:
         raise SystemExit("pilot metrics csv must contain at least one case row")
 
-    rows = _build_rows(metrics_rows)
+    assumptions_path = Path(str(args.assumptions_json)).resolve() if str(args.assumptions_json).strip() else None
+    curated = _load_curated_assumptions(assumptions_path)
+    rows = _build_rows(metrics_rows, curated=curated)
     csv_out = (
         Path(str(args.csv_out)).resolve() if str(args.csv_out).strip() else pilot_pack_dir / "benchmark-baseline.csv"
     )

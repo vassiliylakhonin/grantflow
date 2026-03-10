@@ -1,0 +1,26 @@
+{
+  "usaid_gov_ai_kazakhstan": {
+    "benchmark_baseline_type": "illustrative",
+    "benchmark_method": "curated_demo_benchmark_v1",
+    "baseline_time_to_first_draft_seconds": 28800,
+    "baseline_time_to_terminal_seconds": 172800,
+    "baseline_review_loops": 12,
+    "baseline_notes": "Illustrative benchmark baseline for demo-only USAID proposal-ops storytelling. Assumes multi-review cycle and manual donor-logic consolidation before a reviewable first draft. Not measured customer baseline."
+  },
+  "eu_digital_governance_moldova": {
+    "benchmark_baseline_type": "illustrative",
+    "benchmark_method": "curated_demo_benchmark_v1",
+    "baseline_time_to_first_draft_seconds": 21600,
+    "baseline_time_to_terminal_seconds": 129600,
+    "baseline_review_loops": 8,
+    "baseline_notes": "Illustrative benchmark baseline for demo-only EU intervention-logic workflows. Assumes manual drafting plus annex-verification passes before buyer-ready review. Not measured customer baseline."
+  },
+  "worldbank_public_sector_uzbekistan": {
+    "benchmark_baseline_type": "illustrative",
+    "benchmark_method": "curated_demo_benchmark_v1",
+    "baseline_time_to_first_draft_seconds": 25200,
+    "baseline_time_to_terminal_seconds": 172800,
+    "baseline_review_loops": 9,
+    "baseline_notes": "Illustrative benchmark baseline for demo-only World Bank results-framework workflows. Assumes manual PDO/results-framework reconciliation and ISR-style review before internal approval. Not measured customer baseline."
+  }
+}
