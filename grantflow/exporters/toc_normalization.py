@@ -420,6 +420,46 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    question_matrix_rows = _pick_first_list(toc, ("evaluation_questions_matrix", "question_matrix"))
+    evaluation_questions_matrix = []
+    for raw in question_matrix_rows:
+        row = raw if isinstance(raw, dict) else {"evaluation_question": _clean_text(raw)}
+        evaluation_questions_matrix.append(
+            {
+                "evaluation_question": _pick_first_text(row, ("evaluation_question", "question", "title", "name")),
+                "key_methods": _to_str_list(_pick_first_list(row, ("key_methods", "methods"))),
+                "evidence_sources": _to_str_list(_pick_first_list(row, ("evidence_sources", "sources", "evidence"))),
+                "reporting_use": _pick_first_text(row, ("reporting_use", "purpose", "description")),
+            }
+        )
+
+    method_coverage_rows = _pick_first_list(toc, ("methods_coverage_matrix", "method_coverage"))
+    methods_coverage_matrix = []
+    for raw in method_coverage_rows:
+        row = raw if isinstance(raw, dict) else {"method": _clean_text(raw)}
+        methods_coverage_matrix.append(
+            {
+                "method": _pick_first_text(row, ("method", "title", "name")),
+                "covers_questions": _to_str_list(_pick_first_list(row, ("covers_questions", "questions"))),
+                "respondent_group": _pick_first_text(row, ("respondent_group", "target_group", "stakeholders")),
+                "expected_output": _pick_first_text(row, ("expected_output", "purpose", "description")),
+            }
+        )
+
+    deliverable_schedule_rows = _pick_first_list(toc, ("deliverables_schedule_table", "deliverables_schedule"))
+    deliverables_schedule_table = []
+    for raw in deliverable_schedule_rows:
+        row = raw if isinstance(raw, dict) else {"deliverable": _clean_text(raw)}
+        deliverables_schedule_table.append(
+            {
+                "deliverable": _pick_first_text(row, ("deliverable", "title", "name")),
+                "due_window": _pick_first_text(row, ("due_window", "timing", "window", "milestone")),
+                "owner": _pick_first_text(row, ("owner", "responsible_party")),
+                "dependencies": _to_str_list(_pick_first_list(row, ("dependencies", "inputs"))),
+                "review_gate": _pick_first_text(row, ("review_gate", "approval_gate", "gate")),
+            }
+        )
+
     return {
         "proposal_mode": "evaluation_rfq",
         "rfq_profile": _pick_first_text(toc, ("rfq_profile", "profile")),
@@ -447,6 +487,9 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
         "payment_schedule_summary": _pick_first_text(toc, ("payment_schedule_summary", "payment_schedule")),
         "submission_package_checklist": submission_package_checklist,
         "attachment_manifest": attachment_manifest,
+        "evaluation_questions_matrix": evaluation_questions_matrix,
+        "methods_coverage_matrix": methods_coverage_matrix,
+        "deliverables_schedule_table": deliverables_schedule_table,
         "deliverables": deliverables,
         "workplan_summary": _to_str_list(_pick_first_list(toc, ("workplan_summary", "workplan"))),
         "assumptions_risks": _to_str_list(_pick_first_list(toc, ("assumptions_risks", "risks", "assumptions"))),

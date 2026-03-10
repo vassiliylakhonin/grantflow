@@ -197,12 +197,18 @@ def test_rule_based_critic_applies_katch_evaluation_rfq_checks():
     assert any(c["code"] == "KATCH_COST_STRUCTURE_PRESENT" and c["status"] == "fail" for c in checks)
     assert any(c["code"] == "KATCH_SUBMISSION_PACKAGE_PRESENT" and c["status"] == "fail" for c in checks)
     assert any(c["code"] == "KATCH_ATTACHMENT_MANIFEST_PRESENT" and c["status"] == "warn" for c in checks)
+    assert any(c["code"] == "KATCH_EVALUATION_QUESTION_MATRIX_PRESENT" and c["status"] == "fail" for c in checks)
+    assert any(c["code"] == "KATCH_METHODS_COVERAGE_MATRIX_PRESENT" and c["status"] == "fail" for c in checks)
+    assert any(c["code"] == "KATCH_DELIVERABLES_SCHEDULE_PRESENT" and c["status"] == "fail" for c in checks)
     assert any(f["code"] == "KATCH_TEAM_COMPOSITION_MISSING" for f in flaws)
     assert any(f["code"] == "KATCH_COMPLIANCE_MATRIX_MISSING" for f in flaws)
     assert any(f["code"] == "KATCH_KEY_PERSONNEL_MISSING" for f in flaws)
     assert any(f["code"] == "KATCH_COST_STRUCTURE_MISSING" for f in flaws)
     assert any(f["code"] == "KATCH_SUBMISSION_PACKAGE_MISSING" for f in flaws)
     assert any(f["code"] == "KATCH_ATTACHMENT_MANIFEST_WEAK" for f in flaws)
+    assert any(f["code"] == "KATCH_EVALUATION_QUESTION_MATRIX_MISSING" for f in flaws)
+    assert any(f["code"] == "KATCH_METHODS_COVERAGE_MATRIX_MISSING" for f in flaws)
+    assert any(f["code"] == "KATCH_DELIVERABLES_SCHEDULE_MISSING" for f in flaws)
 
 
 def test_rule_based_critic_flags_fallback_dominant_architect_grounding_when_rag_enabled():

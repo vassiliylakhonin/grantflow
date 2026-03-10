@@ -65,6 +65,28 @@ class EvaluationAttachmentItem(BaseModel):
     notes: str = Field(default="", description="Short note on the attachment state or packing rule")
 
 
+class EvaluationQuestionMatrixItem(BaseModel):
+    evaluation_question: str = Field(description="Named evaluation question")
+    key_methods: list[str] = Field(default_factory=list, description="Methods used to answer the question")
+    evidence_sources: list[str] = Field(default_factory=list, description="Primary evidence sources for the question")
+    reporting_use: str = Field(description="How the answer should be used in reporting or recommendations")
+
+
+class EvaluationMethodCoverageItem(BaseModel):
+    method: str = Field(description="Named method")
+    covers_questions: list[str] = Field(default_factory=list, description="Evaluation questions this method supports")
+    respondent_group: str = Field(description="Primary respondent or evidence group")
+    expected_output: str = Field(description="Expected analytical or reporting output from the method")
+
+
+class EvaluationDeliverableScheduleItem(BaseModel):
+    deliverable: str = Field(description="Named deliverable")
+    due_window: str = Field(description="Due date or milestone window")
+    owner: str = Field(description="Primary owner for delivery")
+    dependencies: list[str] = Field(default_factory=list, description="Inputs or prior steps needed")
+    review_gate: str = Field(description="Review or approval gate before finalization")
+
+
 class EvaluationRFQTOC(BaseModel):
     proposal_mode: Literal["evaluation_rfq"] = EVALUATION_RFQ_PROPOSAL_MODE
     rfq_profile: str | None = Field(default=None, description="Optional RFQ-specific contract profile")
@@ -98,6 +120,9 @@ class EvaluationRFQTOC(BaseModel):
     payment_schedule_summary: str = Field(default="", description="Milestone-based payment or invoicing summary")
     submission_package_checklist: list[EvaluationSubmissionItem] = Field(default_factory=list)
     attachment_manifest: list[EvaluationAttachmentItem] = Field(default_factory=list)
+    evaluation_questions_matrix: list[EvaluationQuestionMatrixItem] = Field(default_factory=list)
+    methods_coverage_matrix: list[EvaluationMethodCoverageItem] = Field(default_factory=list)
+    deliverables_schedule_table: list[EvaluationDeliverableScheduleItem] = Field(default_factory=list)
 
 
 def is_evaluation_rfq_mode(input_context: Dict[str, Any] | None) -> bool:
@@ -516,6 +541,108 @@ def _build_katch_attachment_manifest() -> list[Dict[str, str]]:
     ]
 
 
+def _build_katch_evaluation_questions_matrix() -> list[Dict[str, Any]]:
+    return [
+        {
+            "evaluation_question": "What outcome-level changes can be substantiated through the project evidence base?",
+            "key_methods": ["Outcome Harvesting", "Key Informant Interviews", "Document Review"],
+            "evidence_sources": ["Outcome stories", "Validated project records", "Stakeholder interviews"],
+            "reporting_use": "Anchor findings, conclusions, and outcome-level recommendations in the draft and final evaluation report.",
+        },
+        {
+            "evaluation_question": "Which implementation factors most influenced performance and beneficiary reach?",
+            "key_methods": ["Focus Group Discussions", "Survey of Beneficiaries", "Social Media Analysis"],
+            "evidence_sources": ["FGD notes", "Survey dataset", "Channel analytics and content review"],
+            "reporting_use": "Explain implementation drivers, constraints, and practical management recommendations for future programming.",
+        },
+        {
+            "evaluation_question": "What actionable recommendations should guide future programming and partner decisions?",
+            "key_methods": ["Validation Workshop / Virtual Debrief", "Document Review", "Outcome Harvesting"],
+            "evidence_sources": ["Workshop feedback", "Performance documentation", "Outcome synthesis"],
+            "reporting_use": "Support the recommendation section, stand-alone brief, and follow-on programming actions.",
+        },
+    ]
+
+
+def _build_katch_methods_coverage_matrix() -> list[Dict[str, Any]]:
+    return [
+        {
+            "method": "Outcome Harvesting",
+            "covers_questions": [
+                "What outcome-level changes can be substantiated through the project evidence base?",
+                "What actionable recommendations should guide future programming and partner decisions?",
+            ],
+            "respondent_group": "Project stakeholders, local partners, and implementation leadership",
+            "expected_output": "Validated outcome stories and outcome-level findings for the report narrative.",
+        },
+        {
+            "method": "Social Media Analysis",
+            "covers_questions": [
+                "Which implementation factors most influenced performance and beneficiary reach?",
+            ],
+            "respondent_group": "Digital channels and public-facing project communication outputs",
+            "expected_output": "Reach, engagement, and narrative-trend evidence to contextualize implementation performance.",
+        },
+        {
+            "method": "Focus Group Discussions",
+            "covers_questions": [
+                "Which implementation factors most influenced performance and beneficiary reach?",
+                "What actionable recommendations should guide future programming and partner decisions?",
+            ],
+            "respondent_group": "Beneficiaries, community stakeholders, and partner representatives",
+            "expected_output": "Perception data and recommendation-oriented qualitative insights for the draft report.",
+        },
+        {
+            "method": "Survey of Beneficiaries",
+            "covers_questions": [
+                "Which implementation factors most influenced performance and beneficiary reach?",
+            ],
+            "respondent_group": "Target beneficiaries and end users",
+            "expected_output": "Structured beneficiary feedback to triangulate reach, service quality, and experience signals.",
+        },
+    ]
+
+
+def _build_katch_deliverables_schedule_table() -> list[Dict[str, Any]]:
+    return [
+        {
+            "deliverable": "Draft Inception Report with Evaluation Design and Work Plan",
+            "due_window": "Mobilization week",
+            "owner": "Team Lead / Evaluation Specialist",
+            "dependencies": ["Kickoff briefing", "Desk review", "Evaluation questions confirmed"],
+            "review_gate": "Client review and approval of inception package",
+        },
+        {
+            "deliverable": "Final Inception Report with Evaluation Design and Work Plan",
+            "due_window": "Post-inception revision window",
+            "owner": "Team Lead / Evaluation Specialist",
+            "dependencies": ["Client comments consolidated", "Methods and sampling updated"],
+            "review_gate": "Approved design before fieldwork starts",
+        },
+        {
+            "deliverable": "Report on field survey data collection / Draft Evaluation Report",
+            "due_window": "Analysis closeout",
+            "owner": "Evaluation Expert / Analyst",
+            "dependencies": ["Fieldwork complete", "Survey cleaned", "Qualitative coding completed"],
+            "review_gate": "Technical QA and client review of draft findings",
+        },
+        {
+            "deliverable": "Virtual Event / Workshop",
+            "due_window": "Post-draft validation stage",
+            "owner": "Field Research Coordinator",
+            "dependencies": ["Draft findings circulated", "Stakeholder list confirmed"],
+            "review_gate": "Validation of findings and recommendation direction",
+        },
+        {
+            "deliverable": "Final Evaluation Report and Stand-alone Brief",
+            "due_window": "Final submission",
+            "owner": "Team Lead / Evaluation Specialist",
+            "dependencies": ["Validation feedback integrated", "Final QA completed", "Annex package complete"],
+            "review_gate": "Final approval and submission package sign-off",
+        },
+    ]
+
+
 def build_katch_evaluation_rfq_payload(
     *,
     donor_id: str,
@@ -670,6 +797,9 @@ def build_katch_evaluation_rfq_payload(
         ),
         "submission_package_checklist": _build_katch_submission_package_checklist(),
         "attachment_manifest": _build_katch_attachment_manifest(),
+        "evaluation_questions_matrix": _build_katch_evaluation_questions_matrix(),
+        "methods_coverage_matrix": _build_katch_methods_coverage_matrix(),
+        "deliverables_schedule_table": _build_katch_deliverables_schedule_table(),
         "annex_readiness": [
             "Registration certificate and latest audited financial statement",
             "CVs for key personnel",
@@ -762,5 +892,8 @@ def build_evaluation_rfq_fallback_payload(
         "payment_schedule_summary": "",
         "submission_package_checklist": [],
         "attachment_manifest": [],
+        "evaluation_questions_matrix": [],
+        "methods_coverage_matrix": [],
+        "deliverables_schedule_table": [],
         "compliance_matrix": [],
     }

@@ -421,6 +421,103 @@ def _add_katch_evaluation_rfq_checks(
             fix_hint="Add an attachment manifest that names each annex, what it supports, the owner, and its ready/partial/pending state.",
         )
 
+    evaluation_questions_matrix = toc_payload.get("evaluation_questions_matrix") or []
+    ready_question_rows = [
+        row
+        for row in evaluation_questions_matrix
+        if isinstance(row, dict)
+        and str(row.get("evaluation_question") or "").strip()
+        and len([item for item in (row.get("key_methods") or []) if str(item).strip()]) >= 1
+        and len([item for item in (row.get("evidence_sources") or []) if str(item).strip()]) >= 1
+        and str(row.get("reporting_use") or "").strip()
+    ]
+    if len(ready_question_rows) >= 2:
+        check_fn(
+            code="KATCH_EVALUATION_QUESTION_MATRIX_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ready_question_rows)} question row(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_EVALUATION_QUESTION_MATRIX_PRESENT",
+            status="fail",
+            section="toc",
+            detail="Need a question-by-method-and-evidence matrix for the evaluation response",
+        )
+        add_flaw_fn(
+            code="KATCH_EVALUATION_QUESTION_MATRIX_MISSING",
+            severity="medium",
+            section="toc",
+            message="KATCH evaluation questions are not yet packaged as a usable question matrix, so reviewers cannot easily see how each question will be answered and reported.",
+            fix_hint="Add an evaluation questions matrix that maps each core question to the methods, evidence sources, and reporting use in the final evaluation package.",
+        )
+
+    methods_coverage_matrix = toc_payload.get("methods_coverage_matrix") or []
+    ready_method_rows = [
+        row
+        for row in methods_coverage_matrix
+        if isinstance(row, dict)
+        and str(row.get("method") or "").strip()
+        and len([item for item in (row.get("covers_questions") or []) if str(item).strip()]) >= 1
+        and str(row.get("respondent_group") or "").strip()
+        and str(row.get("expected_output") or "").strip()
+    ]
+    if len(ready_method_rows) >= 3:
+        check_fn(
+            code="KATCH_METHODS_COVERAGE_MATRIX_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ready_method_rows)} method coverage row(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_METHODS_COVERAGE_MATRIX_PRESENT",
+            status="fail",
+            section="toc",
+            detail="Need a methods coverage matrix that links methods to questions and expected outputs",
+        )
+        add_flaw_fn(
+            code="KATCH_METHODS_COVERAGE_MATRIX_MISSING",
+            severity="medium",
+            section="toc",
+            message="KATCH methods coverage is not yet packaged in a reviewer-ready matrix, so the mixed-method design remains harder to assess against the evaluation questions.",
+            fix_hint="Add a methods coverage matrix showing which questions each method covers, who or what it samples, and what output it is expected to produce.",
+        )
+
+    deliverables_schedule_table = toc_payload.get("deliverables_schedule_table") or []
+    ready_schedule_rows = [
+        row
+        for row in deliverables_schedule_table
+        if isinstance(row, dict)
+        and str(row.get("deliverable") or "").strip()
+        and str(row.get("due_window") or "").strip()
+        and str(row.get("owner") or "").strip()
+        and len([item for item in (row.get("dependencies") or []) if str(item).strip()]) >= 1
+        and str(row.get("review_gate") or "").strip()
+    ]
+    if len(ready_schedule_rows) >= 3:
+        check_fn(
+            code="KATCH_DELIVERABLES_SCHEDULE_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ready_schedule_rows)} schedule row(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_DELIVERABLES_SCHEDULE_PRESENT",
+            status="fail",
+            section="toc",
+            detail="Need a deliverables schedule table with owners, dependencies, and review gates",
+        )
+        add_flaw_fn(
+            code="KATCH_DELIVERABLES_SCHEDULE_MISSING",
+            severity="medium",
+            section="toc",
+            message="KATCH deliverables are not yet organized in a usable schedule table, so reviewer visibility into sequencing, dependencies, and approval gates remains weak.",
+            fix_hint="Add a deliverables schedule table showing each deliverable, due window, owner, dependencies, and review gate before final submission.",
+        )
+
     workplan_summary = toc_payload.get("workplan_summary")
     if isinstance(workplan_summary, list) and workplan_summary:
         check_fn(code="KATCH_WORKPLAN_PRESENT", status="pass", section="toc", detail=f"{len(workplan_summary)} workplan phase(s)")

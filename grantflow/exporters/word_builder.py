@@ -1247,6 +1247,48 @@ def _render_evaluation_rfq_toc(
             if details:
                 doc.add_paragraph(" | ".join(details))
 
+    question_matrix = toc.get("evaluation_questions_matrix")
+    if isinstance(question_matrix, list) and question_matrix:
+        doc.add_heading("Evaluation Questions Matrix", level=2)
+        for row in question_matrix:
+            if not isinstance(row, dict):
+                continue
+            question = str(row.get("evaluation_question") or "Evaluation Question").strip()
+            methods = [str(item).strip() for item in (row.get("key_methods") or []) if str(item).strip()]
+            sources = [str(item).strip() for item in (row.get("evidence_sources") or []) if str(item).strip()]
+            reporting_use = str(row.get("reporting_use") or "").strip()
+            doc.add_paragraph(question, style="List Bullet")
+            details = []
+            if methods:
+                details.append(f"Methods: {', '.join(methods)}")
+            if sources:
+                details.append(f"Evidence: {', '.join(sources)}")
+            if reporting_use:
+                details.append(f"Reporting use: {reporting_use}")
+            if details:
+                doc.add_paragraph(" | ".join(details))
+
+    methods_coverage = toc.get("methods_coverage_matrix")
+    if isinstance(methods_coverage, list) and methods_coverage:
+        doc.add_heading("Methods Coverage Matrix", level=2)
+        for row in methods_coverage:
+            if not isinstance(row, dict):
+                continue
+            method = str(row.get("method") or "Method").strip()
+            questions = [str(item).strip() for item in (row.get("covers_questions") or []) if str(item).strip()]
+            respondent_group = str(row.get("respondent_group") or "").strip()
+            expected_output = str(row.get("expected_output") or "").strip()
+            doc.add_paragraph(method, style="List Bullet")
+            details = []
+            if questions:
+                details.append(f"Covers: {', '.join(questions)}")
+            if respondent_group:
+                details.append(f"Respondents: {respondent_group}")
+            if expected_output:
+                details.append(f"Expected output: {expected_output}")
+            if details:
+                doc.add_paragraph(" | ".join(details))
+
     deliverables = toc.get("deliverables")
     if isinstance(deliverables, list) and deliverables:
         doc.add_heading("Workplan & Deliverables", level=2)
@@ -1265,6 +1307,29 @@ def _render_evaluation_rfq_toc(
             indicators=output_focus or outcome_focus,
             label="Suggested delivery indicator rows",
         )
+
+    deliverables_schedule = toc.get("deliverables_schedule_table")
+    if isinstance(deliverables_schedule, list) and deliverables_schedule:
+        doc.add_heading("Deliverables Schedule Table", level=2)
+        for row in deliverables_schedule:
+            if not isinstance(row, dict):
+                continue
+            deliverable = str(row.get("deliverable") or "Deliverable").strip()
+            due_window = str(row.get("due_window") or "").strip()
+            owner = str(row.get("owner") or "").strip()
+            dependencies = [str(item).strip() for item in (row.get("dependencies") or []) if str(item).strip()]
+            review_gate = str(row.get("review_gate") or "").strip()
+            title = deliverable if not due_window else f"{deliverable} ({due_window})"
+            doc.add_paragraph(title, style="List Bullet")
+            details = []
+            if owner:
+                details.append(f"Owner: {owner}")
+            if dependencies:
+                details.append(f"Dependencies: {', '.join(dependencies)}")
+            if review_gate:
+                details.append(f"Review gate: {review_gate}")
+            if details:
+                doc.add_paragraph(" | ".join(details))
 
     annex_readiness = toc.get("annex_readiness")
     if isinstance(annex_readiness, list) and annex_readiness:
@@ -1408,6 +1473,27 @@ def _add_export_contract_section(doc: Document, contract: Dict[str, Any]) -> Non
     warnings = contract.get("warnings")
     if isinstance(warnings, list) and warnings:
         doc.add_paragraph(f"Warnings: {', '.join(str(x) for x in warnings)}")
+
+    submission_summary = contract.get("submission_readiness_summary")
+    if isinstance(submission_summary, dict):
+        doc.add_paragraph(
+            f"Submission completeness score: {float(submission_summary.get('completeness_score') or 0.0):.1f}"
+        )
+        doc.add_paragraph(f"Submission readiness status: {submission_summary.get('readiness_status') or '-'}")
+        doc.add_paragraph(f"Top submission gap: {submission_summary.get('top_gap') or '-'}")
+
+        for label, key in (
+            ("Submission package", "submission_package_counts"),
+            ("Attachment manifest", "attachment_manifest_counts"),
+            ("Compliance matrix", "compliance_matrix_counts"),
+        ):
+            counts = submission_summary.get(key)
+            if isinstance(counts, dict):
+                doc.add_paragraph(
+                    f"{label}: ready={int(counts.get('ready') or 0)} | "
+                    f"partial={int(counts.get('partial') or 0)} | "
+                    f"pending={int(counts.get('pending') or 0)}"
+                )
 
 
 def build_docx_from_toc(

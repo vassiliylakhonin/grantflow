@@ -616,11 +616,42 @@ def _add_export_contract_sheet(wb: Workbook, contract: Dict[str, Any]) -> None:
         ),
         ("Required Workbook Sheets", ", ".join(str(x) for x in (contract.get("required_sheets") or [])) or "-"),
     ]
+    submission_summary = contract.get("submission_readiness_summary")
+    if isinstance(submission_summary, dict):
+        rows.extend(
+            [
+                ("Submission Completeness Score", submission_summary.get("completeness_score", "")),
+                ("Submission Readiness Status", submission_summary.get("readiness_status", "")),
+                ("Top Submission Gap", submission_summary.get("top_gap", "")),
+                (
+                    "Submission Package Counts",
+                    _format_contract_counts(submission_summary.get("submission_package_counts")),
+                ),
+                (
+                    "Attachment Manifest Counts",
+                    _format_contract_counts(submission_summary.get("attachment_manifest_counts")),
+                ),
+                (
+                    "Compliance Matrix Counts",
+                    _format_contract_counts(submission_summary.get("compliance_matrix_counts")),
+                ),
+            ]
+        )
     for row_idx, (field_name, value) in enumerate(rows, start=2):
         ws.append([field_name, value])
         ws.cell(row=row_idx, column=1).border = border
         ws.cell(row=row_idx, column=2).border = border
     _autosize_columns(ws)
+
+
+def _format_contract_counts(value: Any) -> str:
+    if not isinstance(value, dict):
+        return "-"
+    return (
+        f"ready={int(value.get('ready') or 0)}, "
+        f"partial={int(value.get('partial') or 0)}, "
+        f"pending={int(value.get('pending') or 0)}"
+    )
 
 
 def _apply_table_header(ws, headers: list[str]) -> Border:
@@ -1565,8 +1596,54 @@ def _add_evaluation_plan_sheet(
         )
         add_row("attachment_manifest", f"AM{idx}", title, description)
 
+    for idx, row in enumerate(toc_payload.get("evaluation_questions_matrix") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("evaluation_question") or f"Evaluation Question {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                f"Methods: {', '.join(str(item).strip() for item in (row.get('key_methods') or []) if str(item).strip())}".strip(),
+                f"Evidence: {', '.join(str(item).strip() for item in (row.get('evidence_sources') or []) if str(item).strip())}".strip(),
+                f"Reporting use: {str(row.get('reporting_use') or '').strip()}".strip(),
+            )
+            if part and part not in {"Methods:", "Evidence:", "Reporting use:"}
+        )
+        add_row("question_matrix", f"QM{idx}", title, description)
+
+    for idx, row in enumerate(toc_payload.get("methods_coverage_matrix") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("method") or f"Method Coverage {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                f"Covers: {', '.join(str(item).strip() for item in (row.get('covers_questions') or []) if str(item).strip())}".strip(),
+                f"Respondents: {str(row.get('respondent_group') or '').strip()}".strip(),
+                f"Expected output: {str(row.get('expected_output') or '').strip()}".strip(),
+            )
+            if part and part not in {"Covers:", "Respondents:", "Expected output:"}
+        )
+        add_row("method_coverage", f"MC{idx}", title, description)
+
     for idx, item in enumerate(toc_payload.get("annex_readiness") or [], start=1):
         add_row("annex", f"A{idx}", f"Annex Readiness {idx}", str(item))
+
+    for idx, row in enumerate(toc_payload.get("deliverables_schedule_table") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("deliverable") or f"Deliverable Schedule {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                f"Due: {str(row.get('due_window') or '').strip()}".strip(),
+                f"Owner: {str(row.get('owner') or '').strip()}".strip(),
+                f"Dependencies: {', '.join(str(item).strip() for item in (row.get('dependencies') or []) if str(item).strip())}".strip(),
+                f"Review gate: {str(row.get('review_gate') or '').strip()}".strip(),
+            )
+            if part and part not in {"Due:", "Owner:", "Dependencies:", "Review gate:"}
+        )
+        add_row("deliverable_schedule", f"DS{idx}", title, description)
 
     for idx, row in enumerate(toc_payload.get("compliance_matrix") or [], start=1):
         if not isinstance(row, dict):

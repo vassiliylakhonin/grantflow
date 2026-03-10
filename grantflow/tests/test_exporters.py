@@ -1253,6 +1253,22 @@ def test_exporters_support_evaluation_rfq_mode():
             "team_composition": [
                 {"role": "Team Lead", "responsibility": "Lead technical quality and client communication"}
             ],
+            "evaluation_questions_matrix": [
+                {
+                    "evaluation_question": "What changes can be substantiated through the evidence base?",
+                    "key_methods": ["Outcome Harvesting", "Document Review"],
+                    "evidence_sources": ["Outcome stories", "Validated project records"],
+                    "reporting_use": "Support findings and recommendations.",
+                }
+            ],
+            "methods_coverage_matrix": [
+                {
+                    "method": "Outcome Harvesting",
+                    "covers_questions": ["What changes can be substantiated through the evidence base?"],
+                    "respondent_group": "Stakeholders and implementation partners",
+                    "expected_output": "Validated outcome findings for the draft evaluation report",
+                }
+            ],
             "key_personnel": [
                 {
                     "name": "Proposed Team Lead",
@@ -1312,6 +1328,15 @@ def test_exporters_support_evaluation_rfq_mode():
                     "purpose": "Confirm evaluation matrix and work plan",
                 }
             ],
+            "deliverables_schedule_table": [
+                {
+                    "deliverable": "Draft Evaluation Report",
+                    "due_window": "Week 4",
+                    "owner": "Team Lead / Evaluation Specialist",
+                    "dependencies": ["Fieldwork complete", "Qualitative coding completed"],
+                    "review_gate": "Technical QA and client review",
+                }
+            ],
             "workplan_summary": ["Mobilize, validate design, and execute fieldwork."],
             "assumptions_risks": ["Stakeholder access remains available."],
             "annex_readiness": ["CVs", "Registration certificate", "Sample outputs", "LOE matrix"],
@@ -1362,9 +1387,20 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Required for: Organization information and legal-status package" in text
     assert "Proposed Level of Effort" in text
     assert "Technical Experience and Past Performance References" in text
+    assert "Evaluation Questions Matrix" in text
+    assert "What changes can be substantiated through the evidence base?" in text
+    assert "Methods: Outcome Harvesting, Document Review" in text
+    assert "Methods Coverage Matrix" in text
+    assert "Stakeholders and implementation partners" in text
     assert "Procurement Compliance Matrix" in text
     assert "Registration certificate and audited financials" in text
     assert "Workplan & Deliverables" in text
+    assert "Deliverables Schedule Table" in text
+    assert "Draft Evaluation Report (Week 4)" in text
+    assert "Review gate: Technical QA and client review" in text
+    assert "Submission completeness score:" in text
+    assert "Submission readiness status:" in text
+    assert "Top submission gap:" in text
 
     wb = load_workbook(BytesIO(build_xlsx_from_logframe(logframe_draft, "un_agencies", toc_draft=toc_draft)))
     assert "Evaluation_Plan" in wb.sheetnames
@@ -1386,10 +1422,23 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Status: ready" in rendered
     assert "Registration certificate" in rendered
     assert "Required for: Organization information and legal-status package" in rendered
+    assert "What changes can be substantiated through the evidence base?" in rendered
+    assert "Support findings and recommendations." in rendered
+    assert "Outcome Harvesting" in rendered
+    assert "Stakeholders and implementation partners" in rendered
     assert "Proposed Level of Effort" in rendered
     assert "Technical Experience and Past Performance References" in rendered
+    assert "Draft Evaluation Report" in rendered
+    assert "Technical QA and client review" in rendered
     assert "Organization information and legal status package" in rendered
     assert "Registration certificate and audited financials" in rendered
+    export_contract_rows = list(wb["Export Contract"].iter_rows(values_only=True))
+    export_contract_rendered = "\n".join(
+        " | ".join("" if cell is None else str(cell) for cell in row) for row in export_contract_rows
+    )
+    assert "Submission Completeness Score" in export_contract_rendered
+    assert "Submission Readiness Status" in export_contract_rendered
+    assert "Top Submission Gap" in export_contract_rendered
     contract = evaluate_export_contract(
         donor_id="un_agencies",
         toc_payload=toc_draft,
@@ -1398,3 +1447,6 @@ def test_exporters_support_evaluation_rfq_mode():
     )
     assert contract["template_key"] == "evaluation_rfq"
     assert contract["status"] == "pass"
+    submission_summary = contract.get("submission_readiness_summary") or {}
+    assert submission_summary.get("completeness_score", 0) > 0
+    assert submission_summary.get("readiness_status") == "ready"

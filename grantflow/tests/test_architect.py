@@ -1030,3 +1030,22 @@ def test_fallback_structured_toc_supports_katch_evaluation_rfq_profile():
     assert payload["attachment_manifest"][0]["attachment"]
     assert payload["attachment_manifest"][0]["required_for"]
     assert payload["attachment_manifest"][0]["owner"]
+    assert isinstance(payload.get("evaluation_questions_matrix"), list)
+    assert len(payload["evaluation_questions_matrix"]) >= 2
+    assert payload["evaluation_questions_matrix"][0]["evaluation_question"]
+    assert payload["evaluation_questions_matrix"][0]["key_methods"]
+    assert payload["evaluation_questions_matrix"][0]["evidence_sources"]
+    assert payload["evaluation_questions_matrix"][0]["reporting_use"]
+    assert isinstance(payload.get("methods_coverage_matrix"), list)
+    assert len(payload["methods_coverage_matrix"]) >= 3
+    assert payload["methods_coverage_matrix"][0]["method"]
+    assert payload["methods_coverage_matrix"][0]["covers_questions"]
+    assert payload["methods_coverage_matrix"][0]["respondent_group"]
+    assert payload["methods_coverage_matrix"][0]["expected_output"]
+    assert isinstance(payload.get("deliverables_schedule_table"), list)
+    assert len(payload["deliverables_schedule_table"]) >= 3
+    assert payload["deliverables_schedule_table"][0]["deliverable"]
+    assert payload["deliverables_schedule_table"][0]["due_window"]
+    assert payload["deliverables_schedule_table"][0]["owner"]
+    assert payload["deliverables_schedule_table"][0]["dependencies"]
+    assert payload["deliverables_schedule_table"][0]["review_gate"]
