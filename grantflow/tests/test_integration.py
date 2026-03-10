@@ -6,6 +6,7 @@ import io
 import json
 import time
 import zipfile
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14174,6 +14175,86 @@ def test_export_both_zip_includes_evaluation_rfq_annex_packer_artifacts():
         package_structure = json.loads(archive.read("submission_package/package_structure.json").decode("utf-8"))
         assert package_structure["proposal_mode"] == "evaluation_rfq"
         assert "submission_package/01_technical_proposal_narrative/README.md" in package_structure["folders"]
+
+
+def test_export_both_zip_stages_real_evaluation_rfq_annex_files(tmp_path: Path):
+    registration = tmp_path / "registration_certificate.pdf"
+    registration.write_bytes(b"%PDF-1.4\nreal annex content\n")
+
+    toc_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "rfq_profile": "katch_final_assessment",
+        "toc": {
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+            "brief": "Final assessment technical response",
+            "organization_information": ["Registered NGO with M&E and field delivery capacity."],
+            "evaluation_purpose": ["Assess performance, outcomes, and learning questions."],
+            "technical_approach_summary": ["Mixed-method final assessment with field verification."],
+            "submission_package_checklist": [
+                {
+                    "artifact": "Technical proposal narrative",
+                    "owner": "Proposal manager",
+                    "status": "ready",
+                    "notes": "Final reviewer-ready narrative package",
+                }
+            ],
+            "attachment_manifest": [
+                {
+                    "attachment": "Registration certificate",
+                    "required_for": "Organization information and legal-status package",
+                    "owner": "Operations / compliance",
+                    "status": "ready",
+                    "source_path": str(registration),
+                    "notes": "Attach current registration evidence in PDF format.",
+                }
+            ],
+            "compliance_matrix": [
+                {
+                    "requirement": "Organization information and legal status package",
+                    "response_section": "Organization Information",
+                    "evidence": "Registration certificate and audited financials",
+                    "status": "ready",
+                    "notes": "Attached in annex package",
+                }
+            ],
+        },
+    }
+    logframe_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "indicators": [
+            {
+                "indicator_id": "IND_001",
+                "name": "Deliverable milestone: Inception Report",
+                "result_level": "output",
+                "baseline": "0 deliverables",
+                "target": "1 deliverable",
+                "frequency": "bi-weekly",
+                "formula": "Count of required deliverables completed and accepted against the agreed evaluation work plan",
+                "definition": "Tracks whether the inception package is completed with reviewer-ready documentation.",
+                "justification": "Maps the deliverable schedule into an evaluation RFQ management indicator.",
+                "means_of_verification": "Accepted deliverable package and QA checklist",
+                "owner": "Evaluation team lead and operations coordinator",
+            }
+        ],
+    }
+    export = client.post(
+        "/export",
+        json={
+            "donor_id": "un_agencies",
+            "toc_draft": toc_draft,
+            "logframe_draft": logframe_draft,
+            "format": "both",
+        },
+    )
+    assert export.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(export.content)) as archive:
+        names = set(archive.namelist())
+        staged_path = "submission_package/99_attachment_manifest/files/01_registration_certificate.pdf"
+        assert staged_path in names
+        assert archive.read(staged_path) == b"%PDF-1.4\nreal annex content\n"
+        placeholder = archive.read("submission_package/99_attachment_manifest/01_registration_certificate.md").decode("utf-8")
+        assert f"- Source path: `{registration}`" in placeholder
 
 
 def test_export_both_zip_includes_katch_submission_kit_files():

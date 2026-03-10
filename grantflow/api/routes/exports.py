@@ -4,6 +4,7 @@ import io
 import json
 import re
 import zipfile
+from pathlib import Path
 from typing import Optional
 
 from fastapi import HTTPException, Query, Request
@@ -92,6 +93,21 @@ from grantflow.core.evaluation_rfq import KATCH_EVALUATION_RFQ_PROFILE
 def _annex_slug(value: object, *, fallback: str) -> str:
     token = re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
     return token or fallback
+
+
+def _attachment_source_path(row: dict) -> str:
+    for key in ("source_path", "staged_file_path", "local_path", "file_path", "attachment_path"):
+        value = row.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _safe_attachment_export_name(*, index: int, attachment: str, source_path: str) -> str:
+    source = Path(source_path)
+    suffix = source.suffix if source.suffix else ""
+    stem = _annex_slug(attachment or source.stem, fallback=f"attachment_{index}")
+    return f"{index:02d}_{stem}{suffix}"
 
 
 def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, export_contract: dict) -> dict[str, bytes]:
@@ -208,7 +224,9 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
         owner = str(row.get("owner") or "-").strip()
         status = str(row.get("status") or "-").strip()
         notes = str(row.get("notes") or "").strip()
+        source_path = _attachment_source_path(row)
         file_path = f"{annex_folder}/{idx:02d}_{_annex_slug(attachment, fallback=f'attachment_{idx}')}.md"
+        source_display = source_path or "-"
         artifacts[file_path] = (
             "\n".join(
                 [
@@ -217,13 +235,27 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
                     f"- Required for: `{required_for}`",
                     f"- Owner: `{owner}`",
                     f"- Status: `{status}`",
+                    f"- Source path: `{source_display}`",
                     f"- Notes: `{notes or '-'}`",
                     "",
-                    "Attach or replace this placeholder with the final annex file.",
+                    "Attach or replace this placeholder with the final annex file if a live source path is not provided.",
                     "",
                 ]
             ).encode("utf-8")
         )
+        if source_path:
+            try:
+                source = Path(source_path).expanduser().resolve(strict=True)
+            except (FileNotFoundError, OSError):
+                continue
+            if not source.is_file():
+                continue
+            export_name = _safe_attachment_export_name(index=idx, attachment=attachment, source_path=str(source))
+            binary_path = f"{annex_folder}/files/{export_name}"
+            try:
+                artifacts[binary_path] = source.read_bytes()
+            except OSError:
+                continue
     artifacts["submission_package/README.md"] = ("\n".join(package_lines) + "\n").encode("utf-8")
     artifacts["submission_package/package_structure.json"] = (
         json.dumps(
