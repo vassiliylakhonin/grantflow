@@ -9,11 +9,11 @@ Goal:
 - leave the meeting with a named pilot owner, operator, reviewer, approver, ingest admin, pilot scope, and first success criteria
 
 Related documents:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-day1-checklist.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-worksheet.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-example.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-evaluation-checklist.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/role-based-demo-script.md`
+- `docs/pilot-day1-checklist.md`
+- `docs/pilot-role-mapping-worksheet.md`
+- `docs/pilot-role-mapping-example.md`
+- `docs/pilot-evaluation-checklist.md`
+- `docs/role-based-demo-script.md`
 
 ## Who Should Attend
 
@@ -32,12 +32,12 @@ Do not run kickoff with only technical staff. The pilot will drift without workf
 ## Pre-Read To Send Before The Meeting
 
 Send these in advance:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/buyer-one-pager.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-user-roles.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-example.md`
+- `docs/buyer-one-pager.md`
+- `docs/pilot-user-roles.md`
+- `docs/pilot-role-mapping-example.md`
 
 If the customer is security-sensitive, also send:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-layer.md`
+- `docs/enterprise-access-layer.md`
 
 ## Agenda
 
@@ -60,7 +60,7 @@ Time:
 - `10 minutes`
 
 Open:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-worksheet.md`
+- `docs/pilot-role-mapping-worksheet.md`
 
 Decide:
 - who is pilot owner
@@ -96,8 +96,8 @@ Time:
 - `5 minutes`
 
 Open:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-day1-checklist.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-layer.md`
+- `docs/pilot-day1-checklist.md`
+- `docs/enterprise-access-layer.md`
 
 Decide:
 - where the stack will run
@@ -113,7 +113,7 @@ Time:
 - `10 minutes`
 
 Open:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-evaluation-checklist.md`
+- `docs/pilot-evaluation-checklist.md`
 
 Decide:
 - what counts as a successful pilot
@@ -159,9 +159,9 @@ Decide:
 Keep the live walkthrough short.
 
 Recommended artifacts:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/executive-pack-6d-buyer/README.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/pilot-evidence-pack-6d-buyer/README.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/pilot-pack-6d-buyer/buyer-brief.md`
+- `build/executive-pack-6d-buyer/README.md`
+- `build/pilot-evidence-pack-6d-buyer/README.md`
+- `build/pilot-pack-6d-buyer/buyer-brief.md`
 
 If the customer wants process detail:
 - open `/demo`

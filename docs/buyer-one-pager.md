@@ -35,7 +35,7 @@ GrantFlow addresses this by making drafting and review a controlled system with 
   - `GET /status/{job_id}/export-payload` + `POST /export`
   - outputs: `.docx`, `.xlsx`, or ZIP
 - Demo and sample artifacts:
-  - Demo Console: `GET /demo`
+  - Reviewer Console: `GET /demo`
   - sample exports in `docs/samples/`
   - pilot pack snapshots in `docs/pilot_runs/2026-02-27/`
 

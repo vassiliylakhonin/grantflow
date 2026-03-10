@@ -28,7 +28,7 @@ uvicorn grantflow.api.app:app --reload
 ```
 
 Optional:
-- open Demo Console at `http://127.0.0.1:8000/demo`
+- open Reviewer Console at `http://127.0.0.1:8000/demo`
 
 Opinionated first shared pilot deployment:
 
@@ -116,7 +116,7 @@ If `measured-baseline.csv` exists in the pilot pack, `pilot-metrics` merges it a
 Save the completed worksheet as `measured-baseline.csv` and then rerun `make pilot-metrics` to produce measured deltas.
 `make benchmark-baseline` writes an illustrative benchmark baseline overlay for demo-only evidence bundles.
 `make benchmark-baseline-refresh` rebuilds pilot metrics first, then writes that illustrative overlay.
-The overlay prefers curated assumptions from `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot_benchmark_assumptions.json` and uses conservative formula fallback for any case not listed there.
+The overlay prefers curated assumptions from `docs/pilot_benchmark_assumptions.json` and uses conservative formula fallback for any case not listed there.
 Measured baseline always takes precedence over benchmark baseline in `pilot-metrics`, `pilot-scorecard`, and `pilot-evidence-pack`.
 `make clean-demo-artifacts-dry-run` lists generated bundles slated for cleanup.
 `make clean-demo-artifacts` removes generated bundles and leaves unrelated files alone.
@@ -212,7 +212,7 @@ curl -s http://127.0.0.1:8000/status/<JOB_ID>/review/workflow
 In `/review/workflow`, use:
 - `summary.reviewer_workflow_summary` for open vs acknowledged vs resolved review load
 - `summary.action_queue_summary` for the next operational move (`ack_finding`, `resolve_finding`, `ack_comment`, `resolve_comment`, `reopen_comment`)
-- Demo Console shows the same queue in the Review Workflow card, so operators can triage without reading raw JSON.
+- Reviewer Console shows the same queue in the Review Workflow card, so operators can triage without reading raw JSON.
 
 ### Step D: show traceability
 
@@ -228,8 +228,8 @@ Comment mutations:
 - `POST /status/{job_id}/comments/{comment_id}/resolve`
 - `POST /status/{job_id}/comments/{comment_id}/reopen`
 - `POST /status/{job_id}/comments/bulk-status`
-- In Demo Console, reviewers can batch on `filtered`, `selected ids`, or `all` for both findings and comments.
-- In Demo Console, reviewers can also preview bulk changes with `dry_run=true`, copy selected IDs, and fill selected IDs from the current workflow view.
+- In Reviewer Console, reviewers can batch on `filtered`, `selected ids`, or `all` for both findings and comments.
+- In Reviewer Console, reviewers can also preview bulk changes with `dry_run=true`, copy selected IDs, and fill selected IDs from the current workflow view.
 
 Optional review mutations:
 
@@ -295,7 +295,7 @@ curl -s http://127.0.0.1:8000/status/<JOB_ID>/hitl/history
 ### Minute 1-2: generate
 
 - Trigger `POST /generate/from-preset`.
-- Show returned `job_id` and status progression in `/status/{job_id}` or Demo Console.
+- Show returned `job_id` and status progression in `/status/{job_id}` or Reviewer Console.
 
 ### Minute 2-3: quality and review traces
 

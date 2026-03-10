@@ -3,7 +3,7 @@
 Use this only after you have a pilot proof artifact you can point to.
 
 Current proof anchor in this repo:
-- `docs/pilot-customers/kazakhstan-ngo-external-proof-summary.md`
+- `docs/proof-summary.md`
 
 ## 1. Short Email Version
 
@@ -60,7 +60,7 @@ Best,
 
 Default send set:
 - `docs/buyer-one-pager.md`
-- `docs/pilot-customers/kazakhstan-ngo-external-proof-summary.md`
+- `docs/proof-summary.md`
 
 Optional if the conversation becomes serious:
 - `build/release-demo-bundle-6d-buyer/grantflow-demo-bundle-6d-buyer.zip`

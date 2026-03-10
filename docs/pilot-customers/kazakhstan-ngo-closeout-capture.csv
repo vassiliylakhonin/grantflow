@@ -1,4 +1,0 @@
-case_id,donor_track,final_package_ready_at,time_to_first_reviewable_draft_hours,time_to_final_package_hours,review_loops,active_reviewers,major_mel_rewrites_after_r2,duplicate_conflicting_comments,final_decision,closeout_notes
-CASE-UN-01,un_agencies,2026-03-21T16:30:00+05:00,32,101,3,6,1,2,continue,"Strong closeout path; KPI evidence is clear and donor workflow can be used as external proof."
-CASE-EU-01,eu,2026-03-24T19:00:00+05:00,42,141,4,8,1,4,continue,"Operationally strong closeout; first-draft KPI hit and review burden reduced."
-CASE-USAID-01,usaid,2026-03-27T21:30:00+05:00,52,171,5,9,2,6,continue_with_conditions,"Reached final package faster than baseline, but coordination burden remains higher than UN/EU."

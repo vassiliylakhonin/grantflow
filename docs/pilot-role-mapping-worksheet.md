@@ -2,7 +2,7 @@
 
 Use this worksheet before a bounded GrantFlow pilot to map customer-side people to the operating roles the current product expects.
 
-This is not in-app RBAC. It is a pilot planning aid that should line up with the gateway/policy model in `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-layer.md`.
+This is not in-app RBAC. It is a pilot planning aid that should line up with the gateway/policy model in `docs/enterprise-access-layer.md`.
 
 ## Goal
 
@@ -166,7 +166,7 @@ Expand only after the workflow is stable.
 ## Output To Keep
 
 Save the completed worksheet alongside pilot docs, for example:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/pilot-pack/customer-role-mapping.md`
+- `build/pilot-pack/customer-role-mapping.md`
 - or in the customer's internal pilot folder
 
 This becomes the reference when access, ownership, or queue responsibility gets confused.

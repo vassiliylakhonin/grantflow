@@ -4,8 +4,8 @@ This is a compact live verification summary for MEL-stage grounding in the Docke
 
 Verified on `March 9, 2026` from:
 
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/pilot-pack/live-runs`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/live-architect-signals-gsu-rerun`
+- `build/pilot-pack/live-runs`
+- `build/live-architect-signals-gsu-rerun`
 
 | Donor | Case | Namespace | Retrieval Hits | Grounded Citations | Grounded Rate | Fallback Citations |
 | --- | --- | --- | ---: | ---: | ---: | ---: |
@@ -18,8 +18,8 @@ Verified on `March 9, 2026` from:
 
 ## Evidence Path
 
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/pilot-pack/live-runs`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/live-architect-signals-gsu-rerun`
+- `build/pilot-pack/live-runs`
+- `build/live-architect-signals-gsu-rerun`
 
 ## Reproduce
 

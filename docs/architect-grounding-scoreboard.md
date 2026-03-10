@@ -15,8 +15,8 @@ Verified on `March 9, 2026` against live namespaces after reseeding Chroma.
 
 ## Evidence Paths
 
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/live-architect-signals-check-nohitl`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/live-architect-signals-gsu-rerun`
+- `build/live-architect-signals-check-nohitl`
+- `build/live-architect-signals-gsu-rerun`
 
 ## Reproduce
 

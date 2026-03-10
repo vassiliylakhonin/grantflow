@@ -5,8 +5,8 @@ This is a filled starter example for a bounded GrantFlow pilot inside a large im
 Use it as a kickoff reference, then replace titles and names with the actual customer team.
 
 Related:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-worksheet.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-layer.md`
+- `docs/pilot-role-mapping-worksheet.md`
+- `docs/enterprise-access-layer.md`
 
 ## Example Team Shape
 

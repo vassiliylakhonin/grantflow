@@ -38,8 +38,8 @@ If you want tenant gating for the pilot, also fill:
 - `GRANTFLOW_DEFAULT_TENANT=tenant_a`
 
 Before anyone logs in or hits the API, fill:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-worksheet.md`
-- optionally start from `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-example.md`
+- `docs/pilot-role-mapping-worksheet.md`
+- optionally start from `docs/pilot-role-mapping-example.md`
 
 That prevents ambiguity around:
 - who runs drafts

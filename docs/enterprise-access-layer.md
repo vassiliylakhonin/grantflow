@@ -163,8 +163,10 @@ Those remain future product work, not required to run a credible pilot.
 ## Concrete Implementation Layer
 
 Use these companion docs when moving from the conceptual access model to an actual enterprise-facing deployment:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/gateway-policy-example.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-checklist.md`
+- `docs/gateway-policy-example.md`
+- `docs/enterprise-access-checklist.md`
+- `docs/reference-topology.md`
+- `docs/identity-rbac-roadmap.md`
 
 These documents stay within current product reality:
 - API-key auth remains in-app

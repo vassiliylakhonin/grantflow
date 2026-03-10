@@ -3,8 +3,8 @@
 This document shows a concrete, bounded way to front GrantFlow with enterprise access controls without changing the core application model.
 
 Use this with:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-layer.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-role-mapping-worksheet.md`
+- `docs/enterprise-access-layer.md`
+- `docs/pilot-role-mapping-worksheet.md`
 
 ## Target Posture
 

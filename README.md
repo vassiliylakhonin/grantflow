@@ -8,58 +8,37 @@ Proposal operations platform for high-stakes donor workflows. GrantFlow is a com
 
 ## Start Here
 
-- Local dev (fastest path):
-  1. `pip install ".[dev]"`
-  2. `uvicorn grantflow.api.app:app --reload`
-  3. `curl -s http://127.0.0.1:8000/health && curl -s http://127.0.0.1:8000/ready`
-- Recommended production path:
-  - API in `redis_queue` dispatcher mode + dedicated `grantflow.worker` process
-  - Redis queue enabled
-  - persistent stores (`GRANTFLOW_JOB_STORE=sqlite`, `GRANTFLOW_HITL_STORE=sqlite`, `GRANTFLOW_INGEST_STORE=sqlite`)
-  - API key auth enabled (`GRANTFLOW_API_KEY`)
-- Operator docs:
-  - `docs/operations-runbook.md`
-  - `docs/demo-runbook.md`
-  - `docs/pilot-day1-checklist.md`
-  - `docs/pilot-role-mapping-worksheet.md`
-  - `docs/pilot-role-mapping-example.md`
-  - `docs/pilot-kickoff-agenda.md`
-  - `docs/pilot-customers/kazakhstan-ngo-discovery.md`
-  - `docs/pilot-customers/kazakhstan-ngo-kickoff-record.md`
-  - `docs/pilot-customers/kazakhstan-ngo-role-mapping.md`
-  - `docs/pilot-customers/kazakhstan-ngo-recommended-plan.md`
-  - `docs/pilot-customers/kazakhstan-ngo-pilot-contract.md`
-  - `docs/pilot-customers/kazakhstan-ngo-pilot-contract.json`
-  - `docs/pilot-customers/kazakhstan-ngo-live-launch-memo.md`
-  - `docs/pilot-customers/kazakhstan-ngo-r1-checkpoint-template.md`
-  - `docs/pilot-customers/kazakhstan-ngo-r1-checkpoint.json`
-  - `docs/pilot-customers/kazakhstan-ngo-r1-capture.csv`
-  - `docs/pilot-customers/kazakhstan-ngo-r1-operator-checklist.md`
-  - `docs/pilot-customers/kazakhstan-ngo-r1-outcome-memo.md`
-  - `docs/pilot-customers/kazakhstan-ngo-usaid-r2-corrective-action-plan.md`
-  - `docs/pilot-customers/kazakhstan-ngo-r2-checkpoint.json`
-  - `docs/pilot-customers/kazakhstan-ngo-r2-outcome-memo.md`
-  - `docs/pilot-customers/kazakhstan-ngo-external-proof-summary.md`
-  - `docs/pilot-proof-outreach-template.md`
-  - `docs/pilot-customers/katch-evaluation-rfq-run-sheet.md`
-  - `docs/pilot-customers/kazakhstan-ngo-closeout-capture.csv`
-  - `docs/pilot-customers/kazakhstan-ngo-closeout-checkpoint.json`
-  - `docs/pilot-customers/kazakhstan-ngo-closeout-memo-template.md`
-  - `docs/pilot-customers/kazakhstan-ngo-execution-checklist.md`
-  - `docs/pilot-customers/kazakhstan-ngo-measured-baseline.csv`
-  - `docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
-  - `docs/pilot-customers/kazakhstan-ngo-follow-up-email.md`
-  - `docs/enterprise-access-layer.md`
-  - `docs/gateway-policy-example.md`
-  - `docs/enterprise-access-checklist.md`
-  - `docs/enterprise-quickstart.md`
-  - `docs/troubleshooting.md`
-  - `docs/architecture.md`
-  - `docs/contributor-map.md`
-  - `docs/buyer-one-pager.md`
-  - `docs/pilot-user-roles.md`
-  - `docs/role-based-demo-script.md`
-  - `SECURITY.md`
+Three public front-door artifacts:
+- `docs/buyer-one-pager.md`
+- `docs/five-minute-demo.md`
+- `docs/production-boundaries.md`
+
+Fastest local path:
+1. `pip install ".[dev]"`
+2. `uvicorn grantflow.api.app:app --reload`
+3. `curl -s http://127.0.0.1:8000/health && curl -s http://127.0.0.1:8000/ready`
+
+Recommended bounded production path:
+- API in `redis_queue` dispatcher mode + dedicated `grantflow.worker` process
+- Redis queue enabled
+- persistent stores (`GRANTFLOW_JOB_STORE=sqlite`, `GRANTFLOW_HITL_STORE=sqlite`, `GRANTFLOW_INGEST_STORE=sqlite`)
+- API key auth enabled (`GRANTFLOW_API_KEY`)
+
+Public operator and trust docs:
+- `docs/demo-runbook.md`
+- `docs/operations-runbook.md`
+- `docs/enterprise-quickstart.md`
+- `docs/reference-topology.md`
+- `docs/enterprise-access-layer.md`
+- `docs/gateway-policy-example.md`
+- `docs/enterprise-access-checklist.md`
+- `docs/identity-rbac-roadmap.md`
+- `docs/audit-story.md`
+- `docs/contributor-map.md`
+- `docs/architecture.md`
+- `SECURITY.md`
+
+Customer-specific pilot materials are intentionally kept out of this public repository.
 
 ## What It Is
 
@@ -225,15 +204,15 @@ Example preset:
 
 Use this path for pilot conversations and technical evaluation:
 
-1. Start API (`uvicorn grantflow.api.app:app --reload`) and open `GET /demo`.
-2. Generate from an existing preset (`POST /generate/from-preset` or Demo Console preset selector).
+1. Start API (`uvicorn grantflow.api.app:app --reload`) and open `GET /demo` (Reviewer Console).
+2. Generate from an existing preset (`POST /generate/from-preset` or Reviewer Console preset selector).
 3. Inspect draft status and quality signals:
    - `GET /status/{job_id}`
    - `GET /status/{job_id}/quality`
    - `GET /status/{job_id}/critic`
    - `GET /status/{job_id}/review/workflow`
    - use `summary.reviewer_workflow_summary` and `summary.action_queue_summary` for live ack/resolve queues
-   - Demo Console renders the same queue as `Next primary action` plus finding/comment ack-resolve-reopen counters
+  - Reviewer Console renders the same queue as `Next primary action` plus finding/comment ack-resolve-reopen counters
 4. Show review traceability:
    - `GET /status/{job_id}/citations`
    - `GET /status/{job_id}/versions`
@@ -735,13 +714,13 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
 - `GET /health`, `GET /ready`, `GET /donors`
 - `GET /generate/presets`
   - unified generate preset catalog (`legacy` + `rbm`) with ready-to-send `generate_payload`
-  - Demo Console generate preset loading uses this endpoint (or bundled `/demo/presets` when available)
+  - Reviewer Console generate preset loading uses this endpoint (or bundled `/demo/presets` when available)
 - `GET /generate/presets/{preset_key}`
   - unified generate preset detail with optional runtime overrides: `llm_mode`, `hitl_enabled`, `architect_rag_enabled`, `strict_preflight`
 - `GET /ingest/presets`, `GET /ingest/presets/{preset_key}`
-  - Demo Console loads ingest preset metadata/checklists from these endpoints at runtime
+  - Reviewer Console loads ingest preset metadata/checklists from these endpoints at runtime
 - `GET /demo/presets`
-  - bundled payload for Demo Console (`generate_presets` + `ingest_presets`) to reduce startup round-trips
+  - bundled payload for Reviewer Console (`generate_presets` + `ingest_presets`) to reduce startup round-trips
 - `POST /generate/preflight`, `POST /generate`, `POST /generate/from-preset`, `POST /generate/from-preset/batch`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
   - `tenant_id` supported on `generate/preflight`, `generate`, and `generate/from-preset`
   - `generate/from-preset` supports `preset_type=auto|legacy|rbm`, optional runtime overrides, and `input_context_patch`
@@ -760,8 +739,8 @@ If runtime grounded gate export pass policy is enabled (`GRANTFLOW_EXPORT_REQUIR
   - `POST /status/{job_id}/critic/findings/bulk-status`
   - `POST /status/{job_id}/comments/{comment_id}/ack|resolve|reopen`
   - `POST /status/{job_id}/comments/bulk-status`
-  - Demo Console bulk actions support `filtered`, `selected ids`, and `all` scopes for findings/comments
-  - Demo Console also supports `dry_run=true` preview, `Copy Selected IDs`, and `Fill From Workflow View` before applying finding/comment bulk mutations
+  - Reviewer Console bulk actions support `filtered`, `selected ids`, and `all` scopes for findings/comments
+  - Reviewer Console also supports `dry_run=true` preview, `Copy Selected IDs`, and `Fill From Workflow View` before applying finding/comment bulk mutations
   - `GET /status/{job_id}/events/export` supports `format=csv|json`, `gzip=true|false`
   - `GET /status/{job_id}/hitl/history/export` supports `event_type`, `checkpoint_id`, `format=csv|json`, `gzip=true|false`
   - `GET /status/{job_id}/comments/export` supports `section`, `status`, `version_id`, `format=csv|json`, `gzip=true|false`

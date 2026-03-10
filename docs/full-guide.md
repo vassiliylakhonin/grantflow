@@ -2,6 +2,8 @@
 
 Quick companion docs:
 - buyer-facing summary: `docs/buyer-one-pager.md`
+- five-minute demo path: `docs/five-minute-demo.md`
+- production boundaries: `docs/production-boundaries.md`
 - demo operator flow and founder script: `docs/demo-runbook.md`
 - productization readiness memo: `docs/productization-gaps-memo.md`
 - pilot evaluation template: `docs/pilot-evaluation-checklist.md`
@@ -9,35 +11,16 @@ Quick companion docs:
 - pilot role mapping worksheet: `docs/pilot-role-mapping-worksheet.md`
 - pilot role mapping example: `docs/pilot-role-mapping-example.md`
 - pilot kickoff agenda: `docs/pilot-kickoff-agenda.md`
-- customer discovery example: `docs/pilot-customers/kazakhstan-ngo-discovery.md`
-- customer kickoff record example: `docs/pilot-customers/kazakhstan-ngo-kickoff-record.md`
-- customer role mapping example: `docs/pilot-customers/kazakhstan-ngo-role-mapping.md`
-- customer pilot plan example: `docs/pilot-customers/kazakhstan-ngo-recommended-plan.md`
-- customer pilot contract example: `docs/pilot-customers/kazakhstan-ngo-pilot-contract.md`
-- customer pilot contract json: `docs/pilot-customers/kazakhstan-ngo-pilot-contract.json`
-- customer live launch memo: `docs/pilot-customers/kazakhstan-ngo-live-launch-memo.md`
-- customer R1 checkpoint template: `docs/pilot-customers/kazakhstan-ngo-r1-checkpoint-template.md`
-- customer R1 checkpoint json: `docs/pilot-customers/kazakhstan-ngo-r1-checkpoint.json`
-- customer R1 capture csv: `docs/pilot-customers/kazakhstan-ngo-r1-capture.csv`
-- customer R1 operator checklist: `docs/pilot-customers/kazakhstan-ngo-r1-operator-checklist.md`
-- customer R1 outcome memo: `docs/pilot-customers/kazakhstan-ngo-r1-outcome-memo.md`
-- customer USAID R2 corrective action plan: `docs/pilot-customers/kazakhstan-ngo-usaid-r2-corrective-action-plan.md`
-- customer R2 checkpoint json: `docs/pilot-customers/kazakhstan-ngo-r2-checkpoint.json`
-- customer R2 outcome memo: `docs/pilot-customers/kazakhstan-ngo-r2-outcome-memo.md`
-- customer external proof summary: `docs/pilot-customers/kazakhstan-ngo-external-proof-summary.md`
+- public proof summary: `docs/proof-summary.md`
 - pilot proof outreach template: `docs/pilot-proof-outreach-template.md`
-- KATCH RFQ run sheet: `docs/pilot-customers/katch-evaluation-rfq-run-sheet.md`
-- customer closeout capture csv: `docs/pilot-customers/kazakhstan-ngo-closeout-capture.csv`
-- customer closeout checkpoint json: `docs/pilot-customers/kazakhstan-ngo-closeout-checkpoint.json`
-- customer closeout memo template: `docs/pilot-customers/kazakhstan-ngo-closeout-memo-template.md`
-- customer execution checklist example: `docs/pilot-customers/kazakhstan-ngo-execution-checklist.md`
-- customer measured baseline sheet example: `docs/pilot-customers/kazakhstan-ngo-measured-baseline.csv`
-- customer donor corpus plan example: `docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
-- customer follow-up email example: `docs/pilot-customers/kazakhstan-ngo-follow-up-email.md`
 - enterprise access pattern: `docs/enterprise-access-layer.md`
 - gateway policy example: `docs/gateway-policy-example.md`
 - enterprise access checklist: `docs/enterprise-access-checklist.md`
 - enterprise-style quickstart: `docs/enterprise-quickstart.md`
+- reference topology: `docs/reference-topology.md`
+- identity and RBAC roadmap: `docs/identity-rbac-roadmap.md`
+
+Customer-specific playbooks are intentionally kept outside this public repository.
 
 ## 1) Product Scope
 

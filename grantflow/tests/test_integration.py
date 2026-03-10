@@ -391,7 +391,7 @@ def test_demo_console_page_loads():
     assert response.status_code == 200
     assert "text/html" in response.headers["content-type"]
     body = response.text
-    assert "GrantFlow Demo Console" in body
+    assert "GrantFlow Reviewer Console" in body
     assert "generatePresetSelect" in body
     assert "applyPresetBtn" in body
     assert "clearPresetContextBtn" in body

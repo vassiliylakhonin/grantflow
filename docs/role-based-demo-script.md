@@ -75,8 +75,8 @@ Show:
 - structured objectives / outcomes in exported files
 
 Reference:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/pilot-pack-6d-buyer/buyer-brief.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/executive-pack-6d-buyer/README.md`
+- `build/pilot-pack-6d-buyer/buyer-brief.md`
+- `build/executive-pack-6d-buyer/README.md`
 
 Emphasize:
 - structured first draft
@@ -108,7 +108,7 @@ Say:
 Show:
 - `/status/{job_id}/critic`
 - `/status/{job_id}/review/workflow`
-- Demo Console `Suggested Ops Actions`
+- Reviewer Console `Suggested Ops Actions`
 
 Emphasize:
 - findings as entities

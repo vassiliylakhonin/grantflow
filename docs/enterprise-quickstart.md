@@ -2,7 +2,7 @@
 
 This is the shortest credible path to run GrantFlow in an enterprise-style evaluation posture without changing the core application model.
 
-It uses the existing opinionated stack in `/Users/vassiliylakhonin/Documents/aidgraph-prod/docker-compose.pilot.yml` with a separate env file for enterprise-facing evaluation.
+It uses the existing opinionated stack in `docker-compose.pilot.yml` with a separate env file for enterprise-facing evaluation.
 
 ## What This Path Assumes
 
@@ -12,17 +12,18 @@ It uses the existing opinionated stack in `/Users/vassiliylakhonin/Documents/aid
 - Redis and Chroma stay private
 
 Read with:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-layer.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/gateway-policy-example.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-checklist.md`
+- `docs/enterprise-access-layer.md`
+- `docs/gateway-policy-example.md`
+- `docs/enterprise-access-checklist.md`
+- `docs/reference-topology.md`
 
 ## 1. Create The Eval Config
 
 ```bash
-cp /Users/vassiliylakhonin/Documents/aidgraph-prod/.env.enterprise.example /Users/vassiliylakhonin/Documents/aidgraph-prod/.env.enterprise
+cp .env.enterprise.example .env.enterprise
 ```
 
-Minimum required edits in `/Users/vassiliylakhonin/Documents/aidgraph-prod/.env.enterprise`:
+Minimum required edits in `.env.enterprise`:
 - `GRANTFLOW_API_KEY`
 - `OPENAI_API_KEY`
 
@@ -34,7 +35,7 @@ Optional:
 ## 2. Start The Stack
 
 ```bash
-make -C /Users/vassiliylakhonin/Documents/aidgraph-prod enterprise-eval-up
+make enterprise-eval-up
 ```
 
 This starts:
@@ -46,7 +47,7 @@ This starts:
 ## 3. Check Readiness
 
 ```bash
-make -C /Users/vassiliylakhonin/Documents/aidgraph-prod enterprise-eval-check
+make enterprise-eval-check
 ```
 
 Expected result:
@@ -54,13 +55,13 @@ Expected result:
 - `/ready` returns OK without critical startup-policy failures
 
 If it fails:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/operations-runbook.md`
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/troubleshooting.md`
+- `docs/operations-runbook.md`
+- `docs/troubleshooting.md`
 
 ## 4. Seed Grounding Corpus
 
 ```bash
-make -C /Users/vassiliylakhonin/Documents/aidgraph-prod seed-live-corpus LIVE_SEED_DONORS=usaid,eu,worldbank
+make seed-live-corpus LIVE_SEED_DONORS=usaid,eu,worldbank
 ```
 
 Adjust donor list to the workflow you want to evaluate.
@@ -68,7 +69,7 @@ Adjust donor list to the workflow you want to evaluate.
 ## 5. Run The Fast Evaluation Path
 
 ```bash
-make -C /Users/vassiliylakhonin/Documents/aidgraph-prod pilot-refresh-fast DEMO_PACK_API_BASE=http://127.0.0.1:8000
+make pilot-refresh-fast DEMO_PACK_API_BASE=http://127.0.0.1:8000
 ```
 
 This rebuilds the fast buyer path and produces:
@@ -81,16 +82,16 @@ This rebuilds the fast buyer path and produces:
 ## 6. Build A Send-Ready Bundle
 
 ```bash
-make -C /Users/vassiliylakhonin/Documents/aidgraph-prod release-demo-bundle-fast
+make release-demo-bundle-fast
 ```
 
 Primary output:
-- `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/release-demo-bundle-fast/`
+- `build/release-demo-bundle-fast/`
 
 ## 7. Stop The Stack
 
 ```bash
-make -C /Users/vassiliylakhonin/Documents/aidgraph-prod enterprise-eval-down
+make enterprise-eval-down
 ```
 
 ## One-Day Checklist

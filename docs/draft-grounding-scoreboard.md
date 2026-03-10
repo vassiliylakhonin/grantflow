@@ -22,7 +22,7 @@ Architect live grounding is currently verified for six donor paths:
 | `state_department` | `state_department_media_georgia` | `us_state_department_guidance` | `3` | `4` | `rag_claim_support` |
 | `un_agencies` | `generic_un_agencies_education_nepal` | `un_agencies_guidance` | `3` | `4` | `rag_claim_support` |
 
-Reference: `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/architect-grounding-scoreboard.md`
+Reference: `docs/architect-grounding-scoreboard.md`
 
 ## MEL Stage
 
@@ -37,16 +37,16 @@ MEL live grounding is currently verified across the same six donor paths, using 
 | `state_department` | `state_department_media_georgia` | `us_state_department_guidance` | `1` | `3` | `1.0` | `0` |
 | `un_agencies` | `generic_un_agencies_education_nepal` | `un_agencies_guidance` | `3` | `3` | `1.0` | `0` |
 
-Reference: `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/mel-grounding-scoreboard.md`
+Reference: `docs/mel-grounding-scoreboard.md`
 
 ## Current Read
 
 - Architect grounding is now verified across the six core donor paths used for demos and live checks.
 - MEL grounding is now verified across the same six core donor paths, with the buyer pack covering `usaid/eu/worldbank` and targeted live checks covering `giz/state_department/un_agencies`.
 - The current pilot artifacts surface both layers in:
-  - `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/pilot-pack/pilot-metrics.md`
-  - `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/pilot-pack/buyer-brief.md`
-  - `/Users/vassiliylakhonin/Documents/aidgraph-prod/build/executive-pack/README.md`
+  - `build/pilot-pack/pilot-metrics.md`
+  - `build/pilot-pack/buyer-brief.md`
+  - `build/executive-pack/README.md`
 
 ## Reproduce
 

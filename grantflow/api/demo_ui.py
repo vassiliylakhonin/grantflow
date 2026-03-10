@@ -7,7 +7,7 @@ def render_demo_ui_html() -> str:
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GrantFlow Demo Console</title>
+  <title>GrantFlow Reviewer Console</title>
   <style>
     :root {
       --bg: #f3efe6;
@@ -164,8 +164,8 @@ def render_demo_ui_html() -> str:
 <body>
   <div class="wrap">
     <section class="hero">
-      <h1>GrantFlow Demo Console</h1>
-      <p>Minimal operator UI for generate → HITL → review traces (citations, versions, diff, critic findings, events, metrics).</p>
+      <h1>GrantFlow Reviewer Console</h1>
+      <p>Thin reviewer UI for generate → review → approval → export workflows, with live findings, comments, queues, and traceability.</p>
     </section>
 
     <section class="toolbar">
