@@ -363,6 +363,36 @@ def _build_katch_deliverable_rows(deliverables: Iterable[str]) -> list[Dict[str,
     ]
 
 
+def _merge_katch_required_deliverables(deliverables: Iterable[str]) -> list[str]:
+    normalized = []
+    seen = set()
+    for raw in deliverables:
+        text = _clean_text(raw)
+        if not text:
+            continue
+        lowered = text.lower()
+        if lowered in seen:
+            continue
+        seen.add(lowered)
+        normalized.append(text)
+
+    required = [
+        ("inception", "Inception Report"),
+        ("evaluation design", "Evaluation Design and Work Plan"),
+        ("bi-week", "Bi-Weekly Updates"),
+        ("workshop", "Virtual Event / Workshop"),
+        ("draft evaluation report", "Draft Evaluation Report"),
+        ("stand-alone brief", "Stand-alone Brief"),
+        ("final evaluation report", "Final Evaluation Report"),
+    ]
+    existing = " | ".join(item.lower() for item in normalized)
+    for token, canonical in required:
+        if token not in existing:
+            normalized.append(canonical)
+            existing = f"{existing} | {canonical.lower()}".strip(" |")
+    return normalized
+
+
 def _build_katch_compliance_matrix() -> list[Dict[str, str]]:
     return [
         {
@@ -658,7 +688,7 @@ def build_katch_evaluation_rfq_payload(
         "Focus Group Discussions",
         "Survey of Beneficiaries",
     ]
-    deliverables = _rfq_deliverables(input_context) or [
+    deliverables = _merge_katch_required_deliverables(_rfq_deliverables(input_context) or [
         "Draft Inception Report with Evaluation Design and Work Plan",
         "Final Inception Report with Evaluation Design and Work Plan",
         "Report on field survey data collection",
@@ -666,7 +696,7 @@ def build_katch_evaluation_rfq_payload(
         "Final Evaluation Report",
         "Stand-alone Brief",
         "Bi-Weekly Updates",
-    ]
+    ])
     background = _clean_text(
         input_context.get("background")
         or input_context.get("project_background")

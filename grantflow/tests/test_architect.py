@@ -1049,3 +1049,33 @@ def test_fallback_structured_toc_supports_katch_evaluation_rfq_profile():
     assert payload["deliverables_schedule_table"][0]["owner"]
     assert payload["deliverables_schedule_table"][0]["dependencies"]
     assert payload["deliverables_schedule_table"][0]["review_gate"]
+
+
+def test_katch_evaluation_rfq_backfills_required_deliverables_from_partial_input():
+    payload, engine = _fallback_structured_toc(
+        evaluation_rfq_schema(),
+        donor_id="un_agencies",
+        project="KATCH Project Performance Evaluation",
+        country="Kyrgyzstan",
+        revision_hint="",
+        evidence_hits=[],
+        input_context={
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+            "deliverables": [
+                "Inception Report",
+                "Draft Evaluation Report",
+                "Final Evaluation Report",
+            ],
+        },
+    )
+
+    assert engine == "evaluation_rfq_contract_synthesizer"
+    titles = [str(row.get("deliverable") or "") for row in payload.get("deliverables", [])]
+    rendered = " | ".join(titles).lower()
+    assert "inception" in rendered
+    assert "bi-week" in rendered
+    assert "workshop" in rendered
+    assert "draft evaluation report" in rendered
+    assert "stand-alone brief" in rendered
+    assert "final evaluation report" in rendered
