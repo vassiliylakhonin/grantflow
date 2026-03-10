@@ -49,6 +49,8 @@ Use this checklist for the bounded pilot that was approved on `2026-03-10`.
   - baseline review loops
   - active reviewers
   - major MEL rewrites after internal round `R2`
+- Current status:
+  - baseline captured on `2026-03-10` for all three pilot cases
 
 ### 3. Corpus Preparation
 
@@ -57,12 +59,20 @@ Prepare donor and case evidence for:
 - `eu`
 - `usaid`
 
+Use:
+- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
+
 Recommended minimum corpus inputs:
 - donor guidelines / templates
 - prior proposal examples if allowed
 - evaluations / assessments
 - country or sector context
 - past performance or implementation evidence
+
+Current target dates:
+- `UN agencies` readiness by `2026-03-13`
+- `EU` readiness by `2026-03-13`
+- `USAID` readiness by `2026-03-14`
 
 ### 4. Workflow Decisions
 

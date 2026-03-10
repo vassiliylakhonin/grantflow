@@ -15,6 +15,7 @@ Quick companion docs:
 - customer pilot plan example: `docs/pilot-customers/kazakhstan-ngo-recommended-plan.md`
 - customer execution checklist example: `docs/pilot-customers/kazakhstan-ngo-execution-checklist.md`
 - customer measured baseline sheet example: `docs/pilot-customers/kazakhstan-ngo-measured-baseline.csv`
+- customer donor corpus plan example: `docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
 - customer follow-up email example: `docs/pilot-customers/kazakhstan-ngo-follow-up-email.md`
 - enterprise access pattern: `docs/enterprise-access-layer.md`
 

@@ -30,6 +30,7 @@ Proposal operations platform for high-stakes donor workflows. GrantFlow is a com
   - `docs/pilot-customers/kazakhstan-ngo-recommended-plan.md`
   - `docs/pilot-customers/kazakhstan-ngo-execution-checklist.md`
   - `docs/pilot-customers/kazakhstan-ngo-measured-baseline.csv`
+  - `docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
   - `docs/pilot-customers/kazakhstan-ngo-follow-up-email.md`
   - `docs/enterprise-access-layer.md`
   - `docs/troubleshooting.md`
