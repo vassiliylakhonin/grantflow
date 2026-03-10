@@ -808,11 +808,33 @@ def _build_scorecard(
     lines.append("## Recommended Next Action")
     if verdict == "Not ready":
         lines.append("1. Fix failed gates and regenerate the pilot pack.")
-        lines.append("2. Re-run `make pilot-scorecard-refresh` before sharing externally.")
+        if portfolio_policy_next_action:
+            lines.append(f"2. Clear the current review workflow blocker: `{portfolio_policy_next_action}`.")
+            lines.append("3. Re-run `make pilot-scorecard-refresh` before sharing externally.")
+        else:
+            lines.append("2. Re-run `make pilot-scorecard-refresh` before sharing externally.")
     elif verdict == "Proceed with conditions":
-        lines.append("1. Capture measured baseline metrics in `measured-baseline.csv` for each case.")
-        lines.append("2. Re-run `make pilot-scorecard` to refresh the decision memo.")
-        lines.append("3. Use this scorecard with `buyer-brief.md` for the pilot go/no-go conversation.")
+        next_steps: list[str] = []
+        if measured_baseline_cases < total_cases:
+            next_steps.append("Capture measured baseline metrics in `measured-baseline.csv` for each case.")
+        if portfolio_policy_next_action:
+            next_steps.append(f"Clear the current review workflow action queue: `{portfolio_policy_next_action}`.")
+        if (
+            avg_reviewer_workflow_resolution is not None
+            and avg_reviewer_workflow_resolution < min_reviewer_resolution_rate
+        ):
+            next_steps.append(
+                "Resolve stale review items so reviewer workflow resolution rate clears the operating threshold."
+            )
+        if avg_comment_age_gt_7d is not None and avg_comment_age_gt_7d > max_avg_comment_gt_7d:
+            next_steps.append("Close or reopen comment threads aged >7d before external buyer handoff.")
+        if any((case.open_critic_findings or 0) > 0 for case in cases):
+            next_steps.append("Close the remaining open critic findings in the affected cases.")
+        if not next_steps:
+            next_steps.append("Re-run `make pilot-scorecard` to refresh the decision memo.")
+        next_steps.append("Use this scorecard with `buyer-brief.md` for the pilot go/no-go conversation.")
+        for index, step in enumerate(next_steps, start=1):
+            lines.append(f"{index}. {step}")
     else:
         lines.append("1. Use this scorecard and `buyer-brief.md` as the bounded pilot decision packet.")
         lines.append("2. Expand from demo presets to real customer proposal cases with baseline capture.")
