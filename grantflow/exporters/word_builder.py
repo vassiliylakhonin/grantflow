@@ -9,7 +9,10 @@ from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 from grantflow.exporters.donor_contracts import evaluate_export_contract
-from grantflow.exporters.template_profile import build_export_template_profile, normalize_export_template_key
+from grantflow.exporters.template_profile import (
+    build_export_template_profile,
+    resolve_export_template_key,
+)
 from grantflow.exporters.toc_normalization import normalize_toc_for_export, unwrap_toc_payload
 
 
@@ -530,7 +533,7 @@ def _add_review_readiness_section(
 def _toc_root(toc_draft: Dict[str, Any], donor_id: str | None = None) -> Dict[str, Any]:
     if not donor_id:
         return unwrap_toc_payload(toc_draft)
-    donor_key = normalize_export_template_key(donor_id)
+    donor_key = resolve_export_template_key(donor_id=donor_id, toc_payload=toc_draft)
     return normalize_toc_for_export(donor_key, unwrap_toc_payload(toc_draft))
 
 
@@ -1028,6 +1031,149 @@ def _render_generic_toc(doc: Document, toc: Dict[str, Any]) -> None:
                 doc.add_paragraph(f"  Justification: {ind['justification']}", style="Intense Quote")
 
 
+def _render_evaluation_rfq_toc(
+    doc: Document, toc: Dict[str, Any], *, logframe_draft: Optional[Dict[str, Any]] = None
+) -> None:
+    indicators = _normalized_indicator_rows(logframe_draft)
+    output_focus = _indicator_focus_rows(indicators, result_level="output", limit=2)
+    outcome_focus = _indicator_focus_rows(indicators, result_level="outcome", limit=1)
+    doc.add_heading("Evaluation RFQ Technical Proposal", level=1)
+
+    brief = str(toc.get("brief") or "").strip()
+    if brief:
+        doc.add_heading("Assignment Summary", level=2)
+        doc.add_paragraph(brief)
+
+    background = str(toc.get("background_context") or "").strip()
+    if background:
+        doc.add_heading("Assignment Background", level=2)
+        doc.add_paragraph(background)
+
+    purpose = str(toc.get("evaluation_purpose") or "").strip()
+    if purpose:
+        doc.add_heading("Evaluation Purpose", level=2)
+        doc.add_paragraph(purpose)
+
+    questions = toc.get("evaluation_questions")
+    if isinstance(questions, list) and questions:
+        doc.add_heading("Evaluation Questions", level=2)
+        for question in questions:
+            doc.add_paragraph(str(question), style="List Bullet")
+
+    methodology = str(toc.get("methodology_overview") or "").strip()
+    if methodology:
+        doc.add_heading("Methodology", level=2)
+        doc.add_paragraph(methodology)
+        _add_indicator_focus_block(
+            doc,
+            indicators=output_focus or outcome_focus,
+            label="Suggested delivery monitoring focus",
+        )
+
+    components = toc.get("methodology_components")
+    if isinstance(components, list) and components:
+        doc.add_heading("Method Components", level=2)
+        for row in components:
+            if not isinstance(row, dict):
+                continue
+            title = str(row.get("method") or "Method").strip()
+            purpose_text = str(row.get("purpose") or "").strip()
+            respondent_group = str(row.get("respondent_group") or "").strip()
+            evidence_source = str(row.get("evidence_source") or "").strip()
+            doc.add_paragraph(title, style="List Bullet")
+            if purpose_text:
+                doc.add_paragraph(purpose_text)
+            if respondent_group:
+                doc.add_paragraph(f"Respondent group: {respondent_group}")
+            if evidence_source:
+                doc.add_paragraph(f"Evidence source: {evidence_source}")
+
+    organization_information = str(toc.get("organization_information") or "").strip()
+    if organization_information:
+        doc.add_heading("Organization Information", level=2)
+        doc.add_paragraph(organization_information)
+
+    technical_approach = str(toc.get("technical_approach_summary") or "").strip()
+    if technical_approach:
+        doc.add_heading("Analysis and Proposed Approaches / Methodologies", level=2)
+        doc.add_paragraph(technical_approach)
+
+    sampling_plan = str(toc.get("sampling_plan") or "").strip()
+    if sampling_plan:
+        doc.add_heading("Sampling Plan", level=2)
+        doc.add_paragraph(sampling_plan)
+
+    software = toc.get("analytical_software")
+    if isinstance(software, list) and software:
+        doc.add_heading("Analytical Approach and Software", level=2)
+        for item in software:
+            doc.add_paragraph(str(item), style="List Bullet")
+
+    ethics = toc.get("ethical_considerations")
+    if isinstance(ethics, list) and ethics:
+        doc.add_heading("Ethical Considerations", level=2)
+        for item in ethics:
+            doc.add_paragraph(str(item), style="List Bullet")
+
+    team = toc.get("team_composition")
+    if isinstance(team, list) and team:
+        doc.add_heading("Personnel and Team Composition", level=2)
+        for row in team:
+            if not isinstance(row, dict):
+                continue
+            role = str(row.get("role") or "Role").strip()
+            responsibility = str(row.get("responsibility") or "").strip()
+            doc.add_paragraph(role, style="List Bullet")
+            if responsibility:
+                doc.add_paragraph(responsibility)
+
+    loe = str(toc.get("level_of_effort_summary") or "").strip()
+    if loe:
+        doc.add_heading("Proposed Level of Effort", level=2)
+        doc.add_paragraph(loe)
+
+    experience = str(toc.get("technical_experience_summary") or "").strip()
+    if experience:
+        doc.add_heading("Technical Experience and Past Performance References", level=2)
+        doc.add_paragraph(experience)
+
+    sample_outputs = str(toc.get("sample_outputs_summary") or "").strip()
+    if sample_outputs:
+        doc.add_heading("Sample Technical Outputs", level=2)
+        doc.add_paragraph(sample_outputs)
+
+    deliverables = toc.get("deliverables")
+    if isinstance(deliverables, list) and deliverables:
+        doc.add_heading("Workplan & Deliverables", level=2)
+        for row in deliverables:
+            if not isinstance(row, dict):
+                continue
+            deliverable = str(row.get("deliverable") or "Deliverable").strip()
+            timing = str(row.get("timing") or "").strip()
+            purpose_text = str(row.get("purpose") or "").strip()
+            title = deliverable if not timing else f"{deliverable} ({timing})"
+            doc.add_paragraph(title, style="List Bullet")
+            if purpose_text:
+                doc.add_paragraph(purpose_text)
+        _add_indicator_logframe_block(
+            doc,
+            indicators=output_focus or outcome_focus,
+            label="Suggested delivery indicator rows",
+        )
+
+    annex_readiness = toc.get("annex_readiness")
+    if isinstance(annex_readiness, list) and annex_readiness:
+        doc.add_heading("Annex Readiness", level=2)
+        for item in annex_readiness:
+            doc.add_paragraph(str(item), style="List Bullet")
+
+    assumptions_risks = toc.get("assumptions_risks")
+    if isinstance(assumptions_risks, list) and assumptions_risks:
+        doc.add_heading("Assumptions & Risks", level=2)
+        for item in assumptions_risks:
+            doc.add_paragraph(str(item), style="List Bullet")
+
+
 def _add_mel_indicator_summary_section(doc: Document, logframe_draft: Optional[Dict[str, Any]]) -> None:
     if not isinstance(logframe_draft, dict):
         return
@@ -1167,8 +1313,10 @@ def build_docx_from_toc(
         review_comments=review_comments or [],
     )
 
-    donor_key = normalize_export_template_key(donor_id)
-    if donor_key == "usaid":
+    donor_key = resolve_export_template_key(donor_id=donor_id, toc_payload=toc_draft)
+    if donor_key == "evaluation_rfq":
+        _render_evaluation_rfq_toc(doc, toc_content, logframe_draft=logframe_draft)
+    elif donor_key == "usaid":
         _render_usaid_toc(doc, toc_content, logframe_draft=logframe_draft)
     elif donor_key == "eu":
         _render_eu_toc(doc, toc_content, logframe_draft=logframe_draft)

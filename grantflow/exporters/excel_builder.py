@@ -9,7 +9,10 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from grantflow.exporters.donor_contracts import DONOR_XLSX_PRIMARY_SHEET, evaluate_export_contract
-from grantflow.exporters.template_profile import build_export_template_profile, normalize_export_template_key
+from grantflow.exporters.template_profile import (
+    build_export_template_profile,
+    resolve_export_template_key,
+)
 from grantflow.exporters.toc_normalization import normalize_toc_for_export, unwrap_toc_payload
 
 
@@ -387,7 +390,7 @@ def _autosize_columns(ws) -> None:
 def _toc_root(payload: Dict[str, Any], donor_id: str | None = None) -> Dict[str, Any]:
     if not donor_id:
         return unwrap_toc_payload(payload)
-    donor_key = normalize_export_template_key(donor_id)
+    donor_key = resolve_export_template_key(donor_id=donor_id, toc_payload=payload)
     return normalize_toc_for_export(donor_key, unwrap_toc_payload(payload))
 
 
@@ -1380,6 +1383,127 @@ def _add_state_department_results_sheet(
     _autosize_columns(ws)
 
 
+def _add_evaluation_plan_sheet(
+    wb: Workbook, toc_payload: Dict[str, Any], *, logframe_draft: Optional[Dict[str, Any]] = None
+) -> None:
+    ws = wb.create_sheet("Evaluation_Plan")
+    headers = ["Section", "ID", "Title", "Description"]
+    thin_border = _apply_table_header(ws, headers)
+    row_idx = 2
+
+    def add_row(section: str, identifier: str, title: str, description: str) -> None:
+        nonlocal row_idx
+        values = [section, identifier, title, description]
+        for col_idx, value in enumerate(values, start=1):
+            ws.cell(row=row_idx, column=col_idx, value=_compact_export_text(value)).border = thin_border
+        row_idx += 1
+
+    add_row("summary", "brief", "Assignment Summary", str(toc_payload.get("brief") or ""))
+    add_row(
+        "organization",
+        "organization_information",
+        "Organization Information",
+        str(toc_payload.get("organization_information") or ""),
+    )
+    add_row("purpose", "evaluation_purpose", "Evaluation Purpose", str(toc_payload.get("evaluation_purpose") or ""))
+    add_row(
+        "technical_approach",
+        "technical_approach_summary",
+        "Analysis and Proposed Approaches / Methodologies",
+        str(toc_payload.get("technical_approach_summary") or ""),
+    )
+    add_row(
+        "methodology",
+        "methodology_overview",
+        "Methodology Overview",
+        str(toc_payload.get("methodology_overview") or ""),
+    )
+    add_row("sampling", "sampling_plan", "Sampling Plan", str(toc_payload.get("sampling_plan") or ""))
+
+    for idx, item in enumerate(toc_payload.get("analytical_software") or [], start=1):
+        add_row("analysis_tool", f"SW{idx}", f"Analytical Tool {idx}", str(item))
+
+    for idx, item in enumerate(toc_payload.get("ethical_considerations") or [], start=1):
+        add_row("ethics", f"E{idx}", f"Ethical Consideration {idx}", str(item))
+
+    for idx, question in enumerate(toc_payload.get("evaluation_questions") or [], start=1):
+        add_row("evaluation_question", f"EQ{idx}", f"Evaluation Question {idx}", str(question))
+
+    for idx, row in enumerate(toc_payload.get("methodology_components") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("method") or f"Method {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                str(row.get("purpose") or "").strip(),
+                f"Respondents: {str(row.get('respondent_group') or '').strip()}".strip(),
+                f"Evidence: {str(row.get('evidence_source') or '').strip()}".strip(),
+            )
+            if part and part != "Respondents:" and part != "Evidence:"
+        )
+        add_row("method", f"M{idx}", title, description)
+
+    for idx, row in enumerate(toc_payload.get("deliverables") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("deliverable") or f"Deliverable {idx}")
+        timing = str(row.get("timing") or "").strip()
+        purpose = str(row.get("purpose") or "").strip()
+        description = " | ".join(part for part in (timing, purpose) if part)
+        add_row("deliverable", f"D{idx}", title, description)
+
+    for idx, row in enumerate(toc_payload.get("team_composition") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        add_row(
+            "team_role",
+            f"T{idx}",
+            str(row.get("role") or f"Role {idx}"),
+            str(row.get("responsibility") or ""),
+        )
+
+    add_row(
+        "level_of_effort",
+        "level_of_effort_summary",
+        "Proposed Level of Effort",
+        str(toc_payload.get("level_of_effort_summary") or ""),
+    )
+    add_row(
+        "past_performance",
+        "technical_experience_summary",
+        "Technical Experience and Past Performance References",
+        str(toc_payload.get("technical_experience_summary") or ""),
+    )
+    add_row(
+        "sample_outputs",
+        "sample_outputs_summary",
+        "Sample Technical Outputs",
+        str(toc_payload.get("sample_outputs_summary") or ""),
+    )
+
+    for idx, item in enumerate(toc_payload.get("annex_readiness") or [], start=1):
+        add_row("annex", f"A{idx}", f"Annex Readiness {idx}", str(item))
+
+    indicators = _normalized_indicator_rows(logframe_draft)
+    for idx, indicator in enumerate(indicators[:3], start=1):
+        if not isinstance(indicator, dict):
+            continue
+        title = str(indicator.get("name") or f"Indicator {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                str(indicator.get("baseline") or "").strip(),
+                str(indicator.get("target") or "").strip(),
+                str(indicator.get("means_of_verification") or "").strip(),
+            )
+            if part
+        )
+        add_row("indicator", f"IND{idx}", title, description)
+
+    _autosize_columns(ws)
+
+
 def build_xlsx_from_logframe(
     logframe_draft: Dict[str, Any],
     donor_id: str,
@@ -1452,8 +1576,10 @@ def build_xlsx_from_logframe(
         toc_payload_raw = logframe_draft if isinstance(logframe_draft, dict) else {}
     toc_payload = _toc_root(toc_payload_raw, donor_id)
     profile = build_export_template_profile(donor_id=donor_id, toc_payload=toc_payload)
-    donor_key = normalize_export_template_key(donor_id)
-    if donor_key == "usaid":
+    donor_key = resolve_export_template_key(donor_id=donor_id, toc_payload=toc_payload_raw)
+    if donor_key == "evaluation_rfq":
+        _add_evaluation_plan_sheet(wb, toc_payload, logframe_draft=logframe_draft)
+    elif donor_key == "usaid":
         _add_usaid_results_sheet(wb, toc_payload, logframe_draft=logframe_draft)
     elif donor_key == "eu":
         _add_eu_results_sheet(wb, toc_payload, logframe_draft=logframe_draft)

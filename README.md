@@ -183,6 +183,30 @@ Specialized strategies:
 Generic strategy:
 - broader donor catalog via `GET /donors`
 
+## Evaluation RFQ Support
+
+GrantFlow now supports a bounded `evaluation_rfq` proposal mode for consultancy-style technical responses such as performance evaluation RFQs.
+
+What it currently supports:
+- structured technical-response draft under an evaluation contract
+- evaluation purpose and question framing
+- methodology and method-component outline
+- team-composition and deliverable plan sections
+- review/control/export workflow using the same findings, comments, HITL, and artifact packaging layers
+
+What it does not yet claim:
+- full procurement-suite coverage
+- financial proposal automation
+- staffing/CV compliance packaging as a first-class workflow
+- end-to-end replacement for a specialist evaluation proposal team
+
+Recommended use:
+- use GrantFlow as the drafting-control-review-export backbone for the technical proposal
+- keep financial/commercial and attachment-heavy procurement sections under human control
+
+Example preset:
+- `un_agencies_katch_evaluation_kyrgyzstan`
+
 ## Recommended Demo Flow
 
 Use this path for pilot conversations and technical evaluation:
@@ -210,6 +234,12 @@ Use this path for pilot conversations and technical evaluation:
 6. Export review package:
    - `GET /status/{job_id}/export-payload`
    - `POST /export`
+
+Evaluation RFQ demo variant:
+- generate `un_agencies_katch_evaluation_kyrgyzstan`
+- set `proposal_mode=evaluation_rfq`
+- inspect `Evaluation RFQ Technical Proposal` in `.docx`
+- inspect `Evaluation_Plan` in `.xlsx`
 
 For ready-made example artifacts, use files in `docs/samples/` and `docs/pilot_runs/2026-02-27/`.
 

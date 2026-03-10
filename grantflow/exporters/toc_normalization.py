@@ -8,7 +8,14 @@ def unwrap_toc_payload(toc_payload: Any) -> Dict[str, Any]:
         return {}
     toc_root = toc_payload.get("toc")
     if isinstance(toc_root, dict):
-        return toc_root
+        root = dict(toc_root)
+        proposal_mode = toc_payload.get("proposal_mode")
+        if proposal_mode and "proposal_mode" not in root:
+            root["proposal_mode"] = proposal_mode
+        rfq_profile = toc_payload.get("rfq_profile")
+        if rfq_profile and "rfq_profile" not in root:
+            root["rfq_profile"] = rfq_profile
+        return root
     return toc_payload
 
 
@@ -302,9 +309,75 @@ def _normalize_state_department_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
+    method_rows = _pick_first_list(toc, ("methodology_components", "methods"))
+    methodology_components = []
+    for raw in method_rows:
+        row = raw if isinstance(raw, dict) else {"method": _clean_text(raw)}
+        methodology_components.append(
+            {
+                "method": _pick_first_text(row, ("method", "title", "name")),
+                "purpose": _pick_first_text(row, ("purpose", "description", "expected_change")),
+                "respondent_group": _pick_first_text(row, ("respondent_group", "stakeholders", "target_group")),
+                "evidence_source": _pick_first_text(row, ("evidence_source", "source", "reference")),
+            }
+        )
+
+    team_rows = _pick_first_list(toc, ("team_composition", "team_roles"))
+    team_composition = []
+    for raw in team_rows:
+        row = raw if isinstance(raw, dict) else {"role": _clean_text(raw)}
+        team_composition.append(
+            {
+                "role": _pick_first_text(row, ("role", "title", "name")),
+                "responsibility": _pick_first_text(row, ("responsibility", "description", "purpose")),
+            }
+        )
+
+    deliverable_rows = _pick_first_list(toc, ("deliverables",))
+    deliverables = []
+    for raw in deliverable_rows:
+        row = raw if isinstance(raw, dict) else {"deliverable": _clean_text(raw)}
+        deliverables.append(
+            {
+                "deliverable": _pick_first_text(row, ("deliverable", "title", "name")),
+                "timing": _pick_first_text(row, ("timing", "window", "milestone")),
+                "purpose": _pick_first_text(row, ("purpose", "description", "expected_change")),
+            }
+        )
+
+    return {
+        "proposal_mode": "evaluation_rfq",
+        "rfq_profile": _pick_first_text(toc, ("rfq_profile", "profile")),
+        "brief": _pick_first_text(toc, ("brief", "project_goal")),
+        "background_context": _pick_first_text(toc, ("background_context", "background", "context")),
+        "organization_information": _pick_first_text(toc, ("organization_information",)),
+        "evaluation_purpose": _pick_first_text(toc, ("evaluation_purpose", "purpose")),
+        "evaluation_questions": _to_str_list(_pick_first_list(toc, ("evaluation_questions", "key_questions"))),
+        "technical_approach_summary": _pick_first_text(toc, ("technical_approach_summary", "technical_approach")),
+        "methodology_overview": _pick_first_text(toc, ("methodology_overview", "methodology", "approach")),
+        "methodology_components": methodology_components,
+        "sampling_plan": _pick_first_text(toc, ("sampling_plan",)),
+        "analytical_software": _to_str_list(_pick_first_list(toc, ("analytical_software", "analysis_software"))),
+        "ethical_considerations": _to_str_list(_pick_first_list(toc, ("ethical_considerations", "ethics"))),
+        "team_composition": team_composition,
+        "level_of_effort_summary": _pick_first_text(toc, ("level_of_effort_summary", "loe_summary")),
+        "technical_experience_summary": _pick_first_text(
+            toc, ("technical_experience_summary", "past_performance_summary")
+        ),
+        "sample_outputs_summary": _pick_first_text(toc, ("sample_outputs_summary", "sample_output_summary")),
+        "deliverables": deliverables,
+        "workplan_summary": _to_str_list(_pick_first_list(toc, ("workplan_summary", "workplan"))),
+        "assumptions_risks": _to_str_list(_pick_first_list(toc, ("assumptions_risks", "risks", "assumptions"))),
+        "annex_readiness": _to_str_list(_pick_first_list(toc, ("annex_readiness", "annexes"))),
+    }
+
+
 def normalize_toc_for_export(donor_key: str, toc_payload: Dict[str, Any]) -> Dict[str, Any]:
     toc = unwrap_toc_payload(toc_payload)
     key = str(donor_key or "").strip().lower()
+    if key == "evaluation_rfq":
+        return _normalize_evaluation_rfq_toc(toc)
     if key == "usaid":
         return _normalize_usaid_toc(toc)
     if key == "eu":

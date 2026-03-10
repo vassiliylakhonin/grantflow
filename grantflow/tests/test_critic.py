@@ -155,6 +155,45 @@ def test_rule_based_critic_applies_usaid_donor_specific_checks():
     assert any(f["code"] == "USAID_ASSUMPTIONS_MISSING" and f["section"] == "toc" for f in flaws)
 
 
+def test_rule_based_critic_applies_katch_evaluation_rfq_checks():
+    state = {
+        "donor_id": "un_agencies",
+        "input_context": {"proposal_mode": "evaluation_rfq", "rfq_profile": "katch_final_assessment"},
+        "draft_versions": [
+            {"version_id": "toc_v1", "sequence": 1, "section": "toc", "content": {}},
+            {"version_id": "logframe_v1", "sequence": 2, "section": "logframe", "content": {}},
+        ],
+        "toc_validation": {"valid": True, "errors": [], "schema_name": "EvaluationRFQTOC"},
+        "toc_draft": {
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+            "toc": {
+                "proposal_mode": "evaluation_rfq",
+                "rfq_profile": "katch_final_assessment",
+                "brief": "Technical response for KATCH.",
+                "evaluation_purpose": "Assess project performance.",
+                "methodology_overview": "Mixed methods design.",
+                "deliverables": [{"deliverable": "Draft Evaluation Report", "timing": "Week 4", "purpose": "Draft"}],
+                "team_composition": [{"role": "Team Lead", "responsibility": "Lead the assignment"}],
+            },
+        },
+        "logframe_draft": {"indicators": [{"indicator_id": "IND_001"}]},
+        "citations": [
+            {"stage": "architect", "statement_path": "toc.brief", "label": "doc", "used_for": "toc_claim"},
+            {"stage": "mel", "label": "doc", "used_for": "IND_001"},
+        ],
+    }
+
+    report = evaluate_rule_based_critic(state)
+    checks = [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in report.checks]
+    flaws = [f.model_dump() if hasattr(f, "model_dump") else f.dict() for f in report.fatal_flaws]
+
+    assert any(c["code"] == "KATCH_ORGANIZATION_INFORMATION_PRESENT" and c["status"] == "fail" for c in checks)
+    assert any(c["code"] == "KATCH_METHOD_COMPONENTS_COMPLETE" and c["status"] == "fail" for c in checks)
+    assert any(c["code"] == "KATCH_DELIVERABLE_PLAN_COMPLETE" and c["status"] == "fail" for c in checks)
+    assert any(f["code"] == "KATCH_TEAM_COMPOSITION_MISSING" for f in flaws)
+
+
 def test_rule_based_critic_flags_fallback_dominant_architect_grounding_when_rag_enabled():
     state = {
         "architect_rag_enabled": True,

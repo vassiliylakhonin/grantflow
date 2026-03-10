@@ -173,6 +173,21 @@ curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
 
 Save returned `job_id`.
 
+Evaluation RFQ variant:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+    "preset_type": "auto",
+    "llm_mode": false,
+    "hitl_enabled": false
+  }'
+```
+
+This uses `proposal_mode=evaluation_rfq` under the hood and is intended for the technical-response part of an evaluation RFQ, not the financial/commercial package.
+
 ### Step C: inspect status and quality
 
 ```bash
@@ -221,6 +236,10 @@ curl -s -X POST http://127.0.0.1:8000/export \
   --data-binary @export_payload.json \
   -o grantflow_export.zip
 ```
+
+For the RFQ demo path, verify:
+- `.docx` contains `Evaluation RFQ Technical Proposal`
+- `.xlsx` contains `Evaluation_Plan`
 
 ## 4) Optional HITL Segment
 

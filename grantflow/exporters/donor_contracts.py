@@ -5,11 +5,23 @@ from typing import Any, Dict, Iterable, Optional
 from grantflow.exporters.template_profile import (
     TEMPLATE_DISPLAY_NAMES,
     build_export_template_profile,
-    normalize_export_template_key,
+    resolve_export_template_key,
 )
 from grantflow.exporters.toc_normalization import normalize_toc_for_export, unwrap_toc_payload
 
 DONOR_DOCX_EXPECTED_HEADINGS: dict[str, list[str]] = {
+    "evaluation_rfq": [
+        "Evaluation RFQ Technical Proposal",
+        "Organization Information",
+        "Assignment Background",
+        "Evaluation Purpose",
+        "Methodology",
+        "Analysis and Proposed Approaches / Methodologies",
+        "Personnel and Team Composition",
+        "Proposed Level of Effort",
+        "Technical Experience and Past Performance References",
+        "Workplan & Deliverables",
+    ],
     "usaid": ["USAID Results Framework", "Project Goal", "Development Objectives", "Critical Assumptions"],
     "eu": ["EU Intervention Logic", "Overall Objective", "Specific Objectives", "Expected Outcomes"],
     "worldbank": [
@@ -24,6 +36,7 @@ DONOR_DOCX_EXPECTED_HEADINGS: dict[str, list[str]] = {
 }
 
 DONOR_XLSX_REQUIRED_SHEETS: dict[str, list[str]] = {
+    "evaluation_rfq": ["LogFrame", "Evaluation_Plan", "Template Meta"],
     "usaid": ["LogFrame", "USAID_RF", "Template Meta"],
     "eu": ["LogFrame", "EU_Intervention", "EU_Assumptions_Risks", "Template Meta"],
     "worldbank": ["LogFrame", "WB_Results", "Template Meta"],
@@ -33,6 +46,7 @@ DONOR_XLSX_REQUIRED_SHEETS: dict[str, list[str]] = {
 }
 
 DONOR_XLSX_PRIMARY_SHEET: dict[str, str] = {
+    "evaluation_rfq": "Evaluation_Plan",
     "usaid": "USAID_RF",
     "eu": "EU_Intervention",
     "worldbank": "WB_Results",
@@ -42,6 +56,7 @@ DONOR_XLSX_PRIMARY_SHEET: dict[str, str] = {
 }
 
 DONOR_XLSX_PRIMARY_HEADERS: dict[str, list[str]] = {
+    "evaluation_rfq": ["Section", "ID", "Title", "Description"],
     "usaid": ["DO ID", "DO Description", "IR ID", "IR Description"],
     "eu": ["Level", "ID", "Title", "Description"],
     "worldbank": ["Level", "ID", "Title", "Description"],
@@ -70,7 +85,7 @@ def evaluate_export_contract(
     workbook_sheetnames: Optional[Iterable[str]] = None,
     workbook_primary_sheet_headers: Optional[Iterable[str]] = None,
 ) -> Dict[str, Any]:
-    donor_key = normalize_export_template_key(donor_id)
+    donor_key = resolve_export_template_key(donor_id=donor_id, toc_payload=toc_payload)
     toc_root = normalize_toc_payload(toc_payload if isinstance(toc_payload, dict) else {})
     normalized_toc = normalize_toc_for_export(donor_key, toc_root)
     profile = build_export_template_profile(donor_id=donor_id, toc_payload=normalized_toc)

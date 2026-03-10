@@ -5,6 +5,10 @@ from typing import Any, Dict, Iterable, List, Optional, cast
 
 from pydantic import BaseModel, Field
 
+from grantflow.core.evaluation_rfq import (
+    EVALUATION_RFQ_PROPOSAL_MODE,
+    KATCH_EVALUATION_RFQ_PROFILE,
+)
 from grantflow.swarm.critic_donor_policy import apply_donor_specific_toc_checks
 from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.state_contract import state_input_context
@@ -124,6 +128,175 @@ def _donor_schema_phrase(state: Dict[str, Any]) -> str:
         "us_state_department": "State Department strategic context, stakeholder, and risk structure",
         "un_agencies": "UN objective, outcome, and verification structure",
     }.get(donor, "donor schema and review structure")
+
+
+def _proposal_mode(state: Dict[str, Any], toc_payload: Any) -> str:
+    if isinstance(toc_payload, dict):
+        mode = str(toc_payload.get("proposal_mode") or "").strip().lower()
+        if mode:
+            return mode
+    return str(state_input_context(state).get("proposal_mode") or "").strip().lower()
+
+
+def _rfq_profile(state: Dict[str, Any], toc_payload: Any) -> str:
+    if isinstance(toc_payload, dict):
+        profile = str(toc_payload.get("rfq_profile") or "").strip().lower()
+        if profile:
+            return profile
+    return str(state_input_context(state).get("rfq_profile") or "").strip().lower()
+
+
+def _add_katch_evaluation_rfq_checks(
+    *,
+    state: Dict[str, Any],
+    toc_payload: Dict[str, Any],
+    check_fn: Any,
+    add_flaw_fn: Any,
+) -> None:
+    scalar_requirements = [
+        (
+            "KATCH_ORGANIZATION_INFORMATION_PRESENT",
+            "organization_information",
+            "Organization information is missing, so the technical proposal is incomplete for KATCH RFQ review.",
+            "Add organization identity, registration, legal status, and audited-financial attachment readiness for the technical proposal file.",
+        ),
+        (
+            "KATCH_TECHNICAL_APPROACH_PRESENT",
+            "technical_approach_summary",
+            "Technical approach and methodology narrative is incomplete for KATCH RFQ review.",
+            "Describe the proposed approaches, document review process, methods, analytical approach, risks, limitations, and human-subject safeguards in a reviewer-ready technical narrative.",
+        ),
+        (
+            "KATCH_SAMPLING_PLAN_PRESENT",
+            "sampling_plan",
+            "Sampling plan is missing, so the RFQ response does not yet show how respondent groups will be covered.",
+            "Add a sampling plan covering stakeholder groups, beneficiary coverage, and the rationale for respondent selection during fieldwork.",
+        ),
+        (
+            "KATCH_LOE_PRESENT",
+            "level_of_effort_summary",
+            "Level of effort summary is missing, leaving the KATCH technical proposal weak on staffing realism and phase planning.",
+            "Add an activity-based level of effort summary showing person-days by role and phase for engagement, fieldwork, analysis, and reporting.",
+        ),
+        (
+            "KATCH_PAST_PERFORMANCE_PRESENT",
+            "technical_experience_summary",
+            "Past performance and technical experience summary is missing, so reviewer confidence in comparable evaluation experience stays weak.",
+            "Add recent comparable evaluation assignments, donor-relevant technical experience, and verifiable reference context.",
+        ),
+        (
+            "KATCH_SAMPLE_OUTPUTS_PRESENT",
+            "sample_outputs_summary",
+            "Sample technical outputs are not referenced, so the KATCH submission does not yet evidence comparable report quality.",
+            "Reference annexed sample evaluation outputs or report examples that show similar end-line or final-assessment work.",
+        ),
+    ]
+    for code, field_name, message, fix_hint in scalar_requirements:
+        value = str(toc_payload.get(field_name) or "").strip()
+        if value:
+            check_fn(code=code, status="pass", section="toc")
+        else:
+            check_fn(code=code, status="fail", section="toc", detail=f"Missing {field_name}")
+            add_flaw_fn(code=code, severity="high", section="toc", message=message, fix_hint=fix_hint)
+
+    methodology_components = toc_payload.get("methodology_components")
+    if isinstance(methodology_components, list) and len([m for m in methodology_components if isinstance(m, dict)]) >= 4:
+        check_fn(
+            code="KATCH_METHOD_COMPONENTS_COMPLETE",
+            status="pass",
+            section="toc",
+            detail=f"{len(methodology_components)} method components",
+        )
+    else:
+        check_fn(
+            code="KATCH_METHOD_COMPONENTS_COMPLETE",
+            status="fail",
+            section="toc",
+            detail="Need outcome harvesting, social media analysis, KIIs/FGDs, and beneficiary survey coverage",
+        )
+        add_flaw_fn(
+            code="KATCH_METHOD_COMPONENTS_INCOMPLETE",
+            severity="high",
+            section="toc",
+            message="KATCH methodology components are incomplete, so the technical proposal does not yet cover the expected mixed-method evaluation design.",
+            fix_hint="Include reviewer-ready method components for outcome harvesting, social media analysis, KIIs/FGDs, beneficiary survey coverage, and the related evidence sources.",
+        )
+
+    ethical_considerations = toc_payload.get("ethical_considerations")
+    if isinstance(ethical_considerations, list) and ethical_considerations:
+        check_fn(
+            code="KATCH_ETHICS_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ethical_considerations)} ethics item(s)",
+        )
+    else:
+        check_fn(code="KATCH_ETHICS_PRESENT", status="fail", section="toc", detail="No ethical_considerations")
+        add_flaw_fn(
+            code="KATCH_ETHICS_MISSING",
+            severity="high",
+            section="toc",
+            message="KATCH ethics and do-no-harm safeguards are missing, leaving the RFQ response weak on confidentiality, consent, and trauma-informed practice.",
+            fix_hint="Add ethical considerations covering informed consent, confidentiality, secure data handling, do-no-harm, and trauma-informed interview safeguards.",
+        )
+
+    team_composition = toc_payload.get("team_composition")
+    if isinstance(team_composition, list) and len([r for r in team_composition if isinstance(r, dict)]) >= 2:
+        check_fn(code="KATCH_TEAM_COMPOSITION_PRESENT", status="pass", section="toc", detail=f"{len(team_composition)} role(s)")
+    else:
+        check_fn(code="KATCH_TEAM_COMPOSITION_PRESENT", status="fail", section="toc", detail="Need at least team lead + evaluation expert")
+        add_flaw_fn(
+            code="KATCH_TEAM_COMPOSITION_MISSING",
+            severity="high",
+            section="toc",
+            message="KATCH team composition is incomplete, so reviewer confidence in delivery and evaluation leadership is still weak.",
+            fix_hint="List at least a Team Leader/Evaluation Specialist and an Evaluation Expert/Analyst with clear responsibilities aligned to the RFQ.",
+        )
+
+    workplan_summary = toc_payload.get("workplan_summary")
+    if isinstance(workplan_summary, list) and workplan_summary:
+        check_fn(code="KATCH_WORKPLAN_PRESENT", status="pass", section="toc", detail=f"{len(workplan_summary)} workplan phase(s)")
+    else:
+        check_fn(code="KATCH_WORKPLAN_PRESENT", status="fail", section="toc", detail="No workplan_summary")
+        add_flaw_fn(
+            code="KATCH_WORKPLAN_MISSING",
+            severity="medium",
+            section="toc",
+            message="KATCH work plan is missing, so the technical proposal does not yet show a credible phase structure for engagement, fieldwork, and reporting.",
+            fix_hint="Add an activity-based work plan or Gantt-style phase summary that covers engagement, data collection, analysis, workshop, and final reporting.",
+        )
+
+    deliverables = toc_payload.get("deliverables")
+    deliverable_titles = [
+        str(row.get("deliverable") or "").strip().lower()
+        for row in deliverables
+        if isinstance(deliverables, list) and isinstance(row, dict)
+    ]
+    required_tokens = ("inception", "bi-week", "workshop", "draft evaluation report", "final evaluation report")
+    if deliverable_titles and all(any(token in title for title in deliverable_titles) for token in required_tokens):
+        check_fn(code="KATCH_DELIVERABLE_PLAN_COMPLETE", status="pass", section="toc", detail=f"{len(deliverable_titles)} deliverable(s)")
+    else:
+        check_fn(code="KATCH_DELIVERABLE_PLAN_COMPLETE", status="fail", section="toc", detail="Missing one or more required RFQ deliverables")
+        add_flaw_fn(
+            code="KATCH_DELIVERABLE_PLAN_INCOMPLETE",
+            severity="high",
+            section="toc",
+            message="KATCH deliverable plan is incomplete, so the submission does not yet cover the RFQ milestone package and reporting cadence.",
+            fix_hint="Cover inception report, bi-weekly updates, validation workshop, draft evaluation report, stand-alone brief, and final evaluation report in the deliverable plan.",
+        )
+
+    annex_readiness = toc_payload.get("annex_readiness")
+    if isinstance(annex_readiness, list) and len([item for item in annex_readiness if str(item).strip()]) >= 4:
+        check_fn(code="KATCH_ANNEX_READINESS_PRESENT", status="pass", section="toc", detail=f"{len(annex_readiness)} annex item(s)")
+    else:
+        check_fn(code="KATCH_ANNEX_READINESS_PRESENT", status="warn", section="toc", detail="Limited annex_readiness detail")
+        add_flaw_fn(
+            code="KATCH_ANNEX_READINESS_WEAK",
+            severity="medium",
+            section="toc",
+            message="KATCH annex readiness is underspecified, so the technical package is still weak on attachments reviewers expect to see alongside the narrative.",
+            fix_hint="List the key supporting annexes: registration/audit evidence, CVs, sample outputs, work plan, and level-of-effort matrix.",
+        )
 
 
 class CriticFatalFlaw(BaseModel):
@@ -573,6 +746,17 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
         check_fn=lambda **kwargs: _check(checks, **kwargs),
         add_flaw_fn=lambda **kwargs: _add_flaw(flaws, state=state, **kwargs),
     )
+
+    if (
+        _proposal_mode(state, toc_payload) == EVALUATION_RFQ_PROPOSAL_MODE
+        and _rfq_profile(state, toc_payload) == KATCH_EVALUATION_RFQ_PROFILE
+    ):
+        _add_katch_evaluation_rfq_checks(
+            state=state,
+            toc_payload=toc_payload,
+            check_fn=lambda **kwargs: _check(checks, **kwargs),
+            add_flaw_fn=lambda **kwargs: _add_flaw(flaws, state=state, **kwargs),
+        )
 
     architect_citations = [c for c in _iter_citations(state, stage="architect")]
     if architect_citations:

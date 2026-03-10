@@ -198,6 +198,58 @@ _DEMO_GENERATE_PRESETS_LEGACY: dict[str, dict[str, Any]] = {
             "strict_preflight": False,
         },
     },
+    "un_agencies_katch_evaluation_kyrgyzstan": {
+        "donor_id": "un_agencies",
+        "title": "KATCH evaluation RFQ",
+        "generate_payload": {
+            "donor_id": "un_agencies",
+            "input_context": {
+                "proposal_mode": "evaluation_rfq",
+                "rfq_profile": "katch_final_assessment",
+                "project": "KATCH Project Performance Evaluation",
+                "country": "Kyrgyzstan",
+                "region": "Selected project locations and stakeholder groups",
+                "background": (
+                    "The assignment requests an external project performance evaluation with mixed methods, "
+                    "stakeholder validation, and formal reporting deliverables."
+                ),
+                "evaluation_purpose": (
+                    "Assess project performance, capture outcome-level change, and generate practical "
+                    "recommendations for follow-on programming."
+                ),
+                "problem": (
+                    "The client needs a reviewable technical proposal that translates RFQ instructions into a "
+                    "coherent evaluation design, work plan, and reporting package."
+                ),
+                "methods": [
+                    "Outcome Harvesting",
+                    "Social Media Analysis",
+                    "Key Informant Interviews",
+                    "Focus Group Discussions",
+                    "Survey of Beneficiaries",
+                ],
+                "deliverables": [
+                    "Draft Inception Report with Evaluation Design and Work Plan",
+                    "Final Inception Report with Evaluation Design and Work Plan",
+                    "Bi-Weekly Updates",
+                    "Report on field survey data collection",
+                    "Virtual Event/Workshop",
+                    "Draft Evaluation Report",
+                    "Stand-alone Brief",
+                    "Final Evaluation Report",
+                ],
+                "evaluation_questions": [
+                    "What outcome-level changes can be substantiated through the project evidence base?",
+                    "Which implementation factors most influenced performance and beneficiary reach?",
+                    "What actionable recommendations should guide future programming and partner decisions?",
+                ],
+            },
+            "llm_mode": True,
+            "hitl_enabled": True,
+            "architect_rag_enabled": True,
+            "strict_preflight": False,
+        },
+    },
 }
 
 _DEMO_INGEST_PRESETS: dict[str, dict[str, Any]] = {

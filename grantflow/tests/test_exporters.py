@@ -1221,3 +1221,102 @@ def test_exporters_compact_noisy_architect_toc_text_in_word_and_excel():
     assert "architect_retrieval_no_hits" not in rendered
     assert "service delivery delivery" not in rendered
     assert "Improve public sector performance and service delivery in Uzbekistan" in rendered
+
+
+def test_exporters_support_evaluation_rfq_mode():
+    toc_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "toc": {
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+            "brief": "Technical response for an external project performance evaluation.",
+            "background_context": "Assignment covers project performance and learning needs.",
+            "evaluation_purpose": "Assess outcome-level change and implementation performance.",
+            "organization_information": "Registered organization with audited financials and Central Asia operating status.",
+            "technical_approach_summary": "Mixed-methods design, document review, sampling, analysis software, risks, and ethics.",
+            "sampling_plan": "Stakeholder and beneficiary sampling across project geographies.",
+            "analytical_software": ["Qualitative coding software"],
+            "ethical_considerations": ["Informed consent", "Confidentiality", "Do no harm"],
+            "evaluation_questions": [
+                "What changes can be substantiated?",
+                "What recommendations should guide follow-on action?",
+            ],
+            "methodology_overview": "Mixed-methods evaluation design with triangulated evidence review.",
+            "methodology_components": [
+                {
+                    "method": "Outcome Harvesting",
+                    "purpose": "Capture substantiated outcome-level change",
+                    "respondent_group": "Stakeholders and partners",
+                    "evidence_source": "Validated project records",
+                }
+            ],
+            "team_composition": [
+                {"role": "Team Lead", "responsibility": "Lead technical quality and client communication"}
+            ],
+            "level_of_effort_summary": "Activity-based person-days by phase and role.",
+            "technical_experience_summary": "Comparable evaluation experience in development-sector final assessments.",
+            "sample_outputs_summary": "Annexed final evaluation reports from comparable assignments.",
+            "deliverables": [
+                {
+                    "deliverable": "Inception Report",
+                    "timing": "Week 1",
+                    "purpose": "Confirm evaluation matrix and work plan",
+                }
+            ],
+            "workplan_summary": ["Mobilize, validate design, and execute fieldwork."],
+            "assumptions_risks": ["Stakeholder access remains available."],
+            "annex_readiness": ["CVs", "Registration certificate", "Sample outputs", "LOE matrix"],
+        },
+    }
+    logframe_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "indicators": [
+            {
+                "indicator_id": "IND_001",
+                "name": "Deliverable milestone: Inception Report",
+                "result_level": "output",
+                "baseline": "0 deliverables",
+                "target": "1 deliverable",
+                "frequency": "bi-weekly",
+                "formula": "Count of required deliverables completed and accepted against the agreed evaluation work plan",
+                "definition": "Tracks whether the inception package is completed with reviewer-ready documentation.",
+                "justification": "Maps the deliverable schedule into an evaluation RFQ management indicator.",
+                "means_of_verification": "Accepted deliverable package and QA checklist",
+                "owner": "Evaluation team lead and operations coordinator",
+            }
+        ],
+    }
+
+    doc = Document(BytesIO(build_docx_from_toc(toc_draft, "un_agencies", logframe_draft=logframe_draft)))
+    text = "\n".join(p.text for p in doc.paragraphs)
+    assert "Evaluation RFQ Technical Proposal" in text
+    assert "Organization Information" in text
+    assert "Assignment Background" in text
+    assert "Evaluation Purpose" in text
+    assert "Analysis and Proposed Approaches / Methodologies" in text
+    assert "Sampling Plan" in text
+    assert "Personnel and Team Composition" in text
+    assert "Proposed Level of Effort" in text
+    assert "Technical Experience and Past Performance References" in text
+    assert "Workplan & Deliverables" in text
+
+    wb = load_workbook(BytesIO(build_xlsx_from_logframe(logframe_draft, "un_agencies", toc_draft=toc_draft)))
+    assert "Evaluation_Plan" in wb.sheetnames
+    headers = [cell.value for cell in wb["Evaluation_Plan"][1]]
+    assert headers == ["Section", "ID", "Title", "Description"]
+    rendered = "\n".join(
+        " | ".join("" if cell is None else str(cell) for cell in row)
+        for row in wb["Evaluation_Plan"].iter_rows(values_only=True)
+    )
+    assert "Organization Information" in rendered
+    assert "Analysis and Proposed Approaches / Methodologies" in rendered
+    assert "Proposed Level of Effort" in rendered
+    assert "Technical Experience and Past Performance References" in rendered
+    contract = evaluate_export_contract(
+        donor_id="un_agencies",
+        toc_payload=toc_draft,
+        workbook_sheetnames=wb.sheetnames,
+        workbook_primary_sheet_headers=headers,
+    )
+    assert contract["template_key"] == "evaluation_rfq"
+    assert contract["status"] == "pass"

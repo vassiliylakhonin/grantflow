@@ -8,6 +8,11 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Type, Union, get_args, 
 from pydantic import BaseModel
 
 from grantflow.core.config import config
+from grantflow.core.evaluation_rfq import (
+    build_evaluation_rfq_fallback_payload,
+    evaluation_rfq_schema,
+    is_evaluation_rfq_mode,
+)
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citations import citation_traceability_status
 from grantflow.swarm.llm_provider import (
@@ -681,8 +686,18 @@ def _fallback_structured_toc(
     country: str,
     revision_hint: str,
     evidence_hits: Iterable[Dict[str, Any]],
+    input_context: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Dict[str, Any], str]:
     evidence_hint = _short_evidence_hint(evidence_hits)
+    if schema_cls is evaluation_rfq_schema():
+        payload = build_evaluation_rfq_fallback_payload(
+            donor_id=donor_id,
+            project=project,
+            country=country,
+            input_context=input_context if isinstance(input_context, dict) else {},
+            evidence_hint=evidence_hint,
+        )
+        return payload, "evaluation_rfq_contract_synthesizer"
     payload = _synthesize_model(
         schema_cls,
         ctx={
@@ -1338,12 +1353,12 @@ def generate_toc_under_contract(
 ) -> tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any], list[Dict[str, Any]]]:
     normalize_state_contract(state)
     evidence_hits = [h for h in evidence_hits if isinstance(h, dict)]
-    schema_cls = strategy.get_toc_schema()
     donor_id = state_donor_id(
         state,
         default=str(getattr(strategy, "donor_id", "donor")),
     )
     input_context = state_input_context(state)
+    schema_cls = evaluation_rfq_schema() if is_evaluation_rfq_mode(input_context) else strategy.get_toc_schema()
     project = str(input_context.get("project") or "TBD project")
     country = str(input_context.get("country") or "TBD")
     revision_hint = state_revision_hint(state)
@@ -1487,6 +1502,7 @@ def generate_toc_under_contract(
             country=country,
             revision_hint=revision_hint,
             evidence_hits=evidence_hits,
+            input_context=input_context,
         )
         if llm_mode:
             engine = f"fallback:{synth_engine}"

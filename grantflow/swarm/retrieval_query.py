@@ -54,6 +54,7 @@ _DONOR_QUERY_PRESETS: dict[str, list[str]] = {
 }
 
 _CONTEXT_HINT_KEYS = (
+    "proposal_mode",
     "project",
     "country",
     "sector",
@@ -63,6 +64,10 @@ _CONTEXT_HINT_KEYS = (
     "target_beneficiaries",
     "budget",
     "duration_months",
+    "evaluation_purpose",
+    "methods",
+    "evaluation_methods",
+    "deliverables",
 )
 
 _REVISION_NOISE_PATTERNS = (
@@ -91,6 +96,14 @@ def donor_query_preset_list(donor_id: str) -> list[str]:
 
 def donor_query_preset_terms(donor_id: str) -> str:
     return " | ".join(donor_query_preset_list(donor_id))
+
+
+def _proposal_mode_query_terms(input_context: Dict[str, Any] | None) -> str:
+    ctx = input_context if isinstance(input_context, dict) else {}
+    proposal_mode = str(ctx.get("proposal_mode") or "").strip().lower()
+    if proposal_mode != "evaluation_rfq":
+        return ""
+    return "evaluation questions | methodology | sampling | deliverables | inception report | final evaluation report"
 
 
 def context_query_hints(input_context: Dict[str, Any] | None, *, max_items: int = 5) -> str:
@@ -217,6 +230,7 @@ def build_stage_query_text(
     input_context = state_input_context(state)
     context_hints = context_query_hints(input_context)
     donor_terms = donor_query_preset_terms(donor_id)
+    proposal_mode_terms = _proposal_mode_query_terms(input_context)
     toc_hints = toc_query_hints(toc_payload)
     query_revision_hint = sanitize_revision_hint_for_query(revision_hint) if include_revision_hint else ""
     parts: list[str] = [
@@ -225,6 +239,7 @@ def build_stage_query_text(
         str(country or "").strip(),
         donor_id,
         context_hints,
+        proposal_mode_terms,
         toc_hints,
         query_revision_hint,
         donor_terms,

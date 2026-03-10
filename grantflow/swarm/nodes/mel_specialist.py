@@ -9,6 +9,7 @@ from typing import Any, Dict, Iterable, Optional, Tuple, Type, Union, get_args, 
 from pydantic import BaseModel, Field
 
 from grantflow.core.config import config
+from grantflow.core.evaluation_rfq import is_evaluation_rfq_mode
 from grantflow.memory_bank.vector_store import vector_store
 from grantflow.swarm.citation_source import citation_label_from_metadata, citation_source_from_metadata
 from grantflow.swarm.citations import append_citations, citation_traceability_status
@@ -1153,6 +1154,15 @@ def _deterministic_indicators_from_toc(
     input_context: Optional[Dict[str, Any]] = None,
     max_indicators: int = 6,
 ) -> list[Dict[str, Any]]:
+    if is_evaluation_rfq_mode(input_context):
+        return _evaluation_rfq_indicators_from_toc(
+            toc_payload=toc_payload if isinstance(toc_payload, dict) else {},
+            retrieval_hits=retrieval_hits,
+            namespace=namespace,
+            donor_id=donor_id,
+            input_context=input_context or {},
+            max_indicators=max_indicators,
+        )
     candidates = _dedupe_toc_result_statements(
         _extract_toc_result_statements(toc_payload if isinstance(toc_payload, dict) else {}, "toc")
     )
@@ -1216,6 +1226,111 @@ def _deterministic_indicators_from_toc(
                 donor_id=donor_id,
                 toc_statement_path=statement_path,
             ),
+        )
+    return indicators
+
+
+def _evaluation_rfq_indicators_from_toc(
+    *,
+    toc_payload: Dict[str, Any],
+    retrieval_hits: list[Dict[str, Any]],
+    namespace: str,
+    donor_id: str,
+    input_context: Dict[str, Any],
+    max_indicators: int,
+) -> list[Dict[str, Any]]:
+    deliverables = toc_payload.get("deliverables")
+    methods = toc_payload.get("methodology_components")
+    indicators: list[Dict[str, Any]] = []
+    deliverable_rows = deliverables if isinstance(deliverables, list) else []
+    method_rows = methods if isinstance(methods, list) else []
+    candidates: list[tuple[str, str, str]] = []
+    if deliverable_rows:
+        for idx, row in enumerate(deliverable_rows[:3], start=1):
+            if not isinstance(row, dict):
+                continue
+            deliverable = str(row.get("deliverable") or f"Deliverable {idx}").strip()
+            purpose = str(row.get("purpose") or "").strip()
+            candidates.append((f"toc.deliverables[{idx - 1}]", deliverable, purpose))
+    if method_rows and len(candidates) < max_indicators:
+        for idx, row in enumerate(method_rows[:2], start=1):
+            if not isinstance(row, dict):
+                continue
+            method = str(row.get("method") or f"Method {idx}").strip()
+            purpose = str(row.get("purpose") or "").strip()
+            candidates.append((f"toc.methodology_components[{idx - 1}]", method, purpose))
+
+    if not candidates:
+        candidates = [
+            ("toc.deliverables[0]", "Inception package approved", "Confirms evaluation design and work plan quality."),
+            ("toc.methodology_components[0]", "Field evidence collection completed", "Tracks respondent coverage and evidence completeness."),
+            ("toc.deliverables[1]", "Final evaluation package delivered", "Tracks draft-to-final reporting completion."),
+        ]
+
+    bounded = candidates[: max(1, max_indicators)]
+    for idx, (statement_path, title, purpose) in enumerate(bounded):
+        hit, _score = _pick_best_mel_evidence_hit(f"{title}. {purpose}".strip(), retrieval_hits)
+        result_level = "output" if "deliverable" in statement_path or "inception" in title.lower() else "outcome"
+        name = (
+            str(hit.get("name") or "").strip()
+            or (
+                f"Deliverable milestone: {title}"
+                if result_level == "output"
+                else f"Evaluation method completion: {title}"
+            )
+        )
+        formula = str(hit.get("formula") or "").strip() or (
+            "Count of required deliverables completed and accepted against the agreed evaluation work plan"
+            if result_level == "output"
+            else "Percent of planned evidence collection and validation tasks completed on schedule"
+        )
+        baseline, target = _resolve_baseline_target(
+            baseline_raw=hit.get("baseline") if hit else "",
+            target_raw=hit.get("target") if hit else "",
+            indicator_name=name,
+            input_context=input_context,
+            idx=idx,
+            donor_id=donor_id,
+            result_level=result_level,
+            formula=formula,
+        )
+        item = {
+            "indicator_id": str(hit.get("indicator_id") or f"IND_{idx + 1:03d}"),
+            "name": name,
+            "justification": (
+                f"Maps {statement_path} into an evaluation RFQ management indicator so the team can track "
+                "technical delivery, evidence quality, and reporting readiness."
+            ),
+            "definition": (
+                f"Tracks whether the response team completes {title.lower()} with evidence quality and reviewer-ready "
+                "documentation aligned to the evaluation assignment."
+            ),
+            "citation": str(hit.get("label") or hit.get("source") or namespace),
+            "baseline": baseline,
+            "target": target,
+            "result_level": result_level,
+            "frequency": "bi-weekly" if result_level == "output" else "monthly",
+            "formula": formula,
+            "data_source": (
+                "Approved work plan, deliverable tracker, QA notes, and submission records"
+                if result_level == "output"
+                else "Fieldwork tracker, respondent log, validation notes, and evidence register"
+            ),
+            "means_of_verification": (
+                "Accepted deliverable package, client feedback log, and internal QA checklist"
+                if result_level == "output"
+                else "Completed tools, response datasets, validation notes, and analysis file inventory"
+            ),
+            "owner": "Evaluation team lead and operations coordinator",
+            "evidence_excerpt": str(hit.get("excerpt") or purpose or title)[:240],
+            "toc_statement_path": statement_path,
+        }
+        indicators.append(
+            _apply_indicator_defaults(
+                _copy_optional_indicator_fields_from_hit(item, hit),
+                donor_id=donor_id,
+                toc_statement_path=statement_path,
+            )
         )
     return indicators
 
@@ -2541,7 +2656,12 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
     rag_trace["citation_count"] = len(citation_records)
     rag_trace["indicator_count"] = len(indicators)
     rag_trace["generation"] = mel_generation_meta
-    mel = {"indicators": indicators, "rag_trace": rag_trace, "citations": citation_records}
+    mel = {
+        "proposal_mode": input_context.get("proposal_mode"),
+        "indicators": indicators,
+        "rag_trace": rag_trace,
+        "citations": citation_records,
+    }
     state["mel"] = mel
     state["logframe_draft"] = mel
     state["mel_generation_meta"] = mel_generation_meta

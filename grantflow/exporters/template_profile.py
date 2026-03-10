@@ -23,6 +23,7 @@ DONOR_TEMPLATE_ALIASES: dict[str, str] = {
 }
 
 TEMPLATE_DISPLAY_NAMES: dict[str, str] = {
+    "evaluation_rfq": "Evaluation RFQ Technical Proposal",
     "usaid": "USAID Results Framework",
     "eu": "EU Intervention Logic",
     "worldbank": "World Bank Results Framework",
@@ -33,6 +34,18 @@ TEMPLATE_DISPLAY_NAMES: dict[str, str] = {
 }
 
 TEMPLATE_REQUIRED_SECTIONS: dict[str, list[str]] = {
+    "evaluation_rfq": [
+        "brief",
+        "organization_information",
+        "evaluation_purpose",
+        "methodology_overview",
+        "methodology_components",
+        "workplan_summary",
+        "level_of_effort_summary",
+        "technical_experience_summary",
+        "team_composition",
+        "deliverables",
+    ],
     "usaid": ["project_goal", "development_objectives"],
     "eu": ["overall_objective", "specific_objectives", "expected_outcomes"],
     "worldbank": ["project_development_objective", "objectives", "results_chain"],
@@ -49,6 +62,13 @@ def normalize_export_template_key(donor_id: str) -> str:
     return DONOR_TEMPLATE_ALIASES.get(donor_key, "generic")
 
 
+def resolve_export_template_key(*, donor_id: str, toc_payload: Dict[str, Any]) -> str:
+    proposal_mode = str((unwrap_toc_payload(toc_payload) or {}).get("proposal_mode") or "").strip().lower()
+    if proposal_mode == "evaluation_rfq":
+        return "evaluation_rfq"
+    return normalize_export_template_key(donor_id)
+
+
 def _is_non_empty(value: Any) -> bool:
     if value is None:
         return False
@@ -60,7 +80,7 @@ def _is_non_empty(value: Any) -> bool:
 
 
 def build_export_template_profile(*, donor_id: str, toc_payload: Dict[str, Any]) -> Dict[str, Any]:
-    template_key = normalize_export_template_key(donor_id)
+    template_key = resolve_export_template_key(donor_id=donor_id, toc_payload=toc_payload)
     normalized_toc_payload = normalize_toc_for_export(template_key, unwrap_toc_payload(toc_payload))
     required_sections = list(TEMPLATE_REQUIRED_SECTIONS.get(template_key, []))
     present_sections = [name for name in required_sections if _is_non_empty((normalized_toc_payload or {}).get(name))]

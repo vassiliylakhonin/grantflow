@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from grantflow.core.evaluation_rfq import evaluation_rfq_schema
 from grantflow.core.strategies.factory import DonorFactory
 from grantflow.swarm.nodes import architect_generation as architect_generation_module
 from grantflow.swarm.nodes import architect_retrieval as architect_retrieval_module
@@ -952,3 +953,54 @@ def test_fallback_structured_toc_does_not_leak_noisy_evidence_hint_into_generic_
     assert "evidence hint" not in all_text
     assert "architect_retrieval_no_hits" not in all_text
     assert "replace repeated boilerplate" not in all_text
+
+
+def test_fallback_structured_toc_supports_evaluation_rfq_mode():
+    payload, engine = _fallback_structured_toc(
+        evaluation_rfq_schema(),
+        donor_id="un_agencies",
+        project="KATCH Project Performance Evaluation",
+        country="Kyrgyzstan",
+        revision_hint="",
+        evidence_hits=[],
+        input_context={
+            "proposal_mode": "evaluation_rfq",
+            "methods": [
+                "Outcome Harvesting",
+                "Social Media Analysis",
+                "Focus Group Discussions",
+                "Survey of Beneficiaries",
+            ],
+        },
+    )
+
+    assert engine == "evaluation_rfq_contract_synthesizer"
+    assert payload["proposal_mode"] == "evaluation_rfq"
+    assert "technical response" in str(payload["brief"]).lower()
+    assert isinstance(payload.get("methodology_components"), list) and payload["methodology_components"]
+    assert isinstance(payload.get("deliverables"), list) and payload["deliverables"]
+
+
+def test_fallback_structured_toc_supports_katch_evaluation_rfq_profile():
+    payload, engine = _fallback_structured_toc(
+        evaluation_rfq_schema(),
+        donor_id="un_agencies",
+        project="KATCH Project Performance Evaluation",
+        country="Kazakhstan",
+        revision_hint="",
+        evidence_hits=[],
+        input_context={
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+        },
+    )
+
+    assert engine == "evaluation_rfq_contract_synthesizer"
+    assert payload["rfq_profile"] == "katch_final_assessment"
+    assert payload["organization_information"]
+    assert payload["technical_approach_summary"]
+    assert payload["sampling_plan"]
+    assert payload["level_of_effort_summary"]
+    assert payload["technical_experience_summary"]
+    assert payload["sample_outputs_summary"]
+    assert payload["annex_readiness"]

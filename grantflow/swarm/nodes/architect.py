@@ -92,6 +92,8 @@ def draft_toc(state: Dict[str, Any]) -> Dict[str, Any]:
     state["toc_generation_meta"] = generation_meta
     state["toc_draft"] = {
         "toc": toc,
+        "proposal_mode": input_context.get("proposal_mode"),
+        "rfq_profile": input_context.get("rfq_profile"),
         "citation": f"Based on {namespace}",
         "generation_meta": generation_meta,
         "validation": validation,

@@ -125,3 +125,27 @@ def test_build_stage_query_text_includes_eu_and_worldbank_toc_specific_hints():
     assert "improve service delivery performance" in wb_lower
     assert "strengthen institutional performance" in wb_lower
     assert "agencies implement workflow improvements" in wb_lower
+
+
+def test_build_stage_query_text_includes_evaluation_rfq_terms():
+    query = build_stage_query_text(
+        state={
+            "donor_id": "un_agencies",
+            "input_context": {
+                "proposal_mode": "evaluation_rfq",
+                "project": "KATCH Project Performance Evaluation",
+                "country": "Kyrgyzstan",
+                "evaluation_purpose": "Assess project performance and outcome-level change",
+                "methods": ["Outcome Harvesting", "Survey of Beneficiaries"],
+            },
+        },
+        stage="architect",
+        project="KATCH Project Performance Evaluation",
+        country="Kyrgyzstan",
+        toc_payload={"evaluation_purpose": "Assess project performance and outcome-level change"},
+    )
+    lowered = query.lower()
+    assert "evaluation_rfq" in lowered
+    assert "evaluation questions" in lowered
+    assert "deliverables" in lowered
+    assert "outcome harvesting" in lowered
