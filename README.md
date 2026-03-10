@@ -260,6 +260,7 @@ The benchmark overlay prefers curated repo-tracked assumptions for representativ
 `make verify-latest-stack-refresh` rebuilds the chain first, then verifies the latest stack.
 `make release-demo-bundle` rebuilds and packages the current latest stack into a send-ready folder plus zip.
 `make release-demo-bundle-fast` rebuilds only the fast buyer path, then packages `pilot-handout`, `pilot-evidence-pack`, `latest-open-order`, `pilot-portfolio-summary.json/csv`, and the current `executive-pack` into a lighter send-ready folder plus zip.
+`make release-demo-bundle-custom` packages an explicit pilot/executive/evidence path into a send-ready bundle without rewriting `build/latest-*`; use it for curated variants such as a 6-donor buyer pack.
 `make send-bundle-index` writes a short markdown telling you which current bundle to send in which scenario.
 `make send-bundle-index-refresh` rebuilds the fast send bundle first, then writes that send index.
 `make open-latest-send` prints the current send-oriented open order from the latest fast/full bundle links. Set `OPEN_LATEST_SEND_MODE=open` on macOS to open them directly.

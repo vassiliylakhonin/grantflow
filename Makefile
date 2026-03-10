@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh benchmark-baseline benchmark-baseline-refresh pilot-evidence-pack pilot-evidence-pack-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh benchmark-baseline benchmark-baseline-refresh pilot-evidence-pack pilot-evidence-pack-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast release-demo-bundle-custom send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -89,6 +89,14 @@ RELEASE_DEMO_BUNDLE_OUT_DIR ?= build/release-demo-bundle
 RELEASE_DEMO_BUNDLE_NAME ?= grantflow-demo-bundle
 RELEASE_DEMO_BUNDLE_FAST_OUT_DIR ?= build/release-demo-bundle-fast
 RELEASE_DEMO_BUNDLE_FAST_NAME ?= grantflow-demo-bundle-fast
+RELEASE_DEMO_BUNDLE_CUSTOM_OUT_DIR ?= build/release-demo-bundle-custom
+RELEASE_DEMO_BUNDLE_CUSTOM_NAME ?= grantflow-demo-bundle-custom
+RELEASE_DEMO_BUNDLE_CUSTOM_PILOT_DIR ?=
+RELEASE_DEMO_BUNDLE_CUSTOM_EXECUTIVE_DIR ?=
+RELEASE_DEMO_BUNDLE_CUSTOM_EVIDENCE_DIR ?=
+RELEASE_DEMO_BUNDLE_CUSTOM_HANDOUT ?=
+RELEASE_DEMO_BUNDLE_CUSTOM_OPEN_ORDER ?=
+RELEASE_DEMO_BUNDLE_CUSTOM_ARCHIVE ?=
 BUYER_DEMO_OPEN_BUILD_DIR ?= build
 BUYER_DEMO_OPEN_MODE ?= print
 CI_DEMO_SMOKE_ROOT ?= build/ci-demo-smoke
@@ -492,6 +500,21 @@ release-demo-bundle-fast: pilot-refresh-fast
 		--build-dir $(RELEASE_DEMO_BUNDLE_BUILD_DIR) \
 		--output-dir $(RELEASE_DEMO_BUNDLE_FAST_OUT_DIR) \
 		--bundle-name $(RELEASE_DEMO_BUNDLE_FAST_NAME) \
+		--include-executive-pack \
+		--skip-archive \
+		--skip-diligence-index
+
+release-demo-bundle-custom:
+	$(PYTHON) scripts/release_demo_bundle.py \
+		--build-dir $(RELEASE_DEMO_BUNDLE_BUILD_DIR) \
+		--output-dir $(RELEASE_DEMO_BUNDLE_CUSTOM_OUT_DIR) \
+		--bundle-name $(RELEASE_DEMO_BUNDLE_CUSTOM_NAME) \
+		--pilot-pack-dir $(RELEASE_DEMO_BUNDLE_CUSTOM_PILOT_DIR) \
+		--executive-pack-dir $(RELEASE_DEMO_BUNDLE_CUSTOM_EXECUTIVE_DIR) \
+		--pilot-evidence-pack-dir $(RELEASE_DEMO_BUNDLE_CUSTOM_EVIDENCE_DIR) \
+		--pilot-handout-path $(RELEASE_DEMO_BUNDLE_CUSTOM_HANDOUT) \
+		--latest-open-order-path $(RELEASE_DEMO_BUNDLE_CUSTOM_OPEN_ORDER) \
+		$(if $(RELEASE_DEMO_BUNDLE_CUSTOM_ARCHIVE),--archive-zip-path $(RELEASE_DEMO_BUNDLE_CUSTOM_ARCHIVE),) \
 		--include-executive-pack \
 		--skip-archive \
 		--skip-diligence-index

@@ -163,6 +163,12 @@ def main() -> int:
     parser.add_argument("--include-executive-pack", action="store_true")
     parser.add_argument("--skip-archive", action="store_true")
     parser.add_argument("--skip-diligence-index", action="store_true")
+    parser.add_argument("--pilot-pack-dir", default="")
+    parser.add_argument("--executive-pack-dir", default="")
+    parser.add_argument("--pilot-evidence-pack-dir", default="")
+    parser.add_argument("--pilot-handout-path", default="")
+    parser.add_argument("--latest-open-order-path", default="")
+    parser.add_argument("--archive-zip-path", default="")
     args = parser.parse_args()
 
     build_dir = Path(str(args.build_dir)).resolve()
@@ -174,8 +180,9 @@ def main() -> int:
     send_policy_action = None
     portfolio_summary: dict[str, object] = {}
 
+    explicit_pilot_pack_dir = Path(str(args.pilot_pack_dir)).resolve() if str(args.pilot_pack_dir).strip() else None
     latest_pilot_pack = build_dir / "latest-pilot-pack"
-    pilot_pack_dir = (
+    pilot_pack_dir = explicit_pilot_pack_dir or (
         latest_pilot_pack.resolve() if (latest_pilot_pack.exists() or latest_pilot_pack.is_symlink()) else None
     )
     if pilot_pack_dir:
@@ -219,9 +226,23 @@ def main() -> int:
         shutil.rmtree(bundle_root)
     bundle_root.mkdir(parents=True, exist_ok=True)
 
-    _copy_if_exists(build_dir / "pilot-handout.md", bundle_root / "pilot-handout.md")
-    _copy_if_exists(build_dir / "latest-open-order.md", bundle_root / "latest-open-order.md")
-    pilot_evidence_pack_dir = build_dir / "pilot-evidence-pack"
+    pilot_handout_path = (
+        Path(str(args.pilot_handout_path)).resolve()
+        if str(args.pilot_handout_path).strip()
+        else build_dir / "pilot-handout.md"
+    )
+    latest_open_order_path = (
+        Path(str(args.latest_open_order_path)).resolve()
+        if str(args.latest_open_order_path).strip()
+        else build_dir / "latest-open-order.md"
+    )
+    _copy_if_exists(pilot_handout_path, bundle_root / "pilot-handout.md")
+    _copy_if_exists(latest_open_order_path, bundle_root / "latest-open-order.md")
+    pilot_evidence_pack_dir = (
+        Path(str(args.pilot_evidence_pack_dir)).resolve()
+        if str(args.pilot_evidence_pack_dir).strip()
+        else build_dir / "pilot-evidence-pack"
+    )
     include_pilot_evidence_pack = pilot_evidence_pack_dir.exists()
     if include_pilot_evidence_pack:
         _copy_tree_if_exists(pilot_evidence_pack_dir, bundle_root / "pilot-evidence-pack")
@@ -233,11 +254,23 @@ def main() -> int:
         _copy_if_exists(build_dir / "diligence-index.md", bundle_root / "diligence-index.md")
     include_executive_pack = bool(args.include_executive_pack)
     if include_executive_pack:
+        explicit_executive_pack_dir = (
+            Path(str(args.executive_pack_dir)).resolve() if str(args.executive_pack_dir).strip() else None
+        )
         executive_pack_link = build_dir / "latest-executive-pack"
-        if executive_pack_link.exists() or executive_pack_link.is_symlink():
-            _copy_tree_if_exists(executive_pack_link.resolve(), bundle_root / "executive-pack")
+        executive_pack_dir = explicit_executive_pack_dir or (
+            executive_pack_link.resolve()
+            if (executive_pack_link.exists() or executive_pack_link.is_symlink())
+            else None
+        )
+        if executive_pack_dir:
+            _copy_tree_if_exists(executive_pack_dir, bundle_root / "executive-pack")
 
-    archive_zip = _resolve_latest_archive_zip(build_dir)
+    archive_zip = (
+        Path(str(args.archive_zip_path)).resolve()
+        if str(args.archive_zip_path).strip()
+        else _resolve_latest_archive_zip(build_dir)
+    )
     archive_zip_name = None
     if archive_zip is not None and not bool(args.skip_archive):
         archive_zip_name = archive_zip.name
