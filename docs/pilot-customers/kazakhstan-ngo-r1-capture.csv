@@ -1,0 +1,4 @@
+case_id,donor_track,current_status,reached_reviewable_draft,time_to_first_reviewable_draft_hours,current_review_loops,active_reviewers,open_findings_count,duplicate_or_conflicting_comments_observed,duplicate_or_conflicting_comment_notes,major_mel_rewrites_after_r2_so_far,operator_notes,reviewer_notes,approver_notes
+CASE-UN-01,un_agencies,LIVE,,,,,,,,,,
+CASE-EU-01,eu,LIVE,,,,,,,,,,
+CASE-USAID-01,usaid,LIVE,,,,,,,,,,

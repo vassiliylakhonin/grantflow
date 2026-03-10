@@ -1,0 +1,61 @@
+{
+  "checkpoint_name": "kazakhstan_ngo_r1",
+  "checkpoint_type": "R1_COMPLETE",
+  "checkpoint_date": "",
+  "captured_by": "",
+  "reporting_window_start": "",
+  "reporting_window_end": "",
+  "overall_pilot_state": "",
+  "cases": [
+    {
+      "case_id": "CASE-UN-01",
+      "donor_track": "un_agencies",
+      "current_status": "LIVE",
+      "reached_reviewable_draft": null,
+      "time_to_first_reviewable_draft_hours": null,
+      "current_review_loops": null,
+      "active_reviewers": null,
+      "open_findings_count": null,
+      "duplicate_or_conflicting_comments_observed": null,
+      "duplicate_or_conflicting_comment_notes": "",
+      "major_mel_rewrites_after_r2_so_far": null,
+      "operator_notes": "",
+      "reviewer_notes": "",
+      "approver_notes": ""
+    },
+    {
+      "case_id": "CASE-EU-01",
+      "donor_track": "eu",
+      "current_status": "LIVE",
+      "reached_reviewable_draft": null,
+      "time_to_first_reviewable_draft_hours": null,
+      "current_review_loops": null,
+      "active_reviewers": null,
+      "open_findings_count": null,
+      "duplicate_or_conflicting_comments_observed": null,
+      "duplicate_or_conflicting_comment_notes": "",
+      "major_mel_rewrites_after_r2_so_far": null,
+      "operator_notes": "",
+      "reviewer_notes": "",
+      "approver_notes": ""
+    },
+    {
+      "case_id": "CASE-USAID-01",
+      "donor_track": "usaid",
+      "current_status": "LIVE",
+      "reached_reviewable_draft": null,
+      "time_to_first_reviewable_draft_hours": null,
+      "current_review_loops": null,
+      "active_reviewers": null,
+      "open_findings_count": null,
+      "duplicate_or_conflicting_comments_observed": null,
+      "duplicate_or_conflicting_comment_notes": "",
+      "major_mel_rewrites_after_r2_so_far": null,
+      "operator_notes": "",
+      "reviewer_notes": "",
+      "approver_notes": ""
+    }
+  ],
+  "r1_exit_decision": "",
+  "next_actions": []
+}

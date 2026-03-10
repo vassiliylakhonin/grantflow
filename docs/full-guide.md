@@ -16,6 +16,10 @@ Quick companion docs:
 - customer pilot contract example: `docs/pilot-customers/kazakhstan-ngo-pilot-contract.md`
 - customer pilot contract json: `docs/pilot-customers/kazakhstan-ngo-pilot-contract.json`
 - customer live launch memo: `docs/pilot-customers/kazakhstan-ngo-live-launch-memo.md`
+- customer R1 checkpoint template: `docs/pilot-customers/kazakhstan-ngo-r1-checkpoint-template.md`
+- customer R1 checkpoint json: `docs/pilot-customers/kazakhstan-ngo-r1-checkpoint.json`
+- customer R1 capture csv: `docs/pilot-customers/kazakhstan-ngo-r1-capture.csv`
+- customer R1 operator checklist: `docs/pilot-customers/kazakhstan-ngo-r1-operator-checklist.md`
 - customer execution checklist example: `docs/pilot-customers/kazakhstan-ngo-execution-checklist.md`
 - customer measured baseline sheet example: `docs/pilot-customers/kazakhstan-ngo-measured-baseline.csv`
 - customer donor corpus plan example: `docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
