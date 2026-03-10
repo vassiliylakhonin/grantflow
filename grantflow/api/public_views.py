@@ -4,6 +4,7 @@ import difflib
 import json
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, Optional, cast
 
 from grantflow.api.csv_utils import csv_text_from_mapping
@@ -2094,6 +2095,80 @@ def public_job_export_payload(
     *,
     ingest_inventory_rows: Optional[list[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
+    def _attachment_source_path(row: dict[str, Any]) -> str:
+        for key in ("source_path", "staged_file_path", "local_path", "file_path", "attachment_path"):
+            value = row.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
+
+    def _adjust_submission_package_readiness(summary: dict[str, Any], attachment_rows: list[dict[str, Any]]) -> dict[str, Any]:
+        adjusted = dict(summary)
+        attachment_counts = adjusted.get("attachment_manifest_counts")
+        if not isinstance(attachment_counts, dict) or not attachment_rows:
+            return adjusted
+
+        missing_ready = 0
+        for row in attachment_rows:
+            status = str(row.get("status") or "").strip().lower()
+            source_path = _attachment_source_path(row)
+            if status != "ready" or not source_path:
+                continue
+            try:
+                source = Path(source_path).expanduser().resolve(strict=True)
+            except (FileNotFoundError, OSError):
+                source = None
+            if source is None or not source.is_file():
+                missing_ready += 1
+
+        if missing_ready <= 0:
+            return adjusted
+
+        updated_attachment_counts = dict(attachment_counts)
+        updated_attachment_counts["ready"] = max(0, int(updated_attachment_counts.get("ready", 0)) - missing_ready)
+        updated_attachment_counts["pending"] = int(updated_attachment_counts.get("pending", 0)) + missing_ready
+        adjusted["attachment_manifest_counts"] = updated_attachment_counts
+        adjusted["top_gap"] = "attachment_files"
+        adjusted["attachment_file_validation"] = {
+            "missing_ready_file_count": missing_ready,
+        }
+
+        submission_counts = adjusted.get("submission_package_counts")
+        compliance_counts = adjusted.get("compliance_matrix_counts")
+        if not isinstance(submission_counts, dict) or not isinstance(compliance_counts, dict):
+            return adjusted
+
+        weighted_total = (
+            int(submission_counts.get("total", 0))
+            + int(updated_attachment_counts.get("total", 0))
+            + int(compliance_counts.get("total", 0))
+        )
+        weighted_ready = (
+            int(submission_counts.get("ready", 0))
+            + int(updated_attachment_counts.get("ready", 0))
+            + int(compliance_counts.get("ready", 0))
+        )
+        weighted_partial = (
+            int(submission_counts.get("partial", 0))
+            + int(updated_attachment_counts.get("partial", 0))
+            + int(compliance_counts.get("partial", 0))
+        )
+        completeness_score = (
+            round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1)
+            if weighted_total
+            else 0.0
+        )
+        adjusted["completeness_score"] = completeness_score
+        if weighted_total == 0:
+            adjusted["readiness_status"] = "missing"
+        elif completeness_score >= 85:
+            adjusted["readiness_status"] = "ready"
+        elif completeness_score >= 60:
+            adjusted["readiness_status"] = "partial"
+        else:
+            adjusted["readiness_status"] = "weak"
+        return adjusted
+
     state = job.get("state")
     state_payload = public_state_snapshot(state) if isinstance(state, dict) else {}
     state_dict = _job_state_dict(job)
@@ -2122,6 +2197,14 @@ def public_job_export_payload(
     raw_submission_readiness = export_contract_gate.get("submission_readiness_summary")
     if isinstance(raw_submission_readiness, dict):
         submission_package_readiness = raw_submission_readiness
+        toc_root = state_payload.get("toc_draft")
+        if isinstance(toc_root, dict):
+            attachment_rows = toc_root.get("attachment_manifest")
+            if isinstance(attachment_rows, list):
+                submission_package_readiness = _adjust_submission_package_readiness(
+                    submission_package_readiness,
+                    [item for item in attachment_rows if isinstance(item, dict)],
+                )
     if isinstance(review_readiness_summary.get("comment_triage_summary"), dict):
         review_readiness_summary["comment_triage_summary"] = _comment_triage_summary_payload(
             review_comments=[item for item in review_comments if isinstance(item, dict)],

@@ -110,6 +110,76 @@ def _safe_attachment_export_name(*, index: int, attachment: str, source_path: st
     return f"{index:02d}_{stem}{suffix}"
 
 
+def _adjust_submission_readiness_for_attachment_files(summary: dict, attachment_rows: list[dict]) -> dict:
+    adjusted = dict(summary) if isinstance(summary, dict) else {}
+    if not attachment_rows:
+        return adjusted
+    attachment_counts = adjusted.get("attachment_manifest_counts")
+    if not isinstance(attachment_counts, dict):
+        return adjusted
+
+    missing_ready = 0
+    for row in attachment_rows:
+        if not isinstance(row, dict):
+            continue
+        status = str(row.get("status") or "").strip().lower()
+        source_path = _attachment_source_path(row)
+        if status != "ready" or not source_path:
+            continue
+        try:
+            source = Path(source_path).expanduser().resolve(strict=True)
+        except (FileNotFoundError, OSError):
+            source = None
+        if source is None or not source.is_file():
+            missing_ready += 1
+
+    if missing_ready <= 0:
+        return adjusted
+
+    updated_attachment_counts = dict(attachment_counts)
+    updated_attachment_counts["ready"] = max(0, int(updated_attachment_counts.get("ready", 0)) - missing_ready)
+    updated_attachment_counts["pending"] = int(updated_attachment_counts.get("pending", 0)) + missing_ready
+    adjusted["attachment_manifest_counts"] = updated_attachment_counts
+
+    submission_counts = adjusted.get("submission_package_counts")
+    compliance_counts = adjusted.get("compliance_matrix_counts")
+    if not isinstance(submission_counts, dict) or not isinstance(compliance_counts, dict):
+        adjusted["top_gap"] = "attachment_files"
+        return adjusted
+
+    weighted_total = (
+        int(submission_counts.get("total", 0))
+        + int(updated_attachment_counts.get("total", 0))
+        + int(compliance_counts.get("total", 0))
+    )
+    weighted_ready = (
+        int(submission_counts.get("ready", 0))
+        + int(updated_attachment_counts.get("ready", 0))
+        + int(compliance_counts.get("ready", 0))
+    )
+    weighted_partial = (
+        int(submission_counts.get("partial", 0))
+        + int(updated_attachment_counts.get("partial", 0))
+        + int(compliance_counts.get("partial", 0))
+    )
+    completeness_score = (
+        round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1)
+        if weighted_total
+        else 0.0
+    )
+    adjusted["completeness_score"] = completeness_score
+    if weighted_total == 0:
+        adjusted["readiness_status"] = "missing"
+    elif completeness_score >= 85:
+        adjusted["readiness_status"] = "ready"
+    elif completeness_score >= 60:
+        adjusted["readiness_status"] = "partial"
+    else:
+        adjusted["readiness_status"] = "weak"
+    adjusted["top_gap"] = "attachment_files"
+    return adjusted
+
+
 def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, export_contract: dict) -> dict[str, bytes]:
     contract = evaluate_export_contract(donor_id=donor_id, toc_payload=toc_draft)
     if str(contract.get("template_key") or "") != "evaluation_rfq":
@@ -124,6 +194,7 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
     summary = contract.get("submission_readiness_summary") if isinstance(contract, dict) else {}
     if not isinstance(summary, dict):
         summary = {}
+    summary = _adjust_submission_readiness_for_attachment_files(summary, attachment_rows)
     attachment_file_validation = {
         "attached_file_count": 0,
         "missing_ready_file_count": 0,

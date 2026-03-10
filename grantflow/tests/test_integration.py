@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 
 import grantflow.api.app as api_app_module
 from grantflow.api.app import app
+from grantflow.api.public_views import public_job_export_payload
 
 client = TestClient(app)
 
@@ -14522,6 +14523,49 @@ def test_status_export_payload_exposes_evaluation_rfq_submission_package_readine
     export_contract = payload.get("export_contract") or {}
     assert export_contract["template_key"] == "evaluation_rfq"
     assert isinstance(export_contract.get("submission_readiness_summary"), dict)
+
+
+def test_public_export_payload_downgrades_rfq_readiness_when_ready_annex_file_is_missing():
+    job = {
+        "status": "done",
+        "state": {
+            "donor_id": "un_agencies",
+            "toc_draft": {
+                "proposal_mode": "evaluation_rfq",
+                "rfq_profile": "katch_final_assessment",
+                "brief": "Final assessment technical response",
+                "submission_package_checklist": [
+                    {"artifact": "Technical proposal narrative", "owner": "Proposal manager", "status": "ready"}
+                ],
+                "attachment_manifest": [
+                    {
+                        "attachment": "Registration certificate",
+                        "required_for": "Organization information and legal-status package",
+                        "owner": "Operations / compliance",
+                        "status": "ready",
+                        "source_path": "/tmp/grantflow_missing_annex.pdf",
+                    }
+                ],
+                "compliance_matrix": [
+                    {
+                        "requirement": "Organization information and legal status package",
+                        "response_section": "Organization Information",
+                        "evidence": "Registration certificate and audited financials",
+                        "status": "ready",
+                    }
+                ],
+            },
+            "logframe_draft": {"proposal_mode": "evaluation_rfq", "indicators": []},
+            "critic_notes": {"fatal_flaws": [], "quality_score": 8.0, "critic_score": 8.0},
+            "citations": [],
+        },
+    }
+    payload = public_job_export_payload("job-rfq-1", job)
+    submission_readiness = payload["payload"]["submission_package_readiness"]
+    assert submission_readiness["top_gap"] == "attachment_files"
+    assert submission_readiness["readiness_status"] == "partial"
+    assert float(submission_readiness["completeness_score"]) < 100.0
+    assert submission_readiness["attachment_file_validation"]["missing_ready_file_count"] == 1
 
 
 def test_export_docx_includes_mel_indicator_summary_section():
