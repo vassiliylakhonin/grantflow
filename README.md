@@ -200,6 +200,11 @@ What it currently supports:
 - attachment manifest for annex-by-annex packaging control
 - annex-packer artifacts in ZIP export (`annex_manifest.json` + readiness summary) for procurement handoff
 - placeholder `submission_package/` tree in ZIP export for final annex-by-annex handoff
+- KATCH-style `rfq_submission_kit/` artifacts in ZIP export:
+  - `FILE 1 - TECHNICAL PROPOSAL (...)`
+  - `FILE 2 - FINANCIAL PROPOSAL (...)`
+  - `FILE 3 - ANNEX TEMPLATES`
+  - `FILE 4 - READY EMAIL (EN)`
 - public export payload now exposes `submission_package_readiness` for RFQ-aware API consumers
 - review/control/export workflow using the same findings, comments, HITL, and artifact packaging layers
 

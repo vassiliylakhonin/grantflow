@@ -14176,6 +14176,158 @@ def test_export_both_zip_includes_evaluation_rfq_annex_packer_artifacts():
         assert "submission_package/01_technical_proposal_narrative/README.md" in package_structure["folders"]
 
 
+def test_export_both_zip_includes_katch_submission_kit_files():
+    toc_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "rfq_profile": "katch_final_assessment",
+        "toc": {
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+            "brief": "KATCH final assessment technical proposal backbone",
+            "organization_information": "Legal Name: Example Evaluation Group. Authorized Contact: Jane Doe, Evaluation Director.",
+            "background_context": "KATCH is a performance evaluation assignment in Kazakhstan.",
+            "evaluation_purpose": "Assess relevance, effectiveness, efficiency, sustainability, and outcomes of KATCH.",
+            "evaluation_questions": ["How relevant was KATCH to beneficiary and stakeholder priorities?"],
+            "technical_approach_summary": "Theory-based, RBM-aligned mixed-method evaluation with decision-ready reporting.",
+            "methodology_components": [
+                {
+                    "method": "Outcome Harvesting",
+                    "purpose": "Capture intended and unintended outcomes.",
+                    "respondent_group": "Partners and stakeholders",
+                    "evidence_source": "Validated interviews and project records",
+                }
+            ],
+            "sampling_plan": "Purposive sampling across sampled southern Kazakhstan locations.",
+            "ethical_considerations": ["Informed consent", "Confidentiality and anonymization"],
+            "deliverables_schedule_table": [
+                {
+                    "deliverable": "Draft Inception Report",
+                    "due_window": "Jul 14, 2025",
+                    "owner": "Team Lead",
+                    "dependencies": ["Kick-off", "Desk review"],
+                    "review_gate": "Client review",
+                }
+            ],
+            "key_personnel": [
+                {
+                    "name": "Proposed Team Lead",
+                    "role": "Team Lead / Evaluation Specialist",
+                    "qualifications": "Senior evaluation lead",
+                    "level_of_effort": "Lead oversight across inception, fieldwork, and reporting",
+                    "cv_status": "ready",
+                }
+            ],
+            "technical_experience_summary": "Relevant performance evaluations in migration, protection, and systems strengthening.",
+            "deliverables": [
+                {
+                    "deliverable": "Final Evaluation Report",
+                    "timing": "Sep 30, 2025",
+                    "purpose": "Final evidence-backed assessment and recommendations",
+                }
+            ],
+            "cost_structure": [
+                {
+                    "cost_bucket": "Team Leader professional fee",
+                    "basis": "person-day",
+                    "estimate": "TBD",
+                    "notes": "Final commercial rate to be inserted",
+                }
+            ],
+            "financial_summary": "The budget is based on the proposed level of effort and field coordination requirements.",
+            "pricing_assumptions": ["Firm fixed price, inclusive of taxes"],
+            "evaluation_questions_matrix": [
+                {
+                    "evaluation_question": "How relevant was KATCH to stakeholder priorities?",
+                    "key_methods": ["Outcome Harvesting"],
+                    "evidence_sources": ["Project records"],
+                    "reporting_use": "Supports relevance findings and recommendations",
+                }
+            ],
+            "submission_package_checklist": [
+                {
+                    "artifact": "Technical proposal narrative",
+                    "owner": "Proposal manager",
+                    "status": "ready",
+                    "notes": "Final reviewer-ready narrative package",
+                }
+            ],
+            "attachment_manifest": [
+                {
+                    "attachment": "Registration certificate",
+                    "required_for": "Organization information and legal-status package",
+                    "owner": "Operations / compliance",
+                    "status": "ready",
+                    "notes": "Attach current registration evidence in PDF format.",
+                }
+            ],
+            "compliance_matrix": [
+                {
+                    "requirement": "Organization information and legal status package",
+                    "response_section": "Organization Information",
+                    "evidence": "Registration certificate and audited financials",
+                    "status": "ready",
+                    "notes": "Attached in annex package",
+                }
+            ],
+        },
+    }
+    logframe_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "indicators": [
+            {
+                "indicator_id": "IND_001",
+                "name": "Deliverable milestone: Inception Report",
+                "result_level": "output",
+                "baseline": "0 deliverables",
+                "target": "1 deliverable",
+                "frequency": "bi-weekly",
+                "formula": "Count of required deliverables completed and accepted against the agreed evaluation work plan",
+                "definition": "Tracks whether the inception package is completed with reviewer-ready documentation.",
+                "justification": "Maps the deliverable schedule into an evaluation RFQ management indicator.",
+                "means_of_verification": "Accepted deliverable package and QA checklist",
+                "owner": "Evaluation team lead and operations coordinator",
+            }
+        ],
+    }
+    export = client.post(
+        "/export",
+        json={
+            "donor_id": "un_agencies",
+            "toc_draft": toc_draft,
+            "logframe_draft": logframe_draft,
+            "format": "both",
+        },
+    )
+    assert export.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(export.content)) as archive:
+        names = set(archive.namelist())
+        file1 = "rfq_submission_kit/FILE 1 - TECHNICAL PROPOSAL (RFQ-2025-001-KATCH-10019).md"
+        file2 = "rfq_submission_kit/FILE 2 - FINANCIAL PROPOSAL (RFQ-2025-001-KATCH-10019).md"
+        file3 = "rfq_submission_kit/FILE 3 - ANNEX TEMPLATES.md"
+        file4 = "rfq_submission_kit/FILE 4 - READY EMAIL (EN).txt"
+        assert file1 in names
+        assert file2 in names
+        assert file3 in names
+        assert file4 in names
+        technical = archive.read(file1).decode("utf-8")
+        financial = archive.read(file2).decode("utf-8")
+        annexes = archive.read(file3).decode("utf-8")
+        email = archive.read(file4).decode("utf-8")
+        assert "## 1. Organization Information" in technical
+        assert "## 2. Analysis and Proposed Approaches / Methodologies" in technical
+        assert "## 3. Work Plan" in technical
+        assert "## 4. Proposed LOE" in technical
+        assert "## 5. Technical Experience & Past Performance" in technical
+        assert "## 6. Personnel and Team Composition" in technical
+        assert "## 7. Deliverables" in technical
+        assert "## A. Budget Table" in financial
+        assert "## B. Budget Narrative" in financial
+        assert "## C. Fixed Price by Deliverable" in financial
+        assert "## Annex A. Evaluation Matrix (short template)" in annexes
+        assert "## Annex D. Report Structure" in annexes
+        assert "Subject: KATCH FINAL ASSESSMENT - RFQ-2025-001-KATCH-10019" in email
+
+
 def test_status_export_payload_exposes_evaluation_rfq_submission_package_readiness():
     gen = client.post(
         "/generate/from-preset",

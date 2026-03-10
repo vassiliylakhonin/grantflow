@@ -194,6 +194,11 @@ It now includes a financial proposal companion summary, indicative cost structur
 For `format=both`, the ZIP export now also includes `annex_packer/annex_manifest.json` and `annex_packer/submission_readiness.md` so operators can hand off an annex-by-annex package checklist with the technical response.
 `GET /status/{job_id}/export-payload` also exposes `payload.submission_package_readiness` for RFQ-aware clients that need a machine-readable completeness summary before final packaging.
 The same ZIP now includes a placeholder `submission_package/` folder tree with per-artifact `README.md` stubs so operations teams can stage final annexes and submission files against a fixed structure.
+For the KATCH-style profile, the same ZIP now also includes a human-readable `rfq_submission_kit/` with four ready-to-review files:
+- `FILE 1 - TECHNICAL PROPOSAL (...)`
+- `FILE 2 - FINANCIAL PROPOSAL (...)`
+- `FILE 3 - ANNEX TEMPLATES`
+- `FILE 4 - READY EMAIL (EN)`
 
 ### Step C: inspect status and quality
 

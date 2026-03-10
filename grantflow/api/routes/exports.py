@@ -85,6 +85,8 @@ from grantflow.api.tenant import (
 from grantflow.api.routers import exports_router
 from grantflow.api.queue_admin_service import _redis_queue_admin_runner
 from grantflow.exporters.donor_contracts import evaluate_export_contract
+from grantflow.exporters.toc_normalization import normalize_toc_for_export
+from grantflow.core.evaluation_rfq import KATCH_EVALUATION_RFQ_PROFILE
 
 
 def _annex_slug(value: object, *, fallback: str) -> str:
@@ -236,6 +238,365 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
         + "\n"
     ).encode("utf-8")
     return artifacts
+
+
+def _markdown_table(headers: list[str], rows: list[list[str]]) -> str:
+    safe_headers = [str(item or "-") for item in headers]
+    lines = [
+        "| " + " | ".join(safe_headers) + " |",
+        "| " + " | ".join("---" for _ in safe_headers) + " |",
+    ]
+    for row in rows:
+        safe_row = [str(item or "-") for item in row]
+        lines.append("| " + " | ".join(safe_row) + " |")
+    return "\n".join(lines)
+
+
+def _clean_md_text(value: object) -> str:
+    return " ".join(str(value or "").split()).strip()
+
+
+def _rfq_file_title(normalized_toc: dict) -> str:
+    if str(normalized_toc.get("rfq_profile") or "").strip().lower() == KATCH_EVALUATION_RFQ_PROFILE:
+        return "RFQ-2025-001-KATCH-10019"
+    return "Evaluation RFQ"
+
+
+def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, export_contract: dict) -> dict[str, bytes]:
+    contract = evaluate_export_contract(donor_id=donor_id, toc_payload=toc_draft)
+    if str(contract.get("template_key") or "") != "evaluation_rfq":
+        return {}
+
+    normalized_toc = normalize_toc_for_export("evaluation_rfq", toc_draft)
+    rfq_title = _rfq_file_title(normalized_toc)
+    organization_information = _clean_md_text(normalized_toc.get("organization_information"))
+    evaluation_purpose = _clean_md_text(normalized_toc.get("evaluation_purpose"))
+    background_context = _clean_md_text(normalized_toc.get("background_context"))
+    technical_approach_summary = _clean_md_text(normalized_toc.get("technical_approach_summary"))
+    methodology_overview = _clean_md_text(normalized_toc.get("methodology_overview"))
+    sampling_plan = _clean_md_text(normalized_toc.get("sampling_plan"))
+    level_of_effort_summary = _clean_md_text(normalized_toc.get("level_of_effort_summary"))
+    technical_experience_summary = _clean_md_text(normalized_toc.get("technical_experience_summary"))
+    financial_summary = _clean_md_text(normalized_toc.get("financial_summary"))
+    payment_schedule_summary = _clean_md_text(normalized_toc.get("payment_schedule_summary"))
+    questions = [str(item).strip() for item in (normalized_toc.get("evaluation_questions") or []) if str(item).strip()]
+    methods = [item for item in (normalized_toc.get("methodology_components") or []) if isinstance(item, dict)]
+    ethics = [str(item).strip() for item in (normalized_toc.get("ethical_considerations") or []) if str(item).strip()]
+    risks = [str(item).strip() for item in (normalized_toc.get("assumptions_risks") or []) if str(item).strip()]
+    deliverables = [item for item in (normalized_toc.get("deliverables") or []) if isinstance(item, dict)]
+    schedule_rows = [item for item in (normalized_toc.get("deliverables_schedule_table") or []) if isinstance(item, dict)]
+    key_personnel = [item for item in (normalized_toc.get("key_personnel") or []) if isinstance(item, dict)]
+    team_roles = [item for item in (normalized_toc.get("team_composition") or []) if isinstance(item, dict)]
+    cost_structure = [item for item in (normalized_toc.get("cost_structure") or []) if isinstance(item, dict)]
+    pricing_assumptions = [
+        str(item).strip() for item in (normalized_toc.get("pricing_assumptions") or []) if str(item).strip()
+    ]
+    question_matrix = [
+        item for item in (normalized_toc.get("evaluation_questions_matrix") or []) if isinstance(item, dict)
+    ]
+
+    technical_lines = [
+        f"# TECHNICAL PROPOSAL ({rfq_title})",
+        "",
+        "## 1. Organization Information",
+        "",
+        organization_information or "[Insert legal entity information, registration status, and authorized contact.]",
+        "",
+        "Annexes attached:",
+        "- Business registration certificate",
+        "- Latest audited financial statement",
+        "",
+        "## 2. Analysis and Proposed Approaches / Methodologies",
+        "",
+        "### 2.1 Understanding of the Assignment",
+        "",
+        evaluation_purpose
+        or "Summative, learning-oriented evaluation to assess relevance, effectiveness, efficiency, sustainability, and outcomes.",
+    ]
+    if background_context:
+        technical_lines.extend(["", background_context])
+    technical_lines.extend(
+        [
+            "",
+            "### 2.2 Evaluation Approach",
+            "",
+            technical_approach_summary or methodology_overview or "Theory-based, RBM-aligned mixed-method evaluation approach.",
+            "",
+            "### 2.3 Evaluation Questions",
+            "",
+        ]
+    )
+    if questions:
+        technical_lines.extend([f"- {question}" for question in questions])
+    else:
+        technical_lines.append("- Refine evaluation questions at inception under the agreed RFQ criteria.")
+    technical_lines.extend(["", "### 2.4 Data Collection Methods", ""])
+    if methods:
+        for idx, method in enumerate(methods, start=1):
+            technical_lines.extend(
+                [
+                    f"{chr(64 + idx)}) {_clean_md_text(method.get('method')) or f'Method {idx}'}",
+                    _clean_md_text(method.get("purpose")) or "Purpose to be refined during inception.",
+                    "",
+                    f"- Respondent group: {_clean_md_text(method.get('respondent_group')) or '-'}",
+                    f"- Evidence source: {_clean_md_text(method.get('evidence_source')) or '-'}",
+                    "",
+                ]
+            )
+    else:
+        technical_lines.append("- Desk review, KIIs, FGDs, survey, and outcome-oriented validation methods.")
+    technical_lines.extend(["### 2.5 Sampling and Coverage", "", sampling_plan or "Sampling plan to be refined during inception."])
+    software = [
+        str(item).strip() for item in (normalized_toc.get("analytical_software") or []) if str(item).strip()
+    ]
+    technical_lines.extend(["", "### 2.6 Data Analysis", ""])
+    if software:
+        technical_lines.append(
+            "Integrated analysis will combine qualitative coding, descriptive analysis, and triangulation using: "
+            + ", ".join(software)
+            + "."
+        )
+    else:
+        technical_lines.append("Integrated analysis will combine qualitative coding, descriptive analysis, and triangulation.")
+    technical_lines.extend(["", "### 2.7 Ethical Considerations and Safeguarding", ""])
+    if ethics:
+        technical_lines.extend([f"- {item}" for item in ethics])
+    else:
+        technical_lines.append("- Apply informed consent, confidentiality, and do-no-harm safeguards.")
+    technical_lines.extend(["", "### 2.8 Potential Limitations and Mitigation", ""])
+    if risks:
+        technical_lines.extend([f"- {item}" for item in risks])
+    else:
+        technical_lines.append("- Potential limitations and mitigation measures to be refined at inception.")
+    technical_lines.extend(["", "## 3. Work Plan", ""])
+    if schedule_rows:
+        technical_lines.append(
+            _markdown_table(
+                ["Deliverable", "Timeline", "Owner", "Dependencies", "Review Gate"],
+                [
+                    [
+                        _clean_md_text(row.get("deliverable")),
+                        _clean_md_text(row.get("due_window")),
+                        _clean_md_text(row.get("owner")),
+                        ", ".join(row.get("dependencies") or []) or "-",
+                        _clean_md_text(row.get("review_gate")),
+                    ]
+                    for row in schedule_rows
+                ],
+            )
+        )
+    else:
+        technical_lines.append("- Work plan and milestones to be confirmed in the inception package.")
+    technical_lines.extend(["", "## 4. Proposed LOE", ""])
+    if key_personnel:
+        technical_lines.append(
+            _markdown_table(
+                ["Role", "Personnel", "Indicative LOE", "Qualifications"],
+                [
+                    [
+                        _clean_md_text(row.get("role")),
+                        _clean_md_text(row.get("name")),
+                        _clean_md_text(row.get("level_of_effort")),
+                        _clean_md_text(row.get("qualifications")),
+                    ]
+                    for row in key_personnel
+                ],
+            )
+        )
+    else:
+        technical_lines.append(level_of_effort_summary or "Indicative LOE table to be completed during proposal finalization.")
+    technical_lines.extend(["", "## 5. Technical Experience & Past Performance", ""])
+    technical_lines.append(
+        technical_experience_summary
+        or "Insert 3-5 relevant final evaluations, mixed-method assessments, or systems-strengthening reviews."
+    )
+    technical_lines.extend(["", "## 6. Personnel and Team Composition", ""])
+    if team_roles:
+        technical_lines.extend(
+            [
+                f"- {_clean_md_text(row.get('role'))}: {_clean_md_text(row.get('responsibility')) or '-'}"
+                for row in team_roles
+            ]
+        )
+    elif key_personnel:
+        technical_lines.extend(
+            [
+                f"- {_clean_md_text(row.get('role'))}: {_clean_md_text(row.get('qualifications')) or '-'}"
+                for row in key_personnel
+            ]
+        )
+    else:
+        technical_lines.append("- Key personnel and delivery roles to be inserted.")
+    technical_lines.extend(["", "## 7. Deliverables", ""])
+    if deliverables:
+        technical_lines.extend(
+            [
+                f"- {_clean_md_text(row.get('deliverable'))} | timing: {_clean_md_text(row.get('timing')) or '-'} | purpose: {_clean_md_text(row.get('purpose')) or '-'}"
+                for row in deliverables
+            ]
+        )
+    else:
+        technical_lines.append("- Deliverable package to be finalized against the RFQ schedule.")
+
+    financial_lines = [
+        f"# FINANCIAL PROPOSAL ({rfq_title})",
+        "",
+        "Currency: USD",
+        "Contract Type: Firm Fixed Price",
+        "Total Price: [insert total fixed price]",
+        "",
+        "## A. Budget Table",
+        "",
+    ]
+    if cost_structure:
+        financial_lines.append(
+            _markdown_table(
+                ["Cost Category", "Basis", "Estimate", "Notes"],
+                [
+                    [
+                        _clean_md_text(row.get("cost_bucket")),
+                        _clean_md_text(row.get("basis")),
+                        _clean_md_text(row.get("estimate")) or "[insert estimate]",
+                        _clean_md_text(row.get("notes")),
+                    ]
+                    for row in cost_structure
+                ],
+            )
+        )
+    else:
+        financial_lines.append(
+            _markdown_table(
+                ["Cost Category", "Basis", "Estimate", "Notes"],
+                [["Professional fees", "Indicative LOE", "[insert estimate]", "-"]],
+            )
+        )
+    financial_lines.extend(["", "## B. Budget Narrative", ""])
+    financial_lines.append(
+        financial_summary
+        or "The budget is based on the proposed level of effort, field coordination requirements, data collection and processing needs, and reporting deliverables."
+    )
+    financial_lines.extend(["", "## C. Fixed Price by Deliverable", ""])
+    if schedule_rows:
+        financial_lines.append(
+            _markdown_table(
+                ["Deliverable Milestone", "Payment %", "Amount (USD)"],
+                [
+                    [
+                        _clean_md_text(row.get("deliverable")),
+                        "[insert %]",
+                        "[insert amount]",
+                    ]
+                    for row in schedule_rows
+                ],
+            )
+        )
+    else:
+        financial_lines.append(
+            _markdown_table(
+                ["Deliverable Milestone", "Payment %", "Amount (USD)"],
+                [["Approved final deliverable package", "[insert %]", "[insert amount]"]],
+            )
+        )
+    if payment_schedule_summary:
+        financial_lines.extend(["", payment_schedule_summary])
+    if pricing_assumptions:
+        financial_lines.extend(["", "Pricing assumptions:"])
+        financial_lines.extend([f"- {item}" for item in pricing_assumptions])
+
+    annex_lines = [
+        "# ANNEX TEMPLATES",
+        "",
+        "## Annex A. Evaluation Matrix (short template)",
+        "",
+    ]
+    if question_matrix:
+        annex_lines.append(
+            _markdown_table(
+                ["Evaluation Question", "Indicator / Judgment Criteria", "Data Source", "Method", "Respondents", "Analysis Method"],
+                [
+                    [
+                        _clean_md_text(row.get("evaluation_question")),
+                        "[insert criteria]",
+                        ", ".join(row.get("evidence_sources") or []) or "[insert source]",
+                        ", ".join(row.get("key_methods") or []) or "[insert method]",
+                        "[insert respondents]",
+                        _clean_md_text(row.get("reporting_use")) or "[insert analysis method]",
+                    ]
+                    for row in question_matrix
+                ],
+            )
+        )
+    else:
+        annex_lines.append(
+            _markdown_table(
+                ["Evaluation Question", "Indicator / Judgment Criteria", "Data Source", "Method", "Respondents", "Analysis Method"],
+                [["[insert question]", "[insert criteria]", "[insert source]", "[insert method]", "[insert respondents]", "[insert analysis]"]],
+            )
+        )
+    annex_lines.extend(
+        [
+            "",
+            "## Annex B. Risk Register Template",
+            "",
+            _markdown_table(
+                ["Risk", "Probability", "Impact", "Mitigation", "Owner"],
+                [["[insert risk]", "[L/M/H]", "[L/M/H]", "[insert mitigation]", "[insert owner]"]],
+            ),
+            "",
+            "## Annex C. Bi-weekly Update Template",
+            "",
+            "- Reporting period",
+            "- Activities completed",
+            "- Activities upcoming",
+            "- Risks/issues requiring action",
+            "- Support needed from client / donor team",
+            "",
+            "## Annex D. Report Structure",
+            "",
+            "- Cover, Acronyms, ToC",
+            "- Executive Summary",
+            "- Main sections per RFQ",
+            "- Required annexes (tools, indicator table, bibliography, ToR, etc.)",
+            "- PII exclusion statement",
+        ]
+    )
+
+    contact_name = "[Name]"
+    contact_title = "[Title]"
+    contact_org = "[Organization]"
+    contact_phone = "[Phone]"
+    contact_email = "[Email]"
+    if organization_information:
+        contact_org = "[Organization name from proposal cover]"
+    ready_email = "\n".join(
+        [
+            f"Subject: KATCH FINAL ASSESSMENT - {rfq_title}",
+            "",
+            "Dear KATCH Procurement Team,",
+            "",
+            f"Please find attached our Technical and Financial Proposals for {rfq_title} (KATCH Final Assessment).",
+            "",
+            "Our submission is aligned with the scope of work, methodology, deliverables, ethical standards, and timeline specified in the RFQ.",
+            "",
+            "Please let us know if any additional documents are required.",
+            "",
+            "Sincerely,",
+            contact_name,
+            contact_title,
+            contact_org,
+            contact_phone,
+            contact_email,
+            "",
+        ]
+    )
+
+    base = "rfq_submission_kit"
+    return {
+        f"{base}/FILE 1 - TECHNICAL PROPOSAL ({rfq_title}).md": ("\n".join(technical_lines) + "\n").encode("utf-8"),
+        f"{base}/FILE 2 - FINANCIAL PROPOSAL ({rfq_title}).md": ("\n".join(financial_lines) + "\n").encode("utf-8"),
+        f"{base}/FILE 3 - ANNEX TEMPLATES.md": ("\n".join(annex_lines) + "\n").encode("utf-8"),
+        f"{base}/FILE 4 - READY EMAIL (EN).txt": ready_email.encode("utf-8"),
+    }
 
 
 def _app_module():
@@ -1435,6 +1796,12 @@ def export_artifacts(req: ExportRequest, request: Request):
                 archive.writestr("proposal.docx", docx_bytes)
                 archive.writestr("mel.xlsx", xlsx_bytes)
                 for filename, content in _evaluation_rfq_annex_pack_artifacts(
+                    donor_id=donor_id,
+                    toc_draft=toc_draft,
+                    export_contract=export_contract_gate,
+                ).items():
+                    archive.writestr(filename, content)
+                for filename, content in _evaluation_rfq_submission_kit_artifacts(
                     donor_id=donor_id,
                     toc_draft=toc_draft,
                     export_contract=export_contract_gate,
