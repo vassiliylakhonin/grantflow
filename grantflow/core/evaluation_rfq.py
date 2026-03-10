@@ -88,7 +88,7 @@ class EvaluationDeliverableScheduleItem(BaseModel):
 
 
 class EvaluationRFQTOC(BaseModel):
-    proposal_mode: Literal["evaluation_rfq"] = EVALUATION_RFQ_PROPOSAL_MODE
+    proposal_mode: Literal["evaluation_rfq"] = "evaluation_rfq"
     rfq_profile: str | None = Field(default=None, description="Optional RFQ-specific contract profile")
     brief: str = Field(description="Short summary of the technical response")
     background_context: str = Field(description="Relevant project and assignment context")

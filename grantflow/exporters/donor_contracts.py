@@ -67,6 +67,82 @@ DONOR_XLSX_PRIMARY_HEADERS: dict[str, list[str]] = {
 EXPORT_CONTRACT_POLICY_MODES = {"off", "warn", "strict"}
 
 
+def _status_bucket_counts(rows: Any, *, label_key: str) -> Dict[str, Any]:
+    if not isinstance(rows, list):
+        return {"total": 0, "ready": 0, "partial": 0, "pending": 0, "labeled": 0}
+
+    ready = partial = pending = labeled = 0
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get(label_key) or "").strip():
+            labeled += 1
+        status = str(row.get("status") or "").strip().lower()
+        if status == "ready":
+            ready += 1
+        elif status == "partial":
+            partial += 1
+        elif status:
+            pending += 1
+    return {
+        "total": len([row for row in rows if isinstance(row, dict)]),
+        "ready": ready,
+        "partial": partial,
+        "pending": pending,
+        "labeled": labeled,
+    }
+
+
+def _evaluation_rfq_submission_summary(normalized_toc: Dict[str, Any]) -> Dict[str, Any]:
+    submission_counts = _status_bucket_counts(
+        normalized_toc.get("submission_package_checklist"),
+        label_key="artifact",
+    )
+    attachment_counts = _status_bucket_counts(
+        normalized_toc.get("attachment_manifest"),
+        label_key="attachment",
+    )
+    compliance_counts = _status_bucket_counts(
+        normalized_toc.get("compliance_matrix"),
+        label_key="requirement",
+    )
+
+    weighted_total = submission_counts["total"] + attachment_counts["total"] + compliance_counts["total"]
+    weighted_ready = submission_counts["ready"] + attachment_counts["ready"] + compliance_counts["ready"]
+    weighted_partial = submission_counts["partial"] + attachment_counts["partial"] + compliance_counts["partial"]
+    completeness_score = (
+        round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1)
+        if weighted_total
+        else 0.0
+    )
+    if weighted_total == 0:
+        readiness_status = "missing"
+    elif completeness_score >= 85:
+        readiness_status = "ready"
+    elif completeness_score >= 60:
+        readiness_status = "partial"
+    else:
+        readiness_status = "weak"
+
+    top_gap = "none"
+    gaps = {
+        "submission_package": submission_counts["pending"] + max(0, submission_counts["total"] - submission_counts["labeled"]),
+        "attachment_manifest": attachment_counts["pending"] + max(0, attachment_counts["total"] - attachment_counts["labeled"]),
+        "compliance_matrix": compliance_counts["pending"] + max(0, compliance_counts["total"] - compliance_counts["labeled"]),
+    }
+    if any(value > 0 for value in gaps.values()):
+        top_gap = max(gaps, key=lambda gap_key: gaps[gap_key])
+
+    return {
+        "completeness_score": completeness_score,
+        "readiness_status": readiness_status,
+        "top_gap": top_gap,
+        "submission_package_counts": submission_counts,
+        "attachment_manifest_counts": attachment_counts,
+        "compliance_matrix_counts": compliance_counts,
+    }
+
+
 def normalize_export_contract_policy_mode(raw_mode: Any) -> str:
     mode = str(raw_mode or "warn").strip().lower()
     if mode not in EXPORT_CONTRACT_POLICY_MODES:
@@ -126,6 +202,12 @@ def evaluate_export_contract(
     if workbook_validation_enabled and missing_primary_sheet_headers:
         warnings.append("missing_required_primary_sheet_headers")
 
+    submission_readiness_summary: Dict[str, Any] | None = None
+    if donor_key == "evaluation_rfq":
+        submission_readiness_summary = _evaluation_rfq_submission_summary(normalized_toc)
+        if submission_readiness_summary.get("readiness_status") in {"missing", "weak"}:
+            warnings.append("submission_completeness_low")
+
     return {
         "donor_id": str(donor_id or ""),
         "template_key": donor_key,
@@ -144,6 +226,7 @@ def evaluate_export_contract(
         "workbook_validation_enabled": workbook_validation_enabled,
         "status": status,
         "warnings": warnings,
+        "submission_readiness_summary": submission_readiness_summary,
     }
 
 

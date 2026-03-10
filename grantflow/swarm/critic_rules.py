@@ -532,10 +532,11 @@ def _add_katch_evaluation_rfq_checks(
         )
 
     deliverables = toc_payload.get("deliverables")
+    deliverable_rows = deliverables if isinstance(deliverables, list) else []
     deliverable_titles = [
         str(row.get("deliverable") or "").strip().lower()
-        for row in deliverables
-        if isinstance(deliverables, list) and isinstance(row, dict)
+        for row in deliverable_rows
+        if isinstance(row, dict)
     ]
     required_tokens = ("inception", "bi-week", "workshop", "draft evaluation report", "final evaluation report")
     if deliverable_titles and all(any(token in title for title in deliverable_titles) for token in required_tokens):
@@ -837,7 +838,7 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
         )
 
     toc_draft = state.get("toc_draft")
-    toc_payload = (toc_draft or {}).get("toc") if isinstance(toc_draft, dict) else None
+    toc_payload = (toc_draft or {}).get("toc") if isinstance(toc_draft, dict) else {}
     logframe = state.get("logframe_draft") or state.get("mel")
     indicators = (logframe or {}).get("indicators") if isinstance(logframe, dict) else None
 
@@ -1048,6 +1049,7 @@ def evaluate_rule_based_critic(state: Dict[str, Any]) -> RuleCriticReport:
         _proposal_mode(state, toc_payload) == EVALUATION_RFQ_PROPOSAL_MODE
         and _rfq_profile(state, toc_payload) == KATCH_EVALUATION_RFQ_PROFILE
     ):
+        assert isinstance(toc_payload, dict)
         _add_katch_evaluation_rfq_checks(
             state=state,
             toc_payload=toc_payload,
