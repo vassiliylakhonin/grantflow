@@ -25,6 +25,7 @@ Quick companion docs:
 - customer R2 checkpoint json: `docs/pilot-customers/kazakhstan-ngo-r2-checkpoint.json`
 - customer R2 outcome memo: `docs/pilot-customers/kazakhstan-ngo-r2-outcome-memo.md`
 - customer external proof summary: `docs/pilot-customers/kazakhstan-ngo-external-proof-summary.md`
+- pilot proof outreach template: `docs/pilot-proof-outreach-template.md`
 - customer closeout capture csv: `docs/pilot-customers/kazakhstan-ngo-closeout-capture.csv`
 - customer closeout checkpoint json: `docs/pilot-customers/kazakhstan-ngo-closeout-checkpoint.json`
 - customer closeout memo template: `docs/pilot-customers/kazakhstan-ngo-closeout-memo-template.md`
