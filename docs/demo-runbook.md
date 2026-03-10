@@ -188,6 +188,8 @@ curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
 
 This uses `proposal_mode=evaluation_rfq` under the hood and is intended for the technical-response part of an evaluation RFQ, not the financial/commercial package.
 
+The KATCH-style RFQ path now also renders a procurement-oriented compliance matrix in the technical proposal export, so operators can review requirement-to-section coverage before final packaging.
+
 ### Step C: inspect status and quality
 
 ```bash

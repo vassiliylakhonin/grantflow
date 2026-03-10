@@ -298,6 +298,38 @@ def _add_katch_evaluation_rfq_checks(
             fix_hint="List the key supporting annexes: registration/audit evidence, CVs, sample outputs, work plan, and level-of-effort matrix.",
         )
 
+    compliance_matrix = toc_payload.get("compliance_matrix") or []
+    ready_rows = [
+        row
+        for row in compliance_matrix
+        if isinstance(compliance_matrix, list)
+        and isinstance(row, dict)
+        and str(row.get("requirement") or "").strip()
+        and str(row.get("response_section") or "").strip()
+        and str(row.get("evidence") or "").strip()
+    ]
+    if len(ready_rows) >= 5:
+        check_fn(
+            code="KATCH_COMPLIANCE_MATRIX_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ready_rows)} compliance row(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_COMPLIANCE_MATRIX_PRESENT",
+            status="fail",
+            section="toc",
+            detail="Need a requirement-to-response compliance matrix for the RFQ technical package",
+        )
+        add_flaw_fn(
+            code="KATCH_COMPLIANCE_MATRIX_MISSING",
+            severity="high",
+            section="toc",
+            message="KATCH compliance mapping is incomplete, so reviewers cannot quickly verify where each RFQ requirement is covered in the technical package.",
+            fix_hint="Add a compliance matrix that maps each major RFQ requirement to the response section, supporting evidence, and attachment readiness state.",
+        )
+
 
 class CriticFatalFlaw(BaseModel):
     id: Optional[str] = Field(default=None, description="Canonical finding identifier within a job")

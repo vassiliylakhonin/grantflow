@@ -27,6 +27,14 @@ class EvaluationDeliverable(BaseModel):
     purpose: str = Field(description="Why the deliverable matters for the assignment")
 
 
+class EvaluationComplianceItem(BaseModel):
+    requirement: str = Field(description="Named RFQ requirement or attachment expectation")
+    response_section: str = Field(description="Where the response covers this requirement")
+    evidence: str = Field(description="What evidence or attachment supports compliance")
+    status: str = Field(description="Compliance status: ready|partial|pending")
+    notes: str = Field(default="", description="Short implementation or packaging note")
+
+
 class EvaluationRFQTOC(BaseModel):
     proposal_mode: Literal["evaluation_rfq"] = EVALUATION_RFQ_PROPOSAL_MODE
     rfq_profile: str | None = Field(default=None, description="Optional RFQ-specific contract profile")
@@ -49,6 +57,10 @@ class EvaluationRFQTOC(BaseModel):
     technical_experience_summary: str = Field(default="", description="Past performance and technical experience summary")
     sample_outputs_summary: str = Field(default="", description="Referenced sample outputs or report evidence")
     annex_readiness: list[str] = Field(default_factory=list, description="Annexes or required supporting attachments expected for submission")
+    compliance_matrix: list[EvaluationComplianceItem] = Field(
+        default_factory=list,
+        description="RFQ compliance matrix mapping requirements to response sections and supporting evidence",
+    )
 
 
 def is_evaluation_rfq_mode(input_context: Dict[str, Any] | None) -> bool:
@@ -263,6 +275,60 @@ def _build_katch_deliverable_rows(deliverables: Iterable[str]) -> list[Dict[str,
     ]
 
 
+def _build_katch_compliance_matrix() -> list[Dict[str, str]]:
+    return [
+        {
+            "requirement": "Organization information and legal status package",
+            "response_section": "Organization Information",
+            "evidence": "Registration certificate, legal business name, audited financial statement",
+            "status": "ready",
+            "notes": "Package with legal status and operating profile should be attached with the technical response.",
+        },
+        {
+            "requirement": "Technical approach and evaluation methodology",
+            "response_section": "Analysis and Proposed Approaches / Methodologies",
+            "evidence": "Method narrative, document review plan, analysis approach, risk/limitation note",
+            "status": "ready",
+            "notes": "Response must explain how methods answer the evaluation purpose and questions.",
+        },
+        {
+            "requirement": "Sampling and respondent coverage",
+            "response_section": "Sampling Plan",
+            "evidence": "Stakeholder groups, beneficiary sample logic, field coverage assumptions",
+            "status": "ready",
+            "notes": "Sampling should cover KATCH staff, authorities, partners, and beneficiary groups.",
+        },
+        {
+            "requirement": "Personnel and team composition",
+            "response_section": "Personnel and Team Composition",
+            "evidence": "Named roles, responsibilities, CV annexes",
+            "status": "ready",
+            "notes": "Reviewer should be able to see clear delivery ownership by role.",
+        },
+        {
+            "requirement": "Activity-based work plan and level of effort",
+            "response_section": "Workplan & Deliverables / Proposed Level of Effort",
+            "evidence": "Work plan summary, Gantt-style timeline, LOE matrix",
+            "status": "ready",
+            "notes": "Package should show timing and person-days by phase and role.",
+        },
+        {
+            "requirement": "Past performance references and sample outputs",
+            "response_section": "Technical Experience and Past Performance References / Sample Technical Outputs",
+            "evidence": "Comparable assignments, client references, sample reports or briefs",
+            "status": "ready",
+            "notes": "At least one comparable technical output should be identified for reviewer validation.",
+        },
+        {
+            "requirement": "Annexes and supporting attachments",
+            "response_section": "Annex Readiness",
+            "evidence": "CVs, work plan, LOE matrix, sample output, registration/audit evidence",
+            "status": "ready",
+            "notes": "All named annexes should be packaged with the technical proposal before submission.",
+        },
+    ]
+
+
 def build_katch_evaluation_rfq_payload(
     *,
     donor_id: str,
@@ -385,6 +451,7 @@ def build_katch_evaluation_rfq_payload(
             "Activity-based work plan / Gantt chart",
             "Activity-based level of effort matrix",
         ],
+        "compliance_matrix": _build_katch_compliance_matrix(),
     }
 
 
@@ -461,4 +528,5 @@ def build_evaluation_rfq_fallback_payload(
             "Client access to project records, stakeholder lists, and prior reporting remains timely.",
             "Field access and respondent scheduling allow the agreed evidence plan to be completed within the RFQ timeline.",
         ],
+        "compliance_matrix": [],
     }

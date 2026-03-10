@@ -191,7 +191,9 @@ def test_rule_based_critic_applies_katch_evaluation_rfq_checks():
     assert any(c["code"] == "KATCH_ORGANIZATION_INFORMATION_PRESENT" and c["status"] == "fail" for c in checks)
     assert any(c["code"] == "KATCH_METHOD_COMPONENTS_COMPLETE" and c["status"] == "fail" for c in checks)
     assert any(c["code"] == "KATCH_DELIVERABLE_PLAN_COMPLETE" and c["status"] == "fail" for c in checks)
+    assert any(c["code"] == "KATCH_COMPLIANCE_MATRIX_PRESENT" and c["status"] == "fail" for c in checks)
     assert any(f["code"] == "KATCH_TEAM_COMPOSITION_MISSING" for f in flaws)
+    assert any(f["code"] == "KATCH_COMPLIANCE_MATRIX_MISSING" for f in flaws)
 
 
 def test_rule_based_critic_flags_fallback_dominant_architect_grounding_when_rag_enabled():

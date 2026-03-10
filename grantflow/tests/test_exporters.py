@@ -1256,6 +1256,15 @@ def test_exporters_support_evaluation_rfq_mode():
             "level_of_effort_summary": "Activity-based person-days by phase and role.",
             "technical_experience_summary": "Comparable evaluation experience in development-sector final assessments.",
             "sample_outputs_summary": "Annexed final evaluation reports from comparable assignments.",
+            "compliance_matrix": [
+                {
+                    "requirement": "Organization information and legal status package",
+                    "response_section": "Organization Information",
+                    "evidence": "Registration certificate and audited financials",
+                    "status": "ready",
+                    "notes": "Attached in annex package",
+                }
+            ],
             "deliverables": [
                 {
                     "deliverable": "Inception Report",
@@ -1298,6 +1307,8 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Personnel and Team Composition" in text
     assert "Proposed Level of Effort" in text
     assert "Technical Experience and Past Performance References" in text
+    assert "Procurement Compliance Matrix" in text
+    assert "Registration certificate and audited financials" in text
     assert "Workplan & Deliverables" in text
 
     wb = load_workbook(BytesIO(build_xlsx_from_logframe(logframe_draft, "un_agencies", toc_draft=toc_draft)))
@@ -1312,6 +1323,8 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Analysis and Proposed Approaches / Methodologies" in rendered
     assert "Proposed Level of Effort" in rendered
     assert "Technical Experience and Past Performance References" in rendered
+    assert "Organization information and legal status package" in rendered
+    assert "Registration certificate and audited financials" in rendered
     contract = evaluate_export_contract(
         donor_id="un_agencies",
         toc_payload=toc_draft,

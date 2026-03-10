@@ -1167,6 +1167,30 @@ def _render_evaluation_rfq_toc(
         for item in annex_readiness:
             doc.add_paragraph(str(item), style="List Bullet")
 
+    compliance_matrix = toc.get("compliance_matrix")
+    if isinstance(compliance_matrix, list) and compliance_matrix:
+        doc.add_heading("Procurement Compliance Matrix", level=2)
+        for row in compliance_matrix:
+            if not isinstance(row, dict):
+                continue
+            requirement = str(row.get("requirement") or "Requirement").strip()
+            response_section = str(row.get("response_section") or "").strip()
+            evidence = str(row.get("evidence") or "").strip()
+            status = str(row.get("status") or "").strip()
+            notes = str(row.get("notes") or "").strip()
+            doc.add_paragraph(requirement, style="List Bullet")
+            details = []
+            if response_section:
+                details.append(f"Response section: {response_section}")
+            if evidence:
+                details.append(f"Evidence: {evidence}")
+            if status:
+                details.append(f"Status: {status}")
+            if notes:
+                details.append(f"Notes: {notes}")
+            if details:
+                doc.add_paragraph(" | ".join(details))
+
     assumptions_risks = toc.get("assumptions_risks")
     if isinstance(assumptions_risks, list) and assumptions_risks:
         doc.add_heading("Assumptions & Risks", level=2)

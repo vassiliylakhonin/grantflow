@@ -346,6 +346,20 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    compliance_rows = _pick_first_list(toc, ("compliance_matrix", "compliance_requirements"))
+    compliance_matrix = []
+    for raw in compliance_rows:
+        row = raw if isinstance(raw, dict) else {"requirement": _clean_text(raw)}
+        compliance_matrix.append(
+            {
+                "requirement": _pick_first_text(row, ("requirement", "title", "name")),
+                "response_section": _pick_first_text(row, ("response_section", "section")),
+                "evidence": _pick_first_text(row, ("evidence", "attachment", "source")),
+                "status": _pick_first_text(row, ("status",)),
+                "notes": _pick_first_text(row, ("notes", "description")),
+            }
+        )
+
     return {
         "proposal_mode": "evaluation_rfq",
         "rfq_profile": _pick_first_text(toc, ("rfq_profile", "profile")),
@@ -370,6 +384,7 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
         "workplan_summary": _to_str_list(_pick_first_list(toc, ("workplan_summary", "workplan"))),
         "assumptions_risks": _to_str_list(_pick_first_list(toc, ("assumptions_risks", "risks", "assumptions"))),
         "annex_readiness": _to_str_list(_pick_first_list(toc, ("annex_readiness", "annexes"))),
+        "compliance_matrix": compliance_matrix,
     }
 
 

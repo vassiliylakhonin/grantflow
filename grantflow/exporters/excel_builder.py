@@ -1485,6 +1485,22 @@ def _add_evaluation_plan_sheet(
     for idx, item in enumerate(toc_payload.get("annex_readiness") or [], start=1):
         add_row("annex", f"A{idx}", f"Annex Readiness {idx}", str(item))
 
+    for idx, row in enumerate(toc_payload.get("compliance_matrix") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("requirement") or f"Compliance Requirement {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                f"Response: {str(row.get('response_section') or '').strip()}".strip(),
+                f"Evidence: {str(row.get('evidence') or '').strip()}".strip(),
+                f"Status: {str(row.get('status') or '').strip()}".strip(),
+                str(row.get("notes") or "").strip(),
+            )
+            if part and part not in {"Response:", "Evidence:", "Status:"}
+        )
+        add_row("compliance", f"C{idx}", title, description)
+
     indicators = _normalized_indicator_rows(logframe_draft)
     for idx, indicator in enumerate(indicators[:3], start=1):
         if not isinstance(indicator, dict):

@@ -192,6 +192,7 @@ What it currently supports:
 - evaluation purpose and question framing
 - methodology and method-component outline
 - team-composition and deliverable plan sections
+- procurement-style compliance matrix for the technical response package
 - review/control/export workflow using the same findings, comments, HITL, and artifact packaging layers
 
 What it does not yet claim:
@@ -240,6 +241,7 @@ Evaluation RFQ demo variant:
 - set `proposal_mode=evaluation_rfq`
 - inspect `Evaluation RFQ Technical Proposal` in `.docx`
 - inspect `Evaluation_Plan` in `.xlsx`
+- inspect `Procurement Compliance Matrix` in the `.docx` and `compliance` rows in `Evaluation_Plan`
 
 For ready-made example artifacts, use files in `docs/samples/` and `docs/pilot_runs/2026-02-27/`.
 
