@@ -13,6 +13,9 @@ Quick companion docs:
 - customer kickoff record example: `docs/pilot-customers/kazakhstan-ngo-kickoff-record.md`
 - customer role mapping example: `docs/pilot-customers/kazakhstan-ngo-role-mapping.md`
 - customer pilot plan example: `docs/pilot-customers/kazakhstan-ngo-recommended-plan.md`
+- customer execution checklist example: `docs/pilot-customers/kazakhstan-ngo-execution-checklist.md`
+- customer measured baseline sheet example: `docs/pilot-customers/kazakhstan-ngo-measured-baseline.csv`
+- customer follow-up email example: `docs/pilot-customers/kazakhstan-ngo-follow-up-email.md`
 - enterprise access pattern: `docs/enterprise-access-layer.md`
 
 ## 1) Product Scope

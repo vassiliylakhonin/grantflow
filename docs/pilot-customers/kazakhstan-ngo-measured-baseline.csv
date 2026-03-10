@@ -1,0 +1,4 @@
+case_label,preset_key,donor_id,deadline,baseline_time_to_first_reviewable_draft_hours,baseline_time_to_final_package_hours,baseline_review_loops,baseline_active_reviewers,baseline_major_mel_rewrites_after_r2,baseline_comment_duplication_notes,baseline_owner,baseline_source,baseline_confidence,baseline_capture_date,notes
+Youth employability concept note,un_agencies_education_nepal,un_agencies,2026-04-14,,,,,,,,Ruslan,customer_workflow_manual_capture,,,
+Community resilience full proposal,eu_digital_governance_moldova,eu,2026-04-28,,,,,,,,Ruslan,customer_workflow_manual_capture,,,
+Health systems strengthening concept + annex package,usaid_gov_ai_kazakhstan,usaid,2026-05-12,,,,,,,,Ruslan,customer_workflow_manual_capture,,,
