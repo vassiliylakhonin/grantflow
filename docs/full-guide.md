@@ -10,6 +10,8 @@ Quick companion docs:
 - pilot role mapping example: `docs/pilot-role-mapping-example.md`
 - pilot kickoff agenda: `docs/pilot-kickoff-agenda.md`
 - customer discovery example: `docs/pilot-customers/kazakhstan-ngo-discovery.md`
+- customer kickoff record example: `docs/pilot-customers/kazakhstan-ngo-kickoff-record.md`
+- customer role mapping example: `docs/pilot-customers/kazakhstan-ngo-role-mapping.md`
 - customer pilot plan example: `docs/pilot-customers/kazakhstan-ngo-recommended-plan.md`
 - enterprise access pattern: `docs/enterprise-access-layer.md`
 
