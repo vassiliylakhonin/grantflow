@@ -1,149 +1,138 @@
 # GrantFlow
 
-Proposal operations platform for high-stakes donor workflows.
+**GrantFlow is a workflow engine for institutional proposal operations.**
 
-GrantFlow helps proposal teams turn program intent into reviewable draft packages with controlled stages, human approvals, traceability, and export-ready outputs. It is built for governed drafting and review workflows, not for generic grant-chatbot use.
+It helps proposal teams turn raw program intent into reviewable draft packages with controlled stages, human approvals, traceability, and export-ready outputs.
+
+Built for organizations that need governed drafting and review workflows, not a generic grant-writing chatbot.
 
 [![CI](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml/badge.svg)](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.11--3.13-blue.svg)](https://www.python.org/)
 
-## Why Not Generic AI
+## Why Teams Use It
 
-Most proposal teams do not need more text generation. They need:
-- a faster path to a reviewable first draft
-- less review chaos across multiple contributors
-- clearer approvals and ownership
-- traceable claims, findings, and revisions
-- outputs that fit real submission workflows
+- turn drafting into a controlled multi-stage workflow
+- route work by donor strategy and proposal mode
+- pause for human approval at critical checkpoints
+- track findings, comments, versions, and citations
+- export review-ready `.docx`, `.xlsx`, and ZIP packages
 
-GrantFlow is designed around that operating problem.
+## Why This Exists
+
+Generic AI tools generate text.
+
+Proposal operations teams need something different:
+- explicit workflow stages
+- review and remediation loops
+- human approval controls
+- traceability for citations, versions, and events
+- exportable artifacts for downstream submission work
+
+GrantFlow covers the drafting-control-review-export layer.
+Final donor compliance sign-off remains a human responsibility.
 
 ## Who It Is For
 
-- implementing organizations and NGOs running donor-funded proposals
-- grant consulting firms managing multi-review submissions
-- program, MEL, and proposal operations teams that need governed drafting
+- NGOs and implementing organizations
+- consulting firms managing donor submissions
+- program and MEL teams handling institutional compliance workflows
 
 ## Who It Is Not For
 
-- a general-purpose grant-writing chatbot
-- small ad-hoc fundraising copy generation
-- teams that only need raw text without review controls or audit traces
+- teams looking for a general-purpose grant-writing chatbot
+- ad-hoc individual fundraising use cases
+- organizations that only need plain text generation without review controls or audit traces
 
 ## What Is Real Today
 
-- staged workflow engine: `discovery -> architect -> mel -> critic`
-- donor routing with specialized strategies for `usaid`, `eu`, `worldbank`, `giz`, `state_department`
-- HITL pause/approve/resume controls
-- findings and comments as structured review objects
-- traceability endpoints for citations, versions, events, quality, and workflow state
-- export to `.docx`, `.xlsx`, and ZIP review packages
+- structured draft pipeline for proposal artifacts
+- donor strategy routing
+- critic loop with structured findings
+- SLA-aware review workflow
+- human-in-the-loop pause / approve / resume
+- citation, version, and event traceability
+- export to `.docx`, `.xlsx`, and ZIP
+- queue-backed runtime with separate worker path
 - bounded `evaluation_rfq` mode for consultancy-style technical responses
 
-## 5-Minute Proof
+## See It In 5 Minutes
 
-Canonical buyer proof path:
-1. run the API and open `GET /demo` (`Reviewer Console`)
-2. generate a preset case with `POST /generate/from-preset`
-3. inspect:
-   - `GET /status/{job_id}/quality`
-   - `GET /status/{job_id}/critic`
-   - `GET /status/{job_id}/review/workflow`
-4. export:
-   - `GET /status/{job_id}/export-payload`
-   - `POST /export`
+1. Start the API.
+2. Open `/demo`.
+3. Generate from a preset.
+4. Inspect draft status, findings, and review workflow.
+5. Export the review package.
+
+Core demo path:
+- `GET /demo`
+- `POST /generate/from-preset`
+- `GET /status/{job_id}`
+- `GET /status/{job_id}/critic`
+- `GET /status/{job_id}/review/workflow`
+- `POST /export`
 
 Start here:
 - `docs/buyer-one-pager.md`
 - `docs/five-minute-demo.md`
 - `docs/samples/`
 
-## Production Boundary
+## What Production Means Today
 
-GrantFlow currently covers the drafting-control-review-export layer.
+Recommended deployment profile:
+- API in queue-backed mode
+- dedicated worker process
+- persistent stores enabled
+- API key auth enabled
+- private network for backing services
 
-It does not claim:
-- in-app SSO or full RBAC
-- fully automated donor submission
-- full procurement-suite pricing automation
-- replacement of human compliance sign-off
+Current repository scope:
+- built-in auth is API-key based
+- native OIDC / SAML / RBAC is not claimed in-repo
+- enterprise access control is expected at the gateway or platform layer
 
-For enterprise-style deployment, the intended pattern is:
-- gateway or SSO in front
-- API key at the GrantFlow boundary
-- queue-backed API plus worker
-- Redis and Chroma kept private
-
-Details:
+See:
 - `docs/production-boundaries.md`
 - `docs/reference-topology.md`
 - `docs/enterprise-access-layer.md`
+- `docs/enterprise-quickstart.md`
 - `docs/audit-story.md`
 - `SECURITY.md`
 
 ## Quickstart
 
-Local developer path:
-
 ```bash
 pip install ".[dev]"
 uvicorn grantflow.api.app:app --reload
-curl -s http://127.0.0.1:8000/health && curl -s http://127.0.0.1:8000/ready
+curl -s http://127.0.0.1:8000/health
 ```
 
-Opinionated shared-eval path:
+Then open:
 
-```bash
-cp .env.enterprise.example .env.enterprise
-make enterprise-eval-up
-make enterprise-eval-check
-```
-
-## Evaluation RFQ Mode
-
-GrantFlow includes a bounded `evaluation_rfq` mode for technical-response workflows such as performance evaluation RFQs.
-
-What it currently supports:
-- technical proposal backbone
-- methodology, deliverables, and workplan structure
-- compliance matrix
-- staffing and CV readiness
-- financial proposal companion summary
-- submission package checklist
-- attachment manifest and annex-packer artifacts in ZIP export
-
-What it does not yet fully automate:
-- detailed pricing workbook logic
-- full annex file assembly without supplied file paths
-- end-to-end procurement submission packaging
+`http://127.0.0.1:8000/demo`
 
 ## Docs By Audience
 
-Buyer or partner:
+**Buyers**
 - `docs/buyer-one-pager.md`
-- `docs/five-minute-demo.md`
+- `docs/pilot-evaluation-checklist.md`
 - `docs/proof-summary.md`
-- `docs/oem-one-pager.md`
 
-Operator or reviewer:
+**Operators**
 - `docs/demo-runbook.md`
 - `docs/operations-runbook.md`
 - `docs/pilot-day1-checklist.md`
 
-Engineer:
+**Engineers**
 - `docs/README.md`
 - `docs/architecture.md`
 - `docs/contributor-map.md`
 - `docs/api-stability-policy.md`
 
-Enterprise or trust review:
-- `docs/enterprise-quickstart.md`
-- `docs/reference-topology.md`
+**Security / Enterprise Review**
 - `docs/enterprise-access-layer.md`
-- `docs/gateway-policy-example.md`
 - `docs/enterprise-access-checklist.md`
+- `docs/gateway-policy-example.md`
 - `docs/identity-rbac-roadmap.md`
-- `docs/audit-story.md`
 
 Customer-specific pilot materials are intentionally kept out of this public repository.
