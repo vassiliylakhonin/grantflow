@@ -1398,6 +1398,80 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Deliverables Schedule Table" in text
 
 
+def test_evaluation_rfq_exporters_surface_missing_ready_annex_files(tmp_path: Path):
+    existing_annex = tmp_path / "registration-certificate.pdf"
+    existing_annex.write_text("placeholder annex", encoding="utf-8")
+    missing_annex = tmp_path / "audited-financials.pdf"
+    toc_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "toc": {
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+            "brief": "Technical response for an external project performance evaluation.",
+            "organization_information": "Registered organization with audited financials and Central Asia operating status.",
+            "evaluation_purpose": "Assess outcome-level change and implementation performance.",
+            "methodology_overview": "Mixed-methods evaluation design with triangulated evidence review.",
+            "submission_package_checklist": [
+                {
+                    "artifact": "Technical proposal narrative",
+                    "owner": "Proposal manager",
+                    "status": "ready",
+                    "notes": "Final reviewer-ready narrative package",
+                }
+            ],
+            "attachment_manifest": [
+                {
+                    "attachment": "Registration certificate",
+                    "required_for": "Organization information and legal-status package",
+                    "owner": "Operations / compliance",
+                    "status": "ready",
+                    "notes": "Attach current registration evidence in PDF format.",
+                    "source_path": str(existing_annex),
+                },
+                {
+                    "attachment": "Audited financial statement",
+                    "required_for": "Organization information and legal-status package",
+                    "owner": "Operations / compliance",
+                    "status": "ready",
+                    "notes": "Attach latest audited financial statement.",
+                    "source_path": str(missing_annex),
+                },
+            ],
+            "compliance_matrix": [
+                {
+                    "requirement": "Organization information and legal status package",
+                    "response_section": "Organization Information",
+                    "evidence": "Registration certificate and audited financials",
+                    "status": "ready",
+                    "notes": "Attached in annex package",
+                }
+            ],
+            "deliverables": [
+                {
+                    "deliverable": "Final Evaluation Report",
+                    "timing": "Week 4",
+                    "purpose": "Deliver final performance findings and recommendations",
+                }
+            ],
+        },
+    }
+
+    doc = Document(BytesIO(build_docx_from_toc(toc_draft, "un_agencies", logframe_draft={"indicators": []})))
+    text = "\n".join(p.text for p in doc.paragraphs)
+    assert "Submission readiness status: partial" in text
+    assert "Top submission gap: attachment_files" in text
+    assert "Attachment file validation: attached_files=1 | missing_ready_files=1 | status_file_mismatches=0" in text
+
+    wb = load_workbook(BytesIO(build_xlsx_from_logframe({"indicators": []}, "un_agencies", toc_draft=toc_draft)))
+    rows = list(wb["Export Contract"].iter_rows(values_only=True))
+    export_contract = {str(name): value for name, value in rows if name}
+    assert export_contract["Submission Readiness Status"] == "partial"
+    assert export_contract["Top Submission Gap"] == "attachment_files"
+    assert export_contract["Attached Annex Files"] == 1
+    assert export_contract["Ready Annex Rows Missing Files"] == 1
+    assert export_contract["Annex Status/File Mismatches"] == 0
+
+
 def test_export_contract_resolves_evaluation_rfq_from_wrapped_state_payload():
     wrapped = {
         "state": {

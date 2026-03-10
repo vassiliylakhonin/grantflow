@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from openpyxl import Workbook
@@ -40,6 +41,98 @@ def _normalized_indicator_rows(logframe_draft: Optional[Dict[str, Any]]) -> list
         return []
     raw = logframe_draft.get("indicators")
     return [row for row in raw if isinstance(row, dict)] if isinstance(raw, list) else []
+
+
+def _attachment_source_path(row: dict[str, Any]) -> str:
+    for key in ("source_path", "staged_file_path", "local_path", "file_path", "attachment_path"):
+        value = row.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return ""
+
+
+def _adjust_submission_readiness_for_attachment_files(
+    summary: dict[str, Any], toc_payload: dict[str, Any]
+) -> dict[str, Any]:
+    adjusted = dict(summary) if isinstance(summary, dict) else {}
+    attachment_counts = adjusted.get("attachment_manifest_counts")
+    if not isinstance(attachment_counts, dict):
+        return adjusted
+    toc_root = unwrap_toc_payload(toc_payload if isinstance(toc_payload, dict) else {})
+    attachment_rows = toc_root.get("attachment_manifest")
+    if not isinstance(attachment_rows, list):
+        return adjusted
+
+    attached_file_count = 0
+    missing_ready = 0
+    status_file_mismatch_count = 0
+    for row in attachment_rows:
+        if not isinstance(row, dict):
+            continue
+        status = str(row.get("status") or "").strip().lower()
+        source_path = _attachment_source_path(row)
+        if not source_path:
+            continue
+        try:
+            source = Path(source_path).expanduser().resolve(strict=True)
+        except (FileNotFoundError, OSError):
+            source = None
+        if source is not None and source.is_file():
+            attached_file_count += 1
+            if status and status != "ready":
+                status_file_mismatch_count += 1
+        elif status == "ready":
+            missing_ready += 1
+
+    if missing_ready <= 0 and status_file_mismatch_count <= 0 and attached_file_count <= 0:
+        return adjusted
+
+    updated_attachment_counts = dict(attachment_counts)
+    if missing_ready > 0:
+        updated_attachment_counts["ready"] = max(0, int(updated_attachment_counts.get("ready", 0)) - missing_ready)
+        updated_attachment_counts["pending"] = int(updated_attachment_counts.get("pending", 0)) + missing_ready
+        adjusted["attachment_manifest_counts"] = updated_attachment_counts
+
+        submission_counts = adjusted.get("submission_package_counts")
+        compliance_counts = adjusted.get("compliance_matrix_counts")
+        if isinstance(submission_counts, dict) and isinstance(compliance_counts, dict):
+            weighted_total = (
+                int(submission_counts.get("total", 0))
+                + int(updated_attachment_counts.get("total", 0))
+                + int(compliance_counts.get("total", 0))
+            )
+            weighted_ready = (
+                int(submission_counts.get("ready", 0))
+                + int(updated_attachment_counts.get("ready", 0))
+                + int(compliance_counts.get("ready", 0))
+            )
+            weighted_partial = (
+                int(submission_counts.get("partial", 0))
+                + int(updated_attachment_counts.get("partial", 0))
+                + int(compliance_counts.get("partial", 0))
+            )
+            completeness_score = (
+                round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1)
+                if weighted_total
+                else 0.0
+            )
+            adjusted["completeness_score"] = completeness_score
+            if weighted_total == 0:
+                adjusted["readiness_status"] = "missing"
+            elif completeness_score >= 85:
+                adjusted["readiness_status"] = "ready"
+            elif completeness_score >= 60:
+                adjusted["readiness_status"] = "partial"
+            else:
+                adjusted["readiness_status"] = "weak"
+        adjusted["top_gap"] = "attachment_files"
+
+    adjusted["attachment_file_validation"] = {
+        "attached_file_count": attached_file_count,
+        "missing_ready_file_count": missing_ready,
+        "status_file_mismatch_count": status_file_mismatch_count,
+    }
+    return adjusted
 
 
 def _indicator_focus_rows(
@@ -618,6 +711,7 @@ def _add_export_contract_sheet(wb: Workbook, contract: Dict[str, Any]) -> None:
     ]
     submission_summary = contract.get("submission_readiness_summary")
     if isinstance(submission_summary, dict):
+        validation = submission_summary.get("attachment_file_validation")
         rows.extend(
             [
                 ("Submission Completeness Score", submission_summary.get("completeness_score", "")),
@@ -637,6 +731,14 @@ def _add_export_contract_sheet(wb: Workbook, contract: Dict[str, Any]) -> None:
                 ),
             ]
         )
+        if isinstance(validation, dict):
+            rows.extend(
+                [
+                    ("Attached Annex Files", int(validation.get("attached_file_count") or 0)),
+                    ("Ready Annex Rows Missing Files", int(validation.get("missing_ready_file_count") or 0)),
+                    ("Annex Status/File Mismatches", int(validation.get("status_file_mismatch_count") or 0)),
+                ]
+            )
     for row_idx, (field_name, value) in enumerate(rows, start=2):
         ws.append([field_name, value])
         ws.cell(row=row_idx, column=1).border = border
@@ -1778,6 +1880,12 @@ def build_xlsx_from_logframe(
         workbook_sheetnames=wb.sheetnames,
         workbook_primary_sheet_headers=primary_sheet_headers,
     )
+    submission_summary = contract.get("submission_readiness_summary")
+    if isinstance(submission_summary, dict):
+        contract["submission_readiness_summary"] = _adjust_submission_readiness_for_attachment_files(
+            submission_summary,
+            toc_payload_raw,
+        )
     _add_export_contract_sheet(wb, contract)
     _add_quality_summary_sheet(wb, quality_summary or {})
     export_citations = citations or logframe_draft.get("citations") or []
