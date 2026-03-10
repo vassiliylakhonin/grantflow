@@ -57,6 +57,14 @@ class EvaluationSubmissionItem(BaseModel):
     notes: str = Field(default="", description="Short note on completeness or remaining action")
 
 
+class EvaluationAttachmentItem(BaseModel):
+    attachment: str = Field(description="Named annex or attachment expected in the submission package")
+    required_for: str = Field(description="What proposal requirement or review check this attachment supports")
+    owner: str = Field(description="Responsible owner for the attachment")
+    status: str = Field(description="Attachment status: ready|partial|pending")
+    notes: str = Field(default="", description="Short note on the attachment state or packing rule")
+
+
 class EvaluationRFQTOC(BaseModel):
     proposal_mode: Literal["evaluation_rfq"] = EVALUATION_RFQ_PROPOSAL_MODE
     rfq_profile: str | None = Field(default=None, description="Optional RFQ-specific contract profile")
@@ -89,6 +97,7 @@ class EvaluationRFQTOC(BaseModel):
     pricing_assumptions: list[str] = Field(default_factory=list)
     payment_schedule_summary: str = Field(default="", description="Milestone-based payment or invoicing summary")
     submission_package_checklist: list[EvaluationSubmissionItem] = Field(default_factory=list)
+    attachment_manifest: list[EvaluationAttachmentItem] = Field(default_factory=list)
 
 
 def is_evaluation_rfq_mode(input_context: Dict[str, Any] | None) -> bool:
@@ -453,6 +462,60 @@ def _build_katch_submission_package_checklist() -> list[Dict[str, str]]:
     ]
 
 
+def _build_katch_attachment_manifest() -> list[Dict[str, str]]:
+    return [
+        {
+            "attachment": "Registration certificate",
+            "required_for": "Organization information and legal-status package",
+            "owner": "Operations / compliance",
+            "status": "ready",
+            "notes": "Attach current registration evidence in PDF format.",
+        },
+        {
+            "attachment": "Latest audited financial statement",
+            "required_for": "Organization information and legal-status package",
+            "owner": "Finance / compliance",
+            "status": "ready",
+            "notes": "Use the latest board-approved or auditor-issued statement.",
+        },
+        {
+            "attachment": "Key personnel CV annex",
+            "required_for": "Personnel and Team Composition / CV readiness",
+            "owner": "Team lead / HR support",
+            "status": "ready",
+            "notes": "Bundle CVs in role order to match the key personnel table.",
+        },
+        {
+            "attachment": "Activity-based work plan / Gantt chart",
+            "required_for": "Workplan & Deliverables",
+            "owner": "Evaluation lead",
+            "status": "ready",
+            "notes": "Align milestone dates to inception, fieldwork, draft, and final report stages.",
+        },
+        {
+            "attachment": "Level-of-effort matrix",
+            "required_for": "Proposed Level of Effort / financial companion",
+            "owner": "Proposal manager",
+            "status": "ready",
+            "notes": "Show person-days by role and phase; reconcile with staffing and pricing notes.",
+        },
+        {
+            "attachment": "Sample technical outputs",
+            "required_for": "Past performance / sample outputs",
+            "owner": "Proposal manager",
+            "status": "ready",
+            "notes": "Include at least one comparable final evaluation report or brief.",
+        },
+        {
+            "attachment": "Financial proposal companion",
+            "required_for": "Financial proposal companion summary and pricing assumptions",
+            "owner": "Finance / proposal manager",
+            "status": "ready",
+            "notes": "Keep as a separate annex aligned to cost structure and payment schedule.",
+        },
+    ]
+
+
 def build_katch_evaluation_rfq_payload(
     *,
     donor_id: str,
@@ -606,6 +669,7 @@ def build_katch_evaluation_rfq_payload(
             "and final report / brief acceptance."
         ),
         "submission_package_checklist": _build_katch_submission_package_checklist(),
+        "attachment_manifest": _build_katch_attachment_manifest(),
         "annex_readiness": [
             "Registration certificate and latest audited financial statement",
             "CVs for key personnel",
@@ -697,5 +761,6 @@ def build_evaluation_rfq_fallback_payload(
         "pricing_assumptions": [],
         "payment_schedule_summary": "",
         "submission_package_checklist": [],
+        "attachment_manifest": [],
         "compliance_matrix": [],
     }

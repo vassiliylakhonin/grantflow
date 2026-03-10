@@ -389,6 +389,38 @@ def _add_katch_evaluation_rfq_checks(
             fix_hint="Add a submission package checklist naming each required artifact, owner, status, and remaining packaging notes before submission.",
         )
 
+    attachment_manifest = toc_payload.get("attachment_manifest") or []
+    ready_attachment_items = [
+        row
+        for row in attachment_manifest
+        if isinstance(row, dict)
+        and str(row.get("attachment") or "").strip()
+        and str(row.get("required_for") or "").strip()
+        and str(row.get("owner") or "").strip()
+        and str(row.get("status") or "").strip()
+    ]
+    if len(ready_attachment_items) >= 5:
+        check_fn(
+            code="KATCH_ATTACHMENT_MANIFEST_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ready_attachment_items)} attachment row(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_ATTACHMENT_MANIFEST_PRESENT",
+            status="warn",
+            section="toc",
+            detail="Need a clearer annex-by-annex manifest for submission packaging",
+        )
+        add_flaw_fn(
+            code="KATCH_ATTACHMENT_MANIFEST_WEAK",
+            severity="medium",
+            section="toc",
+            message="KATCH attachment manifest is underspecified, so the final annex set remains weak on owner-by-owner packaging control.",
+            fix_hint="Add an attachment manifest that names each annex, what it supports, the owner, and its ready/partial/pending state.",
+        )
+
     workplan_summary = toc_payload.get("workplan_summary")
     if isinstance(workplan_summary, list) and workplan_summary:
         check_fn(code="KATCH_WORKPLAN_PRESENT", status="pass", section="toc", detail=f"{len(workplan_summary)} workplan phase(s)")

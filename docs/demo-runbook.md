@@ -246,6 +246,8 @@ For the RFQ demo path, verify:
 - `.xlsx` contains `Evaluation_Plan`
 - `.docx` contains `Submission Package Completeness`
 - `Evaluation_Plan` contains `submission_package` rows
+- `.docx` contains `Attachment Manifest`
+- `Evaluation_Plan` contains `attachment_manifest` rows
 
 ## 4) Optional HITL Segment
 

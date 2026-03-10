@@ -1223,6 +1223,30 @@ def _render_evaluation_rfq_toc(
             if details:
                 doc.add_paragraph(" | ".join(details))
 
+    attachment_manifest = toc.get("attachment_manifest")
+    if isinstance(attachment_manifest, list) and attachment_manifest:
+        doc.add_heading("Attachment Manifest", level=2)
+        for row in attachment_manifest:
+            if not isinstance(row, dict):
+                continue
+            attachment = str(row.get("attachment") or "Attachment").strip()
+            required_for = str(row.get("required_for") or "").strip()
+            owner = str(row.get("owner") or "").strip()
+            status = str(row.get("status") or "").strip()
+            notes = str(row.get("notes") or "").strip()
+            doc.add_paragraph(attachment, style="List Bullet")
+            details = []
+            if required_for:
+                details.append(f"Required for: {required_for}")
+            if owner:
+                details.append(f"Owner: {owner}")
+            if status:
+                details.append(f"Status: {status}")
+            if notes:
+                details.append(f"Notes: {notes}")
+            if details:
+                doc.add_paragraph(" | ".join(details))
+
     deliverables = toc.get("deliverables")
     if isinstance(deliverables, list) and deliverables:
         doc.add_heading("Workplan & Deliverables", level=2)

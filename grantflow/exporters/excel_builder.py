@@ -1549,6 +1549,22 @@ def _add_evaluation_plan_sheet(
         )
         add_row("submission_package", f"SP{idx}", title, description)
 
+    for idx, row in enumerate(toc_payload.get("attachment_manifest") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("attachment") or f"Attachment {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                f"Required for: {str(row.get('required_for') or '').strip()}".strip(),
+                f"Owner: {str(row.get('owner') or '').strip()}".strip(),
+                f"Status: {str(row.get('status') or '').strip()}".strip(),
+                str(row.get("notes") or "").strip(),
+            )
+            if part and part not in {"Required for:", "Owner:", "Status:"}
+        )
+        add_row("attachment_manifest", f"AM{idx}", title, description)
+
     for idx, item in enumerate(toc_payload.get("annex_readiness") or [], start=1):
         add_row("annex", f"A{idx}", f"Annex Readiness {idx}", str(item))
 

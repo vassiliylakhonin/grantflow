@@ -196,6 +196,7 @@ What it currently supports:
 - procurement-style compliance matrix for the technical response package
 - financial proposal companion summary with cost-structure and payment-schedule notes
 - submission package completeness checklist for the technical proposal and annex set
+- attachment manifest for annex-by-annex packaging control
 - review/control/export workflow using the same findings, comments, HITL, and artifact packaging layers
 
 What it does not yet claim:

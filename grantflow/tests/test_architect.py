@@ -1025,3 +1025,8 @@ def test_fallback_structured_toc_supports_katch_evaluation_rfq_profile():
     assert payload["submission_package_checklist"][0]["artifact"]
     assert payload["submission_package_checklist"][0]["owner"]
     assert payload["submission_package_checklist"][0]["status"]
+    assert isinstance(payload.get("attachment_manifest"), list)
+    assert len(payload["attachment_manifest"]) >= 5
+    assert payload["attachment_manifest"][0]["attachment"]
+    assert payload["attachment_manifest"][0]["required_for"]
+    assert payload["attachment_manifest"][0]["owner"]

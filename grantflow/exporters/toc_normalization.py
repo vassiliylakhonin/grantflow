@@ -403,6 +403,23 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    attachment_rows = _pick_first_list(
+        toc,
+        ("attachment_manifest", "annex_manifest", "attachments"),
+    )
+    attachment_manifest = []
+    for raw in attachment_rows:
+        row = raw if isinstance(raw, dict) else {"attachment": _clean_text(raw)}
+        attachment_manifest.append(
+            {
+                "attachment": _pick_first_text(row, ("attachment", "artifact", "title", "name")),
+                "required_for": _pick_first_text(row, ("required_for", "response_section", "purpose")),
+                "owner": _pick_first_text(row, ("owner", "responsible_party")),
+                "status": _pick_first_text(row, ("status",)),
+                "notes": _pick_first_text(row, ("notes", "description")),
+            }
+        )
+
     return {
         "proposal_mode": "evaluation_rfq",
         "rfq_profile": _pick_first_text(toc, ("rfq_profile", "profile")),
@@ -429,6 +446,7 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
         "pricing_assumptions": _to_str_list(_pick_first_list(toc, ("pricing_assumptions", "financial_assumptions"))),
         "payment_schedule_summary": _pick_first_text(toc, ("payment_schedule_summary", "payment_schedule")),
         "submission_package_checklist": submission_package_checklist,
+        "attachment_manifest": attachment_manifest,
         "deliverables": deliverables,
         "workplan_summary": _to_str_list(_pick_first_list(toc, ("workplan_summary", "workplan"))),
         "assumptions_risks": _to_str_list(_pick_first_list(toc, ("assumptions_risks", "risks", "assumptions"))),

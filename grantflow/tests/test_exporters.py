@@ -1287,6 +1287,15 @@ def test_exporters_support_evaluation_rfq_mode():
                     "notes": "Final reviewer-ready narrative package",
                 }
             ],
+            "attachment_manifest": [
+                {
+                    "attachment": "Registration certificate",
+                    "required_for": "Organization information and legal-status package",
+                    "owner": "Operations / compliance",
+                    "status": "ready",
+                    "notes": "Attach current registration evidence in PDF format.",
+                }
+            ],
             "compliance_matrix": [
                 {
                     "requirement": "Organization information and legal status package",
@@ -1348,6 +1357,9 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Technical proposal narrative" in text
     assert "Owner: Proposal manager" in text
     assert "Status: ready" in text
+    assert "Attachment Manifest" in text
+    assert "Registration certificate" in text
+    assert "Required for: Organization information and legal-status package" in text
     assert "Proposed Level of Effort" in text
     assert "Technical Experience and Past Performance References" in text
     assert "Procurement Compliance Matrix" in text
@@ -1372,6 +1384,8 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Technical proposal narrative" in rendered
     assert "Owner: Proposal manager" in rendered
     assert "Status: ready" in rendered
+    assert "Registration certificate" in rendered
+    assert "Required for: Organization information and legal-status package" in rendered
     assert "Proposed Level of Effort" in rendered
     assert "Technical Experience and Past Performance References" in rendered
     assert "Organization information and legal status package" in rendered
