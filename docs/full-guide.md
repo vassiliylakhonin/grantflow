@@ -13,6 +13,8 @@ Quick companion docs:
 - customer kickoff record example: `docs/pilot-customers/kazakhstan-ngo-kickoff-record.md`
 - customer role mapping example: `docs/pilot-customers/kazakhstan-ngo-role-mapping.md`
 - customer pilot plan example: `docs/pilot-customers/kazakhstan-ngo-recommended-plan.md`
+- customer pilot contract example: `docs/pilot-customers/kazakhstan-ngo-pilot-contract.md`
+- customer pilot contract json: `docs/pilot-customers/kazakhstan-ngo-pilot-contract.json`
 - customer execution checklist example: `docs/pilot-customers/kazakhstan-ngo-execution-checklist.md`
 - customer measured baseline sheet example: `docs/pilot-customers/kazakhstan-ngo-measured-baseline.csv`
 - customer donor corpus plan example: `docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
