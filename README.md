@@ -20,6 +20,8 @@ Proposal operations platform for high-stakes donor workflows. GrantFlow is a com
 - Operator docs:
   - `docs/operations-runbook.md`
   - `docs/demo-runbook.md`
+  - `docs/pilot-day1-checklist.md`
+  - `docs/enterprise-access-layer.md`
   - `docs/troubleshooting.md`
   - `docs/architecture.md`
   - `docs/contributor-map.md`
@@ -122,6 +124,14 @@ Technical evaluator quick view:
 - persistent sqlite stores for job/hitl/ingest
 - API key configured
 
+`Opinionated pilot path` (recommended first shared deployment):
+- `docker compose --env-file .env.pilot -f docker-compose.pilot.yml up -d --build`
+- queue-backed API + worker
+- persistent sqlite state
+- Redis and Chroma bound to localhost only
+- API key required at startup
+- use `docs/pilot-day1-checklist.md` as the shortest start-to-pilot path
+
 `Supported local/dev path`:
 - `GRANTFLOW_JOB_RUNNER_MODE=background_tasks`
 - in-memory stores allowed
@@ -172,6 +182,42 @@ Use this path for pilot conversations and technical evaluation:
    - `POST /export`
 
 For ready-made example artifacts, use files in `docs/samples/` and `docs/pilot_runs/2026-02-27/`.
+
+## Pilot In 1 Day
+
+Fastest bounded pilot path:
+
+```bash
+cp .env.pilot.example .env.pilot
+make pilot-stack-up
+make pilot-stack-check
+make seed-live-corpus LIVE_SEED_DONORS=usaid,eu,worldbank
+make pilot-refresh-fast DEMO_PACK_API_BASE=http://127.0.0.1:8000
+make release-demo-bundle-fast
+```
+
+Then open:
+- `build/pilot-pack/`
+- `build/executive-pack/`
+- `build/pilot-evidence-pack/`
+- `build/release-demo-bundle-fast/`
+
+Use:
+- `docs/pilot-day1-checklist.md`
+- `docs/pilot-evaluation-checklist.md`
+
+## Enterprise Access Layer
+
+Current in-repo auth is API-key based.
+
+For enterprise or partner pilots, the recommended near-term pattern is:
+- SSO / corporate access control at the gateway layer
+- route authorization at the gateway layer
+- shared `X-API-Key` between gateway and GrantFlow
+- private network for Redis and Chroma
+
+GrantFlow does not claim built-in OIDC/SAML/RBAC in this repository.
+Use `docs/enterprise-access-layer.md` for the recommended pilot role model and route split.
 
 One-command local bundle generation:
 
@@ -903,6 +949,20 @@ docker-compose up --build
 By default, compose starts `api + worker + redis + chroma`.
 The bundled compose profile is demo/dev-oriented (`GRANTFLOW_ENV=dev`) and is not a hardened production deployment template.
 
+Opinionated pilot profile:
+
+```bash
+cp .env.pilot.example .env.pilot
+docker compose --env-file .env.pilot -f docker-compose.pilot.yml up -d --build
+```
+
+The pilot profile switches the stack to:
+- `GRANTFLOW_ENV=production`
+- required API key at startup
+- persistent store guards enabled
+- queue-backed API + worker
+- Redis and Chroma bound to localhost only
+
 Production rollout checklist:
 - `docs/deployment-checklist.md`
 
@@ -938,7 +998,9 @@ Current constraints:
 - Buyer one-pager: `docs/buyer-one-pager.md`
 - Architecture overview: `docs/architecture.md`
 - Deployment checklist: `docs/deployment-checklist.md`
+- Pilot day-1 checklist: `docs/pilot-day1-checklist.md`
 - Pilot evaluation checklist: `docs/pilot-evaluation-checklist.md`
+- Enterprise access layer: `docs/enterprise-access-layer.md`
 - Troubleshooting guide: `docs/troubleshooting.md`
 - Contributor map: `docs/contributor-map.md`
 - Operator runbook: `docs/operations-runbook.md`

@@ -5,6 +5,8 @@ This runbook is the recommended way to demo GrantFlow with existing repository c
 Related role-based materials:
 - `docs/pilot-user-roles.md`
 - `docs/role-based-demo-script.md`
+- `docs/pilot-day1-checklist.md`
+- `docs/enterprise-access-layer.md`
 
 ## 1) Demo Objective
 
@@ -26,6 +28,16 @@ uvicorn grantflow.api.app:app --reload
 
 Optional:
 - open Demo Console at `http://127.0.0.1:8000/demo`
+
+Opinionated first shared pilot deployment:
+
+```bash
+cp .env.pilot.example .env.pilot
+make pilot-stack-up
+make pilot-stack-check
+```
+
+This gives you the shortest queue-backed, API-key-protected pilot runtime without changing the core app model.
 
 Fastest reproducible bundle path:
 
@@ -130,6 +142,11 @@ Measured baseline always takes precedence over benchmark baseline in `pilot-metr
 `make buyer-demo-open-refresh` rebuilds the fast buyer path first, then prints or opens that stack.
 `make ci-demo-smoke` runs the minimal buyer-chain smoke path on a single preset and asserts that the key demo artifacts exist.
 `make dev-runtime-refresh` rebuilds local Docker `api` and `worker` services when live `/status/*` payloads lag behind the current checkout.
+`make pilot-stack-up` starts the opinionated pilot stack using `.env.pilot` plus `docker-compose.pilot.yml`.
+`make pilot-stack-down` stops that pilot stack.
+`make pilot-stack-status` shows the current service state.
+`make pilot-stack-logs` prints recent `api/worker/redis/chroma` logs for the pilot stack.
+`make pilot-stack-check` calls `/health` and `/ready` against the pilot API.
 
 ## 3) Operator Demo Flow (API-first)
 

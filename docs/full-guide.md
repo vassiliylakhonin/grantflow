@@ -5,6 +5,8 @@ Quick companion docs:
 - demo operator flow and founder script: `docs/demo-runbook.md`
 - productization readiness memo: `docs/productization-gaps-memo.md`
 - pilot evaluation template: `docs/pilot-evaluation-checklist.md`
+- pilot day-1 checklist: `docs/pilot-day1-checklist.md`
+- enterprise access pattern: `docs/enterprise-access-layer.md`
 
 ## 1) Product Scope
 
@@ -57,6 +59,22 @@ Use `GET /donors` to resolve canonical IDs and aliases at runtime.
 - worker role: separate `python -m grantflow.worker`
 - persistence: `GRANTFLOW_JOB_STORE=sqlite`, `GRANTFLOW_HITL_STORE=sqlite`, `GRANTFLOW_INGEST_STORE=sqlite`
 - auth: `GRANTFLOW_API_KEY` configured
+
+### Opinionated pilot path
+
+- standalone pilot profile: `docker-compose.pilot.yml`
+- config file: `.env.pilot`
+- command:
+
+```bash
+docker compose --env-file .env.pilot -f docker-compose.pilot.yml up -d --build
+```
+
+This is the shortest shared deployment path that still keeps:
+- queue-backed execution
+- persistent state
+- API-key required startup
+- Redis and Chroma bound to localhost only
 
 Mode classification:
 - `background_tasks`: supported local/dev mode (default)
@@ -133,6 +151,14 @@ export GRANTFLOW_JOB_STORE=sqlite
 export GRANTFLOW_HITL_STORE=sqlite
 export GRANTFLOW_INGEST_STORE=sqlite
 export GRANTFLOW_SQLITE_PATH=./.data/grantflow_state.db
+```
+
+For the packaged pilot path, prefer:
+
+```bash
+cp .env.pilot.example .env.pilot
+make pilot-stack-up
+make pilot-stack-check
 ```
 
 ### Health/readiness
