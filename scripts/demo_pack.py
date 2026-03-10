@@ -506,7 +506,7 @@ def main() -> int:
     parser.add_argument("--output-dir", default="build/demo-pack")
     parser.add_argument("--api-key", default="")
     parser.add_argument("--preset-keys", default=",".join(DEFAULT_PRESET_KEYS))
-    parser.add_argument("--hitl-preset-key", default=DEFAULT_PRESET_KEYS[0])
+    parser.add_argument("--hitl-preset-key", default="")
     parser.add_argument("--timeout-seconds", type=float, default=60.0)
     parser.add_argument("--poll-interval-seconds", type=float, default=0.25)
     parser.add_argument("--llm-mode", action="store_true")

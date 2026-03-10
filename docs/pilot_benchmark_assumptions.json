@@ -22,5 +22,29 @@
     "baseline_time_to_terminal_seconds": 172800,
     "baseline_review_loops": 9,
     "baseline_notes": "Illustrative benchmark baseline for demo-only World Bank results-framework workflows. Assumes manual PDO/results-framework reconciliation and ISR-style review before internal approval. Not measured customer baseline."
+  },
+  "giz_sme_resilience_ukraine": {
+    "benchmark_baseline_type": "illustrative",
+    "benchmark_method": "curated_demo_benchmark_v1",
+    "baseline_time_to_first_draft_seconds": 21600,
+    "baseline_time_to_terminal_seconds": 129600,
+    "baseline_review_loops": 8,
+    "baseline_notes": "Illustrative benchmark baseline for demo-only GIZ delivery and sustainability workflows. Assumes manual partner-role alignment, resilience package drafting, and implementation-review passes before internal review. Not measured customer baseline."
+  },
+  "state_department_media_georgia": {
+    "benchmark_baseline_type": "illustrative",
+    "benchmark_method": "curated_demo_benchmark_v1",
+    "baseline_time_to_first_draft_seconds": 25200,
+    "baseline_time_to_terminal_seconds": 172800,
+    "baseline_review_loops": 10,
+    "baseline_notes": "Illustrative benchmark baseline for demo-only State Department media resilience workflows. Assumes manual strategic-context, risk, and partner safeguarding review before a reviewer-ready draft. Not measured customer baseline."
+  },
+  "un_agencies_education_nepal": {
+    "benchmark_baseline_type": "illustrative",
+    "benchmark_method": "curated_demo_benchmark_v1",
+    "baseline_time_to_first_draft_seconds": 18000,
+    "baseline_time_to_terminal_seconds": 108000,
+    "baseline_review_loops": 7,
+    "baseline_notes": "Illustrative benchmark baseline for demo-only UN programme and sector-review workflows. Assumes manual partner verification, field-monitoring synthesis, and reporting alignment before internal review. Not measured customer baseline."
   }
 }

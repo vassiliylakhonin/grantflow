@@ -97,6 +97,107 @@ _DEMO_GENERATE_PRESETS_LEGACY: dict[str, dict[str, Any]] = {
             "strict_preflight": False,
         },
     },
+    "giz_sme_resilience_ukraine": {
+        "donor_id": "giz",
+        "title": "SME resilience (UA)",
+        "generate_payload": {
+            "donor_id": "giz",
+            "input_context": {
+                "project": "SME Resilience and Local Jobs",
+                "country": "Ukraine",
+                "region": "Selected municipalities and SME support ecosystems",
+                "timeframe": "2026-2028 (30 months)",
+                "problem": (
+                    "Small and medium enterprises face disrupted operations, weak continuity planning, "
+                    "and uneven access to practical resilience support."
+                ),
+                "target_population": (
+                    "SMEs, local business support providers, and municipal economic development partners."
+                ),
+                "expected_change": (
+                    "Participating SMEs adopt stronger resilience practices, stabilize operations, and retain jobs."
+                ),
+                "key_activities": [
+                    "SME resilience diagnostics and prioritization",
+                    "Business continuity coaching and peer learning",
+                    "Support for local partner implementation routines",
+                    "Resilience action plans and follow-up implementation reviews",
+                ],
+            },
+            "llm_mode": True,
+            "hitl_enabled": True,
+            "architect_rag_enabled": True,
+            "strict_preflight": False,
+        },
+    },
+    "state_department_media_georgia": {
+        "donor_id": "state_department",
+        "title": "Media resilience (GE)",
+        "generate_payload": {
+            "donor_id": "state_department",
+            "input_context": {
+                "project": "Independent Media Resilience",
+                "country": "Georgia",
+                "region": "National and selected local media ecosystems",
+                "timeframe": "2026-2028 (24 months)",
+                "problem": (
+                    "Independent media organizations face political pressure, information-space threats, "
+                    "and uneven capacity to manage operational and safeguarding risks."
+                ),
+                "target_population": (
+                    "Independent media outlets, editors, journalists, and partner civil society support organizations."
+                ),
+                "expected_change": (
+                    "Media partners improve resilience practices, protect editorial operations, and respond more "
+                    "consistently to information integrity risks."
+                ),
+                "key_activities": [
+                    "Partner risk and resilience assessments",
+                    "Editorial and organizational resilience coaching",
+                    "Safeguarding and contingency planning support",
+                    "Peer exchange and monitoring of information integrity responses",
+                ],
+            },
+            "llm_mode": True,
+            "hitl_enabled": True,
+            "architect_rag_enabled": True,
+            "strict_preflight": False,
+        },
+    },
+    "un_agencies_education_nepal": {
+        "donor_id": "un_agencies",
+        "title": "Education recovery (NP)",
+        "generate_payload": {
+            "donor_id": "un_agencies",
+            "input_context": {
+                "project": "Inclusive Education Recovery",
+                "country": "Nepal",
+                "region": "Selected provinces and vulnerable school communities",
+                "timeframe": "2026-2028 (24 months)",
+                "problem": (
+                    "Learners in crisis-affected communities face uneven access to inclusive education recovery "
+                    "support and inconsistent service delivery across local institutions."
+                ),
+                "target_population": (
+                    "Children, teachers, school leaders, and partner education institutions in vulnerable communities."
+                ),
+                "expected_change": (
+                    "Partner institutions deliver more reliable inclusive education recovery support and improve "
+                    "continuity for affected learners."
+                ),
+                "key_activities": [
+                    "Partner education needs assessments",
+                    "Teacher and school support packages",
+                    "Inclusive education recovery planning with local institutions",
+                    "Field monitoring and partner verification reviews",
+                ],
+            },
+            "llm_mode": True,
+            "hitl_enabled": True,
+            "architect_rag_enabled": True,
+            "strict_preflight": False,
+        },
+    },
 }
 
 _DEMO_INGEST_PRESETS: dict[str, dict[str, Any]] = {
@@ -207,6 +308,123 @@ _DEMO_INGEST_PRESETS: dict[str, dict[str, Any]] = {
             "World Bank public sector modernization / service delivery project documents",
             "Uzbekistan public administration reform strategies / performance frameworks",
             "Agency service standards, process maps, or reform guidance used for pilots",
+        ],
+    },
+    "giz_sme_resilience_ukraine": {
+        "donor_id": "giz",
+        "title": "SME resilience (UA)",
+        "metadata": {
+            "source_type": "donor_guidance",
+            "sector": "private_sector_development",
+            "theme": "sme_resilience_and_jobs",
+            "country_focus": "Ukraine",
+            "doc_family": "donor_results_guidance",
+        },
+        "checklist_items": [
+            {
+                "id": "donor_results_guidance",
+                "label": "GIZ results and sustainability guidance",
+                "source_type": "donor_guidance",
+            },
+            {
+                "id": "sme_resilience_guidance",
+                "label": "SME resilience / continuity support references",
+                "source_type": "reference_guidance",
+            },
+            {
+                "id": "country_context",
+                "label": "Ukraine SME recovery / economic resilience context",
+                "source_type": "country_context",
+            },
+            {
+                "id": "partner_delivery_docs",
+                "label": "Partner implementation and review references",
+                "source_type": "implementation_reference",
+            },
+        ],
+        "recommended_docs": [
+            "GIZ programme guidance on results, implementation, and sustainability",
+            "SME resilience or business continuity support references used by implementing partners",
+            "Ukraine SME recovery or local jobs context references",
+            "Partner implementation review templates or delivery monitoring notes",
+        ],
+    },
+    "state_department_media_georgia": {
+        "donor_id": "state_department",
+        "title": "Media resilience (GE)",
+        "metadata": {
+            "source_type": "donor_guidance",
+            "sector": "media_and_information_integrity",
+            "theme": "independent_media_resilience",
+            "country_focus": "Georgia",
+            "doc_family": "donor_results_guidance",
+        },
+        "checklist_items": [
+            {
+                "id": "donor_results_guidance",
+                "label": "State Department program logic / DRG guidance",
+                "source_type": "donor_guidance",
+            },
+            {
+                "id": "media_resilience_guidance",
+                "label": "Media resilience / information integrity references",
+                "source_type": "reference_guidance",
+            },
+            {
+                "id": "country_context",
+                "label": "Georgia media environment / civic space context",
+                "source_type": "country_context",
+            },
+            {
+                "id": "partner_risk_docs",
+                "label": "Partner safeguarding / contingency planning references",
+                "source_type": "implementation_reference",
+            },
+        ],
+        "recommended_docs": [
+            "State Department DRG / public affairs guidance relevant to media resilience",
+            "Information integrity or independent media support references",
+            "Georgia media environment / civic space context references",
+            "Partner safeguarding, contingency planning, or risk review templates",
+        ],
+    },
+    "un_agencies_education_nepal": {
+        "donor_id": "un_agencies",
+        "title": "Education recovery (NP)",
+        "metadata": {
+            "source_type": "donor_guidance",
+            "sector": "education",
+            "theme": "inclusive_education_recovery",
+            "country_focus": "Nepal",
+            "doc_family": "donor_results_guidance",
+        },
+        "checklist_items": [
+            {
+                "id": "donor_results_guidance",
+                "label": "UN results framework / reporting guidance",
+                "source_type": "donor_guidance",
+            },
+            {
+                "id": "education_recovery_guidance",
+                "label": "Inclusive education recovery references",
+                "source_type": "reference_guidance",
+            },
+            {
+                "id": "country_context",
+                "label": "Nepal education recovery / access context",
+                "source_type": "country_context",
+            },
+            {
+                "id": "partner_verification_docs",
+                "label": "Partner monitoring / field verification references",
+                "source_type": "implementation_reference",
+            },
+        ],
+        "recommended_docs": [
+            "UN results framework / reporting guidance relevant to education recovery",
+            "Inclusive education recovery references used by implementing partners",
+            "Nepal education access or recovery context references",
+            "Partner monitoring, field verification, or sector-review templates",
         ],
     },
 }
