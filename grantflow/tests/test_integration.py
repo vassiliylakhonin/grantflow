@@ -14145,6 +14145,35 @@ def test_export_both_zip_includes_evaluation_rfq_annex_packer_artifacts():
         assert "Registration certificate" in summary
 
 
+def test_status_export_payload_exposes_evaluation_rfq_submission_package_readiness():
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+
+    export_payload = client.get(f"/status/{job_id}/export-payload")
+    assert export_payload.status_code == 200
+    payload = export_payload.json()["payload"]
+    submission_readiness = payload.get("submission_package_readiness") or {}
+    assert submission_readiness["readiness_status"] in {"ready", "partial", "weak", "missing"}
+    assert float(submission_readiness["completeness_score"]) >= 0.0
+    assert "submission_package_counts" in submission_readiness
+    assert "attachment_manifest_counts" in submission_readiness
+    assert "compliance_matrix_counts" in submission_readiness
+    export_contract = payload.get("export_contract") or {}
+    assert export_contract["template_key"] == "evaluation_rfq"
+    assert isinstance(export_contract.get("submission_readiness_summary"), dict)
+
+
 def test_export_docx_includes_mel_indicator_summary_section():
     from docx import Document
 

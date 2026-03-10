@@ -2118,6 +2118,10 @@ def public_job_export_payload(
         review_comments=[item for item in review_comments if isinstance(item, dict)],
     )
     architect_signal_summary = _architect_citation_signal_summary_payload(citations_for_summary_rows)
+    submission_package_readiness = {}
+    raw_submission_readiness = export_contract_gate.get("submission_readiness_summary")
+    if isinstance(raw_submission_readiness, dict):
+        submission_package_readiness = raw_submission_readiness
     if isinstance(review_readiness_summary.get("comment_triage_summary"), dict):
         review_readiness_summary["comment_triage_summary"] = _comment_triage_summary_payload(
             review_comments=[item for item in review_comments if isinstance(item, dict)],
@@ -2147,6 +2151,7 @@ def public_job_export_payload(
             "readiness": readiness_payload,
             "review_readiness_summary": review_readiness_summary,
             "architect_citation_signals": architect_signal_summary,
+            "submission_package_readiness": submission_package_readiness,
             "export_contract": sanitize_for_public_response(export_contract_gate),
         },
     }

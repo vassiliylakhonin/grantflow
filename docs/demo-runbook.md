@@ -192,6 +192,7 @@ The KATCH-style RFQ path now also renders a procurement-oriented compliance matr
 It also renders a key-personnel/CV-readiness block so the technical response can show staffing readiness without waiting for a full procurement-suite implementation.
 It now includes a financial proposal companion summary, indicative cost structure, pricing assumptions, and payment-schedule note to keep the technical response aligned with the separate commercial package.
 For `format=both`, the ZIP export now also includes `annex_packer/annex_manifest.json` and `annex_packer/submission_readiness.md` so operators can hand off an annex-by-annex package checklist with the technical response.
+`GET /status/{job_id}/export-payload` also exposes `payload.submission_package_readiness` for RFQ-aware clients that need a machine-readable completeness summary before final packaging.
 
 ### Step C: inspect status and quality
 
