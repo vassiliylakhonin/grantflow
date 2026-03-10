@@ -357,7 +357,7 @@ def test_mel_usaid_and_eu_defaults_are_review_ready_shaped():
     assert "verification spot-checks" in str(usaid_item["data_source"]).lower()
     assert "cor-aligned activity team" in str(usaid_item["owner"]).lower()
     assert "pmp records" in str(usaid_item["means_of_verification"]).lower()
-    assert "delivery-oriented evidence review" in str(eu_item["definition"]).lower()
+    assert "service-standard checks" in str(eu_item["definition"]).lower()
     assert "intervention logic tracking tables" in str(eu_item["data_source"]).lower()
     assert "intervention logic lead" in str(eu_item["owner"]).lower()
     assert "means of verification annexes" in str(eu_item["means_of_verification"]).lower()
@@ -441,9 +441,25 @@ def test_mel_un_agencies_retrieval_text_is_programme_shaped():
     )
 
     assert "un programme monitoring" in justification.lower()
+    assert "partner reporting" in justification.lower()
     assert "sector-review use" in justification.lower()
     assert "un programme result" in definition.lower()
     assert "inter-agency review evidence" in definition.lower()
+
+
+def test_statement_focus_phrase_prefers_domain_specific_phrases():
+    assert (
+        mel_module._statement_focus_phrase("Improve digital governance performance and accountability in Moldova.")
+        == "digital governance performance"
+    )
+    assert (
+        mel_module._statement_focus_phrase("Improve public sector performance and service delivery in Uzbekistan.")
+        == "public sector performance & service delivery"
+    )
+    assert (
+        mel_module._statement_focus_phrase("Improve inclusive education recovery outcomes in Nepal.")
+        == "inclusive education recovery"
+    )
 
 
 def test_mel_giz_defaults_include_implementation_validation():

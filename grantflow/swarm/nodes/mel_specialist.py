@@ -324,6 +324,23 @@ def _statement_focus_phrase(statement: str) -> str:
     text = " ".join(str(statement or "").split()).strip().rstrip(".")
     if not text:
         return "priority result"
+    lowered_text = text.lower()
+    phrase_overrides = (
+        ("digital governance performance", "digital governance performance"),
+        ("digital governance service delivery", "digital governance service delivery"),
+        ("public sector performance and service delivery", "public sector performance & service delivery"),
+        ("public sector performance", "public sector performance"),
+        ("service delivery", "service delivery"),
+        ("institutional capacity", "institutional capacity"),
+        ("inclusive education recovery", "inclusive education recovery"),
+        ("youth employment", "youth employment"),
+        ("independent media resilience", "independent media resilience"),
+        ("information integrity", "information integrity"),
+        ("civic accountability", "civic accountability"),
+    )
+    for phrase, replacement in phrase_overrides:
+        if phrase in lowered_text:
+            return replacement
     text = re.sub(r"\bevidence\s+hint\s*:?\s*[^.]+\.?", "", text, flags=re.IGNORECASE).strip(" .;:-")
     text = re.sub(
         r"\bintervention delivers measurable change\b",
@@ -536,11 +553,11 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
         if any(token in name for token in ("service", "coverage", "institutional", "adoption", "performance")):
             return (
                 f"{label} measured at {level} level in the EU intervention logic with explicit means of verification, "
-                "partner validation, and delivery-oriented evidence review."
+                "service-standard checks, partner validation, and delivery-performance review."
             )
         return (
-            f"{label} measured at {level} level in the intervention logic with explicit means of verification "
-            "and periodic partner validation."
+            f"{label} measured at {level} level in the intervention logic with explicit means of verification, "
+            "implementation review, and periodic partner validation."
         )
     if donor == "worldbank":
         if any(
@@ -553,11 +570,11 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
                 )
             return (
                 f"{label} measured at {level} level in a World Bank-style results framework using ISR-ready "
-                "implementation evidence and agency verification."
+                "implementation evidence, agency verification, and PDO/intermediate-results review."
             )
         return (
-            f"{label} measured at {level} level in the results framework using verified implementation evidence "
-            "and results reporting."
+            f"{label} measured at {level} level in the results framework using verified implementation evidence, "
+            "results reporting, and ISR-style follow-up."
         )
     if donor == "giz":
         return (
@@ -583,11 +600,11 @@ def _default_indicator_definition_for_donor(indicator_name: str, *, donor_id: st
         if any(token in name for token in ("education", "school", "learning", "teacher", "student", "child")):
             return (
                 f"{label} measured at {level} level as a UN programme result using partner verification, "
-                "field monitoring, and sector-review evidence."
+                "field monitoring, partner reporting, and sector-review evidence."
             )
         return (
             f"{label} measured at {level} level as a UN programme result using partner verification, "
-            "field monitoring, and inter-agency review evidence."
+            "field monitoring, partner reporting, and inter-agency review evidence."
         )
     return f"{label} tracked at {level} level."
 
@@ -652,12 +669,12 @@ def _deterministic_indicator_justification(
     if donor == "eu":
         return (
             f"Maps {level_label} '{statement_ref}' from `{statement_path}` into an EU intervention-logic indicator "
-            f"covering {focus} with monitoring, verification, and implementation-evidence intent."
+            f"covering {focus} with monitoring, service-standard verification, and implementation-evidence intent."
         )
     if donor == "worldbank":
         return (
             f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a World Bank-style results framework "
-            f"indicator covering {focus} for verified implementation tracking."
+            f"indicator covering {focus} for verified implementation, ISR-style tracking, and results-framework review."
         )
     if donor in {"state_department", "us_state_department"}:
         return (
@@ -672,7 +689,7 @@ def _deterministic_indicator_justification(
     if donor == "un_agencies":
         return (
             f"Maps {level_label} '{statement_ref}' from `{statement_path}` into a UN programme indicator "
-            f"covering {focus} for field monitoring, partner verification, and sector-review use."
+            f"covering {focus} for field monitoring, partner verification, partner reporting, and sector-review use."
         )
     return (
         f"Deterministic MEL mapping for {level_label} '{statement_ref}' from `{statement_path}` covering {focus}. "
@@ -699,7 +716,7 @@ def _deterministic_definition_from_statement(
     if donor == "eu":
         return (
             f"{label} tracks {focus} as a {level}-level EU intervention-logic result with explicit means of "
-            "verification, partner validation, and implementation-evidence review."
+            "verification, partner validation, and service-delivery evidence review."
         )
     if donor == "worldbank":
         if level == "impact":
@@ -709,7 +726,7 @@ def _deterministic_definition_from_statement(
             )
         return (
             f"{label} tracks {focus} as a {level}-level World Bank results framework result using ISR-ready "
-            "implementation evidence and agency verification."
+            "implementation evidence, agency verification, and PDO/intermediate-results review."
         )
     if donor == "giz":
         return (
@@ -724,7 +741,7 @@ def _deterministic_definition_from_statement(
     if donor == "un_agencies":
         return (
             f"{label} tracks {focus} as a {level}-level UN programme result using partner verification, "
-            "field monitoring, and inter-agency review evidence."
+            "field monitoring, partner reporting, and inter-agency review evidence."
         )
     return f"{label} tracks {focus} at {level} level."
 
@@ -770,12 +787,12 @@ def _retrieval_indicator_justification(
     if donor == "eu":
         return (
             f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
-            "for intervention-logic monitoring and means-of-verification review."
+            "for intervention-logic monitoring, service-standard checks, and means-of-verification review."
         )
     if donor == "worldbank":
         return (
             f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
-            "for results framework and implementation-status tracking."
+            "for results framework, implementation-status tracking, and PDO/intermediate-results review."
         )
     if donor == "giz":
         return (
@@ -790,7 +807,7 @@ def _retrieval_indicator_justification(
     if donor == "un_agencies":
         return (
             f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
-            "for UN programme monitoring, partner verification, and sector-review use."
+            "for UN programme monitoring, partner verification, partner reporting, and sector-review use."
         )
     return (
         f"Retrieved {name_ref} from `{namespace}` and aligned it to `{toc_statement_path}` as a {level_label} "
@@ -872,7 +889,7 @@ def _retrieval_definition_from_hit(
     if donor == "eu":
         return (
             f"{label} tracks a {level_label}-level EU intervention result using {signal}, "
-            "explicit means of verification, and partner validation logic."
+            "explicit means of verification, service-standard checks, and partner validation logic."
         )
     if donor == "worldbank":
         if level == "impact":
@@ -882,7 +899,7 @@ def _retrieval_definition_from_hit(
             )
         return (
             f"{label} tracks a {level_label}-level World Bank results-framework result using {signal}, "
-            "with implementation-status and agency verification intent."
+            "with implementation-status, agency verification, and results-framework review intent."
         )
     if donor == "giz":
         return (
@@ -897,7 +914,7 @@ def _retrieval_definition_from_hit(
     if donor == "un_agencies":
         return (
             f"{label} tracks a {level_label}-level UN programme result using {signal} "
-            "for partner verification, field monitoring, and sector-review use."
+            "for partner verification, field monitoring, partner reporting, and sector-review use."
         )
     return f"{label} tracks a {level_label}-level result using {signal}."
 

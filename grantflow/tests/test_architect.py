@@ -497,16 +497,47 @@ def test_fallback_structured_toc_uses_un_agencies_specific_programme_phrasing():
     objectives = payload.get("objectives") or payload.get("development_objectives") or []
     assert objectives
     assert (
-        "partner institutions deliver more reliable inclusive education recovery"
+        "schools and local education authorities deliver more reliable inclusive education recovery"
         in str(objectives[0].get("title") or "").lower()
     )
     assert "field-verified inclusive education recovery delivery" in str(objectives[0].get("description") or "").lower()
     assumptions = payload.get("assumptions") or payload.get("critical_assumptions") or []
     assert assumptions
     assert (
-        "community stakeholders continue supporting equitable inclusive education recovery delivery"
+        "local education authorities, schools, and community stakeholders continue supporting equitable inclusive education recovery delivery"
         in str(assumptions[0]).lower()
     )
+
+
+def test_fallback_structured_toc_uses_eu_and_worldbank_more_reviewer_useful_phrasing():
+    eu_payload, _ = _fallback_structured_toc(
+        DonorFactory.get_strategy("eu").get_toc_schema(),
+        donor_id="eu",
+        project="Digital Governance",
+        country="Moldova",
+        revision_hint="",
+        evidence_hits=[],
+    )
+    wb_payload, _ = _fallback_structured_toc(
+        DonorFactory.get_strategy("worldbank").get_toc_schema(),
+        donor_id="worldbank",
+        project="Public Sector Performance",
+        country="Uzbekistan",
+        revision_hint="",
+        evidence_hits=[],
+    )
+
+    eu_outcomes = eu_payload.get("expected_outcomes") or []
+    assert eu_outcomes
+    assert (
+        "residents and businesses experience faster, more accountable digital governance services"
+        in str(eu_outcomes[-1].get("title") or "").lower()
+    )
+
+    wb_results = wb_payload.get("results_chain") or []
+    assert wb_results
+    assert "service standards and supervision routines" in str(wb_results[0].get("title") or "").lower()
+    assert "response-time and quality targets" in str(wb_results[-1].get("title") or "").lower()
 
 
 def test_architect_un_agencies_evidence_signal_and_review_hint_are_programme_shaped():
@@ -855,7 +886,7 @@ def test_fallback_structured_toc_uses_worldbank_specific_results_chain_phrasing(
         == "improve public sector performance and service delivery in uzbekistan."
     )
     assert payload["objectives"]
-    assert any("institutional performance" in row["title"].lower() for row in payload["objectives"])
+    assert any("agency performance and accountability" in row["title"].lower() for row in payload["objectives"])
     assert payload["results_chain"]
     assert any(
         "participating agencies implement workflow" in row["description"].lower() for row in payload["results_chain"]

@@ -299,14 +299,15 @@ def _text_for_field(
         if lower_path.endswith("overall_objective.rationale"):
             return (
                 f"Addresses implementation bottlenecks in {country or 'the target context'} and aligns the action "
-                f"with EU intervention logic for measurable service improvement and institutional accountability."
+                f"with EU intervention logic for measurable digital service improvement, institutional accountability, "
+                "and adoption of operating procedures."
             )[:420]
         if any(
             token in lower_path for token in ("specific_objectives[", "specific_objective[")
         ) and lower_path.endswith(".title"):
             eu_titles = [
-                f"Strengthen institutional capacity for {project_label} delivery",
-                f"Improve adoption of {project_label} workflows by frontline actors",
+                f"Strengthen institutional capacity for accountable {project_label} delivery",
+                f"Improve adoption of reliable {project_label} workflows by frontline actors",
             ]
             return eu_titles[index % len(eu_titles)]
         if any(
@@ -320,8 +321,8 @@ def _text_for_field(
             ".title"
         ):
             eu_outcomes = [
-                f"Target institutions apply improved {base_project.lower()} practices",
-                f"Beneficiaries experience more reliable {base_project.lower()} services",
+                f"Target institutions deliver more reliable {base_project.lower()} services",
+                f"Residents and businesses experience faster, more accountable {base_project.lower()} services",
             ]
             return eu_outcomes[index % len(eu_outcomes)]
         if any(token in lower_path for token in ("expected_outcomes[", "expected_outcome[")) and lower_path.endswith(
@@ -329,7 +330,7 @@ def _text_for_field(
         ):
             return (
                 f"By the end of implementation, target institutions in {country or 'the target context'} demonstrate "
-                f"measurable improvements in delivery quality, timeliness, and accountability related to {project_label}."
+                f"measurable improvements in delivery quality, response times, and accountability related to {project_label}."
             )[:420]
 
     if donor_key == "worldbank":
@@ -339,25 +340,25 @@ def _text_for_field(
             return f"Improve {wb_phrase} in {country or 'target locations'}."
         if any(token in lower_path for token in ("objectives[", "objective[")) and lower_path.endswith(".title"):
             wb_titles = [
-                f"Strengthen institutional performance for {wb_phrase}",
-                f"Improve operational execution and accountability in {wb_phrase} systems",
+                f"Strengthen agency performance and accountability for {wb_phrase}",
+                f"Improve operational execution and service standards across {wb_phrase} systems",
             ]
             return wb_titles[index % len(wb_titles)]
         if any(token in lower_path for token in ("objectives[", "objective[")) and lower_path.endswith(".description"):
             return (
-                f"Improve implementation reliability, coordination, and service responsiveness for {wb_phrase} "
+                f"Improve implementation reliability, agency accountability, and service responsiveness for {wb_phrase} "
                 f"priorities in {country or 'the target context'}."
             )[:420]
         if "results_chain[" in lower_path and lower_path.endswith(".title"):
             wb_results = [
-                f"Agencies adopt operational improvements for {wb_phrase}",
-                f"Service delivery workflows for {wb_phrase} are executed more consistently",
+                f"Agencies adopt clearer service standards and supervision routines for {wb_phrase}",
+                f"Priority {wb_delivery_phrase} workflows meet more consistent response-time and quality targets",
             ]
             return wb_results[index % len(wb_results)]
         if "results_chain[" in lower_path and lower_path.endswith(".description"):
             return (
                 f"Participating agencies implement workflow, supervision, and accountability improvements that reduce "
-                f"delays and increase the quality of {wb_delivery_phrase}."
+                f"delays, strengthen service standards, and increase the quality of {wb_delivery_phrase}."
             )[:420]
         if lower_path.endswith("indicator_focus"):
             return "Processing time, service completion rate, and institutional compliance"
@@ -403,37 +404,74 @@ def _text_for_field(
 
     if donor_key == "un_agencies":
         un_phrase = _un_programme_phrase(project_label)
+        un_education = "education" in un_phrase
         if lower_path in {"project_goal", "program_goal", "programme_goal"}:
             return f"Improve {un_phrase} outcomes in {country or 'target locations'}."
         if "objectives[" in lower_path and lower_path.endswith(".title"):
-            un_objectives = [
-                f"Partner institutions deliver more reliable {un_phrase}",
-                f"Priority populations experience stronger access to {un_phrase}",
-            ]
+            un_objectives = (
+                [
+                    f"Schools and local education authorities deliver more reliable {un_phrase}",
+                    f"Children and caregivers experience stronger access to {un_phrase}",
+                ]
+                if un_education
+                else [
+                    f"Partner institutions deliver more reliable {un_phrase}",
+                    f"Priority populations experience stronger access to {un_phrase}",
+                ]
+            )
             return un_objectives[index % len(un_objectives)]
         if "objectives[" in lower_path and lower_path.endswith(".description"):
+            if un_education:
+                return (
+                    f"Schools, local education authorities, and delivery partners in {country or 'the target context'} "
+                    f"demonstrate measurable improvements in equitable, accountable, and field-verified {un_phrase} delivery."
+                )[:420]
             return (
                 f"Partner institutions in {country or 'the target context'} demonstrate measurable improvements in "
                 f"equitable, accountable, and field-verified {un_phrase} delivery."
             )[:420]
         if "development_objectives[" in lower_path and lower_path.endswith(".description"):
-            un_objectives = [
-                f"Strengthen partner systems to deliver {un_phrase} at scale.",
-                f"Increase equitable access to {un_phrase} for priority populations.",
-            ]
+            un_objectives = (
+                [
+                    f"Strengthen school and local authority systems to deliver {un_phrase} at scale.",
+                    f"Increase equitable access to {un_phrase} for children and caregivers in priority communities.",
+                ]
+                if un_education
+                else [
+                    f"Strengthen partner systems to deliver {un_phrase} at scale.",
+                    f"Increase equitable access to {un_phrase} for priority populations.",
+                ]
+            )
             return un_objectives[index % len(un_objectives)]
         if "expected_outcomes[" in lower_path and lower_path.endswith(".description"):
+            if un_education:
+                return (
+                    f"By the end of implementation, schools and local education authorities in {country or 'the target context'} "
+                    f"demonstrate measurable improvements in equitable, accountable, and field-verified {un_phrase} delivery."
+                )[:420]
             return (
                 f"By the end of implementation, partner institutions in {country or 'the target context'} demonstrate "
                 f"measurable improvements in equitable, accountable, and field-verified {un_phrase} delivery."
             )[:420]
         if "expected_outcomes[" in lower_path and lower_path.endswith(".title"):
-            un_outcomes = [
-                f"Partner institutions deliver more reliable {un_phrase}",
-                f"Priority populations experience stronger access to {un_phrase}",
-            ]
+            un_outcomes = (
+                [
+                    f"Schools and local education authorities deliver more reliable {un_phrase}",
+                    f"Children and caregivers experience stronger access to {un_phrase}",
+                ]
+                if un_education
+                else [
+                    f"Partner institutions deliver more reliable {un_phrase}",
+                    f"Priority populations experience stronger access to {un_phrase}",
+                ]
+            )
             return un_outcomes[index % len(un_outcomes)]
         if "critical_assumptions[" in lower_path or "assumptions[" in lower_path:
+            if un_education:
+                return (
+                    f"Local education authorities, schools, and community stakeholders continue supporting equitable "
+                    f"{un_phrase} delivery during implementation."
+                )[:420]
             return (
                 f"Partner agencies, coordination bodies, and community stakeholders continue supporting equitable "
                 f"{un_phrase} delivery during implementation."
