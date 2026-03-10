@@ -1240,6 +1240,21 @@ def render_demo_ui_html() -> str:
             <div class="list" id="exportContractWarningsList" style="margin-top:10px;"></div>
             <div class="row3" style="margin-top:10px;">
               <div>
+                <label>RFQ Submission Readiness</label>
+                <div id="rfqSubmissionReadinessPill" class="pill readiness-level-none">
+                  <span class="dot"></span><span id="rfqSubmissionReadinessPillText">not applicable</span>
+                </div>
+              </div>
+              <div class="sub mono" id="rfqSubmissionReadinessMetaLine" style="align-self:end;">
+                score=- · top_gap=-
+              </div>
+              <div class="sub mono" id="rfqSubmissionReadinessCountsLine" style="align-self:end;">
+                package=- · attachments=- · compliance=-
+              </div>
+            </div>
+            <div class="list" id="rfqSubmissionReadinessList" style="margin-top:10px;"></div>
+            <div class="row3" style="margin-top:10px;">
+              <div>
                 <label>Send Gate</label>
                 <div id="sendGatePill" class="pill readiness-level-none">
                   <span class="dot"></span><span id="sendGatePillText">not evaluated</span>
@@ -1907,6 +1922,11 @@ def render_demo_ui_html() -> str:
         exportContractPillText: $("exportContractPillText"),
         exportContractMetaLine: $("exportContractMetaLine"),
         exportContractWarningsList: $("exportContractWarningsList"),
+        rfqSubmissionReadinessPill: $("rfqSubmissionReadinessPill"),
+        rfqSubmissionReadinessPillText: $("rfqSubmissionReadinessPillText"),
+        rfqSubmissionReadinessMetaLine: $("rfqSubmissionReadinessMetaLine"),
+        rfqSubmissionReadinessCountsLine: $("rfqSubmissionReadinessCountsLine"),
+        rfqSubmissionReadinessList: $("rfqSubmissionReadinessList"),
         diffPre: $("diffPre"),
         versionsList: $("versionsList"),
         citationsList: $("citationsList"),
@@ -2681,6 +2701,73 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function renderRfQSubmissionReadiness(readiness) {
+        if (
+          !els.rfqSubmissionReadinessPill ||
+          !els.rfqSubmissionReadinessPillText ||
+          !els.rfqSubmissionReadinessMetaLine ||
+          !els.rfqSubmissionReadinessCountsLine ||
+          !els.rfqSubmissionReadinessList
+        ) return;
+        const summary = readiness && typeof readiness === "object" ? readiness : null;
+        els.rfqSubmissionReadinessList.innerHTML = "";
+        if (!summary) {
+          els.rfqSubmissionReadinessPill.className = "pill readiness-level-none";
+          els.rfqSubmissionReadinessPillText.textContent = "not applicable";
+          els.rfqSubmissionReadinessMetaLine.textContent = "score=- · top_gap=-";
+          els.rfqSubmissionReadinessCountsLine.textContent = "package=- · attachments=- · compliance=-";
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `<div class="title">RFQ submission readiness not present</div><div class="sub">This export payload is not using the evaluation RFQ contract.</div>`;
+          els.rfqSubmissionReadinessList.appendChild(div);
+          return;
+        }
+        const readinessStatus = String(summary.readiness_status || "unknown").toLowerCase();
+        const score = Number.isFinite(Number(summary.completeness_score)) ? Number(summary.completeness_score) : null;
+        const topGap = String(summary.top_gap || "-");
+        const risk =
+          readinessStatus === "ready"
+            ? "low"
+            : readinessStatus === "partial"
+              ? "medium"
+              : readinessStatus === "weak" || readinessStatus === "missing"
+                ? "high"
+                : "none";
+        const packageCounts = summary.submission_package_counts && typeof summary.submission_package_counts === "object"
+          ? summary.submission_package_counts
+          : {};
+        const attachmentCounts = summary.attachment_manifest_counts && typeof summary.attachment_manifest_counts === "object"
+          ? summary.attachment_manifest_counts
+          : {};
+        const complianceCounts = summary.compliance_matrix_counts && typeof summary.compliance_matrix_counts === "object"
+          ? summary.compliance_matrix_counts
+          : {};
+        const packageReady = Number(packageCounts.ready || 0);
+        const packageTotal = Number(packageCounts.total || 0);
+        const attachmentReady = Number(attachmentCounts.ready || 0);
+        const attachmentTotal = Number(attachmentCounts.total || 0);
+        const complianceReady = Number(complianceCounts.ready || 0);
+        const complianceTotal = Number(complianceCounts.total || 0);
+
+        els.rfqSubmissionReadinessPill.className = `pill readiness-level-${risk}`;
+        els.rfqSubmissionReadinessPillText.textContent = `${readinessStatus} (${score === null ? "-" : score})`;
+        els.rfqSubmissionReadinessMetaLine.textContent = `score=${score === null ? "-" : score} · top_gap=${topGap}`;
+        els.rfqSubmissionReadinessCountsLine.textContent =
+          `package=${packageReady}/${packageTotal} · attachments=${attachmentReady}/${attachmentTotal} · compliance=${complianceReady}/${complianceTotal}`;
+
+        const scoreCard = document.createElement("div");
+        scoreCard.className = `item ${risk === "high" ? "severity-high" : risk === "medium" ? "severity-medium" : "severity-low"}`.trim();
+        scoreCard.innerHTML =
+          `<div class="title">Submission completeness score</div><div class="sub mono">status=${readinessStatus} · score=${score === null ? "-" : score}</div>`;
+        els.rfqSubmissionReadinessList.appendChild(scoreCard);
+
+        const gapCard = document.createElement("div");
+        gapCard.className = `item ${risk === "high" ? "severity-high" : risk === "medium" ? "severity-medium" : "severity-low"}`.trim();
+        gapCard.innerHTML =
+          `<div class="title">Top RFQ submission gap</div><div class="sub">${topGap || "-"}</div>`;
+        els.rfqSubmissionReadinessList.appendChild(gapCard);
+      }
+
       async function clearDemoFilters() {
         for (const [elKey] of uiStateFields) {
           const el = els[elKey];
@@ -2693,6 +2780,7 @@ def render_demo_ui_html() -> str:
         if (state.lastCritic) renderCriticLists(state.lastCritic);
         if (state.lastCitations) renderCriticContextCitations();
         renderExportContract(null);
+        renderRfQSubmissionReadiness(null);
         renderGeneratePreflightAlert(null);
         renderGeneratePresetReadiness();
         await Promise.allSettled([
@@ -7086,6 +7174,7 @@ def render_demo_ui_html() -> str:
         const jobId = currentJobId();
         if (!jobId) {
           renderExportContract(null);
+          renderRfQSubmissionReadiness(null);
           return;
         }
         const body = await apiFetch(`/status/${encodeURIComponent(jobId)}/export-payload`);
@@ -7095,6 +7184,10 @@ def render_demo_ui_html() -> str:
           ? (payload.export_contract || ((payload.state && typeof payload.state === "object") ? payload.state.export_contract_gate : null))
           : null;
         renderExportContract(exportContract && typeof exportContract === "object" ? exportContract : null);
+        const submissionReadiness = payload && typeof payload === "object"
+          ? (payload.submission_package_readiness || null)
+          : null;
+        renderRfQSubmissionReadiness(submissionReadiness && typeof submissionReadiness === "object" ? submissionReadiness : null);
         return body;
       }
 

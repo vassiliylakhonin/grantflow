@@ -511,6 +511,11 @@ def test_demo_console_page_loads():
     assert "exportContractPillText" in body
     assert "exportContractMetaLine" in body
     assert "exportContractWarningsList" in body
+    assert "rfqSubmissionReadinessPill" in body
+    assert "rfqSubmissionReadinessPillText" in body
+    assert "rfqSubmissionReadinessMetaLine" in body
+    assert "rfqSubmissionReadinessCountsLine" in body
+    assert "rfqSubmissionReadinessList" in body
     assert "sendGatePill" in body
     assert "sendGatePillText" in body
     assert "sendGateMetaLine" in body
@@ -519,6 +524,9 @@ def test_demo_console_page_loads():
     assert "allowUnsafeExport" in body
     assert "exportPayloadJson" in body
     assert "Send Gate" in body
+    assert "RFQ Submission Readiness" in body
+    assert "Submission completeness score" in body
+    assert "Top RFQ submission gap" in body
     assert "external send gate pending portfolio workflow snapshot" in body
     assert "production_export" in body
     assert "allow_unsafe_export" in body
@@ -780,6 +788,19 @@ def test_demo_console_includes_bulk_preview_summary_helpers():
     assert "Not Found" in body
     assert "Target Status" in body
     assert "Missing IDs" in body
+
+
+def test_demo_console_includes_rfq_submission_readiness_helpers():
+    client = TestClient(api_app_module.app)
+    response = client.get("/demo")
+    assert response.status_code == 200
+    body = response.text
+    assert "renderRfQSubmissionReadiness" in body
+    assert "rfqSubmissionReadinessPill" in body
+    assert "rfqSubmissionReadinessList" in body
+    assert "RFQ Submission Readiness" in body
+    assert "Submission completeness score" in body
+    assert "Top RFQ submission gap" in body
 
 
 def test_demo_console_exposes_end_to_end_bulk_review_controls():
