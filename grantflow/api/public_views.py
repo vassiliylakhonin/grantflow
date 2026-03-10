@@ -437,6 +437,14 @@ def _coerce_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def _dict_from(value: Any) -> Dict[str, Any]:
+    return value if isinstance(value, dict) else {}
+
+
+def _list_from(value: Any) -> list[Any]:
+    return value if isinstance(value, list) else []
+
+
 def _state_export_contract_gate(state_dict: Dict[str, Any]) -> Dict[str, Any]:
     raw_gate = state_dict.get("export_contract_gate")
     if isinstance(raw_gate, dict):
@@ -703,9 +711,28 @@ def _architect_citation_signal_summary_payload(citations: list[Dict[str, Any]]) 
     review_hint_preview: list[str] = []
     for item in architect_citations:
         evidence_signal = str(item.get("evidence_signal") or "").strip()
+        if not evidence_signal:
+            citation_type = str(item.get("citation_type") or "").strip().lower()
+            if citation_type == "rag_claim_support":
+                evidence_signal = "retrieved architect claim support"
+            elif citation_type == "rag_low_confidence":
+                evidence_signal = "low-confidence architect evidence"
+            elif citation_type == "fallback_namespace":
+                evidence_signal = "fallback namespace reference"
+            elif citation_type == "strategy_reference":
+                evidence_signal = "strategy reference"
         if evidence_signal:
             evidence_signal_counts[evidence_signal] = int(evidence_signal_counts.get(evidence_signal, 0)) + 1
         review_hint = str(item.get("review_hint") or "").strip()
+        if not review_hint:
+            result_level = str(item.get("result_level") or "").strip().lower() or "claim"
+            citation_type = str(item.get("citation_type") or "").strip().lower()
+            if citation_type == "rag_claim_support":
+                review_hint = f"Use this as {result_level}-level architect support in reviewer traceability."
+            elif citation_type == "rag_low_confidence":
+                review_hint = f"Review this {result_level}-level architect evidence before approval."
+            elif citation_type == "fallback_namespace":
+                review_hint = f"Replace this fallback architect citation with grounded {result_level}-level evidence."
         if review_hint and review_hint not in review_hint_preview:
             review_hint_preview.append(review_hint)
     ordered_signal_counts = dict(sorted(evidence_signal_counts.items(), key=lambda pair: (-pair[1], pair[0].lower())))
@@ -2082,16 +2109,15 @@ def public_job_export_payload(
     if not isinstance(review_comments, list):
         review_comments = []
     readiness_payload = _public_job_quality_readiness_payload(job, ingest_inventory_rows)
-    citations_for_summary = state_payload.get("citations") if isinstance(state_payload.get("citations"), list) else []
+    citations_for_summary = _list_from(state_payload.get("citations"))
+    citations_for_summary_rows = [item for item in citations_for_summary if isinstance(item, dict)]
     review_readiness_summary = _review_readiness_summary_payload(
         needs_revision=critic.get("needs_revision"),
-        citations=[item for item in citations_for_summary if isinstance(item, dict)],
+        citations=citations_for_summary_rows,
         critic_findings=[item for item in critic_findings if isinstance(item, dict)],
         review_comments=[item for item in review_comments if isinstance(item, dict)],
     )
-    architect_signal_summary = _architect_citation_signal_summary_payload(
-        [item for item in citations_for_summary if isinstance(item, dict)]
-    )
+    architect_signal_summary = _architect_citation_signal_summary_payload(citations_for_summary_rows)
     if isinstance(review_readiness_summary.get("comment_triage_summary"), dict):
         review_readiness_summary["comment_triage_summary"] = _comment_triage_summary_payload(
             review_comments=[item for item in review_comments if isinstance(item, dict)],
@@ -2113,7 +2139,7 @@ def public_job_export_payload(
                 "llm_score": sanitize_for_public_response(critic.get("llm_score")),
                 "fatal_flaw_count": int(critic.get("fatal_flaw_count") or 0),
                 "citation_count": len(
-                    (state_payload.get("citations") if isinstance(state_payload.get("citations"), list) else [])
+                    citations_for_summary
                 ),
             },
             "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
@@ -2906,7 +2932,7 @@ def _reviewer_workflow_summary_payload(
         ranked = sorted(
             (
                 (str(bucket).strip().lower() or "general", int(count or 0))
-                for bucket, count in stale_bucket_counts.items()
+                for bucket, count in _dict_from(stale_bucket_counts).items()
             ),
             key=lambda row: (row[1], row[0]),
             reverse=True,
@@ -2929,7 +2955,7 @@ def _reviewer_workflow_summary_payload(
                     str(bucket).strip().lower() or "general",
                     int(count or 0),
                 )
-                for bucket, count in stale_bucket_counts.items()
+                for bucket, count in _dict_from(stale_bucket_counts).items()
                 if int(count or 0) > 0
             )
         ),
@@ -3104,7 +3130,7 @@ def _review_workflow_policy_summary_payload(
         if isinstance(comment_triage_summary.get("aging_band_counts"), dict)
         else {}
     )
-    gt_7d_count = int(aging_band_counts.get("gt_7d") or 0)
+    gt_7d_count = int(_dict_from(aging_band_counts).get("gt_7d") or 0)
     resolution_rate_raw = reviewer_workflow_summary.get("resolution_rate")
     acknowledgment_rate_raw = reviewer_workflow_summary.get("acknowledgment_rate")
     try:
@@ -4533,12 +4559,8 @@ def public_portfolio_quality_payload(
             comment_triage.get("stale_comment_bucket_counts") if isinstance(comment_triage, dict) else {}
         )
         if isinstance(stale_bucket_counts, dict):
-            donor_bucket_counts = (
-                donor_readiness_row.get("stale_comment_bucket_counts")
-                if isinstance(donor_readiness_row.get("stale_comment_bucket_counts"), dict)
-                else {}
-            )
-            for bucket, count in stale_bucket_counts.items():
+            donor_bucket_counts: Dict[str, Any] = dict(_dict_from(donor_readiness_row.get("stale_comment_bucket_counts")))
+            for bucket, count in _dict_from(stale_bucket_counts).items():
                 token = str(bucket).strip().lower() or "general"
                 donor_bucket_counts[token] = int(donor_bucket_counts.get(token) or 0) + int(count or 0)
             donor_readiness_row["stale_comment_bucket_counts"] = donor_bucket_counts
@@ -5809,11 +5831,7 @@ def public_portfolio_quality_payload(
                     str(bucket).strip().lower() or "general",
                     int(count or 0),
                 )
-                for bucket, count in (
-                    donor_row.get("stale_comment_bucket_counts")
-                    if isinstance(donor_row.get("stale_comment_bucket_counts"), dict)
-                    else {}
-                ).items()
+                for bucket, count in _dict_from(donor_row.get("stale_comment_bucket_counts")).items()
             )
         )
         donor_review_readiness_breakdown[donor_token] = donor_row
@@ -6180,25 +6198,15 @@ def public_portfolio_review_workflow_payload(
         resolved_comment_count += _coerce_int(summary_dict.get("resolved_comment_count"))
         pending_comment_count += _coerce_int(summary_dict.get("pending_comment_count"))
         overdue_comment_count += _coerce_int(summary_dict.get("overdue_comment_count"))
-        workflow_summary_dict = (
-            summary_dict.get("reviewer_workflow_summary")
-            if isinstance(summary_dict.get("reviewer_workflow_summary"), dict)
-            else {}
-        )
-        throughput_summary_dict = (
-            summary_dict.get("throughput_summary") if isinstance(summary_dict.get("throughput_summary"), dict) else {}
-        )
-        reviewer_workflow_open_items += _coerce_int(workflow_summary_dict.get("open_items"))
-        reviewer_workflow_acknowledged_items += _coerce_int(workflow_summary_dict.get("acknowledged_items"))
-        reviewer_workflow_resolved_items += _coerce_int(workflow_summary_dict.get("resolved_items"))
+        workflow_summary_dict = _dict_from(summary_dict.get("reviewer_workflow_summary"))
+        throughput_summary_dict = _dict_from(summary_dict.get("throughput_summary"))
+        reviewer_workflow_open_items += _coerce_int(_dict_from(workflow_summary_dict).get("open_items"))
+        reviewer_workflow_acknowledged_items += _coerce_int(_dict_from(workflow_summary_dict).get("acknowledged_items"))
+        reviewer_workflow_resolved_items += _coerce_int(_dict_from(workflow_summary_dict).get("resolved_items"))
         for key in throughput_totals:
-            throughput_totals[key] += _coerce_int(throughput_summary_dict.get(key))
-        stale_bucket_summary = (
-            workflow_summary_dict.get("stale_comment_bucket_counts")
-            if isinstance(workflow_summary_dict.get("stale_comment_bucket_counts"), dict)
-            else {}
-        )
-        for key, count in stale_bucket_summary.items():
+            throughput_totals[key] += _coerce_int(_dict_from(throughput_summary_dict).get(key))
+        stale_bucket_summary = _dict_from(workflow_summary_dict.get("stale_comment_bucket_counts"))
+        for key, count in _dict_from(stale_bucket_summary).items():
             token = str(key or "").strip().lower() or "general"
             stale_comment_bucket_counts[token] = int(stale_comment_bucket_counts.get(token) or 0) + _coerce_int(
                 count,
@@ -6270,7 +6278,7 @@ def public_portfolio_review_workflow_payload(
         if ranked_stale_buckets and int(ranked_stale_buckets[0][1]) > 0:
             top_stale_comment_bucket = str(ranked_stale_buckets[0][0])
 
-    throughput_summary = {
+    throughput_summary: Dict[str, Any] = {
         **throughput_totals,
         "dominant_completed_action": None,
         "dominant_completed_action_count": None,
@@ -6290,11 +6298,11 @@ def public_portfolio_review_workflow_payload(
         ),
     }
     throughput_action_counts = {
-        "ack_finding": int(throughput_summary["finding_ack_completed_count"]),
-        "resolve_finding": int(throughput_summary["finding_resolve_completed_count"]),
-        "ack_comment": int(throughput_summary["comment_ack_completed_count"]),
-        "resolve_comment": int(throughput_summary["comment_resolve_completed_count"]),
-        "reopen_comment": int(throughput_summary["comment_reopen_completed_count"]),
+        "ack_finding": _coerce_int(throughput_summary.get("finding_ack_completed_count")),
+        "resolve_finding": _coerce_int(throughput_summary.get("finding_resolve_completed_count")),
+        "ack_comment": _coerce_int(throughput_summary.get("comment_ack_completed_count")),
+        "resolve_comment": _coerce_int(throughput_summary.get("comment_resolve_completed_count")),
+        "reopen_comment": _coerce_int(throughput_summary.get("comment_reopen_completed_count")),
     }
     dominant_completed_action = None
     dominant_completed_action_count = 0

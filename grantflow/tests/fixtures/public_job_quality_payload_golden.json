@@ -57,10 +57,16 @@
     "architect_retrieval_rank_present_citation_rate": 0.0,
     "architect_signal_summary": {
       "architect_citation_count": 2,
-      "evidence_signal_count": 0,
-      "evidence_signal_counts": {},
-      "review_hint_count": 0,
-      "review_hint_preview": []
+      "evidence_signal_count": 2,
+      "evidence_signal_counts": {
+        "low-confidence architect evidence": 1,
+        "retrieved architect claim support": 1
+      },
+      "review_hint_count": 2,
+      "review_hint_preview": [
+        "Use this as claim-level architect support in reviewer traceability.",
+        "Review this claim-level architect evidence before approval."
+      ]
     },
     "architect_strategy_reference_citation_count": 0,
     "architect_strategy_reference_citation_rate": 0.0,

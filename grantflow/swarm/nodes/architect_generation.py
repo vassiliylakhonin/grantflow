@@ -428,10 +428,17 @@ def _text_for_field(
             return un_objectives[index % len(un_objectives)]
         if "objectives[" in lower_path and lower_path.endswith(".description"):
             if un_education:
-                return (
-                    f"Schools, local education authorities, and delivery partners in {country or 'the target context'} "
-                    f"demonstrate measurable improvements in equitable, accountable, and field-verified {un_phrase} delivery."
-                )[:420]
+                un_descriptions = [
+                    (
+                        f"Schools and local education authorities in {country or 'the target context'} apply clearer "
+                        f"service standards, coordination routines, and field-verified {un_phrase} delivery practices."
+                    ),
+                    (
+                        f"Children, caregivers, and frontline education partners in {country or 'the target context'} "
+                        f"experience more reliable access, inclusion, and field-monitored support for {un_phrase}."
+                    ),
+                ]
+                return un_descriptions[index % len(un_descriptions)][:420]
             return (
                 f"Partner institutions in {country or 'the target context'} demonstrate measurable improvements in "
                 f"equitable, accountable, and field-verified {un_phrase} delivery."
@@ -474,10 +481,17 @@ def _text_for_field(
             return un_outcomes[index % len(un_outcomes)]
         if "critical_assumptions[" in lower_path or "assumptions[" in lower_path:
             if un_education:
-                return (
-                    f"Local education authorities, schools, and community stakeholders continue supporting equitable "
-                    f"{un_phrase} delivery during implementation."
-                )[:420]
+                un_assumptions = [
+                    (
+                        f"Local education authorities, schools, and community stakeholders continue supporting "
+                        f"equitable {un_phrase} delivery during implementation."
+                    ),
+                    (
+                        f"Teachers, caregivers, and local delivery partners continue participating in coordination, "
+                        f"field monitoring, and inclusive {un_phrase} follow-up."
+                    ),
+                ]
+                return un_assumptions[index % len(un_assumptions)][:420]
             return (
                 f"Partner agencies, coordination bodies, and community stakeholders continue supporting equitable "
                 f"{un_phrase} delivery during implementation."
@@ -849,7 +863,7 @@ def _architect_grounded_confidence_bonus(hit: Dict[str, Any], *, traceability_st
     bonus = 0.0
     retrieval_rank = hit.get("retrieval_rank") or hit.get("rank")
     try:
-        retrieval_rank_int = int(retrieval_rank)
+        retrieval_rank_int = int(retrieval_rank) if retrieval_rank is not None else 999
     except (TypeError, ValueError):
         retrieval_rank_int = 999
     retrieval_confidence = float(hit.get("retrieval_confidence") or 0.0)

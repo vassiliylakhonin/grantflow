@@ -575,12 +575,13 @@ def _render_usaid_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Opt
                     output_id = str(out.get("output_id") or "").strip()
                     output_desc = _compact_export_text(out.get("description"))
                     doc.add_paragraph(f"Output: {output_id or '-'} — {output_desc or '-'}", style="List Bullet")
-                    indicators = out.get("indicators")
-                    if not isinstance(indicators, list):
+                    indicators_raw = out.get("indicators")
+                    if not isinstance(indicators_raw, list):
                         continue
-                    for indicator in indicators:
-                        if not isinstance(indicator, dict):
-                            continue
+                    output_indicators: list[dict[str, Any]] = [
+                        indicator for indicator in indicators_raw if isinstance(indicator, dict)
+                    ]
+                    for indicator in output_indicators:
                         code = str(indicator.get("indicator_code") or "").strip()
                         name = _compact_export_text(indicator.get("name"))
                         target = str(indicator.get("target") or "").strip()

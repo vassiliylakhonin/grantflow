@@ -1490,7 +1490,7 @@ def _mel_grounded_confidence_bonus(hit: Dict[str, Any], *, traceability_status: 
     bonus = 0.0
     retrieval_rank = hit.get("retrieval_rank") or hit.get("rank")
     try:
-        retrieval_rank_int = int(retrieval_rank)
+        retrieval_rank_int = int(retrieval_rank) if retrieval_rank is not None else 999
     except (TypeError, ValueError):
         retrieval_rank_int = 999
     retrieval_confidence = float(hit.get("retrieval_confidence") or 0.0)

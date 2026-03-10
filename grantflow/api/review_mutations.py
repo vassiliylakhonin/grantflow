@@ -819,8 +819,8 @@ def _set_review_comments_status_bulk(
     conflict_items: list[Dict[str, Any]] = []
     next_comments: list[Dict[str, Any]] = []
 
-    for item in comments:
-        current = dict(item)
+    for comment_row in comments:
+        current: Dict[str, Any] = dict(comment_row)
         current_comment_id = str(current.get("comment_id") or "").strip()
         current_status = str(current.get("status") or "open").strip().lower() or "open"
         current_section = str(current.get("section") or "").strip().lower() or "general"
