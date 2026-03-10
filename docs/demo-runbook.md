@@ -1,164 +1,39 @@
 # Demo Runbook
 
-This runbook is the recommended way to demo GrantFlow with existing repository capabilities.
+This is the public demo path for GrantFlow. It is intentionally opinionated.
 
-Related role-based materials:
-- `docs/pilot-user-roles.md`
-- `docs/role-based-demo-script.md`
-- `docs/pilot-day1-checklist.md`
-- `docs/pilot-role-mapping-worksheet.md`
-- `docs/enterprise-access-layer.md`
+Use one of two routes:
+- `canonical live demo` when you want to show the real workflow on a running API
+- `no-risk artifact demo` when you want to show value without touching runtime state
 
-## 1) Demo Objective
+Supporting materials:
+- `buyer-one-pager.md`
+- `five-minute-demo.md`
+- `production-boundaries.md`
 
-Show that GrantFlow is a controlled proposal workflow system:
-- generate structured draft artifacts
-- inspect review and quality traces
-- optionally run HITL approve/resume
-- export review-ready files
+## Canonical Live Demo
 
-## 2) Prerequisites
+Use this when you want to prove:
+- structured first draft generation
+- reviewer workflow and queues
+- traceability
+- export-ready handoff
 
-- Python `3.11-3.13`
-- dependencies installed (`pip install ".[dev]"` or `pip install .`)
-- API running:
+### 1. Start the API
 
 ```bash
+pip install ".[dev]"
 uvicorn grantflow.api.app:app --reload
-```
-
-Optional:
-- open Reviewer Console at `http://127.0.0.1:8000/demo`
-
-Opinionated first shared pilot deployment:
-
-```bash
-cp .env.pilot.example .env.pilot
-make pilot-stack-up
-make pilot-stack-check
-```
-
-This gives you the shortest queue-backed, API-key-protected pilot runtime without changing the core app model.
-
-Fastest reproducible bundle path:
-
-```bash
-make demo-pack
-make pilot-pack
-make buyer-brief
-make buyer-brief-refresh
-make pilot-metrics
-make pilot-metrics-refresh
-make pilot-scorecard
-make pilot-scorecard-refresh
-make case-study-pack
-make case-study-pack-refresh
-make executive-pack
-make executive-pack-refresh
-make oem-pack
-make oem-pack-refresh
-make pilot-archive
-make pilot-archive-refresh
-make diligence-index
-make diligence-index-refresh
-make baseline-fill-template
-make baseline-fill-template-refresh
-make clean-demo-artifacts-dry-run
-make clean-demo-artifacts
-make latest-links
-make latest-links-refresh
-make pilot-handout
-make pilot-handout-refresh
-make smoke-demo-refresh
-make latest-open-order
-make latest-open-order-refresh
-make pilot-refresh-fast
-make verify-latest-stack
-make verify-latest-stack-refresh
-make release-demo-bundle
-make release-demo-bundle-fast
-make send-bundle-index
-make send-bundle-index-refresh
-make open-latest-send
-make open-latest-send-refresh
-make open-latest-send-fast
-make open-latest-send-fast-refresh
-make buyer-demo-open
-make buyer-demo-open-refresh
-make ci-demo-smoke
-make dev-runtime-refresh
-```
-
-This writes a ready-to-review bundle to `build/demo-pack/` using live API runs and auto-drains one HITL case by default.
-It also seeds a synthetic reviewer comment workflow into the saved demo artifacts unless you set `DEMO_PACK_SEED_REVIEW_COMMENTS=0`.
-`make pilot-pack` additionally assembles a stakeholder-facing folder in `build/pilot-pack/` with the live run evidence plus buyer and pilot evaluation docs.
-`make buyer-brief` writes a concise executive summary markdown from an existing pilot pack.
-`make buyer-brief-refresh` rebuilds the pilot pack first, then writes the brief.
-`make pilot-metrics` writes metric tables from an existing pilot pack.
-`make pilot-metrics-refresh` rebuilds the pilot pack first, then writes the metric tables.
-If `measured-baseline.csv` exists in the pilot pack, `pilot-metrics` merges it and computes real before/after deltas and improvement rates.
-`make pilot-scorecard` writes a short go/no-go memo from an existing pilot pack.
-`make pilot-scorecard-refresh` rebuilds the pilot pack, metrics, and brief first, then writes the scorecard.
-`make pilot-evidence-pack` assembles a compact pilot evidence bundle from the current pilot, executive, and case-study artifacts.
-`make pilot-evidence-pack-refresh` rebuilds the buyer path first, writes an illustrative benchmark baseline overlay for demo-only before/after views, then writes the evidence bundle.
-`make case-study-pack` writes a compact single-case pack from an existing pilot pack.
-`make case-study-pack-refresh` rebuilds the pilot pack, metrics, brief, and scorecard first, then writes the case pack.
-`make executive-pack` writes a send-ready buyer folder from an existing pilot pack and case-study pack.
-`make executive-pack-refresh` rebuilds the full chain first, then writes the executive pack.
-`make oem-pack` writes a technical partner diligence folder from an existing pilot pack and executive pack.
-`make oem-pack-refresh` rebuilds the full chain first, then writes the OEM pack.
-`make pilot-archive` writes a zip-ready archive from the pilot, executive, and optional OEM packs.
-`make pilot-archive-refresh` rebuilds the full chain first, then writes the archive.
-`make diligence-index` writes a single markdown index over generated local packs and archives.
-`make diligence-index-refresh` rebuilds the full chain first, then writes the index.
-`make baseline-fill-template` writes a fillable baseline worksheet from `pilot-metrics.csv`.
-`make baseline-fill-template-refresh` rebuilds pilot metrics first, then writes the baseline worksheet.
-Save the completed worksheet as `measured-baseline.csv` and then rerun `make pilot-metrics` to produce measured deltas.
-`make benchmark-baseline` writes an illustrative benchmark baseline overlay for demo-only evidence bundles.
-`make benchmark-baseline-refresh` rebuilds pilot metrics first, then writes that illustrative overlay.
-The overlay prefers curated assumptions from `docs/pilot_benchmark_assumptions.json` and uses conservative formula fallback for any case not listed there.
-Measured baseline always takes precedence over benchmark baseline in `pilot-metrics`, `pilot-scorecard`, and `pilot-evidence-pack`.
-`make clean-demo-artifacts-dry-run` lists generated bundles slated for cleanup.
-`make clean-demo-artifacts` removes generated bundles and leaves unrelated files alone.
-`make latest-links` writes stable `build/latest-*` symlinks to the newest generated bundles, including fast/full send bundles and their zip files.
-`make latest-links-refresh` rebuilds the full chain first, then refreshes those symlinks.
-`make pilot-handout` writes a short single-file pilot summary.
-`make pilot-handout-refresh` rebuilds the full chain first, then writes the handout.
-`make smoke-demo-refresh` runs the default full smoke chain through handout generation.
-`make latest-open-order` writes a short "what to open next" guide for `build/latest-*`.
-`make latest-open-order-refresh` rebuilds the chain first, then writes that guide.
-`make pilot-refresh-fast` runs the buyer-facing refresh path without OEM pack, archive, or diligence index.
-`make verify-latest-stack` verifies that `build/latest-*` symlinks and key files exist.
-`make verify-latest-stack-refresh` rebuilds the chain first, then verifies the latest stack.
-`make release-demo-bundle` rebuilds and packages the latest stack into a send-ready folder plus zip.
-`make release-demo-bundle-fast` rebuilds only the fast buyer path, then packages `pilot-handout`, `pilot-evidence-pack`, `latest-open-order`, `pilot-portfolio-summary.json/csv`, and the current `executive-pack` into a lighter send-ready folder plus zip.
-`make release-demo-bundle-custom` packages an explicit pilot/executive/evidence path into a send-ready bundle without changing `build/latest-*`; use it for curated variants like a 6-donor buyer pack.
-`make send-bundle-index` writes a short markdown describing which current bundle to send and when.
-`make send-bundle-index-refresh` rebuilds the fast send bundle first, then writes that send index.
-`make open-latest-send` prints the current send-oriented open order from the latest fast/full bundle links. Set `OPEN_LATEST_SEND_MODE=open` on macOS to open the files directly.
-`make open-latest-send-refresh` rebuilds the fast send layer first, then prints or opens those artifacts.
-`make open-latest-send-fast` prints only the fast send path artifacts.
-`make open-latest-send-fast-refresh` rebuilds the fast send layer first, then prints or opens only those fast artifacts.
-`make buyer-demo-open` prints the buyer-facing open order from the current `build/latest-*` stack. Set `BUYER_DEMO_OPEN_MODE=open` on macOS to open the files directly.
-`make buyer-demo-open-refresh` rebuilds the fast buyer path first, then prints or opens that stack.
-`make ci-demo-smoke` runs the minimal buyer-chain smoke path on a single preset and asserts that the key demo artifacts exist.
-`make dev-runtime-refresh` rebuilds local Docker `api` and `worker` services when live `/status/*` payloads lag behind the current checkout.
-`make pilot-stack-up` starts the opinionated pilot stack using `.env.pilot` plus `docker-compose.pilot.yml`.
-`make pilot-stack-down` stops that pilot stack.
-`make pilot-stack-status` shows the current service state.
-`make pilot-stack-logs` prints recent `api/worker/redis/chroma` logs for the pilot stack.
-`make pilot-stack-check` calls `/health` and `/ready` against the pilot API.
-
-## 3) Operator Demo Flow (API-first)
-
-### Step A: health/readiness
-
-```bash
 curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/ready
 ```
 
-### Step B: generate from preset
+Optional UI:
+- open `http://127.0.0.1:8000/demo` (`Reviewer Console`)
+
+### 2. Generate one case
+
+Standard proposal path:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
@@ -171,9 +46,7 @@ curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
   }'
 ```
 
-Save returned `job_id`.
-
-Evaluation RFQ variant:
+Evaluation RFQ path:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
@@ -186,60 +59,30 @@ curl -s -X POST http://127.0.0.1:8000/generate/from-preset \
   }'
 ```
 
-This uses `proposal_mode=evaluation_rfq` under the hood and is intended for the technical-response part of an evaluation RFQ, not the financial/commercial package.
+Save the returned `job_id`.
 
-The KATCH-style RFQ path now also renders a procurement-oriented compliance matrix in the technical proposal export, so operators can review requirement-to-section coverage before final packaging.
-It also renders a key-personnel/CV-readiness block so the technical response can show staffing readiness without waiting for a full procurement-suite implementation.
-It now includes a financial proposal companion summary, indicative cost structure, pricing assumptions, and payment-schedule note to keep the technical response aligned with the separate commercial package.
-For `format=both`, the ZIP export now also includes `annex_packer/annex_manifest.json` and `annex_packer/submission_readiness.md` so operators can hand off an annex-by-annex package checklist with the technical response.
-`GET /status/{job_id}/export-payload` also exposes `payload.submission_package_readiness` for RFQ-aware clients that need a machine-readable completeness summary before final packaging.
-The same ZIP now includes a placeholder `submission_package/` folder tree with per-artifact `README.md` stubs so operations teams can stage final annexes and submission files against a fixed structure.
-For the KATCH-style profile, the same ZIP now also includes a human-readable `rfq_submission_kit/` with four ready-to-review files:
-- `FILE 1 - TECHNICAL PROPOSAL (...)`
-- `FILE 2 - FINANCIAL PROPOSAL (...)`
-- `FILE 3 - ANNEX TEMPLATES`
-- `FILE 4 - READY EMAIL (EN)`
-
-### Step C: inspect status and quality
+### 3. Show workflow control
 
 ```bash
-curl -s http://127.0.0.1:8000/status/<JOB_ID>
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/quality
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/critic
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/review/workflow
 ```
 
-In `/review/workflow`, use:
-- `summary.reviewer_workflow_summary` for open vs acknowledged vs resolved review load
-- `summary.action_queue_summary` for the next operational move (`ack_finding`, `resolve_finding`, `ack_comment`, `resolve_comment`, `reopen_comment`)
-- Reviewer Console shows the same queue in the Review Workflow card, so operators can triage without reading raw JSON.
+Focus on:
+- `summary.reviewer_workflow_summary`
+- `summary.action_queue_summary`
+- `next primary action` in the Reviewer Console
 
-### Step D: show traceability
+### 4. Show traceability
 
 ```bash
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/citations
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/versions
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/events
-curl -s http://127.0.0.1:8000/status/<JOB_ID>/comments
 ```
 
-Comment mutations:
-- `POST /status/{job_id}/comments/{comment_id}/ack`
-- `POST /status/{job_id}/comments/{comment_id}/resolve`
-- `POST /status/{job_id}/comments/{comment_id}/reopen`
-- `POST /status/{job_id}/comments/bulk-status`
-- In Reviewer Console, reviewers can batch on `filtered`, `selected ids`, or `all` for both findings and comments.
-- In Reviewer Console, reviewers can also preview bulk changes with `dry_run=true`, copy selected IDs, and fill selected IDs from the current workflow view.
-
-Optional review mutations:
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments/<COMMENT_ID>/ack
-curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments/<COMMENT_ID>/resolve
-curl -s -X POST http://127.0.0.1:8000/status/<JOB_ID>/comments/<COMMENT_ID>/reopen
-```
-
-### Step E: export review package
+### 5. Export the package
 
 ```bash
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/export-payload -o export_payload.json
@@ -249,15 +92,43 @@ curl -s -X POST http://127.0.0.1:8000/export \
   -o grantflow_export.zip
 ```
 
-For the RFQ demo path, verify:
+For RFQ mode, verify:
 - `.docx` contains `Evaluation RFQ Technical Proposal`
 - `.xlsx` contains `Evaluation_Plan`
-- `.docx` contains `Submission Package Completeness`
-- `Evaluation_Plan` contains `submission_package` rows
-- `.docx` contains `Attachment Manifest`
-- `Evaluation_Plan` contains `attachment_manifest` rows
+- ZIP contains `annex_packer/` and `submission_package/`
 
-## 4) Optional HITL Segment
+## No-Risk Artifact Demo
+
+Use this when you want to show product value without rebuilding or mutating local runtime state.
+
+### 1. Build the buyer-safe artifact path
+
+```bash
+make pilot-refresh-fast
+make release-demo-bundle-fast
+```
+
+### 2. Open the canonical outputs
+
+Open in this order:
+- `build/send-bundle-index.md`
+- `build/latest-open-order.md`
+- `build/executive-pack/README.md`
+- `build/pilot-pack/buyer-brief.md`
+
+If you want the packaged handoff:
+- `build/release-demo-bundle-fast/`
+
+### 3. What to show
+
+- buyer-facing summary
+- current review-readiness state
+- grounding snapshot
+- export-ready package
+
+This is the safest path for partner or buyer conversations when you do not want to depend on live generation in front of them.
+
+## Optional HITL Segment
 
 Run a second job with `hitl_enabled=true` and use:
 
@@ -277,96 +148,15 @@ Then show:
 curl -s http://127.0.0.1:8000/status/<JOB_ID>/hitl/history
 ```
 
-## 5) Buyer-Friendly Narrative (Short)
+## Honest Rough Edges
 
-1. We start from a donor-specific preset, not a blank prompt.
-2. The system runs a staged drafting pipeline, not one-shot text generation.
-3. Reviewers get structured quality and critic signals, not free-form output only.
-4. We can pause and resume with explicit human approvals.
-5. We export review-ready artifacts for downstream submission workflow.
+- grounding quality depends on corpus quality and coverage
+- final donor compliance sign-off remains human-owned
+- built-in auth is API-key based; enterprise IAM belongs at the gateway layer
 
-## 6) 5-Minute Founder Demo Script
+## Deeper Operator Paths
 
-### Minute 0-1: framing
-
-- “This is not a grant chatbot. It is workflow control for proposal operations.”
-- “We optimize for reviewability, governance, and traceability under donor constraints.”
-
-### Minute 1-2: generate
-
-- Trigger `POST /generate/from-preset`.
-- Show returned `job_id` and status progression in `/status/{job_id}` or Reviewer Console.
-
-### Minute 2-3: quality and review traces
-
-- Open `/status/{job_id}/quality` and `/status/{job_id}/critic`.
-- Highlight structured findings and quality score context.
-
-### Minute 3-4: traceability and governance
-
-- Show `/status/{job_id}/citations`, `/versions`, `/events`.
-- If HITL is enabled, show approve/resume flow and `/hitl/history`.
-
-### Minute 4-5: export and commercial close
-
-- Export payload + `/export`.
-- Close with: “GrantFlow gives teams a repeatable proposal operations layer, not just generated text.”
-
-## 7) Honest Rough Edges to Mention in Demos
-
-- Grounding quality is corpus-dependent; ingestion quality affects citation quality.
-- Final donor compliance sign-off remains human responsibility.
-- Built-in auth is API-key based; enterprise IAM is expected at platform/gateway layer.
-
-## 8) Make Target Options
-
-Useful overrides:
-
-```bash
-make demo-pack DEMO_PACK_DIR=build/demo-pack-llm DEMO_PACK_LLM_MODE=1 DEMO_PACK_ARCHITECT_RAG_ENABLED=1
-make demo-pack DEMO_PACK_PRESET_KEYS=usaid_gov_ai_kazakhstan,worldbank_public_sector_uzbekistan
-make demo-pack DEMO_PACK_API_KEY=change-me
-make demo-pack DEMO_PACK_SEED_REVIEW_COMMENTS=0
-make pilot-pack PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
-make buyer-brief BUYER_BRIEF_OUT=build/pilot-pack/buyer-brief-custom.md
-make buyer-brief-refresh PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
-make pilot-metrics PILOT_METRICS_PILOT_DIR=build/pilot-pack-smoke
-make pilot-metrics-refresh PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
-make pilot-scorecard PILOT_SCORECARD_PILOT_DIR=build/pilot-pack-smoke
-make pilot-scorecard-refresh PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
-make case-study-pack CASE_STUDY_PILOT_DIR=build/pilot-pack-smoke CASE_STUDY_PRESET_KEY=usaid_gov_ai_kazakhstan
-make case-study-pack-refresh CASE_STUDY_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
-make executive-pack EXECUTIVE_PACK_PILOT_DIR=build/pilot-pack-smoke EXECUTIVE_PACK_CASE_STUDY_DIR=build/case-study-pack-smoke EXECUTIVE_PACK_PRESET_KEY=usaid_gov_ai_kazakhstan EXECUTIVE_PACK_OUT_DIR=build/executive-pack-smoke
-make executive-pack-refresh CASE_STUDY_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
-make oem-pack OEM_PACK_PILOT_DIR=build/pilot-pack-smoke OEM_PACK_EXECUTIVE_DIR=build/executive-pack-smoke OEM_PACK_PRESET_KEY=usaid_gov_ai_kazakhstan OEM_PACK_OUT_DIR=build/oem-pack-smoke
-make oem-pack-refresh CASE_STUDY_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1
-make pilot-archive PILOT_ARCHIVE_PILOT_DIR=build/pilot-pack-smoke PILOT_ARCHIVE_EXECUTIVE_DIR=build/executive-pack-smoke PILOT_ARCHIVE_OEM_DIR=build/oem-pack-smoke PILOT_ARCHIVE_OUT_DIR=build/pilot-archive-smoke PILOT_ARCHIVE_NAME=grantflow-smoke PILOT_ARCHIVE_INCLUDE_OEM=1
-make pilot-archive-refresh CASE_STUDY_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1 PILOT_ARCHIVE_NAME=grantflow-pilot
-make diligence-index DILIGENCE_INDEX_BUILD_DIR=build DILIGENCE_INDEX_OUT=build/diligence-index.md
-make diligence-index-refresh CASE_STUDY_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO=1 PILOT_ARCHIVE_NAME=grantflow-pilot
-make baseline-fill-template BASELINE_TEMPLATE_PILOT_DIR=build/pilot-pack-smoke
-make baseline-fill-template-refresh BASELINE_TEMPLATE_PILOT_DIR=build/pilot-pack-smoke
-make clean-demo-artifacts-dry-run CLEAN_DEMO_ARTIFACTS_BUILD_DIR=build
-make clean-demo-artifacts CLEAN_DEMO_ARTIFACTS_BUILD_DIR=build
-make latest-links LATEST_LINKS_BUILD_DIR=build
-make latest-links-refresh LATEST_LINKS_BUILD_DIR=build
-make pilot-handout PILOT_HANDOUT_PILOT_DIR=build/pilot-pack-smoke PILOT_HANDOUT_EXECUTIVE_DIR=build/executive-pack-smoke PILOT_HANDOUT_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_HANDOUT_OUT=build/pilot-handout-smoke.md
-make pilot-handout-refresh PILOT_HANDOUT_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_HANDOUT_OUT=build/pilot-handout.md
-make smoke-demo-refresh PILOT_HANDOUT_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_ARCHIVE_NAME=grantflow-pilot
-make latest-open-order LATEST_OPEN_ORDER_BUILD_DIR=build LATEST_OPEN_ORDER_OUT=build/latest-open-order.md
-make latest-open-order-refresh LATEST_OPEN_ORDER_BUILD_DIR=build LATEST_OPEN_ORDER_OUT=build/latest-open-order.md
-make pilot-refresh-fast PILOT_HANDOUT_PRESET_KEY=usaid_gov_ai_kazakhstan PILOT_HANDOUT_OUT=build/pilot-handout.md
-make verify-latest-stack VERIFY_LATEST_STACK_BUILD_DIR=build
-make verify-latest-stack-refresh VERIFY_LATEST_STACK_BUILD_DIR=build
-make release-demo-bundle RELEASE_DEMO_BUNDLE_BUILD_DIR=build RELEASE_DEMO_BUNDLE_OUT_DIR=build/release-demo-bundle RELEASE_DEMO_BUNDLE_NAME=grantflow-demo-bundle
-make release-demo-bundle-fast RELEASE_DEMO_BUNDLE_BUILD_DIR=build RELEASE_DEMO_BUNDLE_FAST_OUT_DIR=build/release-demo-bundle-fast RELEASE_DEMO_BUNDLE_FAST_NAME=grantflow-demo-bundle-fast
-make send-bundle-index SEND_BUNDLE_INDEX_BUILD_DIR=build SEND_BUNDLE_INDEX_OUT=build/send-bundle-index.md
-make send-bundle-index-refresh SEND_BUNDLE_INDEX_BUILD_DIR=build SEND_BUNDLE_INDEX_OUT=build/send-bundle-index.md
-make open-latest-send OPEN_LATEST_SEND_BUILD_DIR=build OPEN_LATEST_SEND_MODE=print
-make open-latest-send-refresh OPEN_LATEST_SEND_BUILD_DIR=build OPEN_LATEST_SEND_MODE=open
-make open-latest-send-fast OPEN_LATEST_SEND_BUILD_DIR=build OPEN_LATEST_SEND_MODE=print
-make open-latest-send-fast-refresh OPEN_LATEST_SEND_BUILD_DIR=build OPEN_LATEST_SEND_MODE=open
-make buyer-demo-open BUYER_DEMO_OPEN_BUILD_DIR=build BUYER_DEMO_OPEN_MODE=print
-make buyer-demo-open-refresh BUYER_DEMO_OPEN_BUILD_DIR=build BUYER_DEMO_OPEN_MODE=open
-make ci-demo-smoke CI_DEMO_SMOKE_ROOT=build/ci-demo-smoke CI_DEMO_SMOKE_PRESET_KEY=usaid_gov_ai_kazakhstan
-```
+If you need the full artifact, pilot, or diligence machinery, use:
+- `full-guide.md`
+- `operations-runbook.md`
+- `enterprise-quickstart.md`

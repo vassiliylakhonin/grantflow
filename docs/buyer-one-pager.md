@@ -37,7 +37,6 @@ GrantFlow addresses this by making drafting and review a controlled system with 
 - Demo and sample artifacts:
   - Reviewer Console: `GET /demo`
   - sample exports in `docs/samples/`
-  - pilot pack snapshots in `docs/pilot_runs/2026-02-27/`
 
 ## What This Is Not
 

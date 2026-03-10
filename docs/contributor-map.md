@@ -31,8 +31,6 @@ This is the shortest path to navigate the codebase without guessing.
   - `docs/pilot-evaluation-checklist.md`
 - Sample artifacts for demos:
   - `docs/samples/`
-- Pilot snapshot packs:
-  - `docs/pilot_runs/`
 
 ## Schemas and Contracts
 
