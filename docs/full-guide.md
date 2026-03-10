@@ -34,6 +34,8 @@ Quick companion docs:
 - customer donor corpus plan example: `docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
 - customer follow-up email example: `docs/pilot-customers/kazakhstan-ngo-follow-up-email.md`
 - enterprise access pattern: `docs/enterprise-access-layer.md`
+- gateway policy example: `docs/gateway-policy-example.md`
+- enterprise access checklist: `docs/enterprise-access-checklist.md`
 
 ## 1) Product Scope
 

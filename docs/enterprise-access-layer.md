@@ -158,3 +158,15 @@ Minimum acceptable pilot posture:
 - fine-grained object permissions inside GrantFlow
 
 Those remain future product work, not required to run a credible pilot.
+
+
+## Concrete Implementation Layer
+
+Use these companion docs when moving from the conceptual access model to an actual enterprise-facing deployment:
+- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/gateway-policy-example.md`
+- `/Users/vassiliylakhonin/Documents/aidgraph-prod/docs/enterprise-access-checklist.md`
+
+These documents stay within current product reality:
+- API-key auth remains in-app
+- route authorization remains at the gateway
+- tenant isolation remains configuration-driven, not person-level RBAC
