@@ -21,6 +21,14 @@ class EvaluationTeamRole(BaseModel):
     responsibility: str = Field(description="Main responsibility for this role")
 
 
+class EvaluationKeyPersonnel(BaseModel):
+    name: str = Field(description="Named staff member or placeholder personnel label")
+    role: str = Field(description="Assigned role in the proposal team")
+    qualifications: str = Field(description="Short qualification summary relevant to the assignment")
+    level_of_effort: str = Field(description="Indicative level of effort or staffing contribution")
+    cv_status: str = Field(description="CV attachment status: ready|pending|partial")
+
+
 class EvaluationDeliverable(BaseModel):
     deliverable: str = Field(description="Deliverable name")
     timing: str = Field(description="Timing or milestone window")
@@ -45,6 +53,7 @@ class EvaluationRFQTOC(BaseModel):
     methodology_overview: str = Field(description="Overall evaluation design and approach")
     methodology_components: list[EvaluationMethodComponent] = Field(default_factory=list)
     team_composition: list[EvaluationTeamRole] = Field(default_factory=list)
+    key_personnel: list[EvaluationKeyPersonnel] = Field(default_factory=list)
     deliverables: list[EvaluationDeliverable] = Field(default_factory=list)
     workplan_summary: list[str] = Field(default_factory=list)
     assumptions_risks: list[str] = Field(default_factory=list)
@@ -175,6 +184,32 @@ def _build_team_roles(project: str) -> list[Dict[str, str]]:
         {
             "role": "Field Research Coordinator",
             "responsibility": "Manage respondent scheduling, field protocols, consent, and secure data collection logistics.",
+        },
+    ]
+
+
+def _build_key_personnel(project: str) -> list[Dict[str, str]]:
+    return [
+        {
+            "name": "Proposed Team Lead",
+            "role": "Team Lead / Evaluation Director",
+            "qualifications": f"Senior evaluation lead with relevant final-assessment and donor-reporting experience for the {project} assignment.",
+            "level_of_effort": "Lead oversight across inception, fieldwork, analysis, and final reporting",
+            "cv_status": "ready",
+        },
+        {
+            "name": "Proposed MEL Specialist",
+            "role": "MEL / Evaluation Specialist",
+            "qualifications": "Mixed-methods evaluation specialist with indicator, survey, and triangulation experience.",
+            "level_of_effort": "Core technical support for evaluation matrix, tools, and analytical synthesis",
+            "cv_status": "ready",
+        },
+        {
+            "name": "Proposed Field Coordinator",
+            "role": "Field Research Coordinator",
+            "qualifications": "Fieldwork and respondent-management lead with secure data collection and consent protocol experience.",
+            "level_of_effort": "Field logistics, scheduling, respondent access, and data collection quality control",
+            "cv_status": "ready",
         },
     ]
 
@@ -401,6 +436,29 @@ def build_katch_evaluation_rfq_payload(
                 "responsibility": "Manage scheduling, local logistics, consent protocols, and secure data collection.",
             },
         ],
+        "key_personnel": [
+            {
+                "name": "Proposed Team Lead",
+                "role": "Team Leader / Evaluation Specialist",
+                "qualifications": "At least 5 years of trafficking, migration, child protection, or comparable final-evaluation experience with donor-facing reporting.",
+                "level_of_effort": "Technical leadership across inception, fieldwork, validation, and final reporting",
+                "cv_status": "ready",
+            },
+            {
+                "name": "Proposed Evaluation Analyst",
+                "role": "Evaluation Expert / Analyst",
+                "qualifications": "Mixed-methods evaluation analyst with qualitative coding, survey analysis, and reporting experience.",
+                "level_of_effort": "Analysis support, evidence synthesis, and report drafting",
+                "cv_status": "ready",
+            },
+            {
+                "name": "Proposed Field Coordinator",
+                "role": "Field Research Coordinator",
+                "qualifications": "Field coordination lead with respondent safeguarding, logistics, and secure data handling experience.",
+                "level_of_effort": "Field scheduling, respondent coordination, and data collection quality control",
+                "cv_status": "ready",
+            },
+        ],
         "deliverables": _build_katch_deliverable_rows(deliverables),
         "workplan_summary": [
             "Phase I - Engagement: inception meeting, desk review, evaluation design, and work plan approval.",
@@ -518,6 +576,7 @@ def build_evaluation_rfq_fallback_payload(
         "methodology_overview": methodology_overview,
         "methodology_components": _build_method_components(methods, project=project, country=country),
         "team_composition": _build_team_roles(project),
+        "key_personnel": _build_key_personnel(project),
         "deliverables": _build_deliverable_rows(deliverables),
         "workplan_summary": [
             "Mobilize and validate the inception package before fieldwork.",

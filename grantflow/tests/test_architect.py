@@ -1009,3 +1009,7 @@ def test_fallback_structured_toc_supports_katch_evaluation_rfq_profile():
     assert payload["compliance_matrix"][0]["requirement"]
     assert payload["compliance_matrix"][0]["response_section"]
     assert payload["compliance_matrix"][0]["evidence"]
+    assert isinstance(payload.get("key_personnel"), list)
+    assert len(payload["key_personnel"]) >= 2
+    assert payload["key_personnel"][0]["name"]
+    assert payload["key_personnel"][0]["cv_status"]

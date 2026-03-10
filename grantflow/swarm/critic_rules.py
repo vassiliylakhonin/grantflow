@@ -253,6 +253,38 @@ def _add_katch_evaluation_rfq_checks(
             fix_hint="List at least a Team Leader/Evaluation Specialist and an Evaluation Expert/Analyst with clear responsibilities aligned to the RFQ.",
         )
 
+    key_personnel = toc_payload.get("key_personnel") or []
+    ready_personnel = [
+        row
+        for row in key_personnel
+        if isinstance(row, dict)
+        and str(row.get("name") or "").strip()
+        and str(row.get("role") or "").strip()
+        and str(row.get("qualifications") or "").strip()
+        and str(row.get("cv_status") or "").strip()
+    ]
+    if len(ready_personnel) >= 2:
+        check_fn(
+            code="KATCH_KEY_PERSONNEL_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ready_personnel)} staffed row(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_KEY_PERSONNEL_PRESENT",
+            status="fail",
+            section="toc",
+            detail="Need named or placeholder key personnel rows with qualifications and CV status",
+        )
+        add_flaw_fn(
+            code="KATCH_KEY_PERSONNEL_MISSING",
+            severity="high",
+            section="toc",
+            message="KATCH key personnel packaging is incomplete, so reviewers cannot verify staffing depth, qualifications, and CV readiness for the assignment.",
+            fix_hint="Add a key personnel table with named or placeholder staff, role, qualifications, indicative level of effort, and CV attachment status.",
+        )
+
     workplan_summary = toc_payload.get("workplan_summary")
     if isinstance(workplan_summary, list) and workplan_summary:
         check_fn(code="KATCH_WORKPLAN_PRESENT", status="pass", section="toc", detail=f"{len(workplan_summary)} workplan phase(s)")

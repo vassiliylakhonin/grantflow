@@ -1127,6 +1127,29 @@ def _render_evaluation_rfq_toc(
             if responsibility:
                 doc.add_paragraph(responsibility)
 
+    key_personnel = toc.get("key_personnel")
+    if isinstance(key_personnel, list) and key_personnel:
+        doc.add_heading("Key Personnel and CV Readiness", level=2)
+        for row in key_personnel:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or "Personnel").strip()
+            role = str(row.get("role") or "").strip()
+            qualifications = str(row.get("qualifications") or "").strip()
+            level_of_effort = str(row.get("level_of_effort") or "").strip()
+            cv_status = str(row.get("cv_status") or "").strip()
+            title = name if not role else f"{name} ({role})"
+            doc.add_paragraph(title, style="List Bullet")
+            details = []
+            if qualifications:
+                details.append(f"Qualifications: {qualifications}")
+            if level_of_effort:
+                details.append(f"Level of effort: {level_of_effort}")
+            if cv_status:
+                details.append(f"CV status: {cv_status}")
+            if details:
+                doc.add_paragraph(" | ".join(details))
+
     loe = str(toc.get("level_of_effort_summary") or "").strip()
     if loe:
         doc.add_heading("Proposed Level of Effort", level=2)

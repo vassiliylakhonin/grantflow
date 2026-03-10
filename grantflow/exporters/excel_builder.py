@@ -1463,6 +1463,27 @@ def _add_evaluation_plan_sheet(
             str(row.get("responsibility") or ""),
         )
 
+    for idx, row in enumerate(toc_payload.get("key_personnel") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("name") or f"Personnel {idx}")
+        role = str(row.get("role") or "").strip()
+        qualifications = str(row.get("qualifications") or "").strip()
+        level_of_effort = str(row.get("level_of_effort") or "").strip()
+        cv_status = str(row.get("cv_status") or "").strip()
+        if role:
+            title = f"{title} ({role})"
+        description = " | ".join(
+            part
+            for part in (
+                qualifications,
+                f"LOE: {level_of_effort}".strip() if level_of_effort else "",
+                f"CV: {cv_status}".strip() if cv_status else "",
+            )
+            if part
+        )
+        add_row("key_personnel", f"KP{idx}", title, description)
+
     add_row(
         "level_of_effort",
         "level_of_effort_summary",

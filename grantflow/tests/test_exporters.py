@@ -1253,6 +1253,15 @@ def test_exporters_support_evaluation_rfq_mode():
             "team_composition": [
                 {"role": "Team Lead", "responsibility": "Lead technical quality and client communication"}
             ],
+            "key_personnel": [
+                {
+                    "name": "Proposed Team Lead",
+                    "role": "Team Lead",
+                    "qualifications": "Senior evaluation lead with donor reporting experience",
+                    "level_of_effort": "Lead oversight across inception and reporting",
+                    "cv_status": "ready",
+                }
+            ],
             "level_of_effort_summary": "Activity-based person-days by phase and role.",
             "technical_experience_summary": "Comparable evaluation experience in development-sector final assessments.",
             "sample_outputs_summary": "Annexed final evaluation reports from comparable assignments.",
@@ -1305,6 +1314,9 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Analysis and Proposed Approaches / Methodologies" in text
     assert "Sampling Plan" in text
     assert "Personnel and Team Composition" in text
+    assert "Key Personnel and CV Readiness" in text
+    assert "Senior evaluation lead with donor reporting experience" in text
+    assert "CV status: ready" in text
     assert "Proposed Level of Effort" in text
     assert "Technical Experience and Past Performance References" in text
     assert "Procurement Compliance Matrix" in text
@@ -1321,6 +1333,8 @@ def test_exporters_support_evaluation_rfq_mode():
     )
     assert "Organization Information" in rendered
     assert "Analysis and Proposed Approaches / Methodologies" in rendered
+    assert "Proposed Team Lead (Team Lead)" in rendered
+    assert "CV: ready" in rendered
     assert "Proposed Level of Effort" in rendered
     assert "Technical Experience and Past Performance References" in rendered
     assert "Organization information and legal status package" in rendered

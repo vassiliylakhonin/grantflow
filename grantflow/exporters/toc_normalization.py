@@ -334,6 +334,20 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    personnel_rows = _pick_first_list(toc, ("key_personnel", "personnel", "staffing_plan"))
+    key_personnel = []
+    for raw in personnel_rows:
+        row = raw if isinstance(raw, dict) else {"name": _clean_text(raw)}
+        key_personnel.append(
+            {
+                "name": _pick_first_text(row, ("name", "person", "staff_name")),
+                "role": _pick_first_text(row, ("role", "title")),
+                "qualifications": _pick_first_text(row, ("qualifications", "experience", "summary")),
+                "level_of_effort": _pick_first_text(row, ("level_of_effort", "loe", "allocation")),
+                "cv_status": _pick_first_text(row, ("cv_status", "status")),
+            }
+        )
+
     deliverable_rows = _pick_first_list(toc, ("deliverables",))
     deliverables = []
     for raw in deliverable_rows:
@@ -375,6 +389,7 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
         "analytical_software": _to_str_list(_pick_first_list(toc, ("analytical_software", "analysis_software"))),
         "ethical_considerations": _to_str_list(_pick_first_list(toc, ("ethical_considerations", "ethics"))),
         "team_composition": team_composition,
+        "key_personnel": key_personnel,
         "level_of_effort_summary": _pick_first_text(toc, ("level_of_effort_summary", "loe_summary")),
         "technical_experience_summary": _pick_first_text(
             toc, ("technical_experience_summary", "past_performance_summary")
