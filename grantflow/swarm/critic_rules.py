@@ -358,6 +358,37 @@ def _add_katch_evaluation_rfq_checks(
             fix_hint="Add a short payment schedule summary tied to inception, fieldwork, draft report, and final submission milestones.",
         )
 
+    submission_package_checklist = toc_payload.get("submission_package_checklist") or []
+    ready_submission_items = [
+        row
+        for row in submission_package_checklist
+        if isinstance(row, dict)
+        and str(row.get("artifact") or "").strip()
+        and str(row.get("owner") or "").strip()
+        and str(row.get("status") or "").strip()
+    ]
+    if len(ready_submission_items) >= 5:
+        check_fn(
+            code="KATCH_SUBMISSION_PACKAGE_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ready_submission_items)} submission item(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_SUBMISSION_PACKAGE_PRESENT",
+            status="fail",
+            section="toc",
+            detail="Need a package-level checklist for the technical response and supporting annexes",
+        )
+        add_flaw_fn(
+            code="KATCH_SUBMISSION_PACKAGE_MISSING",
+            severity="medium",
+            section="toc",
+            message="KATCH submission package checklist is incomplete, so the team cannot reliably verify that the final technical package and annexes are assembled for submission.",
+            fix_hint="Add a submission package checklist naming each required artifact, owner, status, and remaining packaging notes before submission.",
+        )
+
     workplan_summary = toc_payload.get("workplan_summary")
     if isinstance(workplan_summary, list) and workplan_summary:
         check_fn(code="KATCH_WORKPLAN_PRESENT", status="pass", section="toc", detail=f"{len(workplan_summary)} workplan phase(s)")

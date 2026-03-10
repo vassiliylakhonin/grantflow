@@ -195,6 +195,7 @@ What it currently supports:
 - key-personnel and CV-readiness packaging for the technical response
 - procurement-style compliance matrix for the technical response package
 - financial proposal companion summary with cost-structure and payment-schedule notes
+- submission package completeness checklist for the technical proposal and annex set
 - review/control/export workflow using the same findings, comments, HITL, and artifact packaging layers
 
 What it does not yet claim:

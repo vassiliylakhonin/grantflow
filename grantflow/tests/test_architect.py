@@ -1020,3 +1020,8 @@ def test_fallback_structured_toc_supports_katch_evaluation_rfq_profile():
     assert isinstance(payload.get("pricing_assumptions"), list)
     assert len(payload["pricing_assumptions"]) >= 2
     assert payload["payment_schedule_summary"]
+    assert isinstance(payload.get("submission_package_checklist"), list)
+    assert len(payload["submission_package_checklist"]) >= 5
+    assert payload["submission_package_checklist"][0]["artifact"]
+    assert payload["submission_package_checklist"][0]["owner"]
+    assert payload["submission_package_checklist"][0]["status"]

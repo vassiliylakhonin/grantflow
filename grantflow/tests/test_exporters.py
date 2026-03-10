@@ -1279,6 +1279,14 @@ def test_exporters_support_evaluation_rfq_mode():
                 "Travel and fieldwork assumptions are stated separately.",
             ],
             "payment_schedule_summary": "Milestone-based invoicing at inception, draft, and final submission.",
+            "submission_package_checklist": [
+                {
+                    "artifact": "Technical proposal narrative",
+                    "owner": "Proposal manager",
+                    "status": "ready",
+                    "notes": "Final reviewer-ready narrative package",
+                }
+            ],
             "compliance_matrix": [
                 {
                     "requirement": "Organization information and legal status package",
@@ -1336,6 +1344,10 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Pricing Assumptions" in text
     assert "Payment Schedule Summary" in text
     assert "LOE matrix and rate card" in text
+    assert "Submission Package Completeness" in text
+    assert "Technical proposal narrative" in text
+    assert "Owner: Proposal manager" in text
+    assert "Status: ready" in text
     assert "Proposed Level of Effort" in text
     assert "Technical Experience and Past Performance References" in text
     assert "Procurement Compliance Matrix" in text
@@ -1357,6 +1369,9 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Financial Proposal Companion" in rendered
     assert "Professional fees" in rendered
     assert "Milestone-based invoicing at inception, draft, and final submission." in rendered
+    assert "Technical proposal narrative" in rendered
+    assert "Owner: Proposal manager" in rendered
+    assert "Status: ready" in rendered
     assert "Proposed Level of Effort" in rendered
     assert "Technical Experience and Past Performance References" in rendered
     assert "Organization information and legal status package" in rendered

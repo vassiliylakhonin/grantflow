@@ -1534,6 +1534,21 @@ def _add_evaluation_plan_sheet(
         str(toc_payload.get("payment_schedule_summary") or ""),
     )
 
+    for idx, row in enumerate(toc_payload.get("submission_package_checklist") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("artifact") or f"Submission Artifact {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                f"Owner: {str(row.get('owner') or '').strip()}".strip(),
+                f"Status: {str(row.get('status') or '').strip()}".strip(),
+                str(row.get("notes") or "").strip(),
+            )
+            if part and part not in {"Owner:", "Status:"}
+        )
+        add_row("submission_package", f"SP{idx}", title, description)
+
     for idx, item in enumerate(toc_payload.get("annex_readiness") or [], start=1):
         add_row("annex", f"A{idx}", f"Annex Readiness {idx}", str(item))
 

@@ -1202,6 +1202,27 @@ def _render_evaluation_rfq_toc(
         doc.add_heading("Payment Schedule Summary", level=2)
         doc.add_paragraph(payment_schedule)
 
+    submission_package = toc.get("submission_package_checklist")
+    if isinstance(submission_package, list) and submission_package:
+        doc.add_heading("Submission Package Completeness", level=2)
+        for row in submission_package:
+            if not isinstance(row, dict):
+                continue
+            artifact = str(row.get("artifact") or "Submission Artifact").strip()
+            owner = str(row.get("owner") or "").strip()
+            status = str(row.get("status") or "").strip()
+            notes = str(row.get("notes") or "").strip()
+            doc.add_paragraph(artifact, style="List Bullet")
+            details = []
+            if owner:
+                details.append(f"Owner: {owner}")
+            if status:
+                details.append(f"Status: {status}")
+            if notes:
+                details.append(f"Notes: {notes}")
+            if details:
+                doc.add_paragraph(" | ".join(details))
+
     deliverables = toc.get("deliverables")
     if isinstance(deliverables, list) and deliverables:
         doc.add_heading("Workplan & Deliverables", level=2)

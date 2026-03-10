@@ -387,6 +387,22 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    submission_rows = _pick_first_list(
+        toc,
+        ("submission_package_checklist", "submission_checklist", "attachment_manifest"),
+    )
+    submission_package_checklist = []
+    for raw in submission_rows:
+        row = raw if isinstance(raw, dict) else {"artifact": _clean_text(raw)}
+        submission_package_checklist.append(
+            {
+                "artifact": _pick_first_text(row, ("artifact", "title", "name")),
+                "owner": _pick_first_text(row, ("owner", "responsible_party")),
+                "status": _pick_first_text(row, ("status",)),
+                "notes": _pick_first_text(row, ("notes", "description")),
+            }
+        )
+
     return {
         "proposal_mode": "evaluation_rfq",
         "rfq_profile": _pick_first_text(toc, ("rfq_profile", "profile")),
@@ -412,6 +428,7 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
         "cost_structure": cost_structure,
         "pricing_assumptions": _to_str_list(_pick_first_list(toc, ("pricing_assumptions", "financial_assumptions"))),
         "payment_schedule_summary": _pick_first_text(toc, ("payment_schedule_summary", "payment_schedule")),
+        "submission_package_checklist": submission_package_checklist,
         "deliverables": deliverables,
         "workplan_summary": _to_str_list(_pick_first_list(toc, ("workplan_summary", "workplan"))),
         "assumptions_risks": _to_str_list(_pick_first_list(toc, ("assumptions_risks", "risks", "assumptions"))),

@@ -244,6 +244,8 @@ curl -s -X POST http://127.0.0.1:8000/export \
 For the RFQ demo path, verify:
 - `.docx` contains `Evaluation RFQ Technical Proposal`
 - `.xlsx` contains `Evaluation_Plan`
+- `.docx` contains `Submission Package Completeness`
+- `Evaluation_Plan` contains `submission_package` rows
 
 ## 4) Optional HITL Segment
 

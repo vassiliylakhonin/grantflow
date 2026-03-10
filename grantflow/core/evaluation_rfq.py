@@ -50,6 +50,13 @@ class EvaluationCostItem(BaseModel):
     notes: str = Field(default="", description="Short pricing or packaging note")
 
 
+class EvaluationSubmissionItem(BaseModel):
+    artifact: str = Field(description="Named file or package artifact required for submission")
+    owner: str = Field(description="Responsible owner for the artifact")
+    status: str = Field(description="Packaging status: ready|partial|pending")
+    notes: str = Field(default="", description="Short note on completeness or remaining action")
+
+
 class EvaluationRFQTOC(BaseModel):
     proposal_mode: Literal["evaluation_rfq"] = EVALUATION_RFQ_PROPOSAL_MODE
     rfq_profile: str | None = Field(default=None, description="Optional RFQ-specific contract profile")
@@ -81,6 +88,7 @@ class EvaluationRFQTOC(BaseModel):
     cost_structure: list[EvaluationCostItem] = Field(default_factory=list)
     pricing_assumptions: list[str] = Field(default_factory=list)
     payment_schedule_summary: str = Field(default="", description="Milestone-based payment or invoicing summary")
+    submission_package_checklist: list[EvaluationSubmissionItem] = Field(default_factory=list)
 
 
 def is_evaluation_rfq_mode(input_context: Dict[str, Any] | None) -> bool:
@@ -404,6 +412,47 @@ def _build_katch_cost_structure() -> list[Dict[str, str]]:
     ]
 
 
+def _build_katch_submission_package_checklist() -> list[Dict[str, str]]:
+    return [
+        {
+            "artifact": "Technical proposal narrative",
+            "owner": "Proposal manager",
+            "status": "ready",
+            "notes": "Final export-ready technical response with methodology, staffing, and deliverables sections.",
+        },
+        {
+            "artifact": "Financial proposal companion",
+            "owner": "Finance / proposal manager",
+            "status": "ready",
+            "notes": "Separate pricing note aligned to LOE, fieldwork, analysis, and reporting structure.",
+        },
+        {
+            "artifact": "CV annex package",
+            "owner": "Team lead / HR support",
+            "status": "ready",
+            "notes": "CVs for key personnel aligned to the key personnel table.",
+        },
+        {
+            "artifact": "Sample technical outputs",
+            "owner": "Proposal manager",
+            "status": "ready",
+            "notes": "Comparable final evaluation reports or briefs referenced in the technical response.",
+        },
+        {
+            "artifact": "Work plan and level-of-effort annexes",
+            "owner": "Evaluation lead",
+            "status": "ready",
+            "notes": "Gantt-style work plan and LOE matrix aligned to deliverables and staffing.",
+        },
+        {
+            "artifact": "Registration / audit support documents",
+            "owner": "Operations / compliance",
+            "status": "ready",
+            "notes": "Registration certificate and latest audited financial statement packaged with the response.",
+        },
+    ]
+
+
 def build_katch_evaluation_rfq_payload(
     *,
     donor_id: str,
@@ -556,6 +605,7 @@ def build_katch_evaluation_rfq_payload(
             "Use milestone-based invoicing tied to inception approval, fieldwork completion, draft report submission, "
             "and final report / brief acceptance."
         ),
+        "submission_package_checklist": _build_katch_submission_package_checklist(),
         "annex_readiness": [
             "Registration certificate and latest audited financial statement",
             "CVs for key personnel",
@@ -646,5 +696,6 @@ def build_evaluation_rfq_fallback_payload(
         "cost_structure": [],
         "pricing_assumptions": [],
         "payment_schedule_summary": "",
+        "submission_package_checklist": [],
         "compliance_matrix": [],
     }
