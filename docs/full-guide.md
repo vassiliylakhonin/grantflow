@@ -9,6 +9,8 @@ Quick companion docs:
 - pilot role mapping worksheet: `docs/pilot-role-mapping-worksheet.md`
 - pilot role mapping example: `docs/pilot-role-mapping-example.md`
 - pilot kickoff agenda: `docs/pilot-kickoff-agenda.md`
+- customer discovery example: `docs/pilot-customers/kazakhstan-ngo-discovery.md`
+- customer pilot plan example: `docs/pilot-customers/kazakhstan-ngo-recommended-plan.md`
 - enterprise access pattern: `docs/enterprise-access-layer.md`
 
 ## 1) Product Scope
