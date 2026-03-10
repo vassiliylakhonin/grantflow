@@ -190,6 +190,12 @@ def _add_katch_evaluation_rfq_checks(
             "Sample technical outputs are not referenced, so the KATCH submission does not yet evidence comparable report quality.",
             "Reference annexed sample evaluation outputs or report examples that show similar end-line or final-assessment work.",
         ),
+        (
+            "KATCH_FINANCIAL_SUMMARY_PRESENT",
+            "financial_summary",
+            "Financial proposal companion summary is missing, so the technical package does not yet explain how pricing aligns with scope and deliverables.",
+            "Add a short financial companion summary explaining how staffing, fieldwork, analysis, and reporting costs align to the technical work plan.",
+        ),
     ]
     for code, field_name, message, fix_hint in scalar_requirements:
         value = str(toc_payload.get(field_name) or "").strip()
@@ -283,6 +289,73 @@ def _add_katch_evaluation_rfq_checks(
             section="toc",
             message="KATCH key personnel packaging is incomplete, so reviewers cannot verify staffing depth, qualifications, and CV readiness for the assignment.",
             fix_hint="Add a key personnel table with named or placeholder staff, role, qualifications, indicative level of effort, and CV attachment status.",
+        )
+
+    cost_structure = toc_payload.get("cost_structure") or []
+    ready_cost_rows = [
+        row
+        for row in cost_structure
+        if isinstance(row, dict)
+        and str(row.get("cost_bucket") or "").strip()
+        and str(row.get("basis") or "").strip()
+        and str(row.get("estimate") or "").strip()
+    ]
+    if len(ready_cost_rows) >= 3:
+        check_fn(
+            code="KATCH_COST_STRUCTURE_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(ready_cost_rows)} cost row(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_COST_STRUCTURE_PRESENT",
+            status="fail",
+            section="toc",
+            detail="Need structured cost buckets linked to staffing, fieldwork, analysis, and reporting",
+        )
+        add_flaw_fn(
+            code="KATCH_COST_STRUCTURE_MISSING",
+            severity="medium",
+            section="toc",
+            message="KATCH cost structure is incomplete, so the financial companion is weak on role-based pricing logic and major delivery cost buckets.",
+            fix_hint="Add cost buckets for professional fees, fieldwork/travel, data collection/analysis, and reporting/workshop delivery with short pricing notes.",
+        )
+
+    pricing_assumptions = toc_payload.get("pricing_assumptions")
+    if isinstance(pricing_assumptions, list) and len([item for item in pricing_assumptions if str(item).strip()]) >= 2:
+        check_fn(
+            code="KATCH_PRICING_ASSUMPTIONS_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(pricing_assumptions)} pricing assumption(s)",
+        )
+    else:
+        check_fn(
+            code="KATCH_PRICING_ASSUMPTIONS_PRESENT",
+            status="warn",
+            section="toc",
+            detail="Limited pricing assumption detail",
+        )
+        add_flaw_fn(
+            code="KATCH_PRICING_ASSUMPTIONS_WEAK",
+            severity="medium",
+            section="toc",
+            message="KATCH pricing assumptions are underspecified, so reviewers cannot quickly understand tax, currency, fieldwork, and reimbursable-cost treatment.",
+            fix_hint="State the main pricing assumptions, including staffing basis, fieldwork/travel assumptions, and treatment of taxes or reimbursable costs.",
+        )
+
+    payment_schedule = str(toc_payload.get("payment_schedule_summary") or "").strip()
+    if payment_schedule:
+        check_fn(code="KATCH_PAYMENT_SCHEDULE_PRESENT", status="pass", section="toc")
+    else:
+        check_fn(code="KATCH_PAYMENT_SCHEDULE_PRESENT", status="warn", section="toc", detail="No payment_schedule_summary")
+        add_flaw_fn(
+            code="KATCH_PAYMENT_SCHEDULE_WEAK",
+            severity="low",
+            section="toc",
+            message="KATCH payment schedule is not summarized, so the financial companion is weaker on milestone-based invoicing logic.",
+            fix_hint="Add a short payment schedule summary tied to inception, fieldwork, draft report, and final submission milestones.",
         )
 
     workplan_summary = toc_payload.get("workplan_summary")

@@ -1013,3 +1013,10 @@ def test_fallback_structured_toc_supports_katch_evaluation_rfq_profile():
     assert len(payload["key_personnel"]) >= 2
     assert payload["key_personnel"][0]["name"]
     assert payload["key_personnel"][0]["cv_status"]
+    assert payload["financial_summary"]
+    assert isinstance(payload.get("cost_structure"), list)
+    assert len(payload["cost_structure"]) >= 3
+    assert payload["cost_structure"][0]["cost_bucket"]
+    assert isinstance(payload.get("pricing_assumptions"), list)
+    assert len(payload["pricing_assumptions"]) >= 2
+    assert payload["payment_schedule_summary"]

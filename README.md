@@ -194,6 +194,7 @@ What it currently supports:
 - team-composition and deliverable plan sections
 - key-personnel and CV-readiness packaging for the technical response
 - procurement-style compliance matrix for the technical response package
+- financial proposal companion summary with cost-structure and payment-schedule notes
 - review/control/export workflow using the same findings, comments, HITL, and artifact packaging layers
 
 What it does not yet claim:
@@ -244,6 +245,7 @@ Evaluation RFQ demo variant:
 - inspect `Evaluation_Plan` in `.xlsx`
 - inspect `Procurement Compliance Matrix` in the `.docx` and `compliance` rows in `Evaluation_Plan`
 - inspect `Key Personnel and CV Readiness` in the `.docx` and `key_personnel` rows in `Evaluation_Plan`
+- inspect `Financial Proposal Companion`, `Indicative Cost Structure`, and `Payment Schedule Summary`
 
 For ready-made example artifacts, use files in `docs/samples/` and `docs/pilot_runs/2026-02-27/`.
 

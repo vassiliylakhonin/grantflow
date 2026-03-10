@@ -1165,6 +1165,43 @@ def _render_evaluation_rfq_toc(
         doc.add_heading("Sample Technical Outputs", level=2)
         doc.add_paragraph(sample_outputs)
 
+    financial_summary = str(toc.get("financial_summary") or "").strip()
+    if financial_summary:
+        doc.add_heading("Financial Proposal Companion", level=2)
+        doc.add_paragraph(financial_summary)
+
+    cost_structure = toc.get("cost_structure")
+    if isinstance(cost_structure, list) and cost_structure:
+        doc.add_heading("Indicative Cost Structure", level=2)
+        for row in cost_structure:
+            if not isinstance(row, dict):
+                continue
+            cost_bucket = str(row.get("cost_bucket") or "Cost Bucket").strip()
+            basis = str(row.get("basis") or "").strip()
+            estimate = str(row.get("estimate") or "").strip()
+            notes = str(row.get("notes") or "").strip()
+            doc.add_paragraph(cost_bucket, style="List Bullet")
+            details = []
+            if basis:
+                details.append(f"Basis: {basis}")
+            if estimate:
+                details.append(f"Estimate: {estimate}")
+            if notes:
+                details.append(f"Notes: {notes}")
+            if details:
+                doc.add_paragraph(" | ".join(details))
+
+    pricing_assumptions = toc.get("pricing_assumptions")
+    if isinstance(pricing_assumptions, list) and pricing_assumptions:
+        doc.add_heading("Pricing Assumptions", level=2)
+        for item in pricing_assumptions:
+            doc.add_paragraph(str(item), style="List Bullet")
+
+    payment_schedule = str(toc.get("payment_schedule_summary") or "").strip()
+    if payment_schedule:
+        doc.add_heading("Payment Schedule Summary", level=2)
+        doc.add_paragraph(payment_schedule)
+
     deliverables = toc.get("deliverables")
     if isinstance(deliverables, list) and deliverables:
         doc.add_heading("Workplan & Deliverables", level=2)

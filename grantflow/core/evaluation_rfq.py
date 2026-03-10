@@ -43,6 +43,13 @@ class EvaluationComplianceItem(BaseModel):
     notes: str = Field(default="", description="Short implementation or packaging note")
 
 
+class EvaluationCostItem(BaseModel):
+    cost_bucket: str = Field(description="Named cost bucket")
+    basis: str = Field(description="What drives the cost bucket")
+    estimate: str = Field(description="Indicative estimate or pricing note")
+    notes: str = Field(default="", description="Short pricing or packaging note")
+
+
 class EvaluationRFQTOC(BaseModel):
     proposal_mode: Literal["evaluation_rfq"] = EVALUATION_RFQ_PROPOSAL_MODE
     rfq_profile: str | None = Field(default=None, description="Optional RFQ-specific contract profile")
@@ -70,6 +77,10 @@ class EvaluationRFQTOC(BaseModel):
         default_factory=list,
         description="RFQ compliance matrix mapping requirements to response sections and supporting evidence",
     )
+    financial_summary: str = Field(default="", description="Short financial proposal companion summary for the technical package")
+    cost_structure: list[EvaluationCostItem] = Field(default_factory=list)
+    pricing_assumptions: list[str] = Field(default_factory=list)
+    payment_schedule_summary: str = Field(default="", description="Milestone-based payment or invoicing summary")
 
 
 def is_evaluation_rfq_mode(input_context: Dict[str, Any] | None) -> bool:
@@ -364,6 +375,35 @@ def _build_katch_compliance_matrix() -> list[Dict[str, str]]:
     ]
 
 
+def _build_katch_cost_structure() -> list[Dict[str, str]]:
+    return [
+        {
+            "cost_bucket": "Professional fees",
+            "basis": "Person-days by role across inception, fieldwork, analysis, workshop, and reporting",
+            "estimate": "Rate card and level-of-effort matrix aligned to the work plan",
+            "notes": "Should reconcile to team composition and proposed LOE.",
+        },
+        {
+            "cost_bucket": "Fieldwork and travel",
+            "basis": "Field visits, local transport, accommodation, and respondent-access logistics",
+            "estimate": "Activity-based fieldwork budget with travel assumptions",
+            "notes": "State whether costs are estimated or fixed by location and duration.",
+        },
+        {
+            "cost_bucket": "Data collection and analysis",
+            "basis": "Survey administration, transcription, translation, coding, and analytical tooling",
+            "estimate": "Method-linked cost note tied to the evaluation design",
+            "notes": "Should align with methodology components and software plan.",
+        },
+        {
+            "cost_bucket": "Workshops and reporting",
+            "basis": "Validation workshop, presentation materials, final report production, and brief formatting",
+            "estimate": "Milestone-based reporting and dissemination cost note",
+            "notes": "Tie payment timing to deliverable acceptance where possible.",
+        },
+    ]
+
+
 def build_katch_evaluation_rfq_payload(
     *,
     donor_id: str,
@@ -502,12 +542,27 @@ def build_katch_evaluation_rfq_payload(
             "Attach one or more sample technical outputs from comparable final evaluations, end-line studies, or "
             "multidimensional development-sector assessments."
         ),
+        "financial_summary": (
+            "Provide a separate financial proposal companion that aligns activity-based level of effort, fieldwork, "
+            "travel, analysis, workshop, and reporting costs to the technical work plan and deliverable schedule."
+        ),
+        "cost_structure": _build_katch_cost_structure(),
+        "pricing_assumptions": [
+            "Professional fees should map directly to named roles and person-days in the level-of-effort matrix.",
+            "Travel and fieldwork assumptions should reflect actual field coverage, respondent access, and workshop modality.",
+            "Currency, taxes, and reimbursable-cost treatment should be stated explicitly in the financial package.",
+        ],
+        "payment_schedule_summary": (
+            "Use milestone-based invoicing tied to inception approval, fieldwork completion, draft report submission, "
+            "and final report / brief acceptance."
+        ),
         "annex_readiness": [
             "Registration certificate and latest audited financial statement",
             "CVs for key personnel",
             "Sample technical output(s)",
             "Activity-based work plan / Gantt chart",
             "Activity-based level of effort matrix",
+            "Financial proposal companion / budget note",
         ],
         "compliance_matrix": _build_katch_compliance_matrix(),
     }
@@ -587,5 +642,9 @@ def build_evaluation_rfq_fallback_payload(
             "Client access to project records, stakeholder lists, and prior reporting remains timely.",
             "Field access and respondent scheduling allow the agreed evidence plan to be completed within the RFQ timeline.",
         ],
+        "financial_summary": "Provide a separate financial proposal companion tied to the technical work plan and staffing structure.",
+        "cost_structure": [],
+        "pricing_assumptions": [],
+        "payment_schedule_summary": "",
         "compliance_matrix": [],
     }

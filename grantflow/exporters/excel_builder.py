@@ -1502,6 +1502,37 @@ def _add_evaluation_plan_sheet(
         "Sample Technical Outputs",
         str(toc_payload.get("sample_outputs_summary") or ""),
     )
+    add_row(
+        "financial_summary",
+        "financial_summary",
+        "Financial Proposal Companion",
+        str(toc_payload.get("financial_summary") or ""),
+    )
+
+    for idx, row in enumerate(toc_payload.get("cost_structure") or [], start=1):
+        if not isinstance(row, dict):
+            continue
+        title = str(row.get("cost_bucket") or f"Cost Bucket {idx}")
+        description = " | ".join(
+            part
+            for part in (
+                f"Basis: {str(row.get('basis') or '').strip()}".strip(),
+                f"Estimate: {str(row.get('estimate') or '').strip()}".strip(),
+                str(row.get("notes") or "").strip(),
+            )
+            if part and part not in {"Basis:", "Estimate:"}
+        )
+        add_row("cost_structure", f"CS{idx}", title, description)
+
+    for idx, item in enumerate(toc_payload.get("pricing_assumptions") or [], start=1):
+        add_row("pricing_assumption", f"P{idx}", f"Pricing Assumption {idx}", str(item))
+
+    add_row(
+        "payment_schedule",
+        "payment_schedule_summary",
+        "Payment Schedule Summary",
+        str(toc_payload.get("payment_schedule_summary") or ""),
+    )
 
     for idx, item in enumerate(toc_payload.get("annex_readiness") or [], start=1):
         add_row("annex", f"A{idx}", f"Annex Readiness {idx}", str(item))

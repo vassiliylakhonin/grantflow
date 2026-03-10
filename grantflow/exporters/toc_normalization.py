@@ -374,6 +374,19 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    cost_rows = _pick_first_list(toc, ("cost_structure", "financial_structure", "budget_structure"))
+    cost_structure = []
+    for raw in cost_rows:
+        row = raw if isinstance(raw, dict) else {"cost_bucket": _clean_text(raw)}
+        cost_structure.append(
+            {
+                "cost_bucket": _pick_first_text(row, ("cost_bucket", "bucket", "title", "name")),
+                "basis": _pick_first_text(row, ("basis", "driver")),
+                "estimate": _pick_first_text(row, ("estimate", "amount", "pricing_note")),
+                "notes": _pick_first_text(row, ("notes", "description")),
+            }
+        )
+
     return {
         "proposal_mode": "evaluation_rfq",
         "rfq_profile": _pick_first_text(toc, ("rfq_profile", "profile")),
@@ -395,6 +408,10 @@ def _normalize_evaluation_rfq_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
             toc, ("technical_experience_summary", "past_performance_summary")
         ),
         "sample_outputs_summary": _pick_first_text(toc, ("sample_outputs_summary", "sample_output_summary")),
+        "financial_summary": _pick_first_text(toc, ("financial_summary", "budget_summary")),
+        "cost_structure": cost_structure,
+        "pricing_assumptions": _to_str_list(_pick_first_list(toc, ("pricing_assumptions", "financial_assumptions"))),
+        "payment_schedule_summary": _pick_first_text(toc, ("payment_schedule_summary", "payment_schedule")),
         "deliverables": deliverables,
         "workplan_summary": _to_str_list(_pick_first_list(toc, ("workplan_summary", "workplan"))),
         "assumptions_risks": _to_str_list(_pick_first_list(toc, ("assumptions_risks", "risks", "assumptions"))),

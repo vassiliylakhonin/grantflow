@@ -1265,6 +1265,20 @@ def test_exporters_support_evaluation_rfq_mode():
             "level_of_effort_summary": "Activity-based person-days by phase and role.",
             "technical_experience_summary": "Comparable evaluation experience in development-sector final assessments.",
             "sample_outputs_summary": "Annexed final evaluation reports from comparable assignments.",
+            "financial_summary": "Separate financial companion aligned to staffing, fieldwork, analysis, and reporting.",
+            "cost_structure": [
+                {
+                    "cost_bucket": "Professional fees",
+                    "basis": "Person-days by role and phase",
+                    "estimate": "LOE matrix and rate card",
+                    "notes": "Reconciles to technical work plan",
+                }
+            ],
+            "pricing_assumptions": [
+                "Professional fees map to named roles and person-days.",
+                "Travel and fieldwork assumptions are stated separately.",
+            ],
+            "payment_schedule_summary": "Milestone-based invoicing at inception, draft, and final submission.",
             "compliance_matrix": [
                 {
                     "requirement": "Organization information and legal status package",
@@ -1317,6 +1331,11 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Key Personnel and CV Readiness" in text
     assert "Senior evaluation lead with donor reporting experience" in text
     assert "CV status: ready" in text
+    assert "Financial Proposal Companion" in text
+    assert "Indicative Cost Structure" in text
+    assert "Pricing Assumptions" in text
+    assert "Payment Schedule Summary" in text
+    assert "LOE matrix and rate card" in text
     assert "Proposed Level of Effort" in text
     assert "Technical Experience and Past Performance References" in text
     assert "Procurement Compliance Matrix" in text
@@ -1335,6 +1354,9 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Analysis and Proposed Approaches / Methodologies" in rendered
     assert "Proposed Team Lead (Team Lead)" in rendered
     assert "CV: ready" in rendered
+    assert "Financial Proposal Companion" in rendered
+    assert "Professional fees" in rendered
+    assert "Milestone-based invoicing at inception, draft, and final submission." in rendered
     assert "Proposed Level of Effort" in rendered
     assert "Technical Experience and Past Performance References" in rendered
     assert "Organization information and legal status package" in rendered

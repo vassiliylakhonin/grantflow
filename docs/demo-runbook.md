@@ -190,6 +190,7 @@ This uses `proposal_mode=evaluation_rfq` under the hood and is intended for the 
 
 The KATCH-style RFQ path now also renders a procurement-oriented compliance matrix in the technical proposal export, so operators can review requirement-to-section coverage before final packaging.
 It also renders a key-personnel/CV-readiness block so the technical response can show staffing readiness without waiting for a full procurement-suite implementation.
+It now includes a financial proposal companion summary, indicative cost structure, pricing assumptions, and payment-schedule note to keep the technical response aligned with the separate commercial package.
 
 ### Step C: inspect status and quality
 
