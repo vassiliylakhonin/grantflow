@@ -7,7 +7,8 @@ Current state:
 - final readiness gate passed
 - all three donor tracks validated
 - first `R2` checkpoint completed
-- pilot continues after `R2`; `USAID` remains under conditions
+- all three cases reached `FINAL_PACKAGE_READY`
+- pilot validated with conditions; `USAID` remains the weakest coordination path
 
 ## 1. Pilot Scope
 
@@ -174,10 +175,10 @@ Each case must move in order:
 7. `R2_COMPLETE`
 8. `FINAL_PACKAGE_READY`
 
-Current case status after first `R2` checkpoint:
-- `CASE-UN-01` -> `R2_COMPLETE`
-- `CASE-EU-01` -> `R2_COMPLETE`
-- `CASE-USAID-01` -> `R2_COMPLETE`
+Current case status at closeout:
+- `CASE-UN-01` -> `FINAL_PACKAGE_READY`
+- `CASE-EU-01` -> `FINAL_PACKAGE_READY`
+- `CASE-USAID-01` -> `FINAL_PACKAGE_READY`
 
 ## 8. Success Criteria
 
@@ -245,3 +246,19 @@ Pilot interpretation:
 - `UN` and `EU` progressed through `R2` without extra intervention and remain on target
 - `USAID` improved after corrective actions, but still carries the highest coordination load and stays under conditions
 - overall pilot direction remains positive and should continue
+
+## 12. Closeout Readout
+
+Readout as of `2026-03-27`:
+
+- `CASE-UN-01` closed strongly and can be used as an external proof path
+- `CASE-EU-01` closed strongly and confirms value on a full proposal workflow
+- `CASE-USAID-01` reached final package materially faster than baseline, but should remain under conditions for broader rollout claims
+
+Closeout decision:
+- `continue_with_conditions`
+
+Pilot interpretation:
+- strongest proof donor paths: `un_agencies`, `eu`
+- remaining weak donor path: `usaid`
+- overall pilot hypothesis confirmed, with clearer proof on UN/EU than on USAID
