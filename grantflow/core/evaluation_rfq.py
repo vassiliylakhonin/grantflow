@@ -682,6 +682,9 @@ def build_katch_evaluation_rfq_payload(
         "How efficient was delivery in relation to time, resources, staffing, and cost-effectiveness?",
         "What project benefits are likely to be sustained after closeout, and what should future programming retain or change?",
     ]
+    organization_name = _clean_text(input_context.get("organization_name") or "KATCH")
+    rfq_title = _clean_text(input_context.get("rfq_title") or "Project Performance Evaluation")
+    assignment_label = f"{organization_name} {rfq_title}".strip()
     methodology_overview = (
         "Use a mixed-methods final assessment anchored in KATCH's results framework, combining outcome harvesting, "
         "social media analysis, key informant interviews, focus group discussions, survey inputs, and review of "
@@ -693,8 +696,8 @@ def build_katch_evaluation_rfq_payload(
         "proposal_mode": EVALUATION_RFQ_PROPOSAL_MODE,
         "rfq_profile": KATCH_EVALUATION_RFQ_PROFILE,
         "brief": (
-            f"Technical proposal for the {project} final assessment in {country}, covering evaluation design, fieldwork, "
-            "analysis, reporting, and stakeholder validation under the RFQ structure."
+            f"Technical response for the {assignment_label} in {country}, covering inception design, evidence collection, "
+            "analysis, stakeholder validation, and final reporting under the RFQ submission structure."
         ),
         "background_context": background,
         "evaluation_purpose": purpose,
@@ -745,9 +748,9 @@ def build_katch_evaluation_rfq_payload(
             "Phase III - Analysis and Reporting: draft report, validation workshop, final report, and stand-alone brief.",
         ],
         "assumptions_risks": [
-            "Government, partner, and beneficiary interview access remains feasible within the fieldwork window.",
-            "Do-no-harm and confidentiality requirements are maintained for sensitive respondent groups.",
-            "Data availability and translation requirements remain manageable during the inception phase.",
+            "Government counterparts, partner organizations, and beneficiaries remain reachable during the approved fieldwork window.",
+            "Sensitive respondent engagement can be managed through do-no-harm, confidentiality, and referral safeguards.",
+            "Translation, transcription, and document access requirements stay manageable during inception and analysis.",
         ],
         "organization_information": (
             "Provide legal business name, authorized contact, business registration evidence, organizational profile, "
@@ -787,9 +790,9 @@ def build_katch_evaluation_rfq_payload(
         ),
         "cost_structure": _build_katch_cost_structure(),
         "pricing_assumptions": [
-            "Professional fees should map directly to named roles and person-days in the level-of-effort matrix.",
-            "Travel and fieldwork assumptions should reflect actual field coverage, respondent access, and workshop modality.",
-            "Currency, taxes, and reimbursable-cost treatment should be stated explicitly in the financial package.",
+            "Professional fees should map directly to named team roles, person-days, and review responsibilities in the level-of-effort matrix.",
+            "Fieldwork and travel assumptions should reflect respondent access, geographic coverage, and the agreed validation workshop format.",
+            "Currency basis, taxes, and reimbursable-cost treatment should be stated explicitly so the financial package can be evaluated without follow-up clarification.",
         ],
         "payment_schedule_summary": (
             "Use milestone-based invoicing tied to inception approval, fieldwork completion, draft report submission, "

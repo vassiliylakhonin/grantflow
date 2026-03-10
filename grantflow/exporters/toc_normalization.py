@@ -6,6 +6,9 @@ from typing import Any, Dict, Iterable
 def unwrap_toc_payload(toc_payload: Any) -> Dict[str, Any]:
     if not isinstance(toc_payload, dict):
         return {}
+    state_root = toc_payload.get("state")
+    if isinstance(state_root, dict):
+        return unwrap_toc_payload(state_root)
     toc_root = toc_payload.get("toc")
     if isinstance(toc_root, dict):
         root = dict(toc_root)

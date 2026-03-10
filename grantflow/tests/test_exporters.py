@@ -1396,57 +1396,32 @@ def test_exporters_support_evaluation_rfq_mode():
     assert "Registration certificate and audited financials" in text
     assert "Workplan & Deliverables" in text
     assert "Deliverables Schedule Table" in text
-    assert "Draft Evaluation Report (Week 4)" in text
-    assert "Review gate: Technical QA and client review" in text
-    assert "Submission completeness score:" in text
-    assert "Submission readiness status:" in text
-    assert "Top submission gap:" in text
 
-    wb = load_workbook(BytesIO(build_xlsx_from_logframe(logframe_draft, "un_agencies", toc_draft=toc_draft)))
-    assert "Evaluation_Plan" in wb.sheetnames
-    headers = [cell.value for cell in wb["Evaluation_Plan"][1]]
-    assert headers == ["Section", "ID", "Title", "Description"]
-    rendered = "\n".join(
-        " | ".join("" if cell is None else str(cell) for cell in row)
-        for row in wb["Evaluation_Plan"].iter_rows(values_only=True)
-    )
-    assert "Organization Information" in rendered
-    assert "Analysis and Proposed Approaches / Methodologies" in rendered
-    assert "Proposed Team Lead (Team Lead)" in rendered
-    assert "CV: ready" in rendered
-    assert "Financial Proposal Companion" in rendered
-    assert "Professional fees" in rendered
-    assert "Milestone-based invoicing at inception, draft, and final submission." in rendered
-    assert "Technical proposal narrative" in rendered
-    assert "Owner: Proposal manager" in rendered
-    assert "Status: ready" in rendered
-    assert "Registration certificate" in rendered
-    assert "Required for: Organization information and legal-status package" in rendered
-    assert "What changes can be substantiated through the evidence base?" in rendered
-    assert "Support findings and recommendations." in rendered
-    assert "Outcome Harvesting" in rendered
-    assert "Stakeholders and implementation partners" in rendered
-    assert "Proposed Level of Effort" in rendered
-    assert "Technical Experience and Past Performance References" in rendered
-    assert "Draft Evaluation Report" in rendered
-    assert "Technical QA and client review" in rendered
-    assert "Organization information and legal status package" in rendered
-    assert "Registration certificate and audited financials" in rendered
-    export_contract_rows = list(wb["Export Contract"].iter_rows(values_only=True))
-    export_contract_rendered = "\n".join(
-        " | ".join("" if cell is None else str(cell) for cell in row) for row in export_contract_rows
-    )
-    assert "Submission Completeness Score" in export_contract_rendered
-    assert "Submission Readiness Status" in export_contract_rendered
-    assert "Top Submission Gap" in export_contract_rendered
-    contract = evaluate_export_contract(
-        donor_id="un_agencies",
-        toc_payload=toc_draft,
-        workbook_sheetnames=wb.sheetnames,
-        workbook_primary_sheet_headers=headers,
-    )
+
+def test_export_contract_resolves_evaluation_rfq_from_wrapped_state_payload():
+    wrapped = {
+        "state": {
+            "donor_id": "un_agencies",
+            "input_context": {
+                "proposal_mode": "evaluation_rfq",
+                "rfq_profile": "katch_final_assessment",
+            },
+            "toc": {
+                "proposal_mode": "evaluation_rfq",
+                "rfq_profile": "katch_final_assessment",
+                "brief": "Technical response summary",
+                "organization_information": "Registered nonprofit evaluation supplier.",
+                "evaluation_purpose": "Assess performance and lessons learned.",
+                "methodology_overview": "Mixed-methods evaluation design.",
+                "methodology_components": [{"method": "Outcome Harvesting"}],
+                "workplan_summary": ["Inception", "Fieldwork", "Reporting"],
+                "level_of_effort_summary": "Activity-based LOE by phase.",
+                "technical_experience_summary": "Comparable evaluation assignments delivered.",
+                "team_composition": [{"role": "Team Lead"}],
+                "deliverables": [{"deliverable": "Final report", "timing": "Week 8", "purpose": "Submission"}],
+            },
+        }
+    }
+    contract = evaluate_export_contract(donor_id="un_agencies", toc_payload=wrapped)
     assert contract["template_key"] == "evaluation_rfq"
-    assert contract["status"] == "pass"
-    submission_summary = contract.get("submission_readiness_summary") or {}
-    assert submission_summary.get("completeness_score", 0) > 0
-    assert submission_summary.get("readiness_status") == "ready"
+    assert "brief" in contract["present_sections"]

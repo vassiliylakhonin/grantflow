@@ -63,7 +63,12 @@ def normalize_export_template_key(donor_id: str) -> str:
 
 
 def resolve_export_template_key(*, donor_id: str, toc_payload: Dict[str, Any]) -> str:
-    proposal_mode = str((unwrap_toc_payload(toc_payload) or {}).get("proposal_mode") or "").strip().lower()
+    unwrapped = unwrap_toc_payload(toc_payload) or {}
+    proposal_mode = str(unwrapped.get("proposal_mode") or "").strip().lower()
+    if not proposal_mode and isinstance(toc_payload, dict):
+        input_context = toc_payload.get("input_context")
+        if isinstance(input_context, dict):
+            proposal_mode = str(input_context.get("proposal_mode") or "").strip().lower()
     if proposal_mode == "evaluation_rfq":
         return "evaluation_rfq"
     return normalize_export_template_key(donor_id)
