@@ -105,10 +105,10 @@ make release-demo-bundle-fast
 ```
 
 Outputs to inspect:
-- `build/pilot-pack/`
-- `build/executive-pack/`
-- `build/pilot-evidence-pack/`
-- `build/release-demo-bundle-fast/`
+- `build/send-bundle-index.md`
+- `build/latest-open-order.md`
+- `build/executive-pack/README.md`
+- `build/pilot-evidence-pack/README.md`
 
 ## 6. Minimum Pilot Decision Check
 

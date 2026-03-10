@@ -24,10 +24,10 @@ GrantFlow is workflow infrastructure for institutional proposal operations. It i
   - `.docx`, `.xlsx`, ZIP review packages
 - Queue-capable operating mode:
   - API dispatcher + worker separation in `redis_queue` mode
-- Local demo and reproducible evidence packs:
-  - `make demo-pack`
-  - `make pilot-pack`
-  - `make executive-pack`
+- Public evaluation surface:
+  - `docs/five-minute-demo.md`
+  - `docs/enterprise-quickstart.md`
+  - `docs/proof-summary.md`
 
 ## Why This Matters To OEM / Embedded Buyers
 
@@ -62,4 +62,4 @@ GrantFlow is closer to a proposal workflow control plane than a chatbot backend.
 - `SECURITY.md`
 - `docs/api-stability-policy.md`
 - `grantflow/tests/test_integration.py`
-- `build/executive-pack*` or `build/pilot-pack*` outputs
+- current evaluation bundle or sample exports prepared by the operator

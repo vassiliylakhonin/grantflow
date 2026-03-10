@@ -117,7 +117,7 @@ Open in this order:
 - `build/pilot-pack/buyer-brief.md`
 
 If you want the packaged handoff:
-- `build/release-demo-bundle-fast/`
+- `build/send-bundle-index.md`
 
 ### 3. What to show
 

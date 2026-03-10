@@ -159,9 +159,9 @@ Decide:
 Keep the live walkthrough short.
 
 Recommended artifacts:
-- `build/executive-pack-6d-buyer/README.md`
-- `build/pilot-evidence-pack-6d-buyer/README.md`
-- `build/pilot-pack-6d-buyer/buyer-brief.md`
+- `build/executive-pack/README.md`
+- `build/pilot-evidence-pack/README.md`
+- `build/pilot-pack/buyer-brief.md`
 
 If the customer wants process detail:
 - open `/demo`

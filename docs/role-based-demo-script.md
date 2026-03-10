@@ -75,8 +75,8 @@ Show:
 - structured objectives / outcomes in exported files
 
 Reference:
-- `build/pilot-pack-6d-buyer/buyer-brief.md`
-- `build/executive-pack-6d-buyer/README.md`
+- `build/pilot-pack/buyer-brief.md`
+- `build/executive-pack/README.md`
 
 Emphasize:
 - structured first draft

@@ -79,14 +79,15 @@ This rebuilds the fast buyer path and produces:
 - executive pack
 - latest-open-order
 
-## 6. Build A Send-Ready Bundle
+## 6. Build A Buyer-Safe Bundle
 
 ```bash
 make release-demo-bundle-fast
 ```
 
 Primary output:
-- `build/release-demo-bundle-fast/`
+- `build/send-bundle-index.md`
+- `build/latest-open-order.md`
 
 ## 7. Stop The Stack
 
@@ -100,7 +101,7 @@ A credible first-day enterprise-style evaluation should end with:
 - stack up and healthy
 - corpus seeded for target donors
 - one successful generate/review/export cycle
-- one send-ready fast bundle
+- one buyer-safe evaluation bundle
 - route policy agreed at the gateway layer
 
 ## What This Is Not
