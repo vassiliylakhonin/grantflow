@@ -1,0 +1,62 @@
+{
+  "checkpoint_name": "kazakhstan_ngo_closeout",
+  "checkpoint_type": "PILOT_CLOSEOUT",
+  "checkpoint_date": "YYYY-MM-DD",
+  "captured_by": "GrantFlow / Ruslan",
+  "overall_pilot_decision": "pilot_success|continue_with_conditions|hold",
+  "cases": [
+    {
+      "case_id": "CASE-UN-01",
+      "donor_track": "un_agencies",
+      "current_status": "FINAL_PACKAGE_READY",
+      "final_package_ready_at": "YYYY-MM-DD HH:MM",
+      "time_to_first_reviewable_draft_hours": null,
+      "time_to_final_package_hours": null,
+      "review_loops": null,
+      "active_reviewers": null,
+      "major_mel_rewrites_after_r2": null,
+      "duplicate_conflicting_comments": null,
+      "final_decision": "continue|final_package_ready|hold",
+      "closeout_read": ""
+    },
+    {
+      "case_id": "CASE-EU-01",
+      "donor_track": "eu",
+      "current_status": "FINAL_PACKAGE_READY",
+      "final_package_ready_at": "YYYY-MM-DD HH:MM",
+      "time_to_first_reviewable_draft_hours": null,
+      "time_to_final_package_hours": null,
+      "review_loops": null,
+      "active_reviewers": null,
+      "major_mel_rewrites_after_r2": null,
+      "duplicate_conflicting_comments": null,
+      "final_decision": "continue|final_package_ready|hold",
+      "closeout_read": ""
+    },
+    {
+      "case_id": "CASE-USAID-01",
+      "donor_track": "usaid",
+      "current_status": "FINAL_PACKAGE_READY|R2_COMPLETE",
+      "final_package_ready_at": "YYYY-MM-DD HH:MM",
+      "time_to_first_reviewable_draft_hours": null,
+      "time_to_final_package_hours": null,
+      "review_loops": null,
+      "active_reviewers": null,
+      "major_mel_rewrites_after_r2": null,
+      "duplicate_conflicting_comments": null,
+      "final_decision": "continue_with_conditions|final_package_ready|hold",
+      "closeout_read": ""
+    }
+  ],
+  "summary": {
+    "pilot_hypothesis_confirmed": null,
+    "time_to_first_reviewable_draft_target_met_cases": null,
+    "time_to_final_package_target_met_cases": null,
+    "review_loops_target_met_cases": null,
+    "comment_hygiene_read": "",
+    "mel_rework_read": "",
+    "strongest_donor_paths": [],
+    "remaining_weak_paths": [],
+    "external_read": ""
+  }
+}

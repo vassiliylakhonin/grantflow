@@ -24,6 +24,9 @@ Quick companion docs:
 - customer USAID R2 corrective action plan: `docs/pilot-customers/kazakhstan-ngo-usaid-r2-corrective-action-plan.md`
 - customer R2 checkpoint json: `docs/pilot-customers/kazakhstan-ngo-r2-checkpoint.json`
 - customer R2 outcome memo: `docs/pilot-customers/kazakhstan-ngo-r2-outcome-memo.md`
+- customer closeout capture csv: `docs/pilot-customers/kazakhstan-ngo-closeout-capture.csv`
+- customer closeout checkpoint json: `docs/pilot-customers/kazakhstan-ngo-closeout-checkpoint.json`
+- customer closeout memo template: `docs/pilot-customers/kazakhstan-ngo-closeout-memo-template.md`
 - customer execution checklist example: `docs/pilot-customers/kazakhstan-ngo-execution-checklist.md`
 - customer measured baseline sheet example: `docs/pilot-customers/kazakhstan-ngo-measured-baseline.csv`
 - customer donor corpus plan example: `docs/pilot-customers/kazakhstan-ngo-donor-corpus-plan.md`
