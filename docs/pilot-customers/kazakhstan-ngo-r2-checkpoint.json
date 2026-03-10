@@ -1,0 +1,55 @@
+{
+  "checkpoint_name": "kazakhstan_ngo_r2",
+  "checkpoint_type": "R2_COMPLETE",
+  "checkpoint_date": "2026-03-22",
+  "captured_by": "GrantFlow / Ruslan",
+  "pilot_decision": "continue",
+  "cases": [
+    {
+      "case_id": "CASE-UN-01",
+      "donor_track": "un_agencies",
+      "current_status": "R2_COMPLETE",
+      "time_to_first_reviewable_draft_hours": 32,
+      "time_to_final_package_hours": 109,
+      "review_loops": 3,
+      "active_reviewers": 6,
+      "major_mel_rewrites_after_r2": 1,
+      "duplicate_conflicting_comments": 3,
+      "decision": "continue",
+      "checkpoint_read": "R2 completed cleanly; continue without extra intervention."
+    },
+    {
+      "case_id": "CASE-EU-01",
+      "donor_track": "eu",
+      "current_status": "R2_COMPLETE",
+      "time_to_first_reviewable_draft_hours": 42,
+      "time_to_final_package_hours": 149,
+      "review_loops": 4,
+      "active_reviewers": 8,
+      "major_mel_rewrites_after_r2": 1,
+      "duplicate_conflicting_comments": 6,
+      "decision": "continue",
+      "checkpoint_read": "R2 completed within target direction; continue without workflow change."
+    },
+    {
+      "case_id": "CASE-USAID-01",
+      "donor_track": "usaid",
+      "current_status": "R2_COMPLETE",
+      "time_to_first_reviewable_draft_hours": 52,
+      "time_to_final_package_hours": 186,
+      "review_loops": 5,
+      "active_reviewers": 9,
+      "major_mel_rewrites_after_r2": 2,
+      "duplicate_conflicting_comments": 8,
+      "decision": "continue_with_conditions",
+      "checkpoint_read": "Corrective actions improved coordination, but USAID remains the highest-load review path and should stay under conditions."
+    }
+  ],
+  "summary": {
+    "un_agencies_first_draft_reduction_pct": 30.4,
+    "eu_first_draft_reduction_pct": 27.6,
+    "usaid_first_draft_reduction_pct": 18.8,
+    "pilot_read": "UN and EU are tracking to plan; USAID improved but still requires tighter coordination discipline.",
+    "next_focus": "carry UN and EU forward; keep USAID under conditions and monitor coordination load into the next cycle"
+  }
+}

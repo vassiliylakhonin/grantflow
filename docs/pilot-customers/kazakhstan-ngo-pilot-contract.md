@@ -6,7 +6,8 @@ Current state:
 - live phase active
 - final readiness gate passed
 - all three donor tracks validated
-- no pre-live blockers remain
+- first `R2` checkpoint completed
+- pilot continues after `R2`; `USAID` remains under conditions
 
 ## 1. Pilot Scope
 
@@ -173,10 +174,10 @@ Each case must move in order:
 7. `R2_COMPLETE`
 8. `FINAL_PACKAGE_READY`
 
-Current case status at live launch:
-- `CASE-UN-01` -> `LIVE`
-- `CASE-EU-01` -> `LIVE`
-- `CASE-USAID-01` -> `LIVE`
+Current case status after first `R2` checkpoint:
+- `CASE-UN-01` -> `R2_COMPLETE`
+- `CASE-EU-01` -> `R2_COMPLETE`
+- `CASE-USAID-01` -> `R2_COMPLETE`
 
 ## 8. Success Criteria
 
@@ -205,3 +206,42 @@ Launch readout as of `2026-03-16`:
 - workflow policy active
 - KPI monitoring active
 - organizational and technical blockers: none
+
+## 11. First R2 Readout
+
+Readout as of `2026-03-22`:
+
+### CASE-UN-01
+- donor track: `un_agencies`
+- time to first reviewable draft: `32h`
+- time to final package: `109h`
+- review loops: `3`
+- active reviewers: `6`
+- major MEL rewrites after `R2`: `1`
+- duplicate/conflicting comments: `3`
+- decision: `continue`
+
+### CASE-EU-01
+- donor track: `eu`
+- time to first reviewable draft: `42h`
+- time to final package: `149h`
+- review loops: `4`
+- active reviewers: `8`
+- major MEL rewrites after `R2`: `1`
+- duplicate/conflicting comments: `6`
+- decision: `continue`
+
+### CASE-USAID-01
+- donor track: `usaid`
+- time to first reviewable draft: `52h`
+- time to final package: `186h`
+- review loops: `5`
+- active reviewers: `9`
+- major MEL rewrites after `R2`: `2`
+- duplicate/conflicting comments: `8`
+- decision: `continue_with_conditions`
+
+Pilot interpretation:
+- `UN` and `EU` progressed through `R2` without extra intervention and remain on target
+- `USAID` improved after corrective actions, but still carries the highest coordination load and stays under conditions
+- overall pilot direction remains positive and should continue

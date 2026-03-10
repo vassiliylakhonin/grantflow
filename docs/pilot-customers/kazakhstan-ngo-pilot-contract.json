@@ -7,25 +7,25 @@
         "case_id": "CASE-UN-01",
         "donor_track": "un_agencies",
         "title": "Youth Employability Concept Note",
-        "status": "LIVE"
+        "status": "R2_COMPLETE"
       },
       {
         "case_id": "CASE-EU-01",
         "donor_track": "eu",
         "title": "Community Resilience Full Proposal",
-        "status": "LIVE"
+        "status": "R2_COMPLETE"
       },
       {
         "case_id": "CASE-USAID-01",
         "donor_track": "usaid",
         "title": "Health Systems Strengthening Concept + Annexes",
-        "status": "LIVE"
+        "status": "R2_COMPLETE"
       }
     ],
     "first_live_case_date": "2026-03-16",
     "timezone": "Asia/Almaty"
   },
-  "updated_at": "2026-03-16",
+  "updated_at": "2026-03-22",
   "live_status": "ACTIVE",
   "final_readiness_gate": "PASSED",
   "baseline_capture_date": "2026-03-10",
@@ -133,5 +133,44 @@
     "kpi_monitoring_active": true,
     "uploader_owner_confirmed": true,
     "backup_case_zips_received": true
+  },
+  "r2_results": {
+    "CASE-UN-01": {
+      "donor_track": "un_agencies",
+      "time_to_first_reviewable_draft_hours": 32,
+      "time_to_final_package_hours": 109,
+      "review_loops": 3,
+      "active_reviewers": 6,
+      "major_mel_rewrites_after_r2": 1,
+      "duplicate_conflicting_comments": 3,
+      "decision": "continue"
+    },
+    "CASE-EU-01": {
+      "donor_track": "eu",
+      "time_to_first_reviewable_draft_hours": 42,
+      "time_to_final_package_hours": 149,
+      "review_loops": 4,
+      "active_reviewers": 8,
+      "major_mel_rewrites_after_r2": 1,
+      "duplicate_conflicting_comments": 6,
+      "decision": "continue"
+    },
+    "CASE-USAID-01": {
+      "donor_track": "usaid",
+      "time_to_first_reviewable_draft_hours": 52,
+      "time_to_final_package_hours": 186,
+      "review_loops": 5,
+      "active_reviewers": 9,
+      "major_mel_rewrites_after_r2": 2,
+      "duplicate_conflicting_comments": 8,
+      "decision": "continue_with_conditions"
+    }
+  },
+  "r2_checkpoint_decision": "continue",
+  "r2_interpretation": {
+    "un_agencies": "continue",
+    "eu": "continue",
+    "usaid": "continue_with_conditions",
+    "pilot_read": "directionally successful after first R2 checkpoint"
   }
 }
