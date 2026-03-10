@@ -124,6 +124,12 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
     summary = contract.get("submission_readiness_summary") if isinstance(contract, dict) else {}
     if not isinstance(summary, dict):
         summary = {}
+    attachment_file_validation = {
+        "attached_file_count": 0,
+        "missing_ready_file_count": 0,
+        "status_file_mismatch_count": 0,
+    }
+    normalized_attachment_rows: list[dict] = []
 
     manifest = {
         "proposal_mode": "evaluation_rfq",
@@ -131,11 +137,12 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
         "template_display_name": contract.get("template_display_name"),
         "donor_id": donor_id,
         "submission_readiness_summary": summary,
+        "attachment_file_validation": attachment_file_validation,
         "export_contract_status": export_contract.get("status"),
         "export_contract_mode": export_contract.get("mode"),
         "export_contract_summary": export_contract.get("summary"),
         "submission_package_checklist": submission_rows,
-        "attachment_manifest": attachment_rows,
+        "attachment_manifest": normalized_attachment_rows,
         "compliance_matrix": compliance_rows,
     }
     lines = [
@@ -159,25 +166,7 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
     else:
         lines.append("- none")
     lines.extend(["", "## Attachment Manifest"])
-    if attachment_rows:
-        for row in attachment_rows:
-            lines.append(
-                f"- `{row.get('attachment') or '-'}` | required_for=`{row.get('required_for') or '-'}` | owner=`{row.get('owner') or '-'}` | status=`{row.get('status') or '-'}`"
-            )
-    else:
-        lines.append("- none")
-    lines.extend(["", "## Compliance Matrix"])
-    if compliance_rows:
-        for row in compliance_rows:
-            lines.append(
-                f"- `{row.get('requirement') or '-'}` | section=`{row.get('response_section') or '-'}` | status=`{row.get('status') or '-'}`"
-            )
-    else:
-        lines.append("- none")
-    artifacts = {
-        "annex_packer/annex_manifest.json": (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8"),
-        "annex_packer/submission_readiness.md": ("\n".join(lines) + "\n").encode("utf-8"),
-    }
+    artifacts: dict[str, bytes] = {}
     package_lines = [
         "# Submission Package Placeholder Structure",
         "",
@@ -224,7 +213,11 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
         owner = str(row.get("owner") or "-").strip()
         status = str(row.get("status") or "-").strip()
         notes = str(row.get("notes") or "").strip()
+        status_token = status.lower()
         source_path = _attachment_source_path(row)
+        source_exists = False
+        attached_file = False
+        mismatch_reason = ""
         file_path = f"{annex_folder}/{idx:02d}_{_annex_slug(attachment, fallback=f'attachment_{idx}')}.md"
         source_display = source_path or "-"
         artifacts[file_path] = (
@@ -247,15 +240,65 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
             try:
                 source = Path(source_path).expanduser().resolve(strict=True)
             except (FileNotFoundError, OSError):
-                continue
-            if not source.is_file():
-                continue
-            export_name = _safe_attachment_export_name(index=idx, attachment=attachment, source_path=str(source))
-            binary_path = f"{annex_folder}/files/{export_name}"
-            try:
-                artifacts[binary_path] = source.read_bytes()
-            except OSError:
-                continue
+                source = None
+            if source is not None and source.is_file():
+                source_exists = True
+                export_name = _safe_attachment_export_name(index=idx, attachment=attachment, source_path=str(source))
+                binary_path = f"{annex_folder}/files/{export_name}"
+                try:
+                    artifacts[binary_path] = source.read_bytes()
+                    attached_file = True
+                except OSError:
+                    attached_file = False
+        if status_token == "ready" and not attached_file:
+            attachment_file_validation["missing_ready_file_count"] += 1
+            mismatch_reason = "status_ready_but_file_missing"
+        elif attached_file and status_token not in {"ready", "attached", "complete"}:
+            attachment_file_validation["status_file_mismatch_count"] += 1
+            mismatch_reason = "file_attached_but_status_not_ready"
+        if attached_file:
+            attachment_file_validation["attached_file_count"] += 1
+        normalized_row = dict(row)
+        normalized_row["source_path"] = source_display
+        normalized_row["source_exists"] = source_exists
+        normalized_row["attached_file"] = attached_file
+        normalized_row["attachment_file_status"] = (
+            "attached" if attached_file else ("missing" if source_path else "not_provided")
+        )
+        if mismatch_reason:
+            normalized_row["attachment_file_warning"] = mismatch_reason
+        normalized_attachment_rows.append(normalized_row)
+        line = (
+            f"- `{attachment}` | required_for=`{required_for}` | owner=`{owner}` | status=`{status or '-'}` "
+            f"| file_status=`{normalized_row['attachment_file_status']}`"
+        )
+        if mismatch_reason:
+            line += f" | warning=`{mismatch_reason}`"
+        lines.append(line)
+    if not attachment_rows:
+        lines.append("- none")
+    lines.extend(
+        [
+            "",
+            "## Attachment File Validation",
+            f"- Attached files: `{attachment_file_validation['attached_file_count']}`",
+            f"- Ready rows missing files: `{attachment_file_validation['missing_ready_file_count']}`",
+            f"- Status/file mismatches: `{attachment_file_validation['status_file_mismatch_count']}`",
+            "",
+            "## Compliance Matrix",
+        ]
+    )
+    if compliance_rows:
+        for row in compliance_rows:
+            lines.append(
+                f"- `{row.get('requirement') or '-'}` | section=`{row.get('response_section') or '-'}` | status=`{row.get('status') or '-'}`"
+            )
+    else:
+        lines.append("- none")
+    artifacts["annex_packer/annex_manifest.json"] = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode(
+        "utf-8"
+    )
+    artifacts["annex_packer/submission_readiness.md"] = ("\n".join(lines) + "\n").encode("utf-8")
     artifacts["submission_package/README.md"] = ("\n".join(package_lines) + "\n").encode("utf-8")
     artifacts["submission_package/package_structure.json"] = (
         json.dumps(

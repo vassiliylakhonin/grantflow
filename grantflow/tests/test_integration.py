@@ -14257,6 +14257,92 @@ def test_export_both_zip_stages_real_evaluation_rfq_annex_files(tmp_path: Path):
         assert f"- Source path: `{registration}`" in placeholder
 
 
+def test_export_both_zip_flags_ready_annex_rows_without_real_files():
+    missing_path = "/tmp/grantflow_missing_registration_certificate.pdf"
+    toc_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "rfq_profile": "katch_final_assessment",
+        "toc": {
+            "proposal_mode": "evaluation_rfq",
+            "rfq_profile": "katch_final_assessment",
+            "brief": "Final assessment technical response",
+            "organization_information": ["Registered NGO with M&E and field delivery capacity."],
+            "evaluation_purpose": ["Assess performance, outcomes, and learning questions."],
+            "technical_approach_summary": ["Mixed-method final assessment with field verification."],
+            "submission_package_checklist": [
+                {
+                    "artifact": "Technical proposal narrative",
+                    "owner": "Proposal manager",
+                    "status": "ready",
+                    "notes": "Final reviewer-ready narrative package",
+                }
+            ],
+            "attachment_manifest": [
+                {
+                    "attachment": "Registration certificate",
+                    "required_for": "Organization information and legal-status package",
+                    "owner": "Operations / compliance",
+                    "status": "ready",
+                    "source_path": missing_path,
+                    "notes": "Attach current registration evidence in PDF format.",
+                }
+            ],
+            "compliance_matrix": [
+                {
+                    "requirement": "Organization information and legal status package",
+                    "response_section": "Organization Information",
+                    "evidence": "Registration certificate and audited financials",
+                    "status": "ready",
+                    "notes": "Attached in annex package",
+                }
+            ],
+        },
+    }
+    logframe_draft = {
+        "proposal_mode": "evaluation_rfq",
+        "indicators": [
+            {
+                "indicator_id": "IND_001",
+                "name": "Deliverable milestone: Inception Report",
+                "result_level": "output",
+                "baseline": "0 deliverables",
+                "target": "1 deliverable",
+                "frequency": "bi-weekly",
+                "formula": "Count of required deliverables completed and accepted against the agreed evaluation work plan",
+                "definition": "Tracks whether the inception package is completed with reviewer-ready documentation.",
+                "justification": "Maps the deliverable schedule into an evaluation RFQ management indicator.",
+                "means_of_verification": "Accepted deliverable package and QA checklist",
+                "owner": "Evaluation team lead and operations coordinator",
+            }
+        ],
+    }
+    export = client.post(
+        "/export",
+        json={
+            "donor_id": "un_agencies",
+            "toc_draft": toc_draft,
+            "logframe_draft": logframe_draft,
+            "format": "both",
+        },
+    )
+    assert export.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(export.content)) as archive:
+        names = set(archive.namelist())
+        assert "submission_package/99_attachment_manifest/files/01_registration_certificate.pdf" not in names
+        manifest = json.loads(archive.read("annex_packer/annex_manifest.json").decode("utf-8"))
+        validation = manifest["attachment_file_validation"]
+        assert validation["attached_file_count"] == 0
+        assert validation["missing_ready_file_count"] == 1
+        assert validation["status_file_mismatch_count"] == 0
+        row = manifest["attachment_manifest"][0]
+        assert row["attachment_file_status"] == "missing"
+        assert row["attachment_file_warning"] == "status_ready_but_file_missing"
+        summary = archive.read("annex_packer/submission_readiness.md").decode("utf-8")
+        assert "## Attachment File Validation" in summary
+        assert "Ready rows missing files: `1`" in summary
+        assert "warning=`status_ready_but_file_missing`" in summary
+
+
 def test_export_both_zip_includes_katch_submission_kit_files():
     toc_draft = {
         "proposal_mode": "evaluation_rfq",
