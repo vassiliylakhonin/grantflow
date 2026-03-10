@@ -36,6 +36,7 @@ Quick companion docs:
 - enterprise access pattern: `docs/enterprise-access-layer.md`
 - gateway policy example: `docs/gateway-policy-example.md`
 - enterprise access checklist: `docs/enterprise-access-checklist.md`
+- enterprise-style quickstart: `docs/enterprise-quickstart.md`
 
 ## 1) Product Scope
 

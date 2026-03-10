@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh benchmark-baseline benchmark-baseline-refresh pilot-evidence-pack pilot-evidence-pack-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast release-demo-bundle-custom send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh pilot-stack-up pilot-stack-down pilot-stack-logs pilot-stack-check pilot-stack-status
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh benchmark-baseline benchmark-baseline-refresh pilot-evidence-pack pilot-evidence-pack-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast release-demo-bundle-custom send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh pilot-stack-up pilot-stack-down pilot-stack-logs pilot-stack-check pilot-stack-status enterprise-eval-up enterprise-eval-down enterprise-eval-logs enterprise-eval-check enterprise-eval-status
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -123,6 +123,8 @@ EXPORT_TARGET_ARTIFACT_PREFIX ?= $(EVAL_ARTIFACTS_DIR)/export-target-live
 EXPORT_TARGET_ARTIFACT_DIR ?= $(EVAL_ARTIFACTS_DIR)/export-target-live-artifacts
 PILOT_COMPOSE_ENV_FILE ?= .env.pilot
 PILOT_COMPOSE_ARGS ?= --env-file $(PILOT_COMPOSE_ENV_FILE) -f docker-compose.pilot.yml
+ENTERPRISE_COMPOSE_ENV_FILE ?= .env.enterprise
+ENTERPRISE_COMPOSE_ARGS ?= --env-file $(ENTERPRISE_COMPOSE_ENV_FILE) -f docker-compose.pilot.yml
 
 deps-guard:
 	$(PYTHON) scripts/dependency_contract_guard.py
@@ -153,6 +155,22 @@ pilot-stack-status:
 	docker compose $(PILOT_COMPOSE_ARGS) ps
 
 pilot-stack-check:
+	curl -fsS http://127.0.0.1:8000/health
+	curl -fsS http://127.0.0.1:8000/ready
+
+enterprise-eval-up:
+	docker compose $(ENTERPRISE_COMPOSE_ARGS) up -d --build
+
+enterprise-eval-down:
+	docker compose $(ENTERPRISE_COMPOSE_ARGS) down
+
+enterprise-eval-logs:
+	docker compose $(ENTERPRISE_COMPOSE_ARGS) logs --tail=150 api worker redis chroma
+
+enterprise-eval-status:
+	docker compose $(ENTERPRISE_COMPOSE_ARGS) ps
+
+enterprise-eval-check:
 	curl -fsS http://127.0.0.1:8000/health
 	curl -fsS http://127.0.0.1:8000/ready
 
