@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import zipfile
 from typing import Optional
 
@@ -86,6 +87,11 @@ from grantflow.api.queue_admin_service import _redis_queue_admin_runner
 from grantflow.exporters.donor_contracts import evaluate_export_contract
 
 
+def _annex_slug(value: object, *, fallback: str) -> str:
+    token = re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+    return token or fallback
+
+
 def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, export_contract: dict) -> dict[str, bytes]:
     contract = evaluate_export_contract(donor_id=donor_id, toc_payload=toc_draft)
     if str(contract.get("template_key") or "") != "evaluation_rfq":
@@ -150,11 +156,86 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
             )
     else:
         lines.append("- none")
-
-    return {
+    artifacts = {
         "annex_packer/annex_manifest.json": (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8"),
         "annex_packer/submission_readiness.md": ("\n".join(lines) + "\n").encode("utf-8"),
     }
+    package_lines = [
+        "# Submission Package Placeholder Structure",
+        "",
+        "This folder tree is a handoff scaffold for the final procurement-style submission package.",
+        "Populate each folder with the final customer-facing files before external submission.",
+        "",
+    ]
+    for idx, row in enumerate(submission_rows, start=1):
+        artifact = str(row.get("artifact") or f"artifact_{idx}").strip()
+        owner = str(row.get("owner") or "-").strip()
+        status = str(row.get("status") or "-").strip()
+        notes = str(row.get("notes") or "").strip()
+        folder = f"submission_package/{idx:02d}_{_annex_slug(artifact, fallback=f'artifact_{idx}')}"
+        artifacts[f"{folder}/README.md"] = (
+            "\n".join(
+                [
+                    f"# {artifact}",
+                    "",
+                    f"- Owner: `{owner}`",
+                    f"- Status: `{status}`",
+                    f"- Notes: `{notes or '-'}`",
+                    "",
+                    "Place the finalized file(s) for this submission artifact in this folder.",
+                    "",
+                ]
+            ).encode("utf-8")
+        )
+        package_lines.append(f"- `{folder}/` -> `{artifact}`")
+
+    annex_folder = "submission_package/99_attachment_manifest"
+    artifacts[f"{annex_folder}/README.md"] = (
+        "\n".join(
+            [
+                "# Attachment Manifest",
+                "",
+                "Use this folder to stage annexes and support files referenced in the manifest.",
+                "",
+            ]
+        ).encode("utf-8")
+    )
+    for idx, row in enumerate(attachment_rows, start=1):
+        attachment = str(row.get("attachment") or f"attachment_{idx}").strip()
+        required_for = str(row.get("required_for") or "-").strip()
+        owner = str(row.get("owner") or "-").strip()
+        status = str(row.get("status") or "-").strip()
+        notes = str(row.get("notes") or "").strip()
+        file_path = f"{annex_folder}/{idx:02d}_{_annex_slug(attachment, fallback=f'attachment_{idx}')}.md"
+        artifacts[file_path] = (
+            "\n".join(
+                [
+                    f"# {attachment}",
+                    "",
+                    f"- Required for: `{required_for}`",
+                    f"- Owner: `{owner}`",
+                    f"- Status: `{status}`",
+                    f"- Notes: `{notes or '-'}`",
+                    "",
+                    "Attach or replace this placeholder with the final annex file.",
+                    "",
+                ]
+            ).encode("utf-8")
+        )
+    artifacts["submission_package/README.md"] = ("\n".join(package_lines) + "\n").encode("utf-8")
+    artifacts["submission_package/package_structure.json"] = (
+        json.dumps(
+            {
+                "proposal_mode": "evaluation_rfq",
+                "donor_id": donor_id,
+                "folders": sorted([name for name in artifacts if name.startswith("submission_package/")]),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+    return artifacts
 
 
 def _app_module():

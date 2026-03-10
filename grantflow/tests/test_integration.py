@@ -14135,6 +14135,11 @@ def test_export_both_zip_includes_evaluation_rfq_annex_packer_artifacts():
         assert "mel.xlsx" in names
         assert "annex_packer/annex_manifest.json" in names
         assert "annex_packer/submission_readiness.md" in names
+        assert "submission_package/README.md" in names
+        assert "submission_package/package_structure.json" in names
+        assert "submission_package/01_technical_proposal_narrative/README.md" in names
+        assert "submission_package/99_attachment_manifest/README.md" in names
+        assert "submission_package/99_attachment_manifest/01_registration_certificate.md" in names
         manifest = json.loads(archive.read("annex_packer/annex_manifest.json").decode("utf-8"))
         assert manifest["proposal_mode"] == "evaluation_rfq"
         assert manifest["template_key"] == "evaluation_rfq"
@@ -14143,6 +14148,11 @@ def test_export_both_zip_includes_evaluation_rfq_annex_packer_artifacts():
         assert "# Annex Packer Summary" in summary
         assert "Technical proposal narrative" in summary
         assert "Registration certificate" in summary
+        package_readme = archive.read("submission_package/README.md").decode("utf-8")
+        assert "# Submission Package Placeholder Structure" in package_readme
+        package_structure = json.loads(archive.read("submission_package/package_structure.json").decode("utf-8"))
+        assert package_structure["proposal_mode"] == "evaluation_rfq"
+        assert "submission_package/01_technical_proposal_narrative/README.md" in package_structure["folders"]
 
 
 def test_status_export_payload_exposes_evaluation_rfq_submission_package_readiness():
