@@ -105,16 +105,24 @@ class EvaluationRFQTOC(BaseModel):
     technical_approach_summary: str = Field(default="", description="Technical approach and methodology narrative")
     sampling_plan: str = Field(default="", description="Sampling and respondent selection summary")
     analytical_software: list[str] = Field(default_factory=list, description="Software or analytical tools to be used")
-    ethical_considerations: list[str] = Field(default_factory=list, description="Do-no-harm, consent, and confidentiality safeguards")
+    ethical_considerations: list[str] = Field(
+        default_factory=list, description="Do-no-harm, consent, and confidentiality safeguards"
+    )
     level_of_effort_summary: str = Field(default="", description="Activity-based level of effort summary")
-    technical_experience_summary: str = Field(default="", description="Past performance and technical experience summary")
+    technical_experience_summary: str = Field(
+        default="", description="Past performance and technical experience summary"
+    )
     sample_outputs_summary: str = Field(default="", description="Referenced sample outputs or report evidence")
-    annex_readiness: list[str] = Field(default_factory=list, description="Annexes or required supporting attachments expected for submission")
+    annex_readiness: list[str] = Field(
+        default_factory=list, description="Annexes or required supporting attachments expected for submission"
+    )
     compliance_matrix: list[EvaluationComplianceItem] = Field(
         default_factory=list,
         description="RFQ compliance matrix mapping requirements to response sections and supporting evidence",
     )
-    financial_summary: str = Field(default="", description="Short financial proposal companion summary for the technical package")
+    financial_summary: str = Field(
+        default="", description="Short financial proposal companion summary for the technical package"
+    )
     cost_structure: list[EvaluationCostItem] = Field(default_factory=list)
     pricing_assumptions: list[str] = Field(default_factory=list)
     payment_schedule_summary: str = Field(default="", description="Milestone-based payment or invoicing summary")
@@ -140,7 +148,9 @@ def evaluation_rfq_profile(input_context: Dict[str, Any] | None) -> str:
 
 
 def is_katch_evaluation_rfq(input_context: Dict[str, Any] | None) -> bool:
-    return is_evaluation_rfq_mode(input_context) and evaluation_rfq_profile(input_context) == KATCH_EVALUATION_RFQ_PROFILE
+    return (
+        is_evaluation_rfq_mode(input_context) and evaluation_rfq_profile(input_context) == KATCH_EVALUATION_RFQ_PROFILE
+    )
 
 
 def _clean_text(value: Any) -> str:
@@ -688,15 +698,18 @@ def build_katch_evaluation_rfq_payload(
         "Focus Group Discussions",
         "Survey of Beneficiaries",
     ]
-    deliverables = _merge_katch_required_deliverables(_rfq_deliverables(input_context) or [
-        "Draft Inception Report with Evaluation Design and Work Plan",
-        "Final Inception Report with Evaluation Design and Work Plan",
-        "Report on field survey data collection",
-        "Virtual Event / Workshop",
-        "Final Evaluation Report",
-        "Stand-alone Brief",
-        "Bi-Weekly Updates",
-    ])
+    deliverables = _merge_katch_required_deliverables(
+        _rfq_deliverables(input_context)
+        or [
+            "Draft Inception Report with Evaluation Design and Work Plan",
+            "Final Inception Report with Evaluation Design and Work Plan",
+            "Report on field survey data collection",
+            "Virtual Event / Workshop",
+            "Final Evaluation Report",
+            "Stand-alone Brief",
+            "Bi-Weekly Updates",
+        ]
+    )
     background = _clean_text(
         input_context.get("background")
         or input_context.get("project_background")
@@ -895,7 +908,9 @@ def build_evaluation_rfq_fallback_payload(
         f"{', '.join(methods[:3])}, triangulated against project documentation and partner records."
     )
     if evidence_hint:
-        methodology_overview += f" Design choices should align with available guidance and evidence cues ({evidence_hint})."
+        methodology_overview += (
+            f" Design choices should align with available guidance and evidence cues ({evidence_hint})."
+        )
     return {
         "proposal_mode": EVALUATION_RFQ_PROPOSAL_MODE,
         "brief": (

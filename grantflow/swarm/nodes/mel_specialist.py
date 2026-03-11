@@ -1263,21 +1263,24 @@ def _evaluation_rfq_indicators_from_toc(
     if not candidates:
         candidates = [
             ("toc.deliverables[0]", "Inception package approved", "Confirms evaluation design and work plan quality."),
-            ("toc.methodology_components[0]", "Field evidence collection completed", "Tracks respondent coverage and evidence completeness."),
-            ("toc.deliverables[1]", "Final evaluation package delivered", "Tracks draft-to-final reporting completion."),
+            (
+                "toc.methodology_components[0]",
+                "Field evidence collection completed",
+                "Tracks respondent coverage and evidence completeness.",
+            ),
+            (
+                "toc.deliverables[1]",
+                "Final evaluation package delivered",
+                "Tracks draft-to-final reporting completion.",
+            ),
         ]
 
     bounded = candidates[: max(1, max_indicators)]
     for idx, (statement_path, title, purpose) in enumerate(bounded):
         hit, _score = _pick_best_mel_evidence_hit(f"{title}. {purpose}".strip(), retrieval_hits)
         result_level = "output" if "deliverable" in statement_path or "inception" in title.lower() else "outcome"
-        name = (
-            str(hit.get("name") or "").strip()
-            or (
-                f"Deliverable milestone: {title}"
-                if result_level == "output"
-                else f"Evaluation method completion: {title}"
-            )
+        name = str(hit.get("name") or "").strip() or (
+            f"Deliverable milestone: {title}" if result_level == "output" else f"Evaluation method completion: {title}"
         )
         formula = str(hit.get("formula") or "").strip() or (
             "Count of required deliverables completed and accepted against the agreed evaluation work plan"

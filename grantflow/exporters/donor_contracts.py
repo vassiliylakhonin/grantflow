@@ -111,9 +111,7 @@ def _evaluation_rfq_submission_summary(normalized_toc: Dict[str, Any]) -> Dict[s
     weighted_ready = submission_counts["ready"] + attachment_counts["ready"] + compliance_counts["ready"]
     weighted_partial = submission_counts["partial"] + attachment_counts["partial"] + compliance_counts["partial"]
     completeness_score = (
-        round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1)
-        if weighted_total
-        else 0.0
+        round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1) if weighted_total else 0.0
     )
     if weighted_total == 0:
         readiness_status = "missing"
@@ -126,9 +124,12 @@ def _evaluation_rfq_submission_summary(normalized_toc: Dict[str, Any]) -> Dict[s
 
     top_gap = "none"
     gaps = {
-        "submission_package": submission_counts["pending"] + max(0, submission_counts["total"] - submission_counts["labeled"]),
-        "attachment_manifest": attachment_counts["pending"] + max(0, attachment_counts["total"] - attachment_counts["labeled"]),
-        "compliance_matrix": compliance_counts["pending"] + max(0, compliance_counts["total"] - compliance_counts["labeled"]),
+        "submission_package": submission_counts["pending"]
+        + max(0, submission_counts["total"] - submission_counts["labeled"]),
+        "attachment_manifest": attachment_counts["pending"]
+        + max(0, attachment_counts["total"] - attachment_counts["labeled"]),
+        "compliance_matrix": compliance_counts["pending"]
+        + max(0, compliance_counts["total"] - compliance_counts["labeled"]),
     }
     if any(value > 0 for value in gaps.values()):
         top_gap = max(gaps, key=lambda gap_key: gaps[gap_key])

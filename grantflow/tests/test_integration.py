@@ -14094,7 +14094,11 @@ def test_export_both_zip_includes_evaluation_rfq_annex_packer_artifacts():
             "evaluation_purpose": ["Assess performance, outcomes, and learning questions."],
             "technical_approach_summary": ["Mixed-method final assessment with field verification."],
             "methodology_components": [
-                {"method": "Outcome harvesting", "purpose": "Capture outcome evidence", "evidence": "Stakeholder interviews"}
+                {
+                    "method": "Outcome harvesting",
+                    "purpose": "Capture outcome evidence",
+                    "evidence": "Stakeholder interviews",
+                }
             ],
             "submission_package_checklist": [
                 {
@@ -14254,7 +14258,9 @@ def test_export_both_zip_stages_real_evaluation_rfq_annex_files(tmp_path: Path):
         staged_path = "submission_package/99_attachment_manifest/files/01_registration_certificate.pdf"
         assert staged_path in names
         assert archive.read(staged_path) == b"%PDF-1.4\nreal annex content\n"
-        placeholder = archive.read("submission_package/99_attachment_manifest/01_registration_certificate.md").decode("utf-8")
+        placeholder = archive.read("submission_package/99_attachment_manifest/01_registration_certificate.md").decode(
+            "utf-8"
+        )
         assert f"- Source path: `{registration}`" in placeholder
 
 

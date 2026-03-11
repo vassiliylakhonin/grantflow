@@ -163,9 +163,7 @@ def _adjust_submission_readiness_for_attachment_files(summary: dict, attachment_
         + int(compliance_counts.get("partial", 0))
     )
     completeness_score = (
-        round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1)
-        if weighted_total
-        else 0.0
+        round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1) if weighted_total else 0.0
     )
     adjusted["completeness_score"] = completeness_score
     if weighted_total == 0:
@@ -251,33 +249,29 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
         status = str(row.get("status") or "-").strip()
         notes = str(row.get("notes") or "").strip()
         folder = f"submission_package/{idx:02d}_{_annex_slug(artifact, fallback=f'artifact_{idx}')}"
-        artifacts[f"{folder}/README.md"] = (
-            "\n".join(
-                [
-                    f"# {artifact}",
-                    "",
-                    f"- Owner: `{owner}`",
-                    f"- Status: `{status}`",
-                    f"- Notes: `{notes or '-'}`",
-                    "",
-                    "Place the finalized file(s) for this submission artifact in this folder.",
-                    "",
-                ]
-            ).encode("utf-8")
-        )
-        package_lines.append(f"- `{folder}/` -> `{artifact}`")
-
-    annex_folder = "submission_package/99_attachment_manifest"
-    artifacts[f"{annex_folder}/README.md"] = (
-        "\n".join(
+        artifacts[f"{folder}/README.md"] = "\n".join(
             [
-                "# Attachment Manifest",
+                f"# {artifact}",
                 "",
-                "Use this folder to stage annexes and support files referenced in the manifest.",
+                f"- Owner: `{owner}`",
+                f"- Status: `{status}`",
+                f"- Notes: `{notes or '-'}`",
+                "",
+                "Place the finalized file(s) for this submission artifact in this folder.",
                 "",
             ]
         ).encode("utf-8")
-    )
+        package_lines.append(f"- `{folder}/` -> `{artifact}`")
+
+    annex_folder = "submission_package/99_attachment_manifest"
+    artifacts[f"{annex_folder}/README.md"] = "\n".join(
+        [
+            "# Attachment Manifest",
+            "",
+            "Use this folder to stage annexes and support files referenced in the manifest.",
+            "",
+        ]
+    ).encode("utf-8")
     for idx, row in enumerate(attachment_rows, start=1):
         attachment = str(row.get("attachment") or f"attachment_{idx}").strip()
         required_for = str(row.get("required_for") or "-").strip()
@@ -291,22 +285,20 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
         mismatch_reason = ""
         file_path = f"{annex_folder}/{idx:02d}_{_annex_slug(attachment, fallback=f'attachment_{idx}')}.md"
         source_display = source_path or "-"
-        artifacts[file_path] = (
-            "\n".join(
-                [
-                    f"# {attachment}",
-                    "",
-                    f"- Required for: `{required_for}`",
-                    f"- Owner: `{owner}`",
-                    f"- Status: `{status}`",
-                    f"- Source path: `{source_display}`",
-                    f"- Notes: `{notes or '-'}`",
-                    "",
-                    "Attach or replace this placeholder with the final annex file if a live source path is not provided.",
-                    "",
-                ]
-            ).encode("utf-8")
-        )
+        artifacts[file_path] = "\n".join(
+            [
+                f"# {attachment}",
+                "",
+                f"- Required for: `{required_for}`",
+                f"- Owner: `{owner}`",
+                f"- Status: `{status}`",
+                f"- Source path: `{source_display}`",
+                f"- Notes: `{notes or '-'}`",
+                "",
+                "Attach or replace this placeholder with the final annex file if a live source path is not provided.",
+                "",
+            ]
+        ).encode("utf-8")
         if source_path:
             try:
                 source = Path(source_path).expanduser().resolve(strict=True)
@@ -487,7 +479,13 @@ def _katch_submission_kit_artifacts(normalized_toc: dict) -> dict[str, bytes]:
         "",
         "We will refine RFQ evaluation questions jointly with KATCH during inception. Final questions will remain under five RFQ criteria:",
     ]
-    criteria_defaults = ["Relevance", "Effectiveness", "Efficiency", "Sustainability", "Outcomes (including unintended outcomes)"]
+    criteria_defaults = [
+        "Relevance",
+        "Effectiveness",
+        "Efficiency",
+        "Sustainability",
+        "Outcomes (including unintended outcomes)",
+    ]
     technical_lines.extend([f"- {item}" for item in criteria_defaults])
     if questions:
         technical_lines.extend(["", "Working question set from the current draft context:"])
@@ -687,9 +685,13 @@ def _katch_submission_kit_artifacts(normalized_toc: dict) -> dict[str, bytes]:
     ]
     if questions:
         for question in questions:
-            annex_lines.append(f"| {question} | [Insert criteria] | [Insert source] | [Insert method] | [Insert respondents] | [Insert analysis method] |")
+            annex_lines.append(
+                f"| {question} | [Insert criteria] | [Insert source] | [Insert method] | [Insert respondents] | [Insert analysis method] |"
+            )
     else:
-        annex_lines.append("| [Insert question] | [Insert criteria] | [Insert source] | [Insert method] | [Insert respondents] | [Insert analysis method] |")
+        annex_lines.append(
+            "| [Insert question] | [Insert criteria] | [Insert source] | [Insert method] | [Insert respondents] | [Insert analysis method] |"
+        )
     annex_lines.extend(
         [
             "",
@@ -743,7 +745,9 @@ def _katch_submission_kit_artifacts(normalized_toc: dict) -> dict[str, bytes]:
     }
 
 
-def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, export_contract: dict) -> dict[str, bytes]:
+def _evaluation_rfq_submission_kit_artifacts(
+    *, donor_id: str, toc_draft: dict, export_contract: dict
+) -> dict[str, bytes]:
     contract = evaluate_export_contract(donor_id=donor_id, toc_payload=toc_draft)
     if str(contract.get("template_key") or "") != "evaluation_rfq":
         return {}
@@ -767,7 +771,9 @@ def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, 
     ethics = [str(item).strip() for item in (normalized_toc.get("ethical_considerations") or []) if str(item).strip()]
     risks = [str(item).strip() for item in (normalized_toc.get("assumptions_risks") or []) if str(item).strip()]
     deliverables = [item for item in (normalized_toc.get("deliverables") or []) if isinstance(item, dict)]
-    schedule_rows = [item for item in (normalized_toc.get("deliverables_schedule_table") or []) if isinstance(item, dict)]
+    schedule_rows = [
+        item for item in (normalized_toc.get("deliverables_schedule_table") or []) if isinstance(item, dict)
+    ]
     key_personnel = [item for item in (normalized_toc.get("key_personnel") or []) if isinstance(item, dict)]
     team_roles = [item for item in (normalized_toc.get("team_composition") or []) if isinstance(item, dict)]
     cost_structure = [item for item in (normalized_toc.get("cost_structure") or []) if isinstance(item, dict)]
@@ -803,7 +809,9 @@ def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, 
             "",
             "### 2.2 Evaluation Approach",
             "",
-            technical_approach_summary or methodology_overview or "Theory-based, RBM-aligned mixed-method evaluation approach.",
+            technical_approach_summary
+            or methodology_overview
+            or "Theory-based, RBM-aligned mixed-method evaluation approach.",
             "",
             "### 2.3 Evaluation Questions",
             "",
@@ -828,10 +836,10 @@ def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, 
             )
     else:
         technical_lines.append("- Desk review, KIIs, FGDs, survey, and outcome-oriented validation methods.")
-    technical_lines.extend(["### 2.5 Sampling and Coverage", "", sampling_plan or "Sampling plan to be refined during inception."])
-    software = [
-        str(item).strip() for item in (normalized_toc.get("analytical_software") or []) if str(item).strip()
-    ]
+    technical_lines.extend(
+        ["### 2.5 Sampling and Coverage", "", sampling_plan or "Sampling plan to be refined during inception."]
+    )
+    software = [str(item).strip() for item in (normalized_toc.get("analytical_software") or []) if str(item).strip()]
     technical_lines.extend(["", "### 2.6 Data Analysis", ""])
     if software:
         technical_lines.append(
@@ -840,7 +848,9 @@ def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, 
             + "."
         )
     else:
-        technical_lines.append("Integrated analysis will combine qualitative coding, descriptive analysis, and triangulation.")
+        technical_lines.append(
+            "Integrated analysis will combine qualitative coding, descriptive analysis, and triangulation."
+        )
     technical_lines.extend(["", "### 2.7 Ethical Considerations and Safeguarding", ""])
     if ethics:
         technical_lines.extend([f"- {item}" for item in ethics])
@@ -887,7 +897,9 @@ def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, 
             )
         )
     else:
-        technical_lines.append(level_of_effort_summary or "Indicative LOE table to be completed during proposal finalization.")
+        technical_lines.append(
+            level_of_effort_summary or "Indicative LOE table to be completed during proposal finalization."
+        )
     technical_lines.extend(["", "## 5. Technical Experience & Past Performance", ""])
     technical_lines.append(
         technical_experience_summary
@@ -995,7 +1007,14 @@ def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, 
     if question_matrix:
         annex_lines.append(
             _markdown_table(
-                ["Evaluation Question", "Indicator / Judgment Criteria", "Data Source", "Method", "Respondents", "Analysis Method"],
+                [
+                    "Evaluation Question",
+                    "Indicator / Judgment Criteria",
+                    "Data Source",
+                    "Method",
+                    "Respondents",
+                    "Analysis Method",
+                ],
                 [
                     [
                         _clean_md_text(row.get("evaluation_question")),
@@ -1012,8 +1031,24 @@ def _evaluation_rfq_submission_kit_artifacts(*, donor_id: str, toc_draft: dict, 
     else:
         annex_lines.append(
             _markdown_table(
-                ["Evaluation Question", "Indicator / Judgment Criteria", "Data Source", "Method", "Respondents", "Analysis Method"],
-                [["[insert question]", "[insert criteria]", "[insert source]", "[insert method]", "[insert respondents]", "[insert analysis]"]],
+                [
+                    "Evaluation Question",
+                    "Indicator / Judgment Criteria",
+                    "Data Source",
+                    "Method",
+                    "Respondents",
+                    "Analysis Method",
+                ],
+                [
+                    [
+                        "[insert question]",
+                        "[insert criteria]",
+                        "[insert source]",
+                        "[insert method]",
+                        "[insert respondents]",
+                        "[insert analysis]",
+                    ]
+                ],
             )
         )
     annex_lines.extend(

@@ -2102,7 +2102,9 @@ def public_job_export_payload(
                 return value.strip()
         return ""
 
-    def _adjust_submission_package_readiness(summary: dict[str, Any], attachment_rows: list[dict[str, Any]]) -> dict[str, Any]:
+    def _adjust_submission_package_readiness(
+        summary: dict[str, Any], attachment_rows: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         adjusted = dict(summary)
         attachment_counts = adjusted.get("attachment_manifest_counts")
         if not isinstance(attachment_counts, dict) or not attachment_rows:
@@ -2154,9 +2156,7 @@ def public_job_export_payload(
             + int(compliance_counts.get("partial", 0))
         )
         completeness_score = (
-            round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1)
-            if weighted_total
-            else 0.0
+            round(((weighted_ready + (0.5 * weighted_partial)) / weighted_total) * 100, 1) if weighted_total else 0.0
         )
         adjusted["completeness_score"] = completeness_score
         if weighted_total == 0:
@@ -2225,9 +2225,7 @@ def public_job_export_payload(
                 "rule_score": sanitize_for_public_response(critic.get("rule_score")),
                 "llm_score": sanitize_for_public_response(critic.get("llm_score")),
                 "fatal_flaw_count": int(critic.get("fatal_flaw_count") or 0),
-                "citation_count": len(
-                    citations_for_summary
-                ),
+                "citation_count": len(citations_for_summary),
             },
             "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
             "review_comments": [item for item in review_comments if isinstance(item, dict)],
@@ -4647,7 +4645,9 @@ def public_portfolio_quality_payload(
             comment_triage.get("stale_comment_bucket_counts") if isinstance(comment_triage, dict) else {}
         )
         if isinstance(stale_bucket_counts, dict):
-            donor_bucket_counts: Dict[str, Any] = dict(_dict_from(donor_readiness_row.get("stale_comment_bucket_counts")))
+            donor_bucket_counts: Dict[str, Any] = dict(
+                _dict_from(donor_readiness_row.get("stale_comment_bucket_counts"))
+            )
             for bucket, count in _dict_from(stale_bucket_counts).items():
                 token = str(bucket).strip().lower() or "general"
                 donor_bucket_counts[token] = int(donor_bucket_counts.get(token) or 0) + int(count or 0)

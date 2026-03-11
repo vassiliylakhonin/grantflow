@@ -206,7 +206,10 @@ def _add_katch_evaluation_rfq_checks(
             add_flaw_fn(code=code, severity="high", section="toc", message=message, fix_hint=fix_hint)
 
     methodology_components = toc_payload.get("methodology_components")
-    if isinstance(methodology_components, list) and len([m for m in methodology_components if isinstance(m, dict)]) >= 4:
+    if (
+        isinstance(methodology_components, list)
+        and len([m for m in methodology_components if isinstance(m, dict)]) >= 4
+    ):
         check_fn(
             code="KATCH_METHOD_COMPONENTS_COMPLETE",
             status="pass",
@@ -248,9 +251,19 @@ def _add_katch_evaluation_rfq_checks(
 
     team_composition = toc_payload.get("team_composition")
     if isinstance(team_composition, list) and len([r for r in team_composition if isinstance(r, dict)]) >= 2:
-        check_fn(code="KATCH_TEAM_COMPOSITION_PRESENT", status="pass", section="toc", detail=f"{len(team_composition)} role(s)")
+        check_fn(
+            code="KATCH_TEAM_COMPOSITION_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(team_composition)} role(s)",
+        )
     else:
-        check_fn(code="KATCH_TEAM_COMPOSITION_PRESENT", status="fail", section="toc", detail="Need at least team lead + evaluation expert")
+        check_fn(
+            code="KATCH_TEAM_COMPOSITION_PRESENT",
+            status="fail",
+            section="toc",
+            detail="Need at least team lead + evaluation expert",
+        )
         add_flaw_fn(
             code="KATCH_TEAM_COMPOSITION_MISSING",
             severity="high",
@@ -349,7 +362,9 @@ def _add_katch_evaluation_rfq_checks(
     if payment_schedule:
         check_fn(code="KATCH_PAYMENT_SCHEDULE_PRESENT", status="pass", section="toc")
     else:
-        check_fn(code="KATCH_PAYMENT_SCHEDULE_PRESENT", status="warn", section="toc", detail="No payment_schedule_summary")
+        check_fn(
+            code="KATCH_PAYMENT_SCHEDULE_PRESENT", status="warn", section="toc", detail="No payment_schedule_summary"
+        )
         add_flaw_fn(
             code="KATCH_PAYMENT_SCHEDULE_WEAK",
             severity="low",
@@ -520,7 +535,12 @@ def _add_katch_evaluation_rfq_checks(
 
     workplan_summary = toc_payload.get("workplan_summary")
     if isinstance(workplan_summary, list) and workplan_summary:
-        check_fn(code="KATCH_WORKPLAN_PRESENT", status="pass", section="toc", detail=f"{len(workplan_summary)} workplan phase(s)")
+        check_fn(
+            code="KATCH_WORKPLAN_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(workplan_summary)} workplan phase(s)",
+        )
     else:
         check_fn(code="KATCH_WORKPLAN_PRESENT", status="fail", section="toc", detail="No workplan_summary")
         add_flaw_fn(
@@ -534,15 +554,23 @@ def _add_katch_evaluation_rfq_checks(
     deliverables = toc_payload.get("deliverables")
     deliverable_rows = deliverables if isinstance(deliverables, list) else []
     deliverable_titles = [
-        str(row.get("deliverable") or "").strip().lower()
-        for row in deliverable_rows
-        if isinstance(row, dict)
+        str(row.get("deliverable") or "").strip().lower() for row in deliverable_rows if isinstance(row, dict)
     ]
     required_tokens = ("inception", "bi-week", "workshop", "draft evaluation report", "final evaluation report")
     if deliverable_titles and all(any(token in title for title in deliverable_titles) for token in required_tokens):
-        check_fn(code="KATCH_DELIVERABLE_PLAN_COMPLETE", status="pass", section="toc", detail=f"{len(deliverable_titles)} deliverable(s)")
+        check_fn(
+            code="KATCH_DELIVERABLE_PLAN_COMPLETE",
+            status="pass",
+            section="toc",
+            detail=f"{len(deliverable_titles)} deliverable(s)",
+        )
     else:
-        check_fn(code="KATCH_DELIVERABLE_PLAN_COMPLETE", status="fail", section="toc", detail="Missing one or more required RFQ deliverables")
+        check_fn(
+            code="KATCH_DELIVERABLE_PLAN_COMPLETE",
+            status="fail",
+            section="toc",
+            detail="Missing one or more required RFQ deliverables",
+        )
         add_flaw_fn(
             code="KATCH_DELIVERABLE_PLAN_INCOMPLETE",
             severity="high",
@@ -553,9 +581,16 @@ def _add_katch_evaluation_rfq_checks(
 
     annex_readiness = toc_payload.get("annex_readiness")
     if isinstance(annex_readiness, list) and len([item for item in annex_readiness if str(item).strip()]) >= 4:
-        check_fn(code="KATCH_ANNEX_READINESS_PRESENT", status="pass", section="toc", detail=f"{len(annex_readiness)} annex item(s)")
+        check_fn(
+            code="KATCH_ANNEX_READINESS_PRESENT",
+            status="pass",
+            section="toc",
+            detail=f"{len(annex_readiness)} annex item(s)",
+        )
     else:
-        check_fn(code="KATCH_ANNEX_READINESS_PRESENT", status="warn", section="toc", detail="Limited annex_readiness detail")
+        check_fn(
+            code="KATCH_ANNEX_READINESS_PRESENT", status="warn", section="toc", detail="Limited annex_readiness detail"
+        )
         add_flaw_fn(
             code="KATCH_ANNEX_READINESS_WEAK",
             severity="medium",
