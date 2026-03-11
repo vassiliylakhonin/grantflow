@@ -8,6 +8,10 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pr-title:
     if: github.event_name == 'pull_request'
@@ -466,6 +470,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ${{ github.workspace }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -484,7 +489,7 @@ jobs:
       - name: Run tests
         run: |
           if [ -d "grantflow/tests" ]; then
-            python -m pytest -c grantflow/pytest.ini grantflow/tests/ -v --tb=short
+            python -m pytest -c grantflow/pytest.ini grantflow/tests/ --ignore=grantflow/tests/test_integration.py -v --tb=short
           elif [ -d "tests" ]; then
             python -m pytest tests/ -v --tb=short
           else

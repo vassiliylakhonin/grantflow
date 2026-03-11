@@ -75,6 +75,7 @@
       ],
       "risk_level": "high",
       "status": "warning",
+      "submission_readiness_summary": null,
       "summary": "missing_required_toc_sections",
       "template_display_name": "USAID Results Framework",
       "template_key": "usaid",
@@ -223,7 +224,8 @@
           "brief": "Sample"
         }
       }
-    }
+    },
+    "submission_package_readiness": {}
   },
   "status": "done"
 }
