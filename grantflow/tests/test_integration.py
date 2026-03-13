@@ -9,6 +9,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from docx import Document
 from fastapi.testclient import TestClient
 
 import grantflow.api.app as api_app_module
@@ -3298,6 +3299,49 @@ def test_export_endpoint_blocks_when_strict_grounding_gate_failed_unless_overrid
     assert allowed.headers["content-type"].startswith(
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
+
+
+def test_export_endpoint_docx_defaults_to_client_ready_without_diagnostics_sections():
+    payload = {
+        "state": {
+            "donor_id": "usaid",
+            "toc_draft": {"toc": {"project_goal": "Improve service quality."}},
+            "logframe_draft": {"indicators": []},
+            "citations": [
+                {
+                    "source": "USAID ADS 201 p.12",
+                    "excerpt": "Official indicator guidance excerpt",
+                    "confidence": 0.82,
+                    "stage": "architect",
+                }
+            ],
+            "critic_findings": [{"title": "ToC Schema Invalid", "status": "open", "severity": "high"}],
+            "review_comments": [{"message": "Adjusted objective wording.", "status": "resolved"}],
+            "quality_summary": {"quality_score": 8.5, "fatal_flaw_count": 1},
+        }
+    }
+
+    default_resp = client.post("/export", json={"payload": payload, "format": "docx"})
+    assert default_resp.status_code == 200
+    default_text = "\n".join(p.text for p in Document(io.BytesIO(default_resp.content)).paragraphs)
+    assert "USAID Results Framework" in default_text
+    assert "Citation Traceability" not in default_text
+    assert "Critic Findings" not in default_text
+    assert "Review Comments" not in default_text
+    assert "Quality Summary" not in default_text
+    assert "Template Profile" not in default_text
+    assert "Export Contract Check" not in default_text
+
+    diagnostics_resp = client.post(
+        "/export",
+        json={"payload": payload, "format": "docx", "include_diagnostics": True},
+    )
+    assert diagnostics_resp.status_code == 200
+    diagnostics_text = "\n".join(p.text for p in Document(io.BytesIO(diagnostics_resp.content)).paragraphs)
+    assert "Citation Traceability" in diagnostics_text
+    assert "Review Comments" in diagnostics_text
+    assert "Template Profile" in diagnostics_text
+    assert "Export Contract Check" in diagnostics_text
 
 
 def test_export_endpoint_blocks_when_runtime_grounded_gate_policy_requires_pass(monkeypatch):
