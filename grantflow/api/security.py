@@ -89,6 +89,37 @@ def api_key_configured() -> str | None:
     return os.getenv("GRANTFLOW_API_KEY") or os.getenv("API_KEY")
 
 
+def _is_truthy(value: str | None) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def production_mode_enabled() -> bool:
+    env = (
+        os.getenv("GRANTFLOW_ENV")
+        or os.getenv("APP_ENV")
+        or os.getenv("ENVIRONMENT")
+        or os.getenv("ENV")
+        or ""
+    ).strip().lower()
+    return env in {"prod", "production"}
+
+
+def assert_production_auth_config() -> None:
+    """Fail fast when production is configured without API key protection.
+
+    Override only for controlled scenarios via GRANTFLOW_ALLOW_NO_AUTH=true.
+    """
+    if not production_mode_enabled():
+        return
+    if _is_truthy(os.getenv("GRANTFLOW_ALLOW_NO_AUTH")):
+        return
+    if not api_key_configured():
+        raise RuntimeError(
+            "Production mode requires GRANTFLOW_API_KEY (or API_KEY). "
+            "Set GRANTFLOW_ALLOW_NO_AUTH=true only for explicit temporary exceptions."
+        )
+
+
 def read_auth_required() -> bool:
     return os.getenv("GRANTFLOW_REQUIRE_AUTH_FOR_READS", "false").strip().lower() == "true"
 
