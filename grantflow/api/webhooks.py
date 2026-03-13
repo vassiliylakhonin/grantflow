@@ -7,6 +7,8 @@ import logging
 import os
 import time
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
+import ipaddress
 
 import httpx
 
@@ -71,6 +73,30 @@ def _signature_header(secret: str, body: bytes) -> str:
     return f"sha256={digest}"
 
 
+def _validate_webhook_url_or_raise(url: str) -> str:
+    candidate = str(url or "").strip()
+    parsed = urlparse(candidate)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError("Webhook URL must use http/https")
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise ValueError("Webhook URL host is required")
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        raise ValueError("Webhook URL host is not allowed")
+
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        # Hostname (non-IP): allowed here after scheme/localhost checks.
+        # Additional policy gates are enforced by is_safe_webhook_url().
+        pass
+    else:
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+            raise ValueError("Webhook URL host is not allowed")
+
+    return candidate
+
+
 def send_job_webhook_event(
     *,
     url: str,
@@ -81,6 +107,7 @@ def send_job_webhook_event(
 ) -> None:
     if not is_safe_webhook_url(url):
         raise ValueError("Webhook URL is not allowed by SSRF policy")
+    safe_url = _validate_webhook_url_or_raise(url)
 
     payload = {
         "event": event,
@@ -102,7 +129,7 @@ def send_job_webhook_event(
 
     for attempt in range(1, attempts + 1):
         try:
-            response = httpx.post(url, content=body, headers=headers, timeout=timeout_s)
+            response = httpx.post(safe_url, content=body, headers=headers, timeout=timeout_s)
             if 200 <= response.status_code < 300:
                 logger.info(
                     "Webhook delivery succeeded (event=%s job_id=%s status=%s attempt=%s code=%s)",
