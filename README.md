@@ -72,6 +72,10 @@ Core demo path:
 - `GET /status/{job_id}/review/workflow`
 - `POST /export`
 
+One-command buyer conversion flow (live API required):
+- `make pilot-conversion-layer DEMO_PACK_API_BASE=http://127.0.0.1:8000`
+- expected outputs: `build/demo-pack/summary.md`, `build/executive-pack/README.md`, `build/pilot-evidence-pack/README.md`, `build/buyer-facing-artifacts-index.md`
+
 Start here:
 - `docs/buyer-one-pager.md`
 - `docs/five-minute-demo.md`
