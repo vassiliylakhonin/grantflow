@@ -78,6 +78,28 @@ def test_send_job_webhook_event_retries_on_http_500_and_gives_up(monkeypatch, ca
     assert "giving up" in caplog.text
 
 
+def test_send_job_webhook_event_rejects_unsafe_url(monkeypatch):
+    called = {"count": 0}
+
+    def fake_post(url, content, headers, timeout):
+        called["count"] += 1
+        request = httpx.Request("POST", url)
+        return httpx.Response(200, request=request)
+
+    monkeypatch.setattr(webhooks.httpx, "post", fake_post)
+
+    with pytest.raises(ValueError, match="SSRF policy"):
+        webhooks.send_job_webhook_event(
+            url="http://127.0.0.1:8080/hook",
+            secret=None,
+            event="job.pending_hitl",
+            job_id="job-unsafe",
+            job={"status": "pending_hitl"},
+        )
+
+    assert called["count"] == 0
+
+
 def test_send_job_webhook_event_does_not_retry_on_http_400(monkeypatch):
     attempts = {"count": 0}
 

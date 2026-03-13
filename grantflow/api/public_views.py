@@ -4,11 +4,11 @@ import difflib
 import json
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from pathlib import Path
 from typing import Any, Dict, Optional, cast
 
 from grantflow.api.csv_utils import csv_text_from_mapping
 from grantflow.core.config import config
+from grantflow.core.security_utils import resolve_allowed_attachment_path
 from grantflow.exporters.donor_contracts import evaluate_export_contract_gate, normalize_export_contract_policy_mode
 from grantflow.swarm.citations import (
     citation_has_doc_id,
@@ -2302,11 +2302,8 @@ def public_job_export_payload(
             source_path = _attachment_source_path(row)
             if status != "ready" or not source_path:
                 continue
-            try:
-                source = Path(source_path).expanduser().resolve(strict=True)
-            except (FileNotFoundError, OSError):
-                source = None
-            if source is None or not source.is_file():
+            source = resolve_allowed_attachment_path(source_path)
+            if source is None:
                 missing_ready += 1
 
         if missing_ready <= 0:

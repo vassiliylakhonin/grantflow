@@ -99,7 +99,7 @@ def _generated_finding_id(
     source: str,
 ) -> str:
     seed = "|".join([code.strip().upper(), section.strip().lower(), str(version_id or "").strip(), message, source])
-    digest = hashlib.sha1(seed.encode("utf-8")).hexdigest()[:12]
+    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:12]
     return f"finding-{digest}"
 
 

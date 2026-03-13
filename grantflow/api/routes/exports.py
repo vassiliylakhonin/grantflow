@@ -88,6 +88,7 @@ from grantflow.api.queue_admin_service import _redis_queue_admin_runner
 from grantflow.exporters.donor_contracts import evaluate_export_contract
 from grantflow.exporters.toc_normalization import normalize_toc_for_export
 from grantflow.core.evaluation_rfq import KATCH_EVALUATION_RFQ_PROFILE
+from grantflow.core.security_utils import resolve_allowed_attachment_path
 
 
 def _annex_slug(value: object, *, fallback: str) -> str:
@@ -126,11 +127,8 @@ def _adjust_submission_readiness_for_attachment_files(summary: dict, attachment_
         source_path = _attachment_source_path(row)
         if status != "ready" or not source_path:
             continue
-        try:
-            source = Path(source_path).expanduser().resolve(strict=True)
-        except (FileNotFoundError, OSError):
-            source = None
-        if source is None or not source.is_file():
+        source = resolve_allowed_attachment_path(source_path)
+        if source is None:
             missing_ready += 1
 
     if missing_ready <= 0:
@@ -300,11 +298,8 @@ def _evaluation_rfq_annex_pack_artifacts(*, donor_id: str, toc_draft: dict, expo
             ]
         ).encode("utf-8")
         if source_path:
-            try:
-                source = Path(source_path).expanduser().resolve(strict=True)
-            except (FileNotFoundError, OSError):
-                source = None
-            if source is not None and source.is_file():
+            source = resolve_allowed_attachment_path(source_path)
+            if source is not None:
                 source_exists = True
                 export_name = _safe_attachment_export_name(index=idx, attachment=attachment, source_path=str(source))
                 binary_path = f"{annex_folder}/files/{export_name}"

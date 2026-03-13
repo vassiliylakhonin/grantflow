@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from io import BytesIO
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from docx import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
+from grantflow.core.security_utils import resolve_allowed_attachment_path
 from grantflow.exporters.donor_contracts import evaluate_export_contract
 from grantflow.exporters.template_profile import (
     build_export_template_profile,
@@ -73,11 +73,8 @@ def _adjust_submission_readiness_for_attachment_files(
         source_path = _attachment_source_path(row)
         if not source_path:
             continue
-        try:
-            source = Path(source_path).expanduser().resolve(strict=True)
-        except (FileNotFoundError, OSError):
-            source = None
-        if source is not None and source.is_file():
+        source = resolve_allowed_attachment_path(source_path)
+        if source is not None:
             attached_file_count += 1
             if status and status != "ready":
                 status_file_mismatch_count += 1
