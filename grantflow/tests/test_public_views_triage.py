@@ -273,6 +273,10 @@ def test_job_review_workflow_payload_emits_comment_triage_and_reviewer_workflow_
     }
     payload = public_job_review_workflow_payload("job-1", job)
     summary = payload["summary"]
+    findings = payload["findings"]
+    assert findings[0]["triage_priority_label"] == "P0 · Immediate"
+    assert isinstance(findings[0]["reviewer_next_actions"], list)
+    assert findings[0]["reviewer_next_action_short"]
     assert summary["acknowledged_comment_count"] == 1
     assert summary["comment_triage_summary"]["stale_comment_bucket_counts"]["logic"] == 2
     assert summary["comment_triage_summary"]["next_comment_bucket"] == "logic"
@@ -292,6 +296,8 @@ def test_job_review_workflow_payload_emits_comment_triage_and_reviewer_workflow_
     assert summary["queue_delta_summary"]["finding_ack_queue_count"] == 1
     assert summary["queue_delta_summary"]["comment_ack_net_delta"] == 1
     assert summary["queue_delta_summary"]["comment_resolve_net_delta"] == 0
+    assert summary["triage_summary"]["next_priority_label"] == "P0 · Immediate"
+    assert "ToC" in str(summary["triage_summary"]["next_action_brief"])
     assert summary["review_workflow_policy_summary"]["status"] == "breach"
     assert summary["review_workflow_policy_summary"]["go_no_go_flag"] == "hold"
     assert "overdue_review_comments_present" in summary["review_workflow_policy_summary"]["breaches"]

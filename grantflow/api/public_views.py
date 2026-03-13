@@ -341,6 +341,50 @@ def _finding_reviewer_next_step(item: Dict[str, Any], *, donor_id: Optional[str]
     return f"{title}: {action}"
 
 
+def _finding_triage_priority_label(item: Dict[str, Any]) -> str:
+    priority = _finding_triage_priority(item)
+    workflow_state = str(item.get("workflow_state") or "").strip().lower()
+    if priority == "resolved":
+        return "Resolved"
+    if priority == "urgent":
+        return "P0 · Immediate"
+    if priority == "high":
+        return "P1 · Next"
+    if priority == "medium":
+        return "P2 · Planned"
+    label = "P3 · Backlog"
+    if workflow_state == "overdue":
+        return f"{label} (overdue)"
+    return label
+
+
+def _finding_reviewer_next_actions(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> list[str]:
+    section = str(item.get("section") or "general").strip().lower()
+    section_title = {"toc": "ToC", "logframe": "LogFrame", "general": "draft"}.get(section, section.title())
+    bucket = _finding_review_bucket(item)
+    if bucket == "grounding":
+        primary = f"Replace weak/fallback evidence in {section_title}."
+    elif bucket == "measurement":
+        primary = f"Fix baseline/target/owner gaps in {section_title}."
+    elif bucket == "logic":
+        primary = f"Tighten causal logic and assumptions in {section_title}."
+    elif bucket == "compliance":
+        primary = f"Complete donor-required structure in {section_title}."
+    else:
+        primary = f"Revise {section_title} before the next review pass."
+
+    priority = _finding_triage_priority(item)
+    workflow_state = str(item.get("workflow_state") or "").strip().lower()
+    if priority in {"urgent", "high"} or workflow_state == "overdue":
+        secondary = "Acknowledge owner + ETA in reviewer thread."
+    elif priority == "resolved":
+        secondary = "Keep closed unless new evidence appears."
+    else:
+        secondary = "Apply fix and re-run review checks."
+
+    return [primary, secondary]
+
+
 def _triage_enriched_finding(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> Dict[str, Any]:
     current = dict(item)
     current["review_title"] = _finding_review_title(current)
@@ -1073,7 +1117,12 @@ def public_job_review_workflow_payload(
         )
         current["due_at"] = due_at_dt.isoformat() if due_at_dt is not None else current.get("due_at")
         current["last_transition_at"] = last_transition_dt.isoformat() if last_transition_dt is not None else None
-        findings_with_workflow.append(_triage_enriched_finding(current, donor_id=donor_id))
+        enriched = _triage_enriched_finding(current, donor_id=donor_id)
+        enriched["triage_priority_label"] = _finding_triage_priority_label(enriched)
+        next_actions = _finding_reviewer_next_actions(enriched, donor_id=donor_id)
+        enriched["reviewer_next_actions"] = next_actions
+        enriched["reviewer_next_action_short"] = next_actions[0] if next_actions else None
+        findings_with_workflow.append(enriched)
 
     comments_with_workflow: list[Dict[str, Any]] = []
     for row in comments_list:
@@ -1267,6 +1316,14 @@ def public_job_review_workflow_payload(
             donor_id=donor_id,
         ),
     }
+    triage_summary_dict = cast(dict[str, Any], summary["triage_summary"])
+    sorted_for_next = sorted(findings_with_workflow, key=_finding_priority_sort_key, reverse=True)
+    next_item = sorted_for_next[0] if sorted_for_next else None
+    if next_item is not None:
+        triage_summary_dict["next_priority_label"] = str(next_item.get("triage_priority_label") or "").strip() or None
+        triage_summary_dict["next_action_brief"] = (
+            str(next_item.get("reviewer_next_action_short") or "").strip() or None
+        )
     summary["reviewer_workflow_summary"] = _reviewer_workflow_summary_payload(
         critic_findings=findings_with_workflow,
         comment_triage_summary=cast(dict[str, Any], summary["comment_triage_summary"]),
