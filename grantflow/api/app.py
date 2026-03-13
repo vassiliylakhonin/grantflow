@@ -10,10 +10,9 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Literal, Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
-from grantflow.api.demo_ui import render_demo_ui_html
 from grantflow.api.public_views import (
     REVIEW_WORKFLOW_OVERDUE_DEFAULT_HOURS,
     REVIEW_WORKFLOW_STATE_FILTER_VALUES,
@@ -54,6 +53,7 @@ from grantflow.api.routers.critic_write import (
     configure_critic_write_router,
     router as critic_write_router,
 )
+from grantflow.api.routers.system_misc import router as system_misc_router
 from grantflow.api.schemas import (
     HITLPendingListPublicResponse,
     JobCitationsPublicResponse,
@@ -2170,16 +2170,7 @@ configure_health_router(
     version_value=__version__,
 )
 app.include_router(health_router)
-
-
-@app.get("/donors")
-def list_donors():
-    return {"donors": DonorFactory.list_supported()}
-
-
-@app.get("/demo", response_class=HTMLResponse, include_in_schema=False)
-def demo_console():
-    return HTMLResponse(render_demo_ui_html())
+app.include_router(system_misc_router)
 
 
 @app.get(

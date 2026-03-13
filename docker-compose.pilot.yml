@@ -30,6 +30,19 @@ services:
       - chroma
       - redis
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
     volumes:
       - grantflow_state:/data
 
@@ -63,6 +76,13 @@ services:
       - chroma
       - redis
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
     volumes:
       - grantflow_state:/data
 
@@ -72,6 +92,8 @@ services:
     ports:
       - "127.0.0.1:8001:8000"
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - chroma_data:/chroma/chroma
 
@@ -80,7 +102,15 @@ services:
     container_name: grantflow_redis
     ports:
       - "127.0.0.1:6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--protected-mode", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   chroma_data:

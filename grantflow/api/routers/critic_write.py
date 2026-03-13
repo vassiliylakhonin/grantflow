@@ -77,6 +77,12 @@ def resolve_status_critic_finding(job_id: str, finding_id: str, request: Request
     )
 
 
+def _req_field(req: Any, field: str, default: Any = None) -> Any:
+    if isinstance(req, dict):
+        return req.get(field, default)
+    return getattr(req, field, default)
+
+
 @router.post(
     "/status/{job_id}/critic/findings/bulk-status",
     response_model=CriticFindingsBulkStatusPublicResponse,
@@ -84,14 +90,14 @@ def resolve_status_critic_finding(job_id: str, finding_id: str, request: Request
 )
 def bulk_status_critic_findings(job_id: str, req: Any, request: Request):
     _require_api_key_if_configured(request)
-    next_status = str(req.next_status or "").strip().lower()
+    next_status = str(_req_field(req, "next_status", "") or "").strip().lower()
     return _set_critic_fatal_flaws_status_bulk(
         job_id,
         next_status=next_status,
         actor=_finding_actor_from_request(request),
-        apply_to_all=bool(req.apply_to_all),
-        finding_status=(req.finding_status or None),
-        severity=(req.severity or None),
-        section=(req.section or None),
-        finding_ids=req.finding_ids,
+        apply_to_all=bool(_req_field(req, "apply_to_all", False)),
+        finding_status=(_req_field(req, "finding_status") or None),
+        severity=(_req_field(req, "severity") or None),
+        section=(_req_field(req, "section") or None),
+        finding_ids=_req_field(req, "finding_ids"),
     )
