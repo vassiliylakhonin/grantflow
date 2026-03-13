@@ -62,10 +62,6 @@ from grantflow.api.routers.status_comments_read import (
     configure_status_comments_read_router,
     router as status_comments_read_router,
 )
-from grantflow.api.routers.generate_write import (
-    configure_generate_write_router,
-    router as generate_write_router,
-)
 from grantflow.api.routers.system_misc import router as system_misc_router
 from grantflow.api.schemas import (
     JobCitationsPublicResponse,
@@ -2348,18 +2344,88 @@ async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, requ
     return {"status": "accepted", "job_id": job_id, "preflight": preflight_payload}
 
 
-configure_generate_write_router(
-    require_api_key_if_configured=require_api_key_if_configured,
-    get_job=_get_job,
-    update_job=_update_job,
-    record_job_event=_record_job_event,
-    resume_target_from_checkpoint=_resume_target_from_checkpoint,
-    record_hitl_feedback_in_state=_record_hitl_feedback_in_state,
-    run_hitl_pipeline=_run_hitl_pipeline,
-    hitl_manager=hitl_manager,
-    hitl_status_pending=HITLStatus.PENDING,
-)
-app.include_router(generate_write_router)
+@app.post("/cancel/{job_id}")
+def cancel_job(job_id: str, request: Request):
+    require_api_key_if_configured(request)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    status = str(job.get("status") or "")
+    if status == "canceled":
+        return {"status": "canceled", "job_id": job_id, "already_canceled": True}
+    if status in {"done", "error"}:
+        raise HTTPException(status_code=409, detail=f"Job is already terminal: {status}")
+
+    checkpoint_id = job.get("checkpoint_id")
+    if checkpoint_id:
+        checkpoint = hitl_manager.get_checkpoint(str(checkpoint_id))
+        if checkpoint and checkpoint.get("status") == HITLStatus.PENDING:
+            hitl_manager.cancel(str(checkpoint_id), "Canceled by user")
+
+    _update_job(
+        job_id,
+        status="canceled",
+        cancellation_reason="Canceled by user",
+        canceled=True,
+    )
+    _record_job_event(job_id, "job_canceled", previous_status=status, reason="Canceled by user")
+    return {"status": "canceled", "job_id": job_id, "previous_status": status}
+
+
+@app.post("/resume/{job_id}")
+async def resume_job(job_id: str, background_tasks: BackgroundTasks, request: Request):
+    require_api_key_if_configured(request)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.get("status") != "pending_hitl":
+        raise HTTPException(status_code=409, detail="Job is not waiting for HITL review")
+
+    checkpoint_id = job.get("checkpoint_id")
+    if not checkpoint_id:
+        raise HTTPException(status_code=409, detail="Checkpoint missing for pending HITL job")
+
+    checkpoint = hitl_manager.get_checkpoint(checkpoint_id)
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail="Checkpoint not found")
+    if checkpoint.get("status") == HITLStatus.PENDING:
+        raise HTTPException(status_code=409, detail="Checkpoint is still pending approval")
+
+    state = job.get("state")
+    if not isinstance(state, dict):
+        raise HTTPException(status_code=409, detail="Job state is missing or invalid")
+
+    _record_hitl_feedback_in_state(state, checkpoint)
+
+    try:
+        start_at = _resume_target_from_checkpoint(checkpoint, job.get("resume_from"))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    _update_job(
+        job_id,
+        status="accepted",
+        state=state,
+        resume_from=start_at,
+        checkpoint_status=getattr(checkpoint.get("status"), "value", checkpoint.get("status")),
+    )
+    _record_job_event(
+        job_id,
+        "resume_requested",
+        checkpoint_id=str(checkpoint_id),
+        checkpoint_status=getattr(checkpoint.get("status"), "value", checkpoint.get("status")),
+        resuming_from=start_at,
+    )
+    background_tasks.add_task(_run_hitl_pipeline, job_id, state, start_at)
+    return {
+        "status": "accepted",
+        "job_id": job_id,
+        "resuming_from": start_at,
+        "checkpoint_id": checkpoint_id,
+        "checkpoint_status": getattr(checkpoint.get("status"), "value", checkpoint.get("status")),
+    }
+
 
 configure_status_read_router(
     require_api_key_if_configured=require_api_key_if_configured,
