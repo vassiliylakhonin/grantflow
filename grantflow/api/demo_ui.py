@@ -1509,6 +1509,7 @@ def render_demo_ui_html() -> str:
             </div>
             <div class="row" style="margin-top:10px;">
               <button id="runPrimaryQueueActionBtn" class="primary">Run Primary Queue Action</button>
+              <button id="undoLastBulkActionBtn" class="ghost">Undo Last Apply</button>
               <button id="applySuggestedFindingActionBtn" class="ghost">Use Suggested Finding Action</button>
               <button id="applySuggestedCommentActionBtn" class="ghost">Use Suggested Comment Action</button>
             </div>
@@ -1763,6 +1764,7 @@ def render_demo_ui_html() -> str:
         lastSuggestedFindingAction: null,
         lastSuggestedCommentAction: null,
         lastBulkApplySummary: null,
+        undoLastBulkAction: null,
         qualityGroundedGateExplainExpanded: false,
         ingestChecklistProgress: {},
         zeroReadinessWarningPrefs: {},
@@ -1963,6 +1965,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowPostApplyDelta: $("reviewWorkflowPostApplyDelta"),
         reviewWorkflowPostApplySummaryList: $("reviewWorkflowPostApplySummaryList"),
         runPrimaryQueueActionBtn: $("runPrimaryQueueActionBtn"),
+        undoLastBulkActionBtn: $("undoLastBulkActionBtn"),
         applySuggestedFindingActionBtn: $("applySuggestedFindingActionBtn"),
         applySuggestedCommentActionBtn: $("applySuggestedCommentActionBtn"),
         reviewWorkflowJson: $("reviewWorkflowJson"),
@@ -5699,6 +5702,7 @@ def render_demo_ui_html() -> str:
             ? `Run Primary Queue Action${primaryKey ? ` (${primaryKey})` : ""}`
             : "Run Primary Queue Action";
         }
+        updateUndoLastBulkActionButton();
       }
 
       function renderPostApplySummary(summary) {
@@ -5759,6 +5763,79 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function updateUndoLastBulkActionButton() {
+        if (!els.undoLastBulkActionBtn) return;
+        const undo = state.undoLastBulkAction;
+        if (!undo || !Array.isArray(undo.ids) || !undo.ids.length) {
+          els.undoLastBulkActionBtn.disabled = true;
+          els.undoLastBulkActionBtn.textContent = "Undo Last Apply";
+          return;
+        }
+        const remainingMs = Number(undo.expiresAtMs || 0) - Date.now();
+        if (remainingMs <= 0) {
+          state.undoLastBulkAction = null;
+          els.undoLastBulkActionBtn.disabled = true;
+          els.undoLastBulkActionBtn.textContent = "Undo Last Apply";
+          return;
+        }
+        const seconds = Math.max(1, Math.floor(remainingMs / 1000));
+        els.undoLastBulkActionBtn.disabled = false;
+        els.undoLastBulkActionBtn.textContent = `Undo Last Apply (${seconds}s)`;
+      }
+
+      function stashUndoFromBulkResult({ kind, preset, result }) {
+        const undoSeconds = 60;
+        const rows = kind === "finding"
+          ? (Array.isArray(result?.updated_findings) ? result.updated_findings : [])
+          : (Array.isArray(result?.updated_comments) ? result.updated_comments : []);
+        const ids = rows
+          .map((row) => (kind === "finding" ? String(row?.finding_id || "").trim() : String(row?.comment_id || "").trim()))
+          .filter(Boolean);
+        if (!ids.length) {
+          state.undoLastBulkAction = null;
+          updateUndoLastBulkActionButton();
+          return;
+        }
+        state.undoLastBulkAction = {
+          kind,
+          ids,
+          revertTo: String(preset?.sourceStatus || "").trim(),
+          ifMatchStatus: String(preset?.targetStatus || "").trim(),
+          expiresAtMs: Date.now() + (undoSeconds * 1000),
+        };
+        updateUndoLastBulkActionButton();
+      }
+
+      async function undoLastBulkAction() {
+        const undo = state.undoLastBulkAction;
+        if (!undo) throw new Error("No recent bulk action to undo");
+        if (Number(undo.expiresAtMs || 0) <= Date.now()) {
+          state.undoLastBulkAction = null;
+          updateUndoLastBulkActionButton();
+          throw new Error("Undo window expired");
+        }
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        if (!undo.revertTo || !undo.ifMatchStatus) throw new Error("Undo action is incomplete");
+
+        const endpoint = undo.kind === "finding"
+          ? `/status/${encodeURIComponent(jobId)}/critic/findings/bulk-status`
+          : `/status/${encodeURIComponent(jobId)}/comments/bulk-status`;
+        const payload = {
+          next_status: undo.revertTo,
+          if_match_status: undo.ifMatchStatus,
+          ...(undo.kind === "finding" ? { finding_ids: undo.ids } : { comment_ids: undo.ids }),
+        };
+        const result = await apiFetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        state.undoLastBulkAction = null;
+        updateUndoLastBulkActionButton();
+        await refreshWorkflowAfterBulkApply(result, `undo ${undo.kind} bulk action`);
+      }
+
       async function runPrimaryQueueAction() {
         const findingPreset = state.lastSuggestedFindingAction;
         const commentPreset = state.lastSuggestedCommentAction;
@@ -5768,22 +5845,26 @@ def render_demo_ui_html() -> str:
 
         if (primaryActionText.includes("comment") && commentPreset) {
           applySuggestedCommentActionPreset();
-          await applyCommentBulkStatus();
+          const result = await applyCommentBulkStatus();
+          stashUndoFromBulkResult({ kind: "comment", preset: commentPreset, result });
           return;
         }
         if (primaryActionText.includes("finding") && findingPreset) {
           applySuggestedFindingActionPreset();
-          await applyCriticBulkStatus();
+          const result = await applyCriticBulkStatus();
+          stashUndoFromBulkResult({ kind: "finding", preset: findingPreset, result });
           return;
         }
         if (findingPreset) {
           applySuggestedFindingActionPreset();
-          await applyCriticBulkStatus();
+          const result = await applyCriticBulkStatus();
+          stashUndoFromBulkResult({ kind: "finding", preset: findingPreset, result });
           return;
         }
         if (commentPreset) {
           applySuggestedCommentActionPreset();
-          await applyCommentBulkStatus();
+          const result = await applyCommentBulkStatus();
+          stashUndoFromBulkResult({ kind: "comment", preset: commentPreset, result });
           return;
         }
         throw new Error("No suggested primary queue action available");
@@ -9456,6 +9537,9 @@ def render_demo_ui_html() -> str:
         els.runPrimaryQueueActionBtn?.addEventListener("click", () => {
           runPrimaryQueueAction().catch(showError);
         });
+        els.undoLastBulkActionBtn?.addEventListener("click", () => {
+          undoLastBulkAction().catch(showError);
+        });
         els.applySuggestedFindingActionBtn.addEventListener("click", () => {
           applySuggestedFindingActionPreset();
         });
@@ -9607,6 +9691,7 @@ def render_demo_ui_html() -> str:
         });
         updateCriticBulkActionUi();
         updateCommentBulkActionUi();
+        updateUndoLastBulkActionButton();
         els.clearLinkedFindingBtn.addEventListener("click", clearLinkedFindingSelection);
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
