@@ -57,14 +57,11 @@ from grantflow.api.routers.portfolio_read import (
     configure_portfolio_read_router,
     router as portfolio_read_router,
 )
-from grantflow.api.routers.hitl import configure_hitl_router, router as hitl_router
-from grantflow.api.routers.status_comments_read import (
-    configure_status_comments_read_router,
-    router as status_comments_read_router,
-)
 from grantflow.api.routers.system_misc import router as system_misc_router
 from grantflow.api.schemas import (
+    HITLPendingListPublicResponse,
     JobCitationsPublicResponse,
+    JobCommentsPublicResponse,
     JobCriticPublicResponse,
     JobDiffPublicResponse,
     JobEventsPublicResponse,
@@ -2467,22 +2464,31 @@ configure_critic_write_router(
 )
 app.include_router(critic_write_router)
 
-configure_status_comments_read_router(
-    require_api_key_if_configured=require_api_key_if_configured,
-    normalize_critic_fatal_flaws_for_job=_normalize_critic_fatal_flaws_for_job,
-    get_job=_get_job,
-    normalize_review_comments_for_job=_normalize_review_comments_for_job,
-    public_job_comments_payload=public_job_comments_payload,
+@app.get(
+    "/status/{job_id}/comments",
+    response_model=JobCommentsPublicResponse,
+    response_model_exclude_none=True,
 )
-app.include_router(status_comments_read_router)
+def get_status_comments(
+    job_id: str,
+    request: Request,
+    section: Optional[str] = None,
+    comment_status: Optional[str] = Query(default=None, alias="status"),
+    version_id: Optional[str] = None,
+):
+    require_api_key_if_configured(request, for_read=True)
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or _get_job(job_id)
+    job = _normalize_review_comments_for_job(job_id) or job
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return public_job_comments_payload(
+        job_id,
+        job,
+        section=section,
+        comment_status=comment_status,
+        version_id=version_id,
+    )
 
-configure_hitl_router(
-    require_api_key_if_configured=require_api_key_if_configured,
-    hitl_manager=hitl_manager,
-    hitl_status_pending=HITLStatus.PENDING,
-    public_checkpoint_payload=public_checkpoint_payload,
-)
-app.include_router(hitl_router)
 
 @app.post(
     "/status/{job_id}/review/workflow/sla/recompute",
@@ -2517,6 +2523,31 @@ configure_comments_write_router(
     review_comment_sections=REVIEW_COMMENT_SECTIONS,
 )
 app.include_router(comments_write_router)
+
+@app.post("/hitl/approve")
+def approve_checkpoint(req: HITLApprovalRequest, request: Request):
+    require_api_key_if_configured(request)
+    checkpoint = hitl_manager.get_checkpoint(req.checkpoint_id)
+    if not checkpoint:
+        raise HTTPException(status_code=404, detail="Checkpoint not found")
+
+    if req.approved:
+        hitl_manager.approve(req.checkpoint_id, req.feedback)
+        return {"status": "approved", "checkpoint_id": req.checkpoint_id}
+
+    hitl_manager.reject(req.checkpoint_id, req.feedback or "Rejected")
+    return {"status": "rejected", "checkpoint_id": req.checkpoint_id}
+
+
+@app.get("/hitl/pending", response_model=HITLPendingListPublicResponse, response_model_exclude_none=True)
+def list_pending_hitl(request: Request, donor_id: Optional[str] = None):
+    require_api_key_if_configured(request, for_read=True)
+    pending = hitl_manager.list_pending(donor_id)
+    return {
+        "pending_count": len(pending),
+        "checkpoints": [public_checkpoint_payload(cp) for cp in pending],
+    }
+
 
 configure_ingest_router(
     require_api_key_if_configured=require_api_key_if_configured,
