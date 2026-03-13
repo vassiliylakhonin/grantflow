@@ -9,7 +9,7 @@ import zipfile
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Literal, Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
@@ -66,6 +66,10 @@ from grantflow.api.routers.generate_write import (
     configure_generate_write_router,
     router as generate_write_router,
 )
+from grantflow.api.routers.generate_submit import (
+    configure_generate_submit_router,
+    router as generate_submit_router,
+)
 from grantflow.api.routers.system_misc import router as system_misc_router
 from grantflow.api.schemas import (
     JobCitationsPublicResponse,
@@ -87,7 +91,6 @@ from grantflow.api.security import (
     require_api_key_if_configured,
 )
 from grantflow.api.webhooks import send_job_webhook_event
-from grantflow.api.services.generate_service import handle_generate, handle_generate_preflight
 from grantflow.core.config import config
 from grantflow.core.stores import create_ingest_audit_store_from_env, create_job_store_from_env
 from grantflow.core.strategies.factory import DonorFactory
@@ -904,30 +907,6 @@ def _list_jobs() -> Dict[str, Dict[str, Any]]:
         if isinstance(result, dict):
             return result
     return {}
-
-
-class GenerateRequest(BaseModel):
-    donor_id: str
-    input_context: Dict[str, Any]
-    tenant_id: Optional[str] = None
-    llm_mode: bool = False
-    hitl_enabled: bool = False
-    hitl_checkpoints: Optional[list[Literal["architect", "toc", "mel", "logframe"]]] = None
-    strict_preflight: bool = False
-    webhook_url: Optional[str] = None
-    webhook_secret: Optional[str] = None
-    client_metadata: Optional[Dict[str, Any]] = None
-
-    model_config = ConfigDict(extra="forbid")
-
-
-class GeneratePreflightRequest(BaseModel):
-    donor_id: str
-    tenant_id: Optional[str] = None
-    client_metadata: Optional[Dict[str, Any]] = None
-    input_context: Optional[Dict[str, Any]] = None
-
-    model_config = ConfigDict(extra="forbid")
 
 
 class HITLApprovalRequest(BaseModel):
@@ -2194,36 +2173,19 @@ configure_portfolio_read_router(
 )
 app.include_router(portfolio_read_router)
 
-@app.post("/generate/preflight")
-def generate_preflight(req: GeneratePreflightRequest, request: Request):
-    require_api_key_if_configured(request)
-    return handle_generate_preflight(
-        req=req,
-        resolve_tenant_id=_resolve_tenant_id,
-        request=request,
-        donor_get_strategy=DonorFactory.get_strategy,
-        build_generate_preflight=_build_generate_preflight,
-    )
-
-
-@app.post("/generate")
-async def generate(req: GenerateRequest, background_tasks: BackgroundTasks, request: Request):
-    require_api_key_if_configured(request)
-    return handle_generate(
-        req=req,
-        request=request,
-        background_tasks=background_tasks,
-        resolve_tenant_id=_resolve_tenant_id,
-        donor_get_strategy=DonorFactory.get_strategy,
-        build_generate_preflight=_build_generate_preflight,
-        normalize_state_contract=normalize_state_contract,
-        set_job=_set_job,
-        record_job_event=_record_job_event,
-        run_hitl_pipeline=_run_hitl_pipeline,
-        run_pipeline_to_completion=_run_pipeline_to_completion,
-        max_iterations=config.graph.max_iterations,
-    )
-
+configure_generate_submit_router(
+    require_api_key_if_configured=require_api_key_if_configured,
+    resolve_tenant_id=_resolve_tenant_id,
+    donor_get_strategy=DonorFactory.get_strategy,
+    build_generate_preflight=_build_generate_preflight,
+    normalize_state_contract=normalize_state_contract,
+    set_job=_set_job,
+    record_job_event=_record_job_event,
+    run_hitl_pipeline=_run_hitl_pipeline,
+    run_pipeline_to_completion=_run_pipeline_to_completion,
+    max_iterations=config.graph.max_iterations,
+)
+app.include_router(generate_submit_router)
 
 configure_generate_write_router(
     require_api_key_if_configured=require_api_key_if_configured,

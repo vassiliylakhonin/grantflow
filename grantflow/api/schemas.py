@@ -1961,3 +1961,4 @@ class RBMSamplePresetDetailPublicResponse(BaseModel):
     generate_payload: Dict[str, Any]
 
     model_config = ConfigDict(extra="allow")
+
