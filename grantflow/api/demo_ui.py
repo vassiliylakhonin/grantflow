@@ -1506,6 +1506,9 @@ def render_demo_ui_html() -> str:
               <label>Post-Apply Summary</label>
               <div id="reviewWorkflowPostApplyDelta" class="footer-note mono" style="margin:6px 0 8px 0;">delta: -</div>
               <div id="reviewWorkflowTelemetryLine" class="footer-note mono" style="margin:0 0 8px 0;">telemetry: -</div>
+              <div class="row" style="margin:0 0 8px 0;">
+                <button id="resetTriageTelemetryBtn" class="ghost">Reset Telemetry</button>
+              </div>
               <div class="list" id="reviewWorkflowPostApplySummaryList"></div>
             </div>
             <div class="row" style="margin-top:10px;">
@@ -1976,6 +1979,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowSuggestedActionsList: $("reviewWorkflowSuggestedActionsList"),
         reviewWorkflowPostApplyDelta: $("reviewWorkflowPostApplyDelta"),
         reviewWorkflowTelemetryLine: $("reviewWorkflowTelemetryLine"),
+        resetTriageTelemetryBtn: $("resetTriageTelemetryBtn"),
         reviewWorkflowPostApplySummaryList: $("reviewWorkflowPostApplySummaryList"),
         runPrimaryQueueActionBtn: $("runPrimaryQueueActionBtn"),
         undoLastBulkActionBtn: $("undoLastBulkActionBtn"),
@@ -2247,6 +2251,13 @@ def render_demo_ui_html() -> str:
         els.jobIdInput.value = localStorage.getItem("grantflow_demo_job_id") || "";
         state.ingestChecklistProgress = loadIngestChecklistProgress();
         state.zeroReadinessWarningPrefs = loadZeroReadinessWarningPrefs();
+        const telemetry = loadTriageTelemetry();
+        if (telemetry) {
+          state.triageTelemetry = {
+            ...state.triageTelemetry,
+            ...telemetry,
+          };
+        }
         renderGeneratePresetOptions();
         renderIngestPresetOptions();
         restoreUiState();
@@ -2298,6 +2309,38 @@ def render_demo_ui_html() -> str:
           if (!el) continue;
           localStorage.setItem(storageKey, String(el.value || ""));
         }
+      }
+
+      function loadTriageTelemetry() {
+        try {
+          const raw = localStorage.getItem("grantflow_demo_triage_telemetry");
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" ? parsed : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function persistTriageTelemetry() {
+        try {
+          localStorage.setItem("grantflow_demo_triage_telemetry", JSON.stringify(state.triageTelemetry || {}));
+        } catch {}
+      }
+
+      function resetTriageTelemetry() {
+        state.triageTelemetry = {
+          primaryRuns: 0,
+          bulkApplies: 0,
+          undoRuns: 0,
+          totalApplyLatencyMs: 0,
+          findingAckReduced: 0,
+          findingResolveReduced: 0,
+          commentAckReduced: 0,
+          commentResolveReduced: 0,
+        };
+        persistTriageTelemetry();
+        renderTriageTelemetryLine();
       }
 
       function generatePresetLabel(key) {
@@ -5725,6 +5768,7 @@ def render_demo_ui_html() -> str:
         const avgLatencyMs = applies > 0 ? Math.round(Number(t.totalApplyLatencyMs || 0) / applies) : 0;
         els.reviewWorkflowTelemetryLine.textContent =
           `telemetry: primary_runs=${Number(t.primaryRuns || 0)} · applies=${applies} · undo=${Number(t.undoRuns || 0)} · avg_apply_ms=${avgLatencyMs} · reduced(f_ack=${Number(t.findingAckReduced || 0)}, f_resolve=${Number(t.findingResolveReduced || 0)}, c_ack=${Number(t.commentAckReduced || 0)}, c_resolve=${Number(t.commentResolveReduced || 0)})`;
+        persistTriageTelemetry();
       }
 
       function renderPostApplySummary(summary) {
@@ -5879,6 +5923,41 @@ def render_demo_ui_html() -> str:
         stopUndoLastBulkActionTimer();
         updateUndoLastBulkActionButton();
         await refreshWorkflowAfterBulkApply(result, `undo ${undo.kind} bulk action`);
+      }
+
+      function isTypingTarget(target) {
+        const tag = String(target?.tagName || "").toLowerCase();
+        if (["input", "textarea", "select"].includes(tag)) return true;
+        if (target && target.isContentEditable) return true;
+        return false;
+      }
+
+      async function handleTriageShortcut(event) {
+        if (!event || event.defaultPrevented) return;
+        if (event.metaKey || event.ctrlKey || event.altKey) return;
+        if (isTypingTarget(event.target)) return;
+        const key = String(event.key || "").toLowerCase();
+        if (!key) return;
+
+        if (key === "p") {
+          event.preventDefault();
+          await runPrimaryQueueAction();
+          return;
+        }
+        if (key === "u") {
+          event.preventDefault();
+          await undoLastBulkAction();
+          return;
+        }
+        if (key === "a") {
+          event.preventDefault();
+          applyCriticTriagePreset("open_queue");
+          return;
+        }
+        if (key === "r") {
+          event.preventDefault();
+          applyCriticTriagePreset("resolved_audit");
+        }
       }
 
       async function runPrimaryQueueAction() {
@@ -9620,6 +9699,9 @@ def render_demo_ui_html() -> str:
         els.undoLastBulkActionBtn?.addEventListener("click", () => {
           undoLastBulkAction().catch(showError);
         });
+        els.resetTriageTelemetryBtn?.addEventListener("click", () => {
+          resetTriageTelemetry();
+        });
         els.applySuggestedFindingActionBtn.addEventListener("click", () => {
           applySuggestedFindingActionPreset();
         });
@@ -9953,6 +10035,9 @@ def render_demo_ui_html() -> str:
         });
         els.ingestDonorId.addEventListener("change", persistUiState);
         els.ingestMetadataJson.addEventListener("change", persistUiState);
+        document.addEventListener("keydown", (event) => {
+          handleTriageShortcut(event).catch(showError);
+        });
       }
 
       initDefaults();
