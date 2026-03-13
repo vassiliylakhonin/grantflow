@@ -103,8 +103,7 @@ def test_status_router_export_payload_uses_donor_fallback() -> None:
         public_job_citations_payload=lambda job_id, job: {"items": []},
         public_job_export_payload=lambda job_id, job, ingest_inventory_rows=None: {
             "job_id": job_id,
-            "status": "accepted",
-            "payload": {"inventory_rows": ingest_inventory_rows},
+            "inventory_rows": ingest_inventory_rows,
         },
         public_job_versions_payload=lambda *args, **kwargs: {"versions": []},
         public_job_diff_payload=lambda *args, **kwargs: {"diff": []},
@@ -156,23 +155,13 @@ def test_comments_router_validates_linked_finding_and_calls_append() -> None:
         normalize_critic_fatal_flaws_for_job=lambda job_id: {"state": {}},
         find_critic_fatal_flaw=lambda job, finding_id: {"finding_id": "f-1", "severity": "high", "section": "toc"},
         finding_primary_id=lambda finding: finding.get("finding_id"),
-        append_review_comment=lambda *args, **kwargs: (
-            calls.__setitem__("append", kwargs)
-            or {
-                "comment_id": "c-1",
-                "ts": "2026-03-13T00:00:00Z",
-                "section": kwargs["section"],
-                "message": kwargs["message"],
-                "status": "open",
-            }
-        ),
-        set_review_comment_status=lambda *args, **kwargs: {
+        append_review_comment=lambda *args, **kwargs: calls.setdefault("append", kwargs) or {
             "comment_id": "c-1",
-            "ts": "2026-03-13T00:00:00Z",
-            "section": "toc",
-            "message": "stub",
-            "status": kwargs["next_status"],
+            "section": kwargs["section"],
+            "message": kwargs["message"],
+            "status": "open",
         },
+        set_review_comment_status=lambda *args, **kwargs: {"comment_id": "c-1", "status": kwargs["next_status"]},
         review_comment_sections={"toc", "logframe", "general"},
     )
 
