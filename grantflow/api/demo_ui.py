@@ -1504,6 +1504,7 @@ def render_demo_ui_html() -> str:
             </div>
             <div style="margin-top:10px;">
               <label>Post-Apply Summary</label>
+              <div id="reviewWorkflowPostApplyDelta" class="footer-note mono" style="margin:6px 0 8px 0;">delta: -</div>
               <div class="list" id="reviewWorkflowPostApplySummaryList"></div>
             </div>
             <div class="row" style="margin-top:10px;">
@@ -1959,6 +1960,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
         reviewWorkflowPolicyLine: $("reviewWorkflowPolicyLine"),
         reviewWorkflowSuggestedActionsList: $("reviewWorkflowSuggestedActionsList"),
+        reviewWorkflowPostApplyDelta: $("reviewWorkflowPostApplyDelta"),
         reviewWorkflowPostApplySummaryList: $("reviewWorkflowPostApplySummaryList"),
         runPrimaryQueueActionBtn: $("runPrimaryQueueActionBtn"),
         applySuggestedFindingActionBtn: $("applySuggestedFindingActionBtn"),
@@ -5705,6 +5707,9 @@ def render_demo_ui_html() -> str:
         const payload = summary && typeof summary === "object" ? summary : state.lastBulkApplySummary;
         if (!payload || typeof payload !== "object") {
           listEl.innerHTML = `<div class="item"><div class="sub">No applied bulk action yet.</div></div>`;
+          if (els.reviewWorkflowPostApplyDelta) {
+            els.reviewWorkflowPostApplyDelta.textContent = "delta: -";
+          }
           return;
         }
         const cards = [
@@ -5715,6 +5720,13 @@ def render_demo_ui_html() -> str:
           { title: "Queue Delta", sub: String(payload.queueDelta || "-") },
           { title: "Next Primary Action", sub: String(payload.nextPrimaryAction || "-") },
         ];
+        if (els.reviewWorkflowPostApplyDelta) {
+          const changed = Number(payload.changedCount ?? 0);
+          const unchanged = Number(payload.unchangedCount ?? 0);
+          const notFound = Number(payload.notFoundCount ?? 0);
+          els.reviewWorkflowPostApplyDelta.textContent =
+            `delta: changed=${changed} · unchanged=${unchanged} · not_found=${notFound} · ${String(payload.queueDelta || "-")}`;
+        }
         listEl.innerHTML = "";
         for (const card of cards) {
           const div = document.createElement("div");
