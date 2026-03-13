@@ -53,7 +53,8 @@ class HITLCheckpoint:
     def _init_sqlite(self) -> None:
         with self._connect() as conn:
             ensure_sqlite_component_schema(conn, self.SCHEMA_COMPONENT, self.SCHEMA_VERSION)
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS hitl_checkpoints (
                   id TEXT PRIMARY KEY,
                   stage TEXT NOT NULL,
@@ -63,7 +64,8 @@ class HITLCheckpoint:
                   state_snapshot_json TEXT NOT NULL,
                   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
-                """)
+                """
+            )
 
     def _row_to_checkpoint(self, row: sqlite3.Row) -> Dict[str, Any]:
         return {

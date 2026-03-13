@@ -140,13 +140,15 @@ def open_sqlite_connection(db_path: str) -> sqlite3.Connection:
 
 
 def ensure_sqlite_schema_meta(conn: sqlite3.Connection) -> None:
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS schema_meta (
           component TEXT PRIMARY KEY,
           version INTEGER NOT NULL,
           updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
-        """)
+        """
+    )
 
 
 def ensure_sqlite_component_schema(conn: sqlite3.Connection, component: str, target_version: int) -> int:
@@ -313,13 +315,15 @@ class SQLiteJobStore:
     def _init_db(self) -> None:
         with self._connect() as conn:
             ensure_sqlite_component_schema(conn, self.SCHEMA_COMPONENT, self.SCHEMA_VERSION)
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS jobs (
                   job_id TEXT PRIMARY KEY,
                   payload_json TEXT NOT NULL,
                   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
-                """)
+                """
+            )
 
     def set(self, job_id: str, payload: Dict[str, Any]) -> None:
         stored_payload = prepare_job_payload_for_storage(payload)
@@ -388,7 +392,8 @@ class SQLiteIngestAuditStore:
     def _init_db(self) -> None:
         with self._connect() as conn:
             ensure_sqlite_component_schema(conn, self.SCHEMA_COMPONENT, self.SCHEMA_VERSION)
-            conn.execute("""
+            conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS ingest_audit_events (
                   event_id TEXT PRIMARY KEY,
                   ts TEXT NOT NULL,
@@ -400,7 +405,8 @@ class SQLiteIngestAuditStore:
                   result_json TEXT NOT NULL,
                   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
-                """)
+                """
+            )
 
     def append(self, row: Dict[str, Any]) -> None:
         item = sanitize_jsonable(dict(row or {}))

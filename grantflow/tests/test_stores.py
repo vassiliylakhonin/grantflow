@@ -253,13 +253,15 @@ def test_sqlite_job_store_upgrades_schema_meta_version_on_reinit(tmp_path):
     db_path = tmp_path / "grantflow_state.db"
 
     with sqlite3.connect(str(db_path)) as conn:
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS schema_meta (
               component TEXT PRIMARY KEY,
               version INTEGER NOT NULL,
               updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
-            """)
+            """
+        )
         conn.execute(
             "INSERT INTO schema_meta (component, version) VALUES (?, ?)",
             ("jobs", 0),
