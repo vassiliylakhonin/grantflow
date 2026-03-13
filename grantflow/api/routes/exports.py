@@ -2242,6 +2242,7 @@ def export_artifacts(req: ExportRequest, request: Request):
                 critic_findings=critic_findings,
                 review_comments=review_comments,
                 quality_summary=quality_summary,
+                include_diagnostics=bool(req.include_diagnostics),
             )
 
         if fmt in {"xlsx", "both"}:

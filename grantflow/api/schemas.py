@@ -89,6 +89,7 @@ class ExportRequest(BaseModel):
     format: str = "both"
     allow_unsafe_export: bool = False
     production_export: bool = False
+    include_diagnostics: bool = False
 
     model_config = ConfigDict(extra="allow")
 
