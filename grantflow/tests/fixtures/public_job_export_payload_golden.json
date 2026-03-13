@@ -1,6 +1,190 @@
 {
   "job_id": "job-1",
+  "status": "done",
   "payload": {
+    "state": {
+      "donor_id": "usaid",
+      "toc_draft": {
+        "toc": {
+          "brief": "Sample"
+        }
+      },
+      "critic_notes": {
+        "fatal_flaws": [
+          {
+            "finding_id": "finding-1",
+            "status": "open",
+            "severity": "high",
+            "section": "toc",
+            "code": "TOC_GAP",
+            "message": "Missing output chain",
+            "source": "rules"
+          }
+        ]
+      }
+    },
+    "quality_summary": {
+      "quality_score": null,
+      "critic_score": null,
+      "needs_revision": null,
+      "engine": null,
+      "rule_score": null,
+      "llm_score": null,
+      "fatal_flaw_count": 1,
+      "citation_count": 0,
+      "grounding_trust_summary": {
+        "trust_score": 12.0,
+        "trust_level": "low",
+        "components": {
+          "confidence_score": 0.0,
+          "traceability_score": 0.0,
+          "diagnostic_risk_score": 0.4
+        },
+        "inputs": {
+          "citation_count": 0,
+          "open_finding_count": 1,
+          "rag_low_confidence_citation_count": 0,
+          "grounding_risk_level": "unknown"
+        },
+        "formula": "trust = 100 * (0.45*confidence + 0.35*traceability + 0.20*(1-diagnostic_risk))"
+      }
+    },
+    "critic_findings": [
+      {
+        "finding_id": "finding-1",
+        "status": "open",
+        "severity": "high",
+        "section": "toc",
+        "code": "TOC_GAP",
+        "message": "Missing output chain",
+        "source": "rules",
+        "id": "finding-1",
+        "rationale": null,
+        "fix_suggestion": null,
+        "fix_hint": null,
+        "version_id": null,
+        "review_title": "Toc Gap",
+        "review_bucket": "logic",
+        "triage_priority": "urgent",
+        "recommended_action": "Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy.",
+        "reviewer_next_step": "Toc Gap: Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy.",
+        "staleness_band": "fresh",
+        "triage_priority_rationale": "Priority set because severity is high, item is still unacknowledged, core causal logic needs correction.",
+        "linked_comment_ids": [
+          "comment-1"
+        ]
+      }
+    ],
+    "review_comments": [
+      {
+        "comment_id": "comment-1",
+        "status": "open",
+        "section": "toc",
+        "author": "rev",
+        "message": "Need details",
+        "linked_finding_id": "finding-1",
+        "version_id": "toc_v1",
+        "ts": "2026-02-27T00:00:00Z"
+      }
+    ],
+    "readiness": null,
+    "review_readiness_summary": {
+      "needs_revision": null,
+      "open_critic_findings": 1,
+      "resolved_critic_findings": 0,
+      "acknowledged_critic_findings": 0,
+      "critic_finding_resolution_rate": 0.0,
+      "critic_finding_acknowledgment_rate": 0.0,
+      "high_severity_open_findings": 1,
+      "open_review_comments": 1,
+      "resolved_review_comments": 0,
+      "acknowledged_review_comments": 0,
+      "pending_review_comments": 1,
+      "overdue_review_comments": 0,
+      "stale_open_review_comments": 1,
+      "linked_review_comments": 1,
+      "orphan_linked_review_comments": 0,
+      "review_comment_resolution_rate": 0.0,
+      "review_comment_acknowledgment_rate": 0.0,
+      "top_reviewer_actions": [
+        "Toc Gap: Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy."
+      ],
+      "reviewer_workflow_summary": {
+        "open_items": 2,
+        "acknowledged_items": 0,
+        "resolved_items": 0,
+        "resolution_rate": 0.0,
+        "acknowledgment_rate": 0.0,
+        "stale_comment_bucket_counts": {
+          "logic": 1
+        },
+        "top_stale_comment_bucket": "logic",
+        "next_comment_bucket": "logic",
+        "next_comment_action": "Resolve the results-logic comment thread so the causal chain and assumptions read clearly in the donor review package before the next draft review."
+      },
+      "action_queue_summary": {
+        "finding_ack_queue_count": 1,
+        "finding_resolve_queue_count": 0,
+        "comment_ack_queue_count": 1,
+        "comment_resolve_queue_count": 0,
+        "comment_reopen_queue_count": 0,
+        "next_primary_action": "ack_finding"
+      },
+      "review_workflow_policy_summary": {
+        "status": "breach",
+        "go_no_go_flag": "hold",
+        "breach_count": 1,
+        "attention_count": 4,
+        "breaches": [
+          "comment_threads_gt_7d_present"
+        ],
+        "attention_flags": [
+          "finding_ack_queue_open",
+          "comment_ack_queue_open",
+          "low_reviewer_resolution_rate",
+          "low_reviewer_acknowledgment_rate"
+        ],
+        "next_operational_action": "clear_stale_comment_threads",
+        "max_allowed_finding_ack_queue": 1,
+        "max_allowed_comment_threads_gt_7d": 0,
+        "min_reviewer_resolution_rate": 0.35,
+        "min_reviewer_acknowledgment_rate": 0.65
+      },
+      "low_confidence_citations": 0,
+      "fallback_strategy_citations": 0,
+      "comment_triage_summary": {
+        "open_comment_count": 1,
+        "resolved_comment_count": 0,
+        "acknowledged_comment_count": 0,
+        "pending_comment_count": 1,
+        "overdue_comment_count": 0,
+        "stale_open_comment_count": 1,
+        "linked_comment_count": 1,
+        "orphan_linked_comment_count": 0,
+        "high_priority_open_comment_count": 1,
+        "comment_status_counts": {
+          "open": 1
+        },
+        "comment_bucket_counts": {
+          "logic": 1
+        },
+        "stale_comment_bucket_counts": {
+          "logic": 1
+        },
+        "aging_band_counts": {
+          "lt_24h": 0,
+          "d1_3": 0,
+          "d3_7": 0,
+          "gt_7d": 1
+        },
+        "top_comment_ids": [
+          "comment-1"
+        ],
+        "next_comment_section": "toc",
+        "next_comment_bucket": "logic",
+        "next_recommended_action": "Resolve the results-logic comment thread so the causal chain and assumptions read clearly in the USAID results hierarchy and monitoring package before the next draft review."
+      }
+    },
     "architect_citation_signals": {
       "architect_citation_count": 0,
       "evidence_signal_count": 0,
@@ -8,36 +192,27 @@
       "review_hint_count": 0,
       "review_hint_preview": []
     },
-    "critic_findings": [
-      {
-        "code": "TOC_GAP",
-        "finding_id": "finding-1",
-        "fix_hint": null,
-        "fix_suggestion": null,
-        "id": "finding-1",
-        "linked_comment_ids": [
-          "comment-1"
-        ],
-        "message": "Missing output chain",
-        "rationale": null,
-        "recommended_action": "Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy.",
-        "review_bucket": "logic",
-        "review_title": "Toc Gap",
-        "reviewer_next_step": "Toc Gap: Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy.",
-        "section": "toc",
-        "severity": "high",
-        "source": "rules",
-        "staleness_band": "fresh",
-        "status": "open",
-        "triage_priority": "urgent",
-        "version_id": null
-      }
-    ],
+    "submission_package_readiness": {},
     "export_contract": {
-      "actual_primary_sheet_headers": [],
-      "actual_sheets": [],
-      "blocking": false,
       "donor_id": "usaid",
+      "template_key": "usaid",
+      "template_display_name": "USAID Results Framework",
+      "required_sections": [
+        "project_goal",
+        "development_objectives"
+      ],
+      "present_sections": [],
+      "missing_required_sections": [
+        "project_goal",
+        "development_objectives"
+      ],
+      "required_sheets": [
+        "LogFrame",
+        "USAID_RF",
+        "Template Meta"
+      ],
+      "actual_sheets": [],
+      "missing_required_sheets": [],
       "expected_docx_headings": [
         "USAID Results Framework",
         "Project Goal",
@@ -51,181 +226,23 @@
         "IR ID",
         "IR Description"
       ],
-      "go_ahead": true,
+      "actual_primary_sheet_headers": [],
       "missing_required_primary_sheet_headers": [],
-      "missing_required_sections": [
-        "project_goal",
-        "development_objectives"
-      ],
-      "missing_required_sheets": [],
-      "mode": "warn",
-      "passed": false,
-      "present_sections": [],
-      "reasons": [
-        "missing_required_toc_sections"
-      ],
-      "required_sections": [
-        "project_goal",
-        "development_objectives"
-      ],
-      "required_sheets": [
-        "LogFrame",
-        "USAID_RF",
-        "Template Meta"
-      ],
-      "risk_level": "high",
+      "workbook_validation_enabled": false,
       "status": "warning",
-      "submission_readiness_summary": null,
-      "summary": "missing_required_toc_sections",
-      "template_display_name": "USAID Results Framework",
-      "template_key": "usaid",
       "warnings": [
         "missing_required_toc_sections"
       ],
-      "workbook_validation_enabled": false
-    },
-    "quality_summary": {
-      "citation_count": 0,
-      "critic_score": null,
-      "engine": null,
-      "fatal_flaw_count": 1,
-      "llm_score": null,
-      "needs_revision": null,
-      "quality_score": null,
-      "rule_score": null
-    },
-    "readiness": null,
-    "review_comments": [
-      {
-        "author": "rev",
-        "comment_id": "comment-1",
-        "linked_finding_id": "finding-1",
-        "message": "Need details",
-        "section": "toc",
-        "status": "open",
-        "ts": "2026-02-27T00:00:00Z",
-        "version_id": "toc_v1"
-      }
-    ],
-    "review_readiness_summary": {
-      "acknowledged_critic_findings": 0,
-      "acknowledged_review_comments": 0,
-      "action_queue_summary": {
-        "comment_ack_queue_count": 1,
-        "comment_reopen_queue_count": 0,
-        "comment_resolve_queue_count": 0,
-        "finding_ack_queue_count": 1,
-        "finding_resolve_queue_count": 0,
-        "next_primary_action": "ack_finding"
-      },
-      "comment_triage_summary": {
-        "acknowledged_comment_count": 0,
-        "aging_band_counts": {
-          "d1_3": 0,
-          "d3_7": 0,
-          "gt_7d": 1,
-          "lt_24h": 0
-        },
-        "comment_bucket_counts": {
-          "logic": 1
-        },
-        "comment_status_counts": {
-          "open": 1
-        },
-        "high_priority_open_comment_count": 1,
-        "linked_comment_count": 1,
-        "next_comment_bucket": "logic",
-        "next_comment_section": "toc",
-        "next_recommended_action": "Resolve the results-logic comment thread so the causal chain and assumptions read clearly in the USAID results hierarchy and monitoring package before the next draft review.",
-        "open_comment_count": 1,
-        "orphan_linked_comment_count": 0,
-        "overdue_comment_count": 0,
-        "pending_comment_count": 1,
-        "resolved_comment_count": 0,
-        "stale_comment_bucket_counts": {
-          "logic": 1
-        },
-        "stale_open_comment_count": 1,
-        "top_comment_ids": [
-          "comment-1"
-        ]
-      },
-      "critic_finding_acknowledgment_rate": 0.0,
-      "critic_finding_resolution_rate": 0.0,
-      "fallback_strategy_citations": 0,
-      "high_severity_open_findings": 1,
-      "linked_review_comments": 1,
-      "low_confidence_citations": 0,
-      "needs_revision": null,
-      "open_critic_findings": 1,
-      "open_review_comments": 1,
-      "orphan_linked_review_comments": 0,
-      "overdue_review_comments": 0,
-      "pending_review_comments": 1,
-      "resolved_critic_findings": 0,
-      "resolved_review_comments": 0,
-      "review_comment_acknowledgment_rate": 0.0,
-      "review_comment_resolution_rate": 0.0,
-      "review_workflow_policy_summary": {
-        "attention_count": 4,
-        "attention_flags": [
-          "finding_ack_queue_open",
-          "comment_ack_queue_open",
-          "low_reviewer_resolution_rate",
-          "low_reviewer_acknowledgment_rate"
-        ],
-        "breach_count": 1,
-        "breaches": [
-          "comment_threads_gt_7d_present"
-        ],
-        "go_no_go_flag": "hold",
-        "max_allowed_comment_threads_gt_7d": 0,
-        "max_allowed_finding_ack_queue": 1,
-        "min_reviewer_acknowledgment_rate": 0.65,
-        "min_reviewer_resolution_rate": 0.35,
-        "next_operational_action": "clear_stale_comment_threads",
-        "status": "breach"
-      },
-      "reviewer_workflow_summary": {
-        "acknowledged_items": 0,
-        "acknowledgment_rate": 0.0,
-        "next_comment_action": "Resolve the results-logic comment thread so the causal chain and assumptions read clearly in the donor review package before the next draft review.",
-        "next_comment_bucket": "logic",
-        "open_items": 2,
-        "resolution_rate": 0.0,
-        "resolved_items": 0,
-        "stale_comment_bucket_counts": {
-          "logic": 1
-        },
-        "top_stale_comment_bucket": "logic"
-      },
-      "stale_open_review_comments": 1,
-      "top_reviewer_actions": [
-        "Toc Gap: Rework the DO -> IR -> Output chain and the supporting assumptions so the next draft reads like a reviewable USAID results hierarchy."
-      ]
-    },
-    "state": {
-      "critic_notes": {
-        "fatal_flaws": [
-          {
-            "code": "TOC_GAP",
-            "finding_id": "finding-1",
-            "message": "Missing output chain",
-            "section": "toc",
-            "severity": "high",
-            "source": "rules",
-            "status": "open"
-          }
-        ]
-      },
-      "donor_id": "usaid",
-      "toc_draft": {
-        "toc": {
-          "brief": "Sample"
-        }
-      }
-    },
-    "submission_package_readiness": {}
-  },
-  "status": "done"
+      "submission_readiness_summary": null,
+      "mode": "warn",
+      "passed": false,
+      "blocking": false,
+      "go_ahead": true,
+      "summary": "missing_required_toc_sections",
+      "reasons": [
+        "missing_required_toc_sections"
+      ],
+      "risk_level": "high"
+    }
+  }
 }

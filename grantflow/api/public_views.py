@@ -729,6 +729,86 @@ def _state_retrieval_expected(state_dict: Dict[str, Any]) -> bool:
     return True
 
 
+def _grounding_trust_summary_payload(
+    *,
+    citations: list[Dict[str, Any]],
+    grounding_risk_level: str,
+    open_finding_count: int,
+) -> Dict[str, Any]:
+    confidence_values: list[float] = []
+    traceability_complete = 0
+    traceability_partial = 0
+    rag_low_confidence_count = 0
+
+    for row in citations:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("citation_type") or "").strip().lower() == "rag_low_confidence":
+            rag_low_confidence_count += 1
+        traceability_status = citation_traceability_status(row)
+        if traceability_status == "complete":
+            traceability_complete += 1
+        elif traceability_status == "partial":
+            traceability_partial += 1
+
+        confidence_raw = row.get("citation_confidence")
+        try:
+            confidence_value = float(confidence_raw) if confidence_raw is not None else None
+        except (TypeError, ValueError):
+            confidence_value = None
+        if confidence_value is not None:
+            confidence_values.append(max(0.0, min(1.0, confidence_value)))
+
+    citation_count = len(citations)
+    confidence_score = round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else 0.0
+    traceability_score = (
+        round((traceability_complete + (0.5 * traceability_partial)) / citation_count, 4) if citation_count else 0.0
+    )
+
+    grounding_risk_penalty = {
+        "low": 0.05,
+        "medium": 0.25,
+        "high": 0.45,
+        "unknown": 0.3,
+    }.get(str(grounding_risk_level or "").strip().lower(), 0.3)
+    open_finding_penalty = min(0.35, max(0, int(open_finding_count)) * 0.1)
+    rag_low_conf_penalty = min(0.2, max(0, int(rag_low_confidence_count)) * 0.05)
+    diagnostic_risk_score = round(min(1.0, grounding_risk_penalty + open_finding_penalty + rag_low_conf_penalty), 4)
+
+    trust_score = round(
+        (
+            (0.45 * confidence_score)
+            + (0.35 * traceability_score)
+            + (0.2 * (1.0 - diagnostic_risk_score))
+        )
+        * 100,
+        1,
+    )
+    if trust_score >= 80.0:
+        trust_level = "high"
+    elif trust_score >= 60.0:
+        trust_level = "medium"
+    else:
+        trust_level = "low"
+
+    return {
+        "trust_score": trust_score,
+        "trust_level": trust_level,
+        "components": {
+            "confidence_score": confidence_score,
+            "traceability_score": traceability_score,
+            "diagnostic_risk_score": diagnostic_risk_score,
+        },
+        "inputs": {
+            "citation_count": citation_count,
+            "open_finding_count": int(open_finding_count),
+            "rag_low_confidence_citation_count": rag_low_confidence_count,
+            "grounding_risk_level": str(grounding_risk_level or "unknown") or "unknown",
+        },
+        "formula": "trust = 100 * (0.45*confidence + 0.35*traceability + 0.20*(1-diagnostic_risk))",
+    }
+
+
 def _citation_grounding_counts(citations: list[Dict[str, Any]]) -> Dict[str, int]:
     fallback_count = 0
     strategy_reference_count = 0
@@ -2303,6 +2383,8 @@ def public_job_export_payload(
         review_comments=[item for item in review_comments if isinstance(item, dict)],
     )
     architect_signal_summary = _architect_citation_signal_summary_payload(citations_for_summary_rows)
+    metrics_payload = public_job_metrics_payload(job_id, job)
+    trust_summary = metrics_payload.get("grounding_trust_summary") if isinstance(metrics_payload, dict) else None
     submission_package_readiness = {}
     raw_submission_readiness = export_contract_gate.get("submission_readiness_summary")
     if isinstance(raw_submission_readiness, dict):
@@ -2336,6 +2418,7 @@ def public_job_export_payload(
                 "llm_score": sanitize_for_public_response(critic.get("llm_score")),
                 "fatal_flaw_count": int(critic.get("fatal_flaw_count") or 0),
                 "citation_count": len(citations_for_summary),
+                "grounding_trust_summary": sanitize_for_public_response(trust_summary),
             },
             "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
             "review_comments": [item for item in review_comments if isinstance(item, dict)],
@@ -2636,6 +2719,17 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
     )
     non_retrieval_rate = round(non_retrieval_count / citation_count, 4) if citation_count else None
     retrieval_grounded_rate = round(retrieval_grounded_count / citation_count, 4) if citation_count else None
+    critic_findings = state_critic_findings(state_dict)
+    open_finding_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "open").strip().lower() == "open"
+    )
+    trust_summary = _grounding_trust_summary_payload(
+        citations=citations_list,
+        grounding_risk_level=grounding_risk_level,
+        open_finding_count=open_finding_count,
+    )
 
     return {
         "job_id": str(job_id),
@@ -2661,6 +2755,7 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
         "non_retrieval_citation_count": non_retrieval_count,
         "retrieval_grounded_citation_rate": retrieval_grounded_rate,
         "non_retrieval_citation_rate": non_retrieval_rate,
+        "grounding_trust_summary": trust_summary,
     }
 
 
@@ -3644,6 +3739,7 @@ def public_job_quality_payload(
     state_dict: Dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
     critic_payload: Dict[str, Any] = public_job_critic_payload(job_id, job)
     metrics_payload: Dict[str, Any] = public_job_metrics_payload(job_id, job)
+    trust_summary = metrics_payload.get("grounding_trust_summary") if isinstance(metrics_payload, dict) else None
     citations_payload = public_job_citations_payload(job_id, job)
 
     citations = citations_payload.get("citations") if isinstance(citations_payload, dict) else []
@@ -3945,6 +4041,7 @@ def public_job_quality_payload(
         "terminal_status": sanitize_for_public_response(metrics_payload.get("terminal_status")),
         "time_to_first_draft_seconds": sanitize_for_public_response(metrics_payload.get("time_to_first_draft_seconds")),
         "time_to_terminal_seconds": sanitize_for_public_response(metrics_payload.get("time_to_terminal_seconds")),
+        "grounding_trust_summary": sanitize_for_public_response(trust_summary),
         "critic": {
             "engine": sanitize_for_public_response(critic_payload.get("engine")),
             "rule_score": sanitize_for_public_response(critic_payload.get("rule_score")),
