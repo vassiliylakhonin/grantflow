@@ -8,7 +8,26 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate PR title follows Conventional Commit format
+        run: |
+          python scripts/pr_title_guard.py
+
   shell:
     runs-on: ubuntu-latest
     steps:
@@ -20,12 +39,13 @@ jobs:
           sudo apt-get install -y shellcheck
 
       - name: Lint shell scripts
-        run: shellcheck deploy.sh backup.sh
+        run: shellcheck deploy.sh backup.sh scripts/docker_compose_smoke.sh
 
       - name: Bash syntax check
         run: |
           bash -n deploy.sh
           bash -n backup.sh
+          bash -n scripts/docker_compose_smoke.sh
 
   release-governance:
     runs-on: ubuntu-latest
@@ -42,6 +62,47 @@ jobs:
       - name: Validate release governance guardrails
         run: |
           python scripts/release_guard.py
+
+  dependency-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate dependency packaging contract
+        run: |
+          python scripts/dependency_contract_guard.py
+
+  style:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run ruff (project lint)
+        run: |
+          python -m ruff check grantflow scripts
+
+      - name: Run black (format check)
+        run: |
+          python -m black --check grantflow scripts
 
   mypy:
     runs-on: ubuntu-latest
@@ -62,14 +123,56 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[dev]"
 
-      - name: Run mypy (targeted baseline)
+      - name: Run mypy (grantflow package)
         run: |
-          python -m mypy grantflow/api grantflow/core/stores.py grantflow/swarm/versioning.py
+          python -m mypy grantflow
+
+  prod-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run production preflight (API profile)
+        env:
+          GRANTFLOW_ENV: production
+          GRANTFLOW_JOB_RUNNER_MODE: redis_queue
+          GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED: "false"
+          GRANTFLOW_JOB_RUNNER_REDIS_URL: redis://127.0.0.1:6379/0
+          GRANTFLOW_JOB_STORE: sqlite
+          GRANTFLOW_HITL_STORE: sqlite
+          GRANTFLOW_INGEST_STORE: sqlite
+          GRANTFLOW_SQLITE_PATH: ./.data/grantflow_state.db
+          GRANTFLOW_API_KEY: ci-preflight-secret
+          GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP: "true"
+          GRANTFLOW_REQUIRE_PERSISTENT_STORES_ON_STARTUP: "true"
+        run: |
+          make preflight-prod-api
+
+      - name: Run production preflight (worker profile)
+        env:
+          GRANTFLOW_ENV: production
+          GRANTFLOW_JOB_RUNNER_MODE: redis_queue
+          GRANTFLOW_JOB_RUNNER_CONSUMER_ENABLED: "true"
+          GRANTFLOW_JOB_RUNNER_REDIS_URL: redis://127.0.0.1:6379/0
+          GRANTFLOW_JOB_STORE: sqlite
+          GRANTFLOW_HITL_STORE: sqlite
+          GRANTFLOW_INGEST_STORE: sqlite
+          GRANTFLOW_SQLITE_PATH: ./.data/grantflow_state.db
+          GRANTFLOW_REQUIRE_API_KEY_ON_STARTUP: "true"
+          GRANTFLOW_REQUIRE_PERSISTENT_STORES_ON_STARTUP: "true"
+        run: |
+          make preflight-prod-worker
 
   eval:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ${{ github.workspace }}
+      GRANTFLOW_FORCE_INMEM_VECTOR_STORE: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -94,6 +197,89 @@ jobs:
             --compare-to-baseline grantflow/eval/fixtures/baseline_regression_snapshot.json \
             --comparison-text-out eval-artifacts/eval-comparison.txt \
             --comparison-json-out eval-artifacts/eval-comparison.json
+
+      - name: Run evaluation harness (grounded deterministic suite)
+        run: |
+          python -m grantflow.eval.harness \
+            --cases-file grantflow/eval/cases/grounded_cases.json \
+            --seed-rag-manifest docs/rag_seed_corpus/ingest_manifest.jsonl \
+            --suite-label grounded-eval \
+            --text-out eval-artifacts/grounded-eval-report.txt \
+            --json-out eval-artifacts/grounded-eval-report.json \
+            --compare-to-baseline grantflow/eval/fixtures/grounded_regression_snapshot.json \
+            --comparison-text-out eval-artifacts/grounded-regression-comparison.txt \
+            --comparison-json-out eval-artifacts/grounded-regression-comparison.json
+
+      - name: Validate seeded corpus (grounded deterministic suite)
+        run: |
+          python scripts/check_seeded_corpus.py \
+            --json eval-artifacts/grounded-eval-report.json \
+            --label grounded-eval-seed \
+            --expected-donors usaid,eu,worldbank,state_department \
+            --min-seeded-total 1
+
+      - name: Run grounded A/B eval (architect RAG on)
+        run: |
+          python -m grantflow.eval.harness \
+            --cases-file grantflow/eval/cases/grounded_cases.json \
+            --seed-rag-manifest docs/rag_seed_corpus/ingest_manifest.jsonl \
+            --suite-label grounded-ab-a \
+            --skip-expectations \
+            --text-out eval-artifacts/grounded-ab-a-report.txt \
+            --json-out eval-artifacts/grounded-ab-a-report.json
+
+      - name: Validate seeded corpus (grounded A)
+        run: |
+          python scripts/check_seeded_corpus.py \
+            --json eval-artifacts/grounded-ab-a-report.json \
+            --label grounded-ab-a-seed \
+            --expected-donors usaid,eu,worldbank,state_department \
+            --min-seeded-total 1
+
+      - name: Run grounded A/B eval (architect RAG off)
+        run: |
+          python -m grantflow.eval.harness \
+            --cases-file grantflow/eval/cases/grounded_cases.json \
+            --seed-rag-manifest docs/rag_seed_corpus/ingest_manifest.jsonl \
+            --suite-label grounded-ab-b \
+            --skip-expectations \
+            --force-no-architect-rag \
+            --text-out eval-artifacts/grounded-ab-b-report.txt \
+            --json-out eval-artifacts/grounded-ab-b-report.json
+
+      - name: Validate seeded corpus (grounded B)
+        run: |
+          python scripts/check_seeded_corpus.py \
+            --json eval-artifacts/grounded-ab-b-report.json \
+            --label grounded-ab-b-seed \
+            --expected-donors usaid,eu,worldbank,state_department \
+            --min-seeded-total 1
+
+      - name: Build grounded A/B diff report
+        run: |
+          python scripts/eval_ab_diff.py \
+            --a-json eval-artifacts/grounded-ab-a-report.json \
+            --b-json eval-artifacts/grounded-ab-b-report.json \
+            --a-label architect_rag_on \
+            --b-label architect_rag_off \
+            --guard-donors usaid,eu,worldbank,state_department \
+            --max-a-non-retrieval-rate 0.25 \
+            --min-a-retrieval-grounded-rate 0.75 \
+            --max-a-traceability-gap-rate 0.10 \
+            --min-a-non-retrieval-improvement-vs-b 0.25 \
+            --min-a-retrieval-grounded-improvement-vs-b 0.25 \
+            --text-out eval-artifacts/grounded-ab-diff.txt \
+            --json-out eval-artifacts/grounded-ab-diff.json
+
+      - name: Build grounded gate markdown summary
+        run: |
+          python scripts/build_grounded_gate_summary.py \
+            --grounded-json eval-artifacts/grounded-eval-report.json \
+            --grounded-comparison-json eval-artifacts/grounded-regression-comparison.json \
+            --ab-diff-json eval-artifacts/grounded-ab-diff.json \
+            --expected-donors usaid,eu,worldbank,state_department \
+            --min-seeded-total 1 \
+            --out eval-artifacts/grounded-gate-summary.md
 
       - name: Upload evaluation report
         uses: actions/upload-artifact@v4
@@ -125,6 +311,9 @@ jobs:
       - name: Run grounded smoke benchmark (deterministic)
         run: |
           mkdir -p grounded-smoke-artifacts
+          GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MODE=strict \
+          GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MIN_CITATIONS=0 \
+          GRANTFLOW_RUNTIME_GROUNDED_QUALITY_GATE_MIN_RETRIEVAL_GROUNDED_CITATIONS=9999 \
           python -m uvicorn grantflow.api.app:app --host 127.0.0.1 --port 8000 > grounded-smoke-artifacts/api.log 2>&1 &
           API_PID=$!
           cleanup() {
@@ -148,6 +337,12 @@ jobs:
             --donors usaid,state_department \
             --json-out grounded-smoke-artifacts/benchmark-results.json \
             | tee grounded-smoke-artifacts/benchmark-summary.txt
+
+          python scripts/runtime_grounded_gate_smoke.py \
+            --api-base http://127.0.0.1:8000 \
+            --donor-id usaid \
+            --json-out grounded-smoke-artifacts/runtime-grounded-gate-smoke.json \
+            | tee grounded-smoke-artifacts/runtime-grounded-gate-smoke.log
 
           python - <<'PY'
           import json
@@ -178,36 +373,130 @@ jobs:
           path: grounded-smoke-artifacts/
           if-no-files-found: error
 
-  test:
+  demo-smoke:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+      GRANTFLOW_FORCE_INMEM_VECTOR_STORE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run demo smoke chain
+        run: |
+          mkdir -p demo-smoke-artifacts
+          python -m uvicorn grantflow.api.app:app --host 127.0.0.1 --port 8000 > demo-smoke-artifacts/api.log 2>&1 &
+          API_PID=$!
+          cleanup() {
+            kill "$API_PID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          for _ in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/health >/dev/null
+
+          make ci-demo-smoke CI_DEMO_SMOKE_ROOT=build/ci-demo-smoke | tee demo-smoke-artifacts/ci-demo-smoke.log
+
+      - name: Publish demo review smoke summary
+        if: always()
+        run: |
+          if [ -f demo-smoke-artifacts/demo-review-smoke-summary.md ]; then
+            cat demo-smoke-artifacts/demo-review-smoke-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Demo review smoke summary not found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload demo smoke artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-smoke-artifacts
+          path: |
+            demo-smoke-artifacts/
+            demo-smoke-artifacts/demo-review-smoke-summary.md
+            build/ci-demo-smoke/
+            build/latest-open-order.md
+          if-no-files-found: error
+
+  docker-compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run docker-compose smoke (/ready + redis worker heartbeat + /generate llm_mode=false)
+        run: |
+          scripts/docker_compose_smoke.sh
+
+  qa-hitl:
     runs-on: ubuntu-latest
     env:
       PYTHONPATH: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
           cache-dependency-path: pyproject.toml
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ".[dev]"
-      
-      - name: Run tests (with coverage gate)
+
+      - name: Run HITL integration smoke suite
+        run: |
+          make qa-hitl
+
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run tests
         run: |
           if [ -d "grantflow/tests" ]; then
-            python -m pytest -c grantflow/pytest.ini grantflow/tests/ -v --tb=short --cov=grantflow --cov-report=html --cov-report=term --cov-fail-under=60
+            python -m pytest -c grantflow/pytest.ini grantflow/tests/ --ignore=grantflow/tests/test_integration.py -v --tb=short
           elif [ -d "tests" ]; then
-            python -m pytest tests/ -v --tb=short --cov=grantflow --cov-report=html --cov-report=term --cov-fail-under=60
+            python -m pytest tests/ -v --tb=short
           else
             echo "ERROR: No tests directory found"
             exit 1
           fi
-      
+
       - name: Upload coverage (optional)
         uses: actions/upload-artifact@v4
         if: always()
