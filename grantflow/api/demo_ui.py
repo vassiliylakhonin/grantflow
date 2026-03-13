@@ -1765,6 +1765,7 @@ def render_demo_ui_html() -> str:
         lastSuggestedCommentAction: null,
         lastBulkApplySummary: null,
         undoLastBulkAction: null,
+        undoLastBulkActionTimer: null,
         qualityGroundedGateExplainExpanded: false,
         ingestChecklistProgress: {},
         zeroReadinessWarningPrefs: {},
@@ -5763,10 +5764,25 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function stopUndoLastBulkActionTimer() {
+        if (state.undoLastBulkActionTimer) {
+          clearInterval(state.undoLastBulkActionTimer);
+          state.undoLastBulkActionTimer = null;
+        }
+      }
+
+      function startUndoLastBulkActionTimer() {
+        stopUndoLastBulkActionTimer();
+        state.undoLastBulkActionTimer = setInterval(() => {
+          updateUndoLastBulkActionButton();
+        }, 1000);
+      }
+
       function updateUndoLastBulkActionButton() {
         if (!els.undoLastBulkActionBtn) return;
         const undo = state.undoLastBulkAction;
         if (!undo || !Array.isArray(undo.ids) || !undo.ids.length) {
+          stopUndoLastBulkActionTimer();
           els.undoLastBulkActionBtn.disabled = true;
           els.undoLastBulkActionBtn.textContent = "Undo Last Apply";
           return;
@@ -5774,11 +5790,12 @@ def render_demo_ui_html() -> str:
         const remainingMs = Number(undo.expiresAtMs || 0) - Date.now();
         if (remainingMs <= 0) {
           state.undoLastBulkAction = null;
+          stopUndoLastBulkActionTimer();
           els.undoLastBulkActionBtn.disabled = true;
           els.undoLastBulkActionBtn.textContent = "Undo Last Apply";
           return;
         }
-        const seconds = Math.max(1, Math.floor(remainingMs / 1000));
+        const seconds = Math.max(1, Math.ceil(remainingMs / 1000));
         els.undoLastBulkActionBtn.disabled = false;
         els.undoLastBulkActionBtn.textContent = `Undo Last Apply (${seconds}s)`;
       }
@@ -5803,6 +5820,7 @@ def render_demo_ui_html() -> str:
           ifMatchStatus: String(preset?.targetStatus || "").trim(),
           expiresAtMs: Date.now() + (undoSeconds * 1000),
         };
+        startUndoLastBulkActionTimer();
         updateUndoLastBulkActionButton();
       }
 
@@ -5832,6 +5850,7 @@ def render_demo_ui_html() -> str:
           body: JSON.stringify(payload),
         });
         state.undoLastBulkAction = null;
+        stopUndoLastBulkActionTimer();
         updateUndoLastBulkActionButton();
         await refreshWorkflowAfterBulkApply(result, `undo ${undo.kind} bulk action`);
       }
