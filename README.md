@@ -1,52 +1,46 @@
 # GrantFlow
 
-Institutional proposal operating system: an API-first, compliance-aware workflow engine for donor-funded programs with strategy-driven drafting, HITL governance, citation traceability, and export-ready artifacts.
+Institutional proposal operating system: compliance-aware, agentic workflow engine for donor-funded programs with strategy-driven drafting, HITL governance, citation traceability, and export-ready artifacts.
 
 [![CI](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml/badge.svg)](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml)
-[![Security](https://github.com/vassiliylakhonin/grantflow/actions/workflows/security.yml/badge.svg)](https://github.com/vassiliylakhonin/grantflow/actions/workflows/security.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 
----
+## What It Is
 
-## What GrantFlow does
+GrantFlow is an API-first backend for institutional proposal workflows.
 
-GrantFlow orchestrates proposal drafting as a **process**, not a single text-generation call.
+It orchestrates proposal drafting as a process, not as a single text generation call.
 
-Core capabilities:
-- Strategy-driven drafting pipeline (ToC + MEL/LogFrame)
-- Critic loop with structured findings (`id`, `severity`, `section`, `status`)
-- SLA-aware review workflow (`due_at`, `sla_hours`, pending/overdue views)
-- Human-in-the-loop pause/approve/resume
-- Citation + version traceability
-- Export to `.docx`, `.xlsx`, or ZIP bundle
+Current focus:
+- structured draft pipeline (ToC + MEL/LogFrame)
+- donor strategy routing (specialized + generic)
+- critic loop with structured findings entities (`id`, `severity`, `section`, `status`, remediation fields)
+- SLA-aware review workflow (`due_at`, `sla_hours`, `pending/overdue` filters for findings and comments)
+- human-in-the-loop pause/approve/resume
+- citation + version traceability
+- export to `.docx` / `.xlsx` / ZIP
 
----
-
-## Who it is for
+## Who It Is For
 
 - NGOs and implementing organizations
-- Consulting firms managing donor submissions
-- Program/MEL teams handling institutional compliance workflows
+- consulting firms managing donor submissions
+- program/MEL teams handling institutional compliance workflows
 
----
-
-## Architecture snapshot
+## Architecture (Current)
 
 Pipeline:
 
 `discovery -> architect -> mel -> critic`
 
-Optional HITL checkpoints and resume control are supported throughout.
+With optional HITL checkpoints and resume control.
 
 Architect generation modes:
-- `llm_mode=false`: deterministic contract synthesizer
-- `llm_mode=true`: LLM structured output via donor strategy prompts + schema
-- Fallback to deterministic synthesizer only when LLM mode fails/unavailable
+- `llm_mode=false`: `deterministic:contract_synthesizer` (schema-valid non-LLM draft)
+- `llm_mode=true`: LLM structured output via strategy `Architect` prompt + `get_toc_schema()`
+- emergency fallback to `fallback:contract_synthesizer` only when LLM mode is requested but unavailable/invalid
 
----
-
-## Donor coverage
+## Donor Coverage
 
 Specialized strategies:
 - `usaid`
@@ -58,9 +52,7 @@ Specialized strategies:
 Generic strategy:
 - broader donor catalog via `GET /donors`
 
----
-
-## Quick start
+## Quick Start
 
 ### 1) Install
 
@@ -68,13 +60,13 @@ Generic strategy:
 pip install .
 ```
 
-Dev tooling:
+For local development tooling (`pytest`, `mypy`, `ruff`, `black`, pre-commit):
 
 ```bash
 pip install ".[dev]"
 ```
 
-Recommended reproducible setup:
+Recommended reproducible local setup:
 
 ```bash
 python3.11 -m venv .venv
@@ -90,7 +82,12 @@ uvicorn grantflow.api.app:app --reload
 ```
 
 OpenAPI:
-- http://127.0.0.1:8000/docs
+- `http://127.0.0.1:8000/docs`
+
+Production auth-by-default note:
+- In production (`GRANTFLOW_ENV=production`), API key is required unless explicitly overridden.
+- Set `GRANTFLOW_API_KEY` (or `API_KEY`) and pass `X-API-Key` on protected endpoints.
+- Optional break-glass override: `GRANTFLOW_ALLOW_NO_AUTH=true` (not recommended).
 
 ### 3) Health / readiness
 
@@ -99,17 +96,34 @@ curl -s http://127.0.0.1:8000/health
 curl -s http://127.0.0.1:8000/ready
 ```
 
-`/ready` includes active grounding policy mode/threshold checks.
+`/ready` now includes `checks.preflight_grounding_policy` with active mode and thresholds.
 
-### 4) Preflight (optional but recommended)
+### 4) (Optional) Configure preflight grounding thresholds
+
+```bash
+export GRANTFLOW_GROUNDING_GATE_MODE=warn
+export GRANTFLOW_PREFLIGHT_GROUNDING_POLICY_MODE=warn
+export GRANTFLOW_PREFLIGHT_GROUNDING_HIGH_RISK_COVERAGE_THRESHOLD=0.50
+export GRANTFLOW_PREFLIGHT_GROUNDING_MEDIUM_RISK_COVERAGE_THRESHOLD=0.80
+export GRANTFLOW_PREFLIGHT_GROUNDING_MIN_UPLOADS=3
+```
+
+Notes:
+- `GRANTFLOW_PREFLIGHT_GROUNDING_POLICY_MODE` controls preflight block behavior (`off|warn|strict`) and is separate from pipeline critic gate mode.
+- If `GRANTFLOW_PREFLIGHT_GROUNDING_POLICY_MODE` is not set, it falls back to `GRANTFLOW_GROUNDING_GATE_MODE`.
+- `strict_preflight=true` blocks when either readiness risk or grounding risk is `high`.
+
+### 5) (Optional) Run preflight readiness check
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate/preflight \
   -H 'Content-Type: application/json' \
-  -d '{"donor_id":"usaid"}'
+  -d '{
+    "donor_id": "usaid"
+  }'
 ```
 
-### 5) Start generation job
+### 6) Start a job
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/generate \
@@ -125,76 +139,84 @@ curl -s -X POST http://127.0.0.1:8000/generate \
   }'
 ```
 
-### 6) Poll status
+`/generate` is async and returns `job_id`.
+
+### 7) (Optional) Enforce strict preflight gate
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/generate \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "donor_id": "usaid",
+    "input_context": {
+      "project": "Youth Employment Initiative",
+      "country": "Kenya"
+    },
+    "llm_mode": false,
+    "hitl_enabled": false,
+    "strict_preflight": true
+  }'
+```
+
+If strict preflight blocks, API returns `409`:
+
+```json
+{
+  "detail": {
+    "reason": "preflight_high_risk_block",
+    "message": "Generation blocked by strict_preflight because donor readiness risk is high.",
+    "preflight": {
+      "risk_level": "high"
+    }
+  }
+}
+```
+
+If preflight grounding policy itself is strict-blocking, API returns:
+
+```json
+{
+  "detail": {
+    "reason": "preflight_grounding_policy_block"
+  }
+}
+```
+
+### 8) Poll result
 
 ```bash
 curl -s http://127.0.0.1:8000/status/<JOB_ID>
 ```
 
-### 7) Export artifacts
+### 9) Export artifacts
 
 ```bash
 curl -s -X POST http://127.0.0.1:8000/export \
   -H 'Content-Type: application/json' \
-  -d '{"payload": {"state": {}}, "format": "both"}' \
+  -d '{"payload": {"state": {/* status.state */}}, "format": "both"}' \
   -o grantflow_export.zip
 ```
 
----
+## Core API
 
-## Security defaults
-
-Production auth-by-default:
-- In production (`GRANTFLOW_ENV=production`), API key is required.
-- Configure `GRANTFLOW_API_KEY` (or `API_KEY`) and send `X-API-Key`.
-- Break-glass override exists for exceptional cases only: `GRANTFLOW_ALLOW_NO_AUTH=true`.
-
-Optional preflight grounding policy:
-
-```bash
-export GRANTFLOW_GROUNDING_GATE_MODE=warn
-export GRANTFLOW_PREFLIGHT_GROUNDING_POLICY_MODE=warn
-export GRANTFLOW_PREFLIGHT_GROUNDING_HIGH_RISK_COVERAGE_THRESHOLD=0.50
-export GRANTFLOW_PREFLIGHT_GROUNDING_MEDIUM_RISK_COVERAGE_THRESHOLD=0.80
-export GRANTFLOW_PREFLIGHT_GROUNDING_MIN_UPLOADS=3
-```
-
----
-
-## Core API surface
-
-- System:
-  - `GET /health`, `GET /ready`, `GET /donors`, `GET /demo`
-- Generation lifecycle:
-  - `POST /generate/preflight`, `POST /generate`
-  - `POST /cancel/{job_id}`, `POST /resume/{job_id}`
-- Job status:
-  - `GET /status/{job_id}`
-  - `GET /status/{job_id}/citations|versions|diff|events|metrics|quality|critic|comments`
-  - `GET /status/{job_id}/export-payload`
-- Review workflow:
-  - `GET /status/{job_id}/review/workflow`
-  - `GET /status/{job_id}/review/workflow/sla`
+- `GET /health`, `GET /ready`, `GET /donors`
+- `POST /generate/preflight`, `POST /generate`, `POST /cancel/{job_id}`, `POST /resume/{job_id}`
+- `GET /status/{job_id}` plus:
+  - `/citations`, `/versions`, `/diff`, `/events`, `/metrics`, `/quality`, `/critic`, `/comments`, `/review/workflow`, `/review/workflow/sla`, `/review/workflow/export`
   - `GET /status/{job_id}/review/workflow/sla/profile`
-  - `GET /status/{job_id}/review/workflow/export`
   - `POST /status/{job_id}/review/workflow/sla/recompute`
-- Critic findings:
+    - optional body: `finding_sla_hours` (`high|medium|low`), `default_comment_sla_hours`, `use_saved_profile`
+    - applied profile is stored in `client_metadata.sla_profile`
   - `POST /status/{job_id}/critic/findings/{finding_id}/ack|open|resolve`
   - `POST /status/{job_id}/critic/findings/bulk-status`
-- Review comments:
-  - `POST /status/{job_id}/comments`
-  - `POST /status/{job_id}/comments/{comment_id}/resolve|reopen`
-- Portfolio:
-  - `GET /portfolio/metrics`, `GET /portfolio/metrics/export`
-  - `GET /portfolio/quality`, `GET /portfolio/quality/export`
-- HITL:
-  - `POST /hitl/approve`, `GET /hitl/pending`
-- Ingest:
-  - `POST /ingest`, `GET /ingest/recent`, `GET /ingest/inventory`, `GET /ingest/inventory/export`
-- Export:
-  - `POST /export`
-
----
+  - `GET /status/{job_id}/review/workflow` filters: `event_type`, `finding_id`, `comment_status`, `workflow_state (pending|overdue)`, `overdue_after_hours`
+- `GET /portfolio/metrics` and `/portfolio/metrics/export` support filters:
+  - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`
+- `GET /portfolio/quality` and `/portfolio/quality/export` support filters:
+  - `donor_id`, `status`, `hitl_enabled`, `warning_level`, `grounding_risk_level`, `finding_status`, `finding_severity`
+- `POST /hitl/approve`, `GET /hitl/pending`
+- `POST /ingest`, `GET /ingest/recent`, `GET /ingest/inventory`, `GET /ingest/inventory/export`
+- `POST /export`
 
 ## Deployment
 
@@ -204,33 +226,25 @@ cd grantflow
 docker-compose up --build
 ```
 
----
+## Reality Check
 
-## Reality check
-
-GrantFlow is production-oriented backend infrastructure, not a one-click donor submission tool.
+GrantFlow is production-oriented backend infrastructure, but not a “one-click donor submission” system.
 
 Current constraints:
-- Final compliance sign-off remains human responsibility.
-- Grounded quality depends on uploaded corpus relevance.
-- Queue-backed worker scaling is not yet default runtime mode.
-
----
+- final compliance sign-off remains human responsibility
+- grounded quality depends on uploaded corpus relevance
+- queue-backed worker scaling is not yet the default runtime mode
 
 ## Documentation
 
 - Full guide: `docs/full-guide.md`
-- Refactor completion summary: `docs/REFACTOR_SUMMARY.md`
-- Security runbook: `docs/security-ops-runbook.md`
-- Container hardening runbook: `docs/container-hardening-runbook.md`
-- Deployment checklist: `docs/deployment-checklist.md`
+- Contribution process: `CONTRIBUTING.md`
+- Git/PR process: `docs/git-process.md`
 - API stability policy: `docs/api-stability-policy.md`
 - Release process: `docs/release-process.md`
-- Git/PR process: `docs/git-process.md`
-- Contributing: `CONTRIBUTING.md`
+- Release guard script: `scripts/release_guard.py`
+- Runtime version source: `grantflow/core/version.py`
 - Changelog: `CHANGELOG.md`
-
----
 
 ## License
 
