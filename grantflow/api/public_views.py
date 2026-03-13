@@ -358,6 +358,42 @@ def _finding_triage_priority_label(item: Dict[str, Any]) -> str:
     return label
 
 
+def _finding_priority_rationale(item: Dict[str, Any]) -> str:
+    priority = _finding_triage_priority(item)
+    workflow_state = str(item.get("workflow_state") or "").strip().lower()
+    status = str(item.get("status") or "open").strip().lower()
+    severity = str(item.get("severity") or "").strip().lower()
+    review_bucket = _finding_review_bucket(item)
+    staleness_band = _finding_staleness_band(item)
+
+    reasons: list[str] = []
+    if priority == "resolved" or status in {"resolved", "closed"}:
+        return "Resolved item; no active triage pressure."
+    if workflow_state == "overdue" or staleness_band == "overdue":
+        reasons.append("item is overdue")
+    elif staleness_band == "aging":
+        reasons.append("item is nearing SLA")
+    if severity == "high":
+        reasons.append("severity is high")
+    if status == "open":
+        reasons.append("item is still unacknowledged")
+    elif status == "acknowledged":
+        reasons.append("item is acknowledged but unresolved")
+
+    bucket_reason = {
+        "grounding": "evidence traceability is at risk",
+        "measurement": "measurement quality blocks reviewer confidence",
+        "logic": "core causal logic needs correction",
+        "compliance": "required donor structure is incomplete",
+    }.get(review_bucket)
+    if bucket_reason:
+        reasons.append(bucket_reason)
+
+    if not reasons:
+        return "Prioritized for reviewer queue progression."
+    return f"Priority set because {', '.join(reasons)}."
+
+
 def _finding_reviewer_next_actions(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> list[str]:
     section = str(item.get("section") or "general").strip().lower()
     section_title = {"toc": "ToC", "logframe": "LogFrame", "general": "draft"}.get(section, section.title())
@@ -393,6 +429,7 @@ def _triage_enriched_finding(item: Dict[str, Any], *, donor_id: Optional[str] = 
     current["recommended_action"] = _finding_recommended_action(current, donor_id=donor_id)
     current["reviewer_next_step"] = _finding_reviewer_next_step(current, donor_id=donor_id)
     current["staleness_band"] = _finding_staleness_band(current)
+    current["triage_priority_rationale"] = _finding_priority_rationale(current)
     return current
 
 
@@ -445,6 +482,14 @@ def _critic_triage_summary_payload(
         "next_review_bucket": str(next_item.get("review_bucket") or "").strip() or None if next_item else None,
         "next_recommended_action": (
             str(next_item.get("recommended_action") or "").strip() or None if next_item else None
+        ),
+        "next_priority_rationale": (
+            str(next_item.get("triage_priority_rationale") or "").strip() or None if next_item else None
+        ),
+        "next_immediate_action": (
+            str(next_item.get("reviewer_next_action_short") or next_item.get("recommended_action") or "").strip() or None
+            if next_item
+            else None
         ),
     }
 
@@ -1122,6 +1167,7 @@ def public_job_review_workflow_payload(
         next_actions = _finding_reviewer_next_actions(enriched, donor_id=donor_id)
         enriched["reviewer_next_actions"] = next_actions
         enriched["reviewer_next_action_short"] = next_actions[0] if next_actions else None
+        enriched["reviewer_immediate_next_action"] = next_actions[0] if next_actions else None
         findings_with_workflow.append(enriched)
 
     comments_with_workflow: list[Dict[str, Any]] = []
@@ -1323,6 +1369,13 @@ def public_job_review_workflow_payload(
         triage_summary_dict["next_priority_label"] = str(next_item.get("triage_priority_label") or "").strip() or None
         triage_summary_dict["next_action_brief"] = (
             str(next_item.get("reviewer_next_action_short") or "").strip() or None
+        )
+        triage_summary_dict["next_priority_rationale"] = (
+            str(next_item.get("triage_priority_rationale") or "").strip() or None
+        )
+        triage_summary_dict["next_immediate_action"] = (
+            str(next_item.get("reviewer_immediate_next_action") or next_item.get("recommended_action") or "").strip()
+            or None
         )
     summary["reviewer_workflow_summary"] = _reviewer_workflow_summary_payload(
         critic_findings=findings_with_workflow,
