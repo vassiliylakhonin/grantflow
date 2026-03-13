@@ -487,7 +487,8 @@ def _critic_triage_summary_payload(
             str(next_item.get("triage_priority_rationale") or "").strip() or None if next_item else None
         ),
         "next_immediate_action": (
-            str(next_item.get("reviewer_next_action_short") or next_item.get("recommended_action") or "").strip() or None
+            str(next_item.get("reviewer_next_action_short") or next_item.get("recommended_action") or "").strip()
+            or None
             if next_item
             else None
         ),
@@ -776,12 +777,7 @@ def _grounding_trust_summary_payload(
     diagnostic_risk_score = round(min(1.0, grounding_risk_penalty + open_finding_penalty + rag_low_conf_penalty), 4)
 
     trust_score = round(
-        (
-            (0.45 * confidence_score)
-            + (0.35 * traceability_score)
-            + (0.2 * (1.0 - diagnostic_risk_score))
-        )
-        * 100,
+        ((0.45 * confidence_score) + (0.35 * traceability_score) + (0.2 * (1.0 - diagnostic_risk_score))) * 100,
         1,
     )
     if trust_score >= 80.0:
