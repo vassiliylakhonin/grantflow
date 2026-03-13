@@ -72,6 +72,11 @@ Core demo path:
 - `GET /status/{job_id}/review/workflow`
 - `POST /export`
 
+Grounding Trust Score (MVP):
+- `GET /status/{job_id}/metrics` now returns `grounding_trust_summary` with a compact trust score and component breakdown.
+- `GET /status/{job_id}/quality` and `POST /export` include the same summary for reviewer/export-facing interpretation.
+- Interpretation: higher `trust_score` means stronger confidence + citation traceability with lower diagnostic risk; use component scores (`confidence_score`, `traceability_score`, `diagnostic_risk_score`) to explain movement.
+
 One-command buyer conversion flow (live API required):
 - `make pilot-conversion-layer DEMO_PACK_API_BASE=http://127.0.0.1:8000`
 - expected outputs: `build/demo-pack/summary.md`, `build/executive-pack/README.md`, `build/pilot-evidence-pack/README.md`, `build/buyer-facing-artifacts-index.md`

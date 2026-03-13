@@ -1,60 +1,90 @@
 {
-  "architect": {
-    "citation_policy": {
-      "threshold_mode": "donor_section"
+  "job_id": "job-quality-1",
+  "status": "done",
+  "quality_score": 7.2,
+  "critic_score": 6.8,
+  "needs_revision": true,
+  "strict_preflight": true,
+  "terminal_status": "done",
+  "time_to_first_draft_seconds": 60.0,
+  "time_to_terminal_seconds": 240.0,
+  "grounding_trust_summary": {
+    "trust_score": 51.1,
+    "trust_level": "low",
+    "components": {
+      "confidence_score": 0.39,
+      "traceability_score": 0.5,
+      "diagnostic_risk_score": 0.2
     },
-    "engine": "llm:gpt-4.1-mini",
-    "llm_used": true,
-    "retrieval_enabled": true,
-    "retrieval_hits_count": 2,
-    "retrieval_namespace": "tenant_a/usaid_ads201",
-    "retrieval_used": true,
-    "toc_schema_name": "USAIDToCSchema",
-    "toc_schema_valid": true
+    "inputs": {
+      "citation_count": 3,
+      "open_finding_count": 1,
+      "rag_low_confidence_citation_count": 1,
+      "grounding_risk_level": "low"
+    },
+    "formula": "trust = 100 * (0.45*confidence + 0.35*traceability + 0.20*(1-diagnostic_risk))"
   },
-  "architect_claims": {
-    "claim_citation_count": 0,
-    "claim_coverage_ratio": null,
-    "claim_paths_covered": 0,
-    "claims_total": 0,
-    "confident_claim_paths_covered": 0,
-    "fallback_claim_count": 0,
-    "fallback_claim_ratio": null,
-    "key_claim_coverage_ratio": null,
-    "key_claim_paths_covered": 0,
-    "key_claims_total": 0,
-    "low_confidence_claim_count": 0,
-    "threshold_hit_rate": null,
-    "traceability_complete_citation_count": 0,
-    "traceability_complete_rate": null,
-    "traceability_gap_citation_count": 0,
-    "traceability_gap_rate": null,
-    "traceability_missing_citation_count": 0,
-    "traceability_partial_citation_count": 0
+  "critic": {
+    "engine": "rules+llm:gpt-4.1-mini",
+    "rule_score": 7.0,
+    "llm_score": 6.5,
+    "fatal_flaw_count": 2,
+    "open_finding_count": 1,
+    "acknowledged_finding_count": 1,
+    "resolved_finding_count": 0,
+    "high_severity_fatal_flaw_count": 1,
+    "medium_severity_fatal_flaw_count": 1,
+    "low_severity_fatal_flaw_count": 0,
+    "version_bindable_finding_count": 2,
+    "version_bound_finding_count": 2,
+    "version_binding_rate": 1.0,
+    "rule_check_count": 3,
+    "failed_rule_check_count": 1,
+    "warned_rule_check_count": 1,
+    "llm_finding_label_counts": {
+      "BASELINE_TARGET_MISSING": 1
+    },
+    "llm_advisory_diagnostics": {
+      "applied": false,
+      "reason": "architect_fallback_citations_present"
+    }
   },
   "citations": {
+    "citation_count": 3,
     "architect_citation_count": 2,
+    "mel_citation_count": 1,
+    "citation_type_counts": {
+      "fallback_namespace": 1,
+      "rag_claim_support": 1,
+      "rag_low_confidence": 1
+    },
     "architect_citation_type_counts": {
       "rag_claim_support": 1,
       "rag_low_confidence": 1
     },
+    "mel_citation_type_counts": {
+      "fallback_namespace": 1
+    },
+    "high_confidence_citation_count": 1,
+    "low_confidence_citation_count": 2,
     "architect_claim_support_citation_count": 1,
     "architect_claim_support_rate": 0.5,
-    "architect_doc_id_present_citation_count": 0,
-    "architect_doc_id_present_citation_rate": 0.0,
     "architect_fallback_namespace_citation_count": 0,
     "architect_fallback_namespace_citation_rate": 0.0,
+    "architect_strategy_reference_citation_count": 0,
+    "architect_strategy_reference_citation_rate": 0.0,
     "architect_non_retrieval_citation_count": 0,
     "architect_non_retrieval_citation_rate": 0.0,
-    "architect_rag_low_confidence_citation_count": 1,
-    "architect_retrieval_confidence_present_citation_count": 2,
-    "architect_retrieval_confidence_present_citation_rate": 1.0,
     "architect_retrieval_grounded_citation_count": 2,
     "architect_retrieval_grounded_citation_rate": 1.0,
-    "architect_retrieval_metadata_complete_citation_count": 0,
-    "architect_retrieval_metadata_complete_citation_rate": 0.0,
+    "architect_doc_id_present_citation_count": 0,
+    "architect_doc_id_present_citation_rate": 0.0,
     "architect_retrieval_rank_present_citation_count": 0,
     "architect_retrieval_rank_present_citation_rate": 0.0,
+    "architect_retrieval_confidence_present_citation_count": 2,
+    "architect_retrieval_confidence_present_citation_rate": 1.0,
+    "architect_retrieval_metadata_complete_citation_count": 0,
+    "architect_retrieval_metadata_complete_citation_rate": 0.0,
     "architect_signal_summary": {
       "architect_citation_count": 2,
       "evidence_signal_count": 2,
@@ -68,97 +98,160 @@
         "Review this claim-level architect evidence before approval."
       ]
     },
-    "architect_strategy_reference_citation_count": 0,
-    "architect_strategy_reference_citation_rate": 0.0,
-    "architect_threshold_hit_rate": 0.5,
-    "citation_confidence_avg": 0.39,
-    "citation_count": 3,
-    "citation_type_counts": {
-      "fallback_namespace": 1,
-      "rag_claim_support": 1,
-      "rag_low_confidence": 1
-    },
-    "doc_id_present_citation_count": 0,
-    "doc_id_present_citation_rate": 0.0,
-    "fallback_namespace_citation_count": 1,
-    "fallback_namespace_citation_rate": 0.3333,
-    "grounding_risk_level": "low",
-    "high_confidence_citation_count": 1,
-    "low_confidence_citation_count": 2,
-    "mel_citation_count": 1,
-    "mel_citation_type_counts": {
-      "fallback_namespace": 1
-    },
     "mel_claim_support_citation_count": 0,
     "mel_claim_support_rate": 0.0,
-    "mel_doc_id_present_citation_count": 0,
-    "mel_doc_id_present_citation_rate": 0.0,
     "mel_fallback_namespace_citation_count": 1,
     "mel_fallback_namespace_citation_rate": 1.0,
-    "mel_non_retrieval_citation_count": 1,
-    "mel_non_retrieval_citation_rate": 1.0,
-    "mel_rag_low_confidence_citation_count": 0,
-    "mel_retrieval_confidence_present_citation_count": 1,
-    "mel_retrieval_confidence_present_citation_rate": 1.0,
-    "mel_retrieval_grounded_citation_count": 0,
-    "mel_retrieval_grounded_citation_rate": 0.0,
-    "mel_retrieval_metadata_complete_citation_count": 0,
-    "mel_retrieval_metadata_complete_citation_rate": 0.0,
-    "mel_retrieval_rank_present_citation_count": 0,
-    "mel_retrieval_rank_present_citation_rate": 0.0,
     "mel_strategy_reference_citation_count": 0,
     "mel_strategy_reference_citation_rate": 0.0,
-    "non_retrieval_citation_count": 1,
-    "non_retrieval_citation_rate": 0.3333,
+    "mel_non_retrieval_citation_count": 1,
+    "mel_non_retrieval_citation_rate": 1.0,
+    "mel_retrieval_grounded_citation_count": 0,
+    "mel_retrieval_grounded_citation_rate": 0.0,
+    "mel_doc_id_present_citation_count": 0,
+    "mel_doc_id_present_citation_rate": 0.0,
+    "mel_retrieval_rank_present_citation_count": 0,
+    "mel_retrieval_rank_present_citation_rate": 0.0,
+    "mel_retrieval_confidence_present_citation_count": 1,
+    "mel_retrieval_confidence_present_citation_rate": 1.0,
+    "mel_retrieval_metadata_complete_citation_count": 0,
+    "mel_retrieval_metadata_complete_citation_rate": 0.0,
+    "architect_rag_low_confidence_citation_count": 1,
+    "mel_rag_low_confidence_citation_count": 0,
     "rag_low_confidence_citation_count": 1,
-    "retrieval_confidence_present_citation_count": 3,
-    "retrieval_confidence_present_citation_rate": 1.0,
-    "retrieval_expected": true,
-    "retrieval_grounded_citation_count": 2,
-    "retrieval_grounded_citation_rate": 0.6667,
-    "retrieval_metadata_complete_citation_count": 0,
-    "retrieval_metadata_complete_citation_rate": 0.0,
-    "retrieval_rank_present_citation_count": 0,
-    "retrieval_rank_present_citation_rate": 0.0,
+    "fallback_namespace_citation_count": 1,
+    "fallback_namespace_citation_rate": 0.3333,
     "strategy_reference_citation_count": 0,
     "strategy_reference_citation_rate": 0.0,
+    "retrieval_grounded_citation_count": 2,
+    "retrieval_grounded_citation_rate": 0.6667,
+    "doc_id_present_citation_count": 0,
+    "doc_id_present_citation_rate": 0.0,
+    "retrieval_rank_present_citation_count": 0,
+    "retrieval_rank_present_citation_rate": 0.0,
+    "retrieval_confidence_present_citation_count": 3,
+    "retrieval_confidence_present_citation_rate": 1.0,
+    "retrieval_metadata_complete_citation_count": 0,
+    "retrieval_metadata_complete_citation_rate": 0.0,
+    "non_retrieval_citation_count": 1,
+    "non_retrieval_citation_rate": 0.3333,
+    "retrieval_expected": true,
+    "grounding_risk_level": "low",
     "traceability_complete_citation_count": 1,
+    "traceability_partial_citation_count": 1,
+    "traceability_missing_citation_count": 1,
     "traceability_gap_citation_count": 2,
     "traceability_gap_citation_rate": 0.6667,
-    "traceability_missing_citation_count": 1,
-    "traceability_partial_citation_count": 1
+    "citation_confidence_avg": 0.39,
+    "architect_threshold_hit_rate": 0.5
   },
-  "critic": {
-    "acknowledged_finding_count": 1,
-    "engine": "rules+llm:gpt-4.1-mini",
-    "failed_rule_check_count": 1,
-    "fatal_flaw_count": 2,
-    "high_severity_fatal_flaw_count": 1,
-    "llm_advisory_diagnostics": {
-      "applied": false,
-      "reason": "architect_fallback_citations_present"
-    },
-    "llm_finding_label_counts": {
-      "BASELINE_TARGET_MISSING": 1
-    },
-    "llm_score": 6.5,
-    "low_severity_fatal_flaw_count": 0,
-    "medium_severity_fatal_flaw_count": 1,
-    "open_finding_count": 1,
-    "resolved_finding_count": 0,
-    "rule_check_count": 3,
-    "rule_score": 7.0,
-    "version_bindable_finding_count": 2,
-    "version_binding_rate": 1.0,
-    "version_bound_finding_count": 2,
-    "warned_rule_check_count": 1
+  "architect": {
+    "engine": "llm:gpt-4.1-mini",
+    "llm_used": true,
+    "retrieval_used": true,
+    "retrieval_enabled": true,
+    "retrieval_hits_count": 2,
+    "retrieval_namespace": "tenant_a/usaid_ads201",
+    "toc_schema_name": "USAIDToCSchema",
+    "toc_schema_valid": true,
+    "citation_policy": {
+      "threshold_mode": "donor_section"
+    }
   },
-  "critic_score": 6.8,
-  "export_contract": {
-    "actual_primary_sheet_headers": [],
-    "actual_sheets": [],
+  "architect_claims": {
+    "claim_citation_count": 0,
+    "claims_total": 0,
+    "key_claims_total": 0,
+    "claim_paths_covered": 0,
+    "key_claim_paths_covered": 0,
+    "confident_claim_paths_covered": 0,
+    "fallback_claim_count": 0,
+    "low_confidence_claim_count": 0,
+    "claim_coverage_ratio": null,
+    "key_claim_coverage_ratio": null,
+    "fallback_claim_ratio": null,
+    "threshold_hit_rate": null,
+    "traceability_complete_citation_count": 0,
+    "traceability_partial_citation_count": 0,
+    "traceability_missing_citation_count": 0,
+    "traceability_gap_citation_count": 0,
+    "traceability_complete_rate": null,
+    "traceability_gap_rate": null
+  },
+  "mel": {
+    "engine": "deterministic:retrieval_template",
+    "llm_used": false,
+    "retrieval_used": true,
+    "retrieval_namespace": "tenant_a/usaid_ads201",
+    "retrieval_hits_count": 2,
+    "avg_retrieval_confidence": 0.64,
+    "citation_policy": {
+      "claim_support_types": [
+        "rag_result",
+        "rag_support",
+        "rag_claim_support"
+      ],
+      "high_confidence_threshold": 0.35
+    },
+    "indicator_count": 0,
+    "risk_level": "unknown",
+    "baseline_coverage_rate": null,
+    "target_coverage_rate": null,
+    "frequency_coverage_rate": null,
+    "formula_coverage_rate": null,
+    "definition_coverage_rate": null,
+    "data_source_coverage_rate": null,
+    "disaggregation_coverage_rate": null,
+    "means_of_verification_coverage_rate": null,
+    "owner_coverage_rate": null,
+    "result_level_coverage_rate": null,
+    "smart_field_coverage_rate": null,
+    "baseline_placeholder_count": 0,
+    "target_placeholder_count": 0,
+    "missing_field_counts": {
+      "baseline": 0,
+      "target": 0,
+      "frequency": 0,
+      "formula": 0,
+      "definition": 0,
+      "data_source": 0,
+      "disaggregation": 0,
+      "means_of_verification": 0,
+      "owner": 0,
+      "result_level": 0
+    },
+    "result_level_counts": {
+      "impact": 0,
+      "outcome": 0,
+      "output": 0,
+      "unknown": 0
+    }
+  },
+  "mel_grounding_policy": {
+    "mode": "warn",
     "blocking": false,
+    "reason": "mel_grounding_signals_ok"
+  },
+  "export_contract": {
     "donor_id": "usaid",
+    "template_key": "usaid",
+    "template_display_name": "USAID Results Framework",
+    "required_sections": [
+      "project_goal",
+      "development_objectives"
+    ],
+    "present_sections": [],
+    "missing_required_sections": [
+      "project_goal",
+      "development_objectives"
+    ],
+    "required_sheets": [
+      "LogFrame",
+      "USAID_RF",
+      "Template Meta"
+    ],
+    "actual_sheets": [],
+    "missing_required_sheets": [],
     "expected_docx_headings": [
       "USAID Results Framework",
       "Project Goal",
@@ -172,203 +265,121 @@
       "IR ID",
       "IR Description"
     ],
-    "go_ahead": true,
+    "actual_primary_sheet_headers": [],
     "missing_required_primary_sheet_headers": [],
-    "missing_required_sections": [
-      "project_goal",
-      "development_objectives"
-    ],
-    "missing_required_sheets": [],
-    "mode": "warn",
-    "passed": false,
-    "present_sections": [],
-    "reasons": [
-      "missing_required_toc_sections"
-    ],
-    "required_sections": [
-      "project_goal",
-      "development_objectives"
-    ],
-    "required_sheets": [
-      "LogFrame",
-      "USAID_RF",
-      "Template Meta"
-    ],
-    "risk_level": "high",
+    "workbook_validation_enabled": false,
     "status": "warning",
-    "submission_readiness_summary": null,
-    "summary": "missing_required_toc_sections",
-    "template_display_name": "USAID Results Framework",
-    "template_key": "usaid",
     "warnings": [
       "missing_required_toc_sections"
     ],
-    "workbook_validation_enabled": false
-  },
-  "job_id": "job-quality-1",
-  "mel": {
-    "avg_retrieval_confidence": 0.64,
-    "baseline_coverage_rate": null,
-    "baseline_placeholder_count": 0,
-    "citation_policy": {
-      "claim_support_types": [
-        "rag_result",
-        "rag_support",
-        "rag_claim_support"
-      ],
-      "high_confidence_threshold": 0.35
-    },
-    "data_source_coverage_rate": null,
-    "definition_coverage_rate": null,
-    "disaggregation_coverage_rate": null,
-    "engine": "deterministic:retrieval_template",
-    "formula_coverage_rate": null,
-    "frequency_coverage_rate": null,
-    "indicator_count": 0,
-    "llm_used": false,
-    "means_of_verification_coverage_rate": null,
-    "missing_field_counts": {
-      "baseline": 0,
-      "data_source": 0,
-      "definition": 0,
-      "disaggregation": 0,
-      "formula": 0,
-      "frequency": 0,
-      "means_of_verification": 0,
-      "owner": 0,
-      "result_level": 0,
-      "target": 0
-    },
-    "owner_coverage_rate": null,
-    "result_level_counts": {
-      "impact": 0,
-      "outcome": 0,
-      "output": 0,
-      "unknown": 0
-    },
-    "result_level_coverage_rate": null,
-    "retrieval_hits_count": 2,
-    "retrieval_namespace": "tenant_a/usaid_ads201",
-    "retrieval_used": true,
-    "risk_level": "unknown",
-    "smart_field_coverage_rate": null,
-    "target_coverage_rate": null,
-    "target_placeholder_count": 0
-  },
-  "mel_grounding_policy": {
-    "blocking": false,
+    "submission_readiness_summary": null,
     "mode": "warn",
-    "reason": "mel_grounding_signals_ok"
+    "passed": false,
+    "blocking": false,
+    "go_ahead": true,
+    "summary": "missing_required_toc_sections",
+    "reasons": [
+      "missing_required_toc_sections"
+    ],
+    "risk_level": "high"
   },
-  "needs_revision": true,
   "preflight": {
-    "coverage_rate": 0.5,
     "donor_id": "usaid",
+    "coverage_rate": 0.5,
     "risk_level": "medium",
     "warning_count": 1,
     "warnings": [
       {
         "code": "LOW_DOC_COVERAGE",
-        "message": "Coverage low",
-        "severity": "medium"
+        "severity": "medium",
+        "message": "Coverage low"
       }
     ]
   },
-  "quality_score": 7.2,
   "readiness": {
-    "architect_retrieval_enabled": true,
-    "architect_retrieval_hits_count": 2,
-    "coverage_rate": 0.6667,
-    "doc_family_counts": {
-      "donor_policy": 2,
-      "responsible_ai_guidance": 1
-    },
+    "preset_key": "usaid_gov_ai_kazakhstan",
     "donor_id": "usaid",
-    "expected_count": 3,
     "expected_doc_families": [
       "donor_policy",
       "country_context",
       "responsible_ai_guidance"
     ],
-    "inventory_family_count": 2,
-    "inventory_total_uploads": 3,
-    "loaded_count": 2,
-    "low_doc_coverage": false,
-    "missing_doc_families": [
-      "country_context"
-    ],
-    "namespace_empty": false,
     "present_doc_families": [
       "donor_policy",
       "responsible_ai_guidance"
     ],
-    "preset_key": "usaid_gov_ai_kazakhstan",
+    "missing_doc_families": [
+      "country_context"
+    ],
+    "expected_count": 3,
+    "loaded_count": 2,
+    "coverage_rate": 0.6667,
+    "inventory_total_uploads": 3,
+    "inventory_family_count": 2,
+    "doc_family_counts": {
+      "donor_policy": 2,
+      "responsible_ai_guidance": 1
+    },
+    "namespace_empty": false,
+    "low_doc_coverage": false,
+    "architect_retrieval_enabled": true,
+    "architect_retrieval_hits_count": 2,
     "retrieval_namespace": "tenant_a/usaid_ads201",
     "warning_count": 0,
     "warning_level": "none",
     "warnings": []
   },
   "review_readiness_summary": {
+    "needs_revision": true,
+    "open_critic_findings": 2,
+    "resolved_critic_findings": 0,
     "acknowledged_critic_findings": 1,
+    "critic_finding_resolution_rate": 0.0,
+    "critic_finding_acknowledgment_rate": 0.5,
+    "high_severity_open_findings": 1,
+    "open_review_comments": 1,
+    "resolved_review_comments": 0,
     "acknowledged_review_comments": 0,
-    "action_queue_summary": {
-      "comment_ack_queue_count": 1,
-      "comment_reopen_queue_count": 0,
-      "comment_resolve_queue_count": 0,
-      "finding_ack_queue_count": 1,
-      "finding_resolve_queue_count": 1,
-      "next_primary_action": "ack_finding"
-    },
-    "comment_triage_summary": {
-      "acknowledged_comment_count": 0,
-      "aging_band_counts": {
-        "d1_3": 0,
-        "d3_7": 0,
-        "gt_7d": 1,
-        "lt_24h": 0
-      },
-      "comment_bucket_counts": {
-        "grounding": 1
-      },
-      "comment_status_counts": {
-        "open": 1
-      },
-      "high_priority_open_comment_count": 1,
-      "linked_comment_count": 1,
-      "next_comment_bucket": "grounding",
-      "next_comment_section": "toc",
-      "next_recommended_action": "Resolve the evidence-grounding comment thread and attach stronger source support in the USAID results hierarchy and monitoring package before the next draft review.",
-      "open_comment_count": 1,
-      "orphan_linked_comment_count": 0,
-      "overdue_comment_count": 0,
-      "pending_comment_count": 1,
-      "resolved_comment_count": 0,
+    "pending_review_comments": 1,
+    "overdue_review_comments": 0,
+    "stale_open_review_comments": 1,
+    "linked_review_comments": 1,
+    "orphan_linked_review_comments": 0,
+    "review_comment_resolution_rate": 0.0,
+    "review_comment_acknowledgment_rate": 0.0,
+    "top_reviewer_actions": [
+      "ToC Evidence Gap: Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
+      "Baseline Target Missing: Replace placeholder baseline and target values with reviewer-defensible measures before the next export of the USAID results hierarchy and monitoring package."
+    ],
+    "reviewer_workflow_summary": {
+      "open_items": 2,
+      "acknowledged_items": 1,
+      "resolved_items": 0,
+      "resolution_rate": 0.0,
+      "acknowledgment_rate": 0.3333,
       "stale_comment_bucket_counts": {
         "grounding": 1
       },
-      "stale_open_comment_count": 1,
-      "top_comment_ids": [
-        "comment-1"
-      ]
+      "top_stale_comment_bucket": "grounding",
+      "next_comment_bucket": "grounding",
+      "next_comment_action": "Resolve the evidence-grounding comment thread and attach stronger source support in the donor review package before the next draft review."
     },
-    "critic_finding_acknowledgment_rate": 0.5,
-    "critic_finding_resolution_rate": 0.0,
-    "fallback_strategy_citations": 1,
-    "high_severity_open_findings": 1,
-    "linked_review_comments": 1,
-    "low_confidence_citations": 1,
-    "needs_revision": true,
-    "open_critic_findings": 2,
-    "open_review_comments": 1,
-    "orphan_linked_review_comments": 0,
-    "overdue_review_comments": 0,
-    "pending_review_comments": 1,
-    "resolved_critic_findings": 0,
-    "resolved_review_comments": 0,
-    "review_comment_acknowledgment_rate": 0.0,
-    "review_comment_resolution_rate": 0.0,
+    "action_queue_summary": {
+      "finding_ack_queue_count": 1,
+      "finding_resolve_queue_count": 1,
+      "comment_ack_queue_count": 1,
+      "comment_resolve_queue_count": 0,
+      "comment_reopen_queue_count": 0,
+      "next_primary_action": "ack_finding"
+    },
     "review_workflow_policy_summary": {
+      "status": "breach",
+      "go_no_go_flag": "hold",
+      "breach_count": 1,
       "attention_count": 5,
+      "breaches": [
+        "comment_threads_gt_7d_present"
+      ],
       "attention_flags": [
         "finding_ack_queue_open",
         "finding_resolve_queue_open",
@@ -376,74 +387,81 @@
         "low_reviewer_resolution_rate",
         "low_reviewer_acknowledgment_rate"
       ],
-      "breach_count": 1,
-      "breaches": [
-        "comment_threads_gt_7d_present"
-      ],
-      "go_no_go_flag": "hold",
-      "max_allowed_comment_threads_gt_7d": 0,
-      "max_allowed_finding_ack_queue": 1,
-      "min_reviewer_acknowledgment_rate": 0.65,
-      "min_reviewer_resolution_rate": 0.35,
       "next_operational_action": "clear_stale_comment_threads",
-      "status": "breach"
+      "max_allowed_finding_ack_queue": 1,
+      "max_allowed_comment_threads_gt_7d": 0,
+      "min_reviewer_resolution_rate": 0.35,
+      "min_reviewer_acknowledgment_rate": 0.65
     },
-    "reviewer_workflow_summary": {
-      "acknowledged_items": 1,
-      "acknowledgment_rate": 0.3333,
-      "next_comment_action": "Resolve the evidence-grounding comment thread and attach stronger source support in the donor review package before the next draft review.",
-      "next_comment_bucket": "grounding",
-      "open_items": 2,
-      "resolution_rate": 0.0,
-      "resolved_items": 0,
+    "low_confidence_citations": 1,
+    "fallback_strategy_citations": 1,
+    "comment_triage_summary": {
+      "open_comment_count": 1,
+      "resolved_comment_count": 0,
+      "acknowledged_comment_count": 0,
+      "pending_comment_count": 1,
+      "overdue_comment_count": 0,
+      "stale_open_comment_count": 1,
+      "linked_comment_count": 1,
+      "orphan_linked_comment_count": 0,
+      "high_priority_open_comment_count": 1,
+      "comment_status_counts": {
+        "open": 1
+      },
+      "comment_bucket_counts": {
+        "grounding": 1
+      },
       "stale_comment_bucket_counts": {
         "grounding": 1
       },
-      "top_stale_comment_bucket": "grounding"
-    },
-    "stale_open_review_comments": 1,
-    "top_reviewer_actions": [
-      "ToC Evidence Gap: Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
-      "Baseline Target Missing: Replace placeholder baseline and target values with reviewer-defensible measures before the next export of the USAID results hierarchy and monitoring package."
-    ]
-  },
-  "status": "done",
-  "strict_preflight": true,
-  "terminal_status": "done",
-  "time_to_first_draft_seconds": 60.0,
-  "time_to_terminal_seconds": 240.0,
-  "toc_text_quality": {
-    "issues_total": 0,
-    "placeholder_check_status": "unknown",
-    "placeholder_finding_count": 0,
-    "repetition_check_status": "unknown",
-    "repetition_finding_count": 0,
-    "risk_level": "unknown"
+      "aging_band_counts": {
+        "lt_24h": 0,
+        "d1_3": 0,
+        "d3_7": 0,
+        "gt_7d": 1
+      },
+      "top_comment_ids": [
+        "comment-1"
+      ],
+      "next_comment_section": "toc",
+      "next_comment_bucket": "grounding",
+      "next_recommended_action": "Resolve the evidence-grounding comment thread and attach stronger source support in the USAID results hierarchy and monitoring package before the next draft review."
+    }
   },
   "triage_summary": {
+    "urgent_finding_count": 1,
     "high_priority_finding_count": 0,
-    "next_recommended_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
-    "next_review_bucket": "grounding",
-    "next_review_section": "toc",
+    "stale_open_finding_count": 0,
     "priority_counts": {
+      "urgent": 1,
       "high": 0,
       "medium": 1,
       "normal": 0,
-      "resolved": 0,
-      "urgent": 1
+      "resolved": 0
     },
     "review_bucket_counts": {
-      "compliance": 0,
-      "general": 0,
       "grounding": 1,
+      "measurement": 1,
       "logic": 0,
-      "measurement": 1
+      "compliance": 0,
+      "general": 0
     },
-    "stale_open_finding_count": 0,
     "top_priority_finding_ids": [
       "finding-1",
       "finding-2"
     ],
-    "urgent_finding_count": 1
+    "next_review_section": "toc",
+    "next_review_bucket": "grounding",
+    "next_recommended_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
+    "next_priority_rationale": "Priority set because severity is high, item is still unacknowledged, evidence traceability is at risk.",
+    "next_immediate_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review."
+  },
+  "toc_text_quality": {
+    "risk_level": "unknown",
+    "issues_total": 0,
+    "placeholder_finding_count": 0,
+    "repetition_finding_count": 0,
+    "placeholder_check_status": "unknown",
+    "repetition_check_status": "unknown"
   }
 }

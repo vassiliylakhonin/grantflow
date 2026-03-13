@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from grantflow.api.public_views import (
+    _grounding_trust_summary_payload,
     public_job_critic_payload,
     public_job_export_payload,
     public_job_payload,
@@ -421,3 +422,33 @@ def test_public_job_quality_payload_matches_golden_snapshot():
     ]
     actual = public_job_quality_payload("job-quality-1", job, ingest_inventory_rows=inventory_rows)
     assert actual == expected
+
+
+def test_grounding_trust_summary_is_deterministic():
+    citations = [
+        {
+            "citation_type": "rag_claim_support",
+            "citation_confidence": 0.82,
+            "traceability_status": "complete",
+        },
+        {
+            "citation_type": "rag_low_confidence",
+            "citation_confidence": 0.25,
+            "traceability_status": "partial",
+        },
+        {
+            "citation_type": "fallback_namespace",
+            "citation_confidence": 0.1,
+            "traceability_status": "missing",
+        },
+    ]
+
+    first = _grounding_trust_summary_payload(citations=citations, grounding_risk_level="low", open_finding_count=1)
+    second = _grounding_trust_summary_payload(citations=citations, grounding_risk_level="low", open_finding_count=1)
+
+    assert first == second
+    assert first["trust_score"] == 51.1
+    assert first["trust_level"] == "low"
+    assert first["components"]["confidence_score"] == 0.39
+    assert first["components"]["traceability_score"] == 0.5
+    assert first["components"]["diagnostic_risk_score"] == 0.2
