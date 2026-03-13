@@ -15,8 +15,6 @@ Use this page as the public docs front door.
 - `demo-runbook.md`
 - `operations-runbook.md`
 - `deployment-checklist.md`
-- `security-ops-runbook.md`
-- `container-hardening-runbook.md`
 - `troubleshooting.md`
 - `pilot-day1-checklist.md`
 

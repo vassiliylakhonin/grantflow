@@ -4,11 +4,6 @@ Short, operator-oriented checklist for production rollout.
 
 ## 1) Pre-deploy
 
-Security baseline before deploy:
-- compose hardening active (`read_only`, `cap_drop`, `no-new-privileges`, `tmpfs`)
-- Redis/Chroma not publicly exposed unless explicitly required
-- latest `Security` GitHub workflow passed on target commit
-
 1. Confirm target runtime:
    - Python `3.11` to `3.13`
 2. Confirm environment profile:

@@ -48,15 +48,6 @@ Current API auth model is API key based:
 GrantFlow does not claim built-in enterprise IAM features (OIDC/SAML/RBAC) in this repository.
 If those controls are required, enforce them at the platform or gateway layer.
 
-## Security Automation
-
-Repository CI includes a dedicated `Security` workflow with:
-- dependency scanning (`pip-audit`)
-- static analysis (`CodeQL`)
-- filesystem and container image scanning (`Trivy`)
-
-Findings are expected to be triaged through GitHub Security alerts and fixed according to severity.
-
 ## Scope Notes
 
 - This repository contains backend orchestration and operational controls, not final donor submission workflows.
