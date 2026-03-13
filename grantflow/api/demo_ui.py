@@ -1074,6 +1074,11 @@ def render_demo_ui_html() -> str:
                 </select>
               </div>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <button id="criticPresetHighOpenBtn" class="ghost">Preset: High + Open</button>
+              <button id="criticPresetOpenBtn" class="ghost">Preset: Open Queue</button>
+              <button id="criticPresetResolvedBtn" class="ghost">Preset: Resolved Audit</button>
+            </div>
             <div class="row4" style="margin-top:10px;">
               <div>
                 <label for="criticBulkTargetStatus">Bulk Target Status</label>
@@ -2074,6 +2079,9 @@ def render_demo_ui_html() -> str:
         criticCitationConfidenceFilter: $("criticCitationConfidenceFilter"),
         criticBulkTargetStatus: $("criticBulkTargetStatus"),
         criticBulkScope: $("criticBulkScope"),
+        criticPresetHighOpenBtn: $("criticPresetHighOpenBtn"),
+        criticPresetOpenBtn: $("criticPresetOpenBtn"),
+        criticPresetResolvedBtn: $("criticPresetResolvedBtn"),
         criticBulkPreviewBtn: $("criticBulkPreviewBtn"),
         criticBulkActionHint: $("criticBulkActionHint"),
         criticWorkflowFilterSuggestion: $("criticWorkflowFilterSuggestion"),
@@ -2588,6 +2596,26 @@ def render_demo_ui_html() -> str:
         els.criticSeverityFilter.value = "";
         els.criticFindingStatusFilter.value = "";
         persistUiState();
+      }
+
+      function applyCriticTriagePreset(preset) {
+        const key = String(preset || "").trim().toLowerCase();
+        if (key === "high_open") {
+          els.criticSeverityFilter.value = "high";
+          els.criticFindingStatusFilter.value = "open";
+          els.criticBulkTargetStatus.value = "acknowledged";
+        } else if (key === "open_queue") {
+          els.criticSeverityFilter.value = "";
+          els.criticFindingStatusFilter.value = "open";
+          els.criticBulkTargetStatus.value = "acknowledged";
+        } else if (key === "resolved_audit") {
+          els.criticSeverityFilter.value = "";
+          els.criticFindingStatusFilter.value = "resolved";
+          els.criticBulkTargetStatus.value = "open";
+        }
+        persistUiState();
+        updateCriticBulkActionUi();
+        refreshCritic().catch(showError);
       }
 
       function clearReviewWorkflowFilters() {
@@ -9110,6 +9138,9 @@ def render_demo_ui_html() -> str:
         );
         els.eventsBtn.addEventListener("click", () => refreshEvents().catch(showError));
         els.criticBtn.addEventListener("click", () => refreshCritic().catch(showError));
+        els.criticPresetHighOpenBtn?.addEventListener("click", () => applyCriticTriagePreset("high_open"));
+        els.criticPresetOpenBtn?.addEventListener("click", () => applyCriticTriagePreset("open_queue"));
+        els.criticPresetResolvedBtn?.addEventListener("click", () => applyCriticTriagePreset("resolved_audit"));
         els.criticBulkApplyBtn.addEventListener("click", () => applyCriticBulkStatus().catch(showError));
         els.criticBulkPreviewBtn.addEventListener("click", () => applyCriticBulkStatus({ dryRun: true }).catch(showError));
         els.criticAddSelectedFindingBtn.addEventListener("click", () => {
