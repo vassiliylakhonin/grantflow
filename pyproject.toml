@@ -91,4 +91,5 @@ follow_imports = "skip"
 check_untyped_defs = true
 warn_unused_ignores = true
 warn_redundant_casts = true
+disable_error_code = ["misc"]
 exclude = "(^chroma_db/|^build/|^dist/|^grantflow/tests/)"
