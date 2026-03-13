@@ -1,54 +1,95 @@
-# Docs Index
+# GrantFlow Docs Map
 
-Use this page as the public docs front door.
+Canonical entry point for repository documentation.
 
-## For Buyers
+## 1) Start here (core)
+
+If you are new to the project, read in this order:
+
+1. `full-guide.md`
+2. `architecture.md`
+3. `deployment-checklist.md`
+4. `operations-runbook.md`
+5. `../SECURITY.md`
+
+---
+
+## 2) Product & buyer-facing docs
 
 - `buyer-one-pager.md`
-- `five-minute-demo.md`
-- `production-boundaries.md`
-- `proof-summary.md`
 - `oem-one-pager.md`
+- `five-minute-demo.md`
+- `proof-summary.md`
+- `production-boundaries.md`
 
-## For Operators
+---
 
-- `demo-runbook.md`
-- `operations-runbook.md`
-- `deployment-checklist.md`
-- `troubleshooting.md`
-- `pilot-day1-checklist.md`
-
-## For Engineers
+## 3) Engineering docs
 
 - `architecture.md`
 - `contributor-map.md`
 - `api-stability-policy.md`
 - `full-guide.md`
+- `git-process.md`
+- `release-process.md`
 
-## For Enterprise Review
+---
+
+## 4) Operations & reliability
+
+- `operations-runbook.md`
+- `demo-runbook.md`
+- `deployment-checklist.md`
+- `troubleshooting.md`
+- `container-hardening-runbook.md`
+- `security-ops-runbook.md`
+
+---
+
+## 5) Enterprise/security review
 
 - `enterprise-quickstart.md`
 - `enterprise-access-layer.md`
-- `gateway-policy-example.md`
 - `enterprise-access-checklist.md`
+- `gateway-policy-example.md`
 - `reference-topology.md`
 - `audit-story.md`
 - `identity-rbac-roadmap.md`
 - `../SECURITY.md`
 
-## For Product Evaluation
+---
 
+## 6) Evaluation & quality artifacts
+
+- `llm-eval-review-template.md`
 - `draft-grounding-scoreboard.md`
 - `grounded-donor-scoreboard.md`
+- `mel-grounding-scoreboard.md`
+- `architect-grounding-scoreboard.md`
 - `export-readiness-scoreboard.md`
 - `productization-gaps-memo.md`
 
-## Samples
+---
+
+## 7) Pilot toolkit (active)
+
+- `pilot-day1-checklist.md`
+- `pilot-evaluation-checklist.md`
+- `pilot-kickoff-agenda.md`
+- `pilot-proof-outreach-template.md`
+- `pilot-role-mapping-example.md`
+- `pilot-role-mapping-worksheet.md`
+- `pilot-user-roles.md`
+
+---
+
+## 8) Samples & references
 
 - `samples/`
-- `assets/`
+- `rag_seed_corpus/`
 
-## Notes
+---
 
-- Customer-specific pilot materials are intentionally not part of this public docs front door.
-- Dated pilot archives and local evaluation artifacts are not the canonical starting point for external readers.
+## 9) Documentation hygiene
+
+See `DOC_HYGIENE.md` for safe archive candidates and cleanup rules.
