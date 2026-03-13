@@ -7,6 +7,18 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+- Buyer-facing packaging helper targets: `buyer-facing-pack-refresh` and `buyer-facing-artifacts-index`.
+- Generated buyer-facing artifact index output at `build/buyer-facing-artifacts-index.md` to quickly review pilot/customer-ready deliverables.
+
+### Changed
+- Review workflow public payload now includes concise reviewer UX signals:
+  - finding-level `triage_priority_label`, `reviewer_next_actions`, `reviewer_next_action_short`
+  - summary-level `summary.triage_summary.next_priority_label`, `summary.triage_summary.next_action_brief`
+
+### Fixed
+- Added integration regression coverage to ensure default DOCX exports remain client-ready (diagnostic sections excluded unless `include_diagnostics=true`).
+
 ## [2.1.1] - 2026-03-03
 
 ### Changed
