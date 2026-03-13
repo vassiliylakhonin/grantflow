@@ -10,6 +10,8 @@ from typing import Any, Dict, Optional
 
 import httpx
 
+from grantflow.core.security_utils import is_safe_webhook_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -77,6 +79,9 @@ def send_job_webhook_event(
     job_id: str,
     job: Dict[str, Any],
 ) -> None:
+    if not is_safe_webhook_url(url):
+        raise ValueError("Webhook URL is not allowed by SSRF policy")
+
     payload = {
         "event": event,
         "job_id": job_id,
