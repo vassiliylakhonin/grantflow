@@ -1356,6 +1356,11 @@ def render_demo_ui_html() -> str:
               <button id="addCommentBtn" class="primary">Add Comment</button>
               <button id="ackCommentBtn" class="ghost">Acknowledge Selected</button>
             </div>
+            <div class="row" style="margin-top:10px;">
+              <button id="commentPresetOpenBtn" class="ghost">Preset: Open Queue</button>
+              <button id="commentPresetAckBtn" class="ghost">Preset: Ack Queue</button>
+              <button id="commentPresetResolvedBtn" class="ghost">Preset: Resolved Audit</button>
+            </div>
             <div class="row4" style="margin-top:10px;">
               <button id="resolveCommentBtn" class="secondary">Resolve Selected</button>
               <button id="reopenCommentBtn" class="ghost">Reopen Selected</button>
@@ -2208,6 +2213,9 @@ def render_demo_ui_html() -> str:
         reopenCommentBtn: $("reopenCommentBtn"),
         commentBulkTargetStatus: $("commentBulkTargetStatus"),
         commentBulkScope: $("commentBulkScope"),
+        commentPresetOpenBtn: $("commentPresetOpenBtn"),
+        commentPresetAckBtn: $("commentPresetAckBtn"),
+        commentPresetResolvedBtn: $("commentPresetResolvedBtn"),
         commentBulkApplyBtn: $("commentBulkApplyBtn"),
         clearLinkedFindingBtn: $("clearLinkedFindingBtn"),
         openPendingBtn: $("openPendingBtn"),
@@ -2616,6 +2624,23 @@ def render_demo_ui_html() -> str:
         persistUiState();
         updateCriticBulkActionUi();
         refreshCritic().catch(showError);
+      }
+
+      function applyCommentTriagePreset(preset) {
+        const key = String(preset || "").trim().toLowerCase();
+        if (key === "open_queue") {
+          els.commentsFilterStatus.value = "open";
+          els.commentBulkTargetStatus.value = "acknowledged";
+        } else if (key === "ack_queue") {
+          els.commentsFilterStatus.value = "acknowledged";
+          els.commentBulkTargetStatus.value = "resolved";
+        } else if (key === "resolved_audit") {
+          els.commentsFilterStatus.value = "resolved";
+          els.commentBulkTargetStatus.value = "open";
+        }
+        persistUiState();
+        updateCommentBulkActionUi();
+        refreshComments().catch(showError);
       }
 
       function clearReviewWorkflowFilters() {
@@ -9356,6 +9381,9 @@ def render_demo_ui_html() -> str:
           downloadPortfolioReviewWorkflowSlaTrendsCsv().catch((err) => showError(err))
         );
         els.commentsBtn.addEventListener("click", () => refreshComments().catch(showError));
+        els.commentPresetOpenBtn?.addEventListener("click", () => applyCommentTriagePreset("open_queue"));
+        els.commentPresetAckBtn?.addEventListener("click", () => applyCommentTriagePreset("ack_queue"));
+        els.commentPresetResolvedBtn?.addEventListener("click", () => applyCommentTriagePreset("resolved_audit"));
         els.reviewWorkflowBtn.addEventListener("click", () => {
           Promise.allSettled([
             refreshReviewWorkflow(),
