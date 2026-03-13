@@ -9064,13 +9064,24 @@ def render_demo_ui_html() -> str:
         const scope = String(els.criticBulkScope.value || "filtered").trim().toLowerCase();
 
         const payload = { next_status: nextStatus };
+        const largeBatchThreshold = 20;
         if (dryRun) payload.dry_run = true;
         if (scope === "all") {
           payload.apply_to_all = true;
+          if (!dryRun) {
+            const ok = window.confirm(`Apply critic bulk status to ALL findings?\nTarget: ${nextStatus}`);
+            if (!ok) return null;
+          }
         } else if (scope === "selected") {
           const findingIds = parseIdList(els.criticSelectedFindingIds.value);
           if (!findingIds.length) throw new Error("Add at least one finding id for selected bulk apply");
           payload.finding_ids = findingIds;
+          if (!dryRun && findingIds.length > largeBatchThreshold) {
+            const ok = window.confirm(
+              `Apply critic bulk status to ${findingIds.length} selected findings?\nTarget: ${nextStatus}`
+            );
+            if (!ok) return null;
+          }
         } else {
           const section = String(els.criticSectionFilter.value || "").trim();
           const severity = String(els.criticSeverityFilter.value || "").trim();
@@ -9158,13 +9169,24 @@ def render_demo_ui_html() -> str:
         if (!nextStatus) throw new Error("Select bulk comment target status");
         const scope = String(els.commentBulkScope.value || "filtered").trim().toLowerCase();
         const payload = { next_status: nextStatus };
+        const largeBatchThreshold = 20;
         if (dryRun) payload.dry_run = true;
         if (scope === "all") {
           payload.apply_to_all = true;
+          if (!dryRun) {
+            const ok = window.confirm(`Apply comment bulk status to ALL comments?\nTarget: ${nextStatus}`);
+            if (!ok) return null;
+          }
         } else if (scope === "selected") {
           const commentIds = parseIdList(els.commentSelectedCommentIds.value);
           if (!commentIds.length) throw new Error("Add at least one comment id for selected bulk apply");
           payload.comment_ids = commentIds;
+          if (!dryRun && commentIds.length > largeBatchThreshold) {
+            const ok = window.confirm(
+              `Apply comment bulk status to ${commentIds.length} selected comments?\nTarget: ${nextStatus}`
+            );
+            if (!ok) return null;
+          }
         } else {
           const section = String(els.commentsFilterSection.value || "").trim();
           const commentStatus = String(els.commentsFilterStatus.value || "").trim();
