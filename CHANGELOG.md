@@ -7,6 +7,8 @@ and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-03-13
+
 ### Added
 - Buyer-facing packaging helper targets: `buyer-facing-pack-refresh` and `buyer-facing-artifacts-index`.
 - Generated buyer-facing artifact index output at `build/buyer-facing-artifacts-index.md` to quickly review pilot/customer-ready deliverables.
