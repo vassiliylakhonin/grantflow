@@ -1490,6 +1490,8 @@ def render_demo_ui_html() -> str:
             </div>
             <div id="reviewWorkflowSummaryLine" class="footer-note mono" style="margin-top:10px;">workflow: timeline=- · findings=- · comments=-</div>
             <div id="reviewWorkflowPolicyLine" class="footer-note mono">workflow policy: status=- · go/no-go=- · next=-</div>
+            <div id="reviewWorkflowKpiLine" class="footer-note mono" style="margin-top:6px;">kpi: p50_ack=- · p95_ack=- · p50_resolve=- · p95_resolve=- · reopen_rate=-</div>
+            <div id="reviewWorkflowSloLine" class="footer-note mono" style="margin-top:4px;">slo: status=- · alerts=-</div>
             <div class="kpis" id="reviewActionQueueCards" style="margin-top:10px;">
               <div class="kpi"><div class="label">Next Primary Action</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Finding Ack Queue</div><div class="value mono">-</div></div>
@@ -1520,7 +1522,7 @@ def render_demo_ui_html() -> str:
             <div class="row3" style="margin-top:10px;">
               <button id="reviewWorkflowExportJsonBtn" class="ghost">Export Workflow JSON</button>
               <button id="reviewWorkflowExportCsvBtn" class="secondary">Export Workflow CSV</button>
-              <div class="sub" style="align-self:center;">Export uses current workflow filters.</div>
+              <button id="downloadTriageOpsReportBtn" class="ghost">Download Triage Ops Report</button>
             </div>
             <div class="row3" style="margin-top:10px;">
               <button id="reviewWorkflowTrendsBtn" class="ghost">Load Workflow Trends</button>
@@ -1780,6 +1782,8 @@ def render_demo_ui_html() -> str:
           commentAckReduced: 0,
           commentResolveReduced: 0,
         },
+        triageKpiSnapshot: null,
+        triageSloSnapshot: null,
         qualityGroundedGateExplainExpanded: false,
         ingestChecklistProgress: {},
         zeroReadinessWarningPrefs: {},
@@ -1976,6 +1980,8 @@ def render_demo_ui_html() -> str:
         reviewActionQueueCards: $("reviewActionQueueCards"),
         reviewWorkflowSummaryLine: $("reviewWorkflowSummaryLine"),
         reviewWorkflowPolicyLine: $("reviewWorkflowPolicyLine"),
+        reviewWorkflowKpiLine: $("reviewWorkflowKpiLine"),
+        reviewWorkflowSloLine: $("reviewWorkflowSloLine"),
         reviewWorkflowSuggestedActionsList: $("reviewWorkflowSuggestedActionsList"),
         reviewWorkflowPostApplyDelta: $("reviewWorkflowPostApplyDelta"),
         reviewWorkflowTelemetryLine: $("reviewWorkflowTelemetryLine"),
@@ -2012,6 +2018,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowClearFiltersBtn: $("reviewWorkflowClearFiltersBtn"),
         reviewWorkflowExportJsonBtn: $("reviewWorkflowExportJsonBtn"),
         reviewWorkflowExportCsvBtn: $("reviewWorkflowExportCsvBtn"),
+        downloadTriageOpsReportBtn: $("downloadTriageOpsReportBtn"),
         reviewWorkflowSlaBtn: $("reviewWorkflowSlaBtn"),
         reviewWorkflowSlaTrendsBtn: $("reviewWorkflowSlaTrendsBtn"),
         reviewWorkflowSlaHotspotsBtn: $("reviewWorkflowSlaHotspotsBtn"),
@@ -5503,6 +5510,9 @@ def render_demo_ui_html() -> str:
           }
         }
         const summary = body?.summary && typeof body.summary === "object" ? body.summary : {};
+        state.triageKpiSnapshot = computeTriageKpiFromTimeline(timeline);
+        state.triageSloSnapshot = evaluateTriageSlo(state.triageKpiSnapshot, summary);
+        renderTriageKpiAndSlo();
         const timelineCount = Number(summary.timeline_event_count || timeline.length || 0);
         const findingCount = Number(summary.finding_count || 0);
         const commentCount = Number(summary.comment_count || 0);
@@ -5759,6 +5769,135 @@ def render_demo_ui_html() -> str:
             : "Run Primary Queue Action";
         }
         updateUndoLastBulkActionButton();
+      }
+
+      function formatHours(value) {
+        if (!Number.isFinite(value)) return "-";
+        return `${Number(value).toFixed(1)}h`;
+      }
+
+      function percentile(values, p) {
+        const nums = Array.isArray(values)
+          ? values.map((v) => Number(v)).filter((v) => Number.isFinite(v)).sort((a, b) => a - b)
+          : [];
+        if (!nums.length) return null;
+        const idx = Math.min(nums.length - 1, Math.max(0, Math.ceil((p / 100) * nums.length) - 1));
+        return nums[idx];
+      }
+
+      function computeTriageKpiFromTimeline(timeline) {
+        const byFinding = {};
+        const byComment = {};
+        (Array.isArray(timeline) ? timeline : []).forEach((item) => {
+          const type = String(item?.type || "").trim();
+          const findingId = String(item?.finding_id || "").trim();
+          const commentId = String(item?.comment_id || "").trim();
+          const tsText = String(item?.ts || "").trim();
+          const tsMs = Date.parse(tsText);
+          if (!Number.isFinite(tsMs)) return;
+          if (findingId && type === "critic_finding_status_changed") {
+            byFinding[findingId] = byFinding[findingId] || { openAt: null, ackAt: null, resolvedAt: null };
+            const status = String(item?.status || "").trim().toLowerCase();
+            if (status === "open" && byFinding[findingId].openAt == null) byFinding[findingId].openAt = tsMs;
+            if (status === "acknowledged" && byFinding[findingId].ackAt == null) byFinding[findingId].ackAt = tsMs;
+            if (status === "resolved" && byFinding[findingId].resolvedAt == null) byFinding[findingId].resolvedAt = tsMs;
+          }
+          if (commentId && type === "review_comment_status_changed") {
+            byComment[commentId] = byComment[commentId] || { openAt: null, ackAt: null, resolvedAt: null, reopenCount: 0 };
+            const status = String(item?.status || "").trim().toLowerCase();
+            if (status === "open") {
+              if (byComment[commentId].openAt == null) byComment[commentId].openAt = tsMs;
+              else byComment[commentId].reopenCount += 1;
+            }
+            if (status === "acknowledged" && byComment[commentId].ackAt == null) byComment[commentId].ackAt = tsMs;
+            if (status === "resolved" && byComment[commentId].resolvedAt == null) byComment[commentId].resolvedAt = tsMs;
+          }
+        });
+
+        const ackDurationsH = [];
+        const resolveDurationsH = [];
+        Object.values(byFinding).forEach((x) => {
+          if (Number.isFinite(x?.openAt) && Number.isFinite(x?.ackAt) && x.ackAt >= x.openAt) {
+            ackDurationsH.push((x.ackAt - x.openAt) / 3600000);
+          }
+          if (Number.isFinite(x?.openAt) && Number.isFinite(x?.resolvedAt) && x.resolvedAt >= x.openAt) {
+            resolveDurationsH.push((x.resolvedAt - x.openAt) / 3600000);
+          }
+        });
+
+        const commentCount = Object.keys(byComment).length;
+        const reopenEvents = Object.values(byComment).reduce((acc, x) => acc + Number(x?.reopenCount || 0), 0);
+        return {
+          p50AckH: percentile(ackDurationsH, 50),
+          p95AckH: percentile(ackDurationsH, 95),
+          p50ResolveH: percentile(resolveDurationsH, 50),
+          p95ResolveH: percentile(resolveDurationsH, 95),
+          reopenRate: commentCount > 0 ? reopenEvents / commentCount : 0,
+        };
+      }
+
+      function evaluateTriageSlo(snapshot, summary) {
+        const p95ResolveH = Number(snapshot?.p95ResolveH || 0);
+        const overdueComments = Number(summary?.overdue_comment_count || 0);
+        const overdueFindings = Number(summary?.overdue_finding_count || 0);
+        const openFindings = Number(summary?.pending_finding_count || 0);
+        const alerts = [];
+        if (p95ResolveH > 72) alerts.push(`p95_resolve>${72}h`);
+        if (overdueComments > 10) alerts.push("overdue_comments>10");
+        if (overdueFindings > 10) alerts.push("overdue_findings>10");
+        if (openFindings > 50) alerts.push("pending_findings>50");
+        return {
+          status: alerts.length ? "attention" : "healthy",
+          alerts,
+        };
+      }
+
+      function renderTriageKpiAndSlo() {
+        const k = state.triageKpiSnapshot || {};
+        const s = state.triageSloSnapshot || { status: "-", alerts: [] };
+        if (els.reviewWorkflowKpiLine) {
+          const reopenPct = Number.isFinite(Number(k.reopenRate)) ? `${(Number(k.reopenRate) * 100).toFixed(1)}%` : "-";
+          els.reviewWorkflowKpiLine.textContent =
+            `kpi: p50_ack=${formatHours(k.p50AckH)} · p95_ack=${formatHours(k.p95AckH)} · p50_resolve=${formatHours(k.p50ResolveH)} · p95_resolve=${formatHours(k.p95ResolveH)} · reopen_rate=${reopenPct}`;
+        }
+        if (els.reviewWorkflowSloLine) {
+          const alerts = Array.isArray(s.alerts) && s.alerts.length ? s.alerts.join(",") : "none";
+          els.reviewWorkflowSloLine.textContent = `slo: status=${String(s.status || "-")} · alerts=${alerts}`;
+        }
+      }
+
+      function buildTriageOpsReportText() {
+        const telemetry = state.triageTelemetry || {};
+        const kpi = state.triageKpiSnapshot || {};
+        const slo = state.triageSloSnapshot || {};
+        const now = new Date().toISOString();
+        const lines = [
+          `GrantFlow Triage Ops Report`,
+          `Generated: ${now}`,
+          ``,
+          `Telemetry`,
+          `- primary_runs: ${Number(telemetry.primaryRuns || 0)}`,
+          `- applies: ${Number(telemetry.bulkApplies || 0)}`,
+          `- undo: ${Number(telemetry.undoRuns || 0)}`,
+          `- avg_apply_ms: ${Number(telemetry.bulkApplies || 0) > 0 ? Math.round(Number(telemetry.totalApplyLatencyMs || 0) / Number(telemetry.bulkApplies || 1)) : 0}`,
+          ``,
+          `KPI`,
+          `- p50_ack: ${formatHours(kpi.p50AckH)}`,
+          `- p95_ack: ${formatHours(kpi.p95AckH)}`,
+          `- p50_resolve: ${formatHours(kpi.p50ResolveH)}`,
+          `- p95_resolve: ${formatHours(kpi.p95ResolveH)}`,
+          `- reopen_rate: ${Number.isFinite(Number(kpi.reopenRate)) ? `${(Number(kpi.reopenRate) * 100).toFixed(1)}%` : "-"}`,
+          ``,
+          `SLO`,
+          `- status: ${String(slo.status || "-")}`,
+          `- alerts: ${Array.isArray(slo.alerts) && slo.alerts.length ? slo.alerts.join(", ") : "none"}`,
+        ];
+        return lines.join("\n");
+      }
+
+      function downloadTriageOpsReport() {
+        const text = buildTriageOpsReportText();
+        downloadTextFile(text, `triage_ops_report_${new Date().toISOString().slice(0, 10)}.txt`, "text/plain");
       }
 
       function renderTriageTelemetryLine() {
@@ -9789,6 +9928,9 @@ def render_demo_ui_html() -> str:
         els.reviewWorkflowExportCsvBtn.addEventListener("click", () =>
           downloadReviewWorkflowCsv().catch((err) => showError(err))
         );
+        els.downloadTriageOpsReportBtn?.addEventListener("click", () => {
+          downloadTriageOpsReport();
+        });
         els.addCommentBtn.addEventListener("click", () => addComment().catch(showError));
         els.ackCommentBtn.addEventListener("click", () => setCommentStatus("acknowledged").catch(showError));
         els.resolveCommentBtn.addEventListener("click", () => setCommentStatus("resolved").catch(showError));

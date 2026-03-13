@@ -8,8 +8,14 @@ def test_demo_ui_contains_triage_power_controls_and_telemetry_hooks():
     assert 'id="undoLastBulkActionBtn"' in html
     assert 'id="reviewWorkflowTelemetryLine"' in html
     assert 'id="resetTriageTelemetryBtn"' in html
+    assert 'id="reviewWorkflowKpiLine"' in html
+    assert 'id="reviewWorkflowSloLine"' in html
+    assert 'id="downloadTriageOpsReportBtn"' in html
 
-    # keyboard shortcuts and telemetry persistence hooks
+    # keyboard shortcuts, telemetry persistence, KPI/SLO/report hooks
     assert "function handleTriageShortcut(event)" in html
     assert 'document.addEventListener("keydown"' in html
     assert "grantflow_demo_triage_telemetry" in html
+    assert "function computeTriageKpiFromTimeline(timeline)" in html
+    assert "function evaluateTriageSlo(snapshot, summary)" in html
+    assert "function buildTriageOpsReportText()" in html
