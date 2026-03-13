@@ -100,11 +100,12 @@ make seed-live-corpus LIVE_SEED_DONORS=usaid,eu,worldbank,giz,state_department,u
 Fast buyer-facing path:
 
 ```bash
-make pilot-refresh-fast DEMO_PACK_API_BASE=http://127.0.0.1:8000
+make buyer-facing-pack-refresh DEMO_PACK_API_BASE=http://127.0.0.1:8000
 make release-demo-bundle-fast
 ```
 
 Outputs to inspect:
+- `build/buyer-facing-artifacts-index.md`
 - `build/send-bundle-index.md`
 - `build/latest-open-order.md`
 - `build/executive-pack/README.md`

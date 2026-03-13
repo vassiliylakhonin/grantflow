@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh benchmark-baseline benchmark-baseline-refresh pilot-evidence-pack pilot-evidence-pack-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast release-demo-bundle-custom send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh pilot-stack-up pilot-stack-down pilot-stack-logs pilot-stack-check pilot-stack-status enterprise-eval-up enterprise-eval-down enterprise-eval-logs enterprise-eval-check enterprise-eval-status
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh benchmark-baseline benchmark-baseline-refresh pilot-evidence-pack pilot-evidence-pack-refresh buyer-facing-pack-refresh buyer-facing-artifacts-index clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast release-demo-bundle-custom send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh pilot-stack-up pilot-stack-down pilot-stack-logs pilot-stack-check pilot-stack-status enterprise-eval-up enterprise-eval-down enterprise-eval-logs enterprise-eval-check enterprise-eval-status
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -38,6 +38,7 @@ PILOT_PACK_DEMO_DIR ?= $(DEMO_PACK_DIR)
 PILOT_PACK_INCLUDE_PRODUCTIZATION_MEMO ?= 0
 BUYER_BRIEF_PILOT_DIR ?= $(PILOT_PACK_DIR)
 BUYER_BRIEF_OUT ?=
+BUYER_BRIEF_EFFECTIVE_OUT ?= $(if $(strip $(BUYER_BRIEF_OUT)),$(BUYER_BRIEF_OUT),$(PILOT_PACK_DIR)/buyer-brief.md)
 PILOT_METRICS_PILOT_DIR ?= $(PILOT_PACK_DIR)
 PILOT_METRICS_MEASURED_BASELINE_CSV ?=
 PILOT_METRICS_CSV_OUT ?=
@@ -75,6 +76,7 @@ BENCHMARK_BASELINE_METRICS_CSV ?=
 BENCHMARK_BASELINE_CSV_OUT ?=
 BENCHMARK_BASELINE_MD_OUT ?=
 PILOT_EVIDENCE_PACK_OUT_DIR ?= build/pilot-evidence-pack
+BUYER_FACING_ARTIFACTS_INDEX_OUT ?= build/buyer-facing-artifacts-index.md
 CLEAN_DEMO_ARTIFACTS_BUILD_DIR ?= build
 LATEST_LINKS_BUILD_DIR ?= build
 PILOT_HANDOUT_PILOT_DIR ?= $(PILOT_PACK_DIR)
@@ -475,6 +477,33 @@ pilot-evidence-pack:
 
 pilot-evidence-pack-refresh: executive-pack-refresh baseline-fill-template-refresh benchmark-baseline-refresh
 	$(MAKE) pilot-evidence-pack PILOT_EVIDENCE_PACK_OUT_DIR=$(PILOT_EVIDENCE_PACK_OUT_DIR)
+
+buyer-facing-artifacts-index:
+	@mkdir -p $$(dirname "$(BUYER_FACING_ARTIFACTS_INDEX_OUT)")
+	@{ \
+		echo "# Buyer-facing artifacts index"; \
+		echo ""; \
+		echo "Generated: $$(date -u +"%Y-%m-%dT%H:%M:%SZ")"; \
+		echo ""; \
+		echo "- Pilot pack: $(PILOT_PACK_DIR)/README.md"; \
+		echo "- Buyer brief: $(BUYER_BRIEF_EFFECTIVE_OUT)"; \
+		echo "- Executive pack: $(EXECUTIVE_PACK_OUT_DIR)/README.md"; \
+		echo "- Pilot evidence pack: $(PILOT_EVIDENCE_PACK_OUT_DIR)/README.md"; \
+	} > "$(BUYER_FACING_ARTIFACTS_INDEX_OUT)"
+	@for artifact in \
+		"$(PILOT_PACK_DIR)/README.md" \
+		"$(BUYER_BRIEF_EFFECTIVE_OUT)" \
+		"$(EXECUTIVE_PACK_OUT_DIR)/README.md" \
+		"$(PILOT_EVIDENCE_PACK_OUT_DIR)/README.md"; do \
+		if [ ! -f "$$artifact" ]; then \
+			echo "missing buyer-facing artifact: $$artifact" >&2; \
+			exit 1; \
+		fi; \
+	done
+	@echo "wrote $(BUYER_FACING_ARTIFACTS_INDEX_OUT)"
+
+buyer-facing-pack-refresh: pilot-evidence-pack-refresh buyer-facing-artifacts-index
+	@echo "buyer-facing pack refresh complete"
 
 clean-demo-artifacts:
 	$(PYTHON) scripts/clean_demo_artifacts.py \
