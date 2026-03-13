@@ -1507,6 +1507,7 @@ def render_demo_ui_html() -> str:
               <div class="list" id="reviewWorkflowPostApplySummaryList"></div>
             </div>
             <div class="row" style="margin-top:10px;">
+              <button id="runPrimaryQueueActionBtn" class="primary">Run Primary Queue Action</button>
               <button id="applySuggestedFindingActionBtn" class="ghost">Use Suggested Finding Action</button>
               <button id="applySuggestedCommentActionBtn" class="ghost">Use Suggested Comment Action</button>
             </div>
@@ -1959,6 +1960,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowPolicyLine: $("reviewWorkflowPolicyLine"),
         reviewWorkflowSuggestedActionsList: $("reviewWorkflowSuggestedActionsList"),
         reviewWorkflowPostApplySummaryList: $("reviewWorkflowPostApplySummaryList"),
+        runPrimaryQueueActionBtn: $("runPrimaryQueueActionBtn"),
         applySuggestedFindingActionBtn: $("applySuggestedFindingActionBtn"),
         applySuggestedCommentActionBtn: $("applySuggestedCommentActionBtn"),
         reviewWorkflowJson: $("reviewWorkflowJson"),
@@ -5687,6 +5689,14 @@ def render_demo_ui_html() -> str:
             ? `Use Suggested Comment Action (${commentPreset.key})`
             : "Use Suggested Comment Action";
         }
+        if (els.runPrimaryQueueActionBtn) {
+          const primaryKey = String(actionQueue?.next_primary_action || "").trim();
+          const canRun = Boolean(findingPreset || commentPreset);
+          els.runPrimaryQueueActionBtn.disabled = !canRun;
+          els.runPrimaryQueueActionBtn.textContent = canRun
+            ? `Run Primary Queue Action${primaryKey ? ` (${primaryKey})` : ""}`
+            : "Run Primary Queue Action";
+        }
       }
 
       function renderPostApplySummary(summary) {
@@ -5735,6 +5745,36 @@ def render_demo_ui_html() -> str:
         if (commentPreset) {
           applySuggestedCommentActionPreset();
         }
+      }
+
+      async function runPrimaryQueueAction() {
+        const findingPreset = state.lastSuggestedFindingAction;
+        const commentPreset = state.lastSuggestedCommentAction;
+        const primaryActionText = Array.isArray(els.reviewActionQueueCards?.children)
+          ? String(els.reviewActionQueueCards.children?.[0]?.querySelector(".value")?.textContent || "").trim().toLowerCase()
+          : "";
+
+        if (primaryActionText.includes("comment") && commentPreset) {
+          applySuggestedCommentActionPreset();
+          await applyCommentBulkStatus();
+          return;
+        }
+        if (primaryActionText.includes("finding") && findingPreset) {
+          applySuggestedFindingActionPreset();
+          await applyCriticBulkStatus();
+          return;
+        }
+        if (findingPreset) {
+          applySuggestedFindingActionPreset();
+          await applyCriticBulkStatus();
+          return;
+        }
+        if (commentPreset) {
+          applySuggestedCommentActionPreset();
+          await applyCommentBulkStatus();
+          return;
+        }
+        throw new Error("No suggested primary queue action available");
       }
 
       async function refreshWorkflowAfterBulkApply(result, queueLabel) {
@@ -9400,6 +9440,9 @@ def render_demo_ui_html() -> str:
             refreshPortfolioReviewWorkflowTrends(),
             refreshPortfolioReviewWorkflowSlaTrends(),
           ]).catch(showError);
+        });
+        els.runPrimaryQueueActionBtn?.addEventListener("click", () => {
+          runPrimaryQueueAction().catch(showError);
         });
         els.applySuggestedFindingActionBtn.addEventListener("click", () => {
           applySuggestedFindingActionPreset();
