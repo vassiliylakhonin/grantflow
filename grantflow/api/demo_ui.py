@@ -1505,6 +1505,7 @@ def render_demo_ui_html() -> str:
             <div style="margin-top:10px;">
               <label>Post-Apply Summary</label>
               <div id="reviewWorkflowPostApplyDelta" class="footer-note mono" style="margin:6px 0 8px 0;">delta: -</div>
+              <div id="reviewWorkflowTelemetryLine" class="footer-note mono" style="margin:0 0 8px 0;">telemetry: -</div>
               <div class="list" id="reviewWorkflowPostApplySummaryList"></div>
             </div>
             <div class="row" style="margin-top:10px;">
@@ -1766,6 +1767,16 @@ def render_demo_ui_html() -> str:
         lastBulkApplySummary: null,
         undoLastBulkAction: null,
         undoLastBulkActionTimer: null,
+        triageTelemetry: {
+          primaryRuns: 0,
+          bulkApplies: 0,
+          undoRuns: 0,
+          totalApplyLatencyMs: 0,
+          findingAckReduced: 0,
+          findingResolveReduced: 0,
+          commentAckReduced: 0,
+          commentResolveReduced: 0,
+        },
         qualityGroundedGateExplainExpanded: false,
         ingestChecklistProgress: {},
         zeroReadinessWarningPrefs: {},
@@ -1964,6 +1975,7 @@ def render_demo_ui_html() -> str:
         reviewWorkflowPolicyLine: $("reviewWorkflowPolicyLine"),
         reviewWorkflowSuggestedActionsList: $("reviewWorkflowSuggestedActionsList"),
         reviewWorkflowPostApplyDelta: $("reviewWorkflowPostApplyDelta"),
+        reviewWorkflowTelemetryLine: $("reviewWorkflowTelemetryLine"),
         reviewWorkflowPostApplySummaryList: $("reviewWorkflowPostApplySummaryList"),
         runPrimaryQueueActionBtn: $("runPrimaryQueueActionBtn"),
         undoLastBulkActionBtn: $("undoLastBulkActionBtn"),
@@ -5706,6 +5718,15 @@ def render_demo_ui_html() -> str:
         updateUndoLastBulkActionButton();
       }
 
+      function renderTriageTelemetryLine() {
+        if (!els.reviewWorkflowTelemetryLine) return;
+        const t = state.triageTelemetry || {};
+        const applies = Number(t.bulkApplies || 0);
+        const avgLatencyMs = applies > 0 ? Math.round(Number(t.totalApplyLatencyMs || 0) / applies) : 0;
+        els.reviewWorkflowTelemetryLine.textContent =
+          `telemetry: primary_runs=${Number(t.primaryRuns || 0)} · applies=${applies} · undo=${Number(t.undoRuns || 0)} · avg_apply_ms=${avgLatencyMs} · reduced(f_ack=${Number(t.findingAckReduced || 0)}, f_resolve=${Number(t.findingResolveReduced || 0)}, c_ack=${Number(t.commentAckReduced || 0)}, c_resolve=${Number(t.commentResolveReduced || 0)})`;
+      }
+
       function renderPostApplySummary(summary) {
         const listEl = els.reviewWorkflowPostApplySummaryList;
         if (!listEl) return;
@@ -5715,6 +5736,7 @@ def render_demo_ui_html() -> str:
           if (els.reviewWorkflowPostApplyDelta) {
             els.reviewWorkflowPostApplyDelta.textContent = "delta: -";
           }
+          renderTriageTelemetryLine();
           return;
         }
         const cards = [
@@ -5739,6 +5761,7 @@ def render_demo_ui_html() -> str:
           div.innerHTML = `<div class="title mono">${escapeHtml(card.title)}</div><div class="sub">${escapeHtml(card.sub)}</div>`;
           listEl.appendChild(div);
         }
+        renderTriageTelemetryLine();
       }
 
       function applyCurrentSuggestedPrimaryActionPreset() {
@@ -5849,6 +5872,9 @@ def render_demo_ui_html() -> str:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        const t = state.triageTelemetry || {};
+        t.undoRuns = Number(t.undoRuns || 0) + 1;
+        state.triageTelemetry = t;
         state.undoLastBulkAction = null;
         stopUndoLastBulkActionTimer();
         updateUndoLastBulkActionButton();
@@ -5856,6 +5882,9 @@ def render_demo_ui_html() -> str:
       }
 
       async function runPrimaryQueueAction() {
+        const t = state.triageTelemetry || {};
+        t.primaryRuns = Number(t.primaryRuns || 0) + 1;
+        state.triageTelemetry = t;
         const findingPreset = state.lastSuggestedFindingAction;
         const commentPreset = state.lastSuggestedCommentAction;
         const primaryActionText = Array.isArray(els.reviewActionQueueCards?.children)
@@ -5889,7 +5918,7 @@ def render_demo_ui_html() -> str:
         throw new Error("No suggested primary queue action available");
       }
 
-      async function refreshWorkflowAfterBulkApply(result, queueLabel) {
+      async function refreshWorkflowAfterBulkApply(result, queueLabel, meta = {}) {
         const previousQueue = currentQueueSnapshotFromCards();
         await Promise.allSettled([
           refreshCritic(),
@@ -5916,6 +5945,14 @@ def render_demo_ui_html() -> str:
           `comment_resolve ${previousQueue.comment_resolve_queue_count}->${currentQueue.comment_resolve_queue_count}`,
           `comment_reopen ${previousQueue.comment_reopen_queue_count}->${currentQueue.comment_reopen_queue_count}`,
         ];
+        const t = state.triageTelemetry || {};
+        t.bulkApplies = Number(t.bulkApplies || 0) + 1;
+        t.totalApplyLatencyMs = Number(t.totalApplyLatencyMs || 0) + Number(meta?.applyLatencyMs || 0);
+        t.findingAckReduced = Number(t.findingAckReduced || 0) + Math.max(0, previousQueue.finding_ack_queue_count - currentQueue.finding_ack_queue_count);
+        t.findingResolveReduced = Number(t.findingResolveReduced || 0) + Math.max(0, previousQueue.finding_resolve_queue_count - currentQueue.finding_resolve_queue_count);
+        t.commentAckReduced = Number(t.commentAckReduced || 0) + Math.max(0, previousQueue.comment_ack_queue_count - currentQueue.comment_ack_queue_count);
+        t.commentResolveReduced = Number(t.commentResolveReduced || 0) + Math.max(0, previousQueue.comment_resolve_queue_count - currentQueue.comment_resolve_queue_count);
+        state.triageTelemetry = t;
         state.lastBulkApplySummary = {
           appliedQueueAction: queueLabel || "-",
           changedCount: Number(result?.changed_count ?? 0),
@@ -9094,6 +9131,7 @@ def render_demo_ui_html() -> str:
           }
         }
 
+        const startedAtMs = Date.now();
         const result = await apiFetch(`/status/${encodeURIComponent(jobId)}/critic/findings/bulk-status`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -9125,7 +9163,7 @@ def render_demo_ui_html() -> str:
             refreshPortfolioReviewWorkflowSlaTrends(),
           ]);
         } else {
-          await refreshWorkflowAfterBulkApply(result, action.queueLabel);
+          await refreshWorkflowAfterBulkApply(result, action.queueLabel, { applyLatencyMs: Date.now() - startedAtMs });
         }
         return result;
       }
@@ -9198,6 +9236,7 @@ def render_demo_ui_html() -> str:
             throw new Error("For filtered bulk apply, set at least one comment filter or use scope=all");
           }
         }
+        const startedAtMs = Date.now();
         const result = await apiFetch(`/status/${encodeURIComponent(jobId)}/comments/bulk-status`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -9229,7 +9268,7 @@ def render_demo_ui_html() -> str:
             refreshPortfolioReviewWorkflowSlaTrends(),
           ]);
         } else {
-          await refreshWorkflowAfterBulkApply(result, action.queueLabel);
+          await refreshWorkflowAfterBulkApply(result, action.queueLabel, { applyLatencyMs: Date.now() - startedAtMs });
         }
         return result;
       }
@@ -9733,6 +9772,7 @@ def render_demo_ui_html() -> str:
         updateCriticBulkActionUi();
         updateCommentBulkActionUi();
         updateUndoLastBulkActionButton();
+        renderTriageTelemetryLine();
         els.clearLinkedFindingBtn.addEventListener("click", clearLinkedFindingSelection);
         els.openPendingBtn.addEventListener("click", () => loadPendingList().catch(showError));
         [els.apiBase, els.apiKey, els.jobIdInput].forEach((el) => el.addEventListener("change", persistBasics));
