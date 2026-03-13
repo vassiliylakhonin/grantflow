@@ -1,4 +1,4 @@
-.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh benchmark-baseline benchmark-baseline-refresh pilot-evidence-pack pilot-evidence-pack-refresh buyer-facing-pack-refresh buyer-facing-artifacts-index clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast release-demo-bundle-custom send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh pilot-stack-up pilot-stack-down pilot-stack-logs pilot-stack-check pilot-stack-status enterprise-eval-up enterprise-eval-down enterprise-eval-logs enterprise-eval-check enterprise-eval-status
+.PHONY: deps-guard qa-fast qa-hitl preflight-prod-api preflight-prod-worker eval-grounded-ab eval-grounded-tail eval-llm-sampled eval-llm-grounded-strict eval-rbm-samples refresh-grounded-baseline seed-live-corpus eval-grounded-target-live export-target-live demo-pack pilot-pack buyer-brief buyer-brief-refresh pilot-metrics pilot-metrics-refresh pilot-scorecard pilot-scorecard-refresh case-study-pack case-study-pack-refresh executive-pack executive-pack-refresh oem-pack oem-pack-refresh pilot-archive pilot-archive-refresh diligence-index diligence-index-refresh baseline-fill-template baseline-fill-template-refresh benchmark-baseline benchmark-baseline-refresh pilot-evidence-pack pilot-evidence-pack-refresh buyer-facing-pack-refresh buyer-facing-artifacts-index pilot-conversion-layer pilot-conversion-layer-refresh clean-demo-artifacts clean-demo-artifacts-dry-run latest-links latest-links-refresh pilot-handout pilot-handout-refresh smoke-demo-refresh latest-open-order latest-open-order-refresh pilot-refresh-fast verify-latest-stack verify-latest-stack-refresh release-demo-bundle release-demo-bundle-fast release-demo-bundle-custom send-bundle-index send-bundle-index-refresh open-latest-send open-latest-send-refresh open-latest-send-fast open-latest-send-fast-refresh buyer-demo-open buyer-demo-open-refresh ci-demo-review-smoke ci-demo-smoke dev-runtime-refresh pilot-stack-up pilot-stack-down pilot-stack-logs pilot-stack-check pilot-stack-status enterprise-eval-up enterprise-eval-down enterprise-eval-logs enterprise-eval-check enterprise-eval-status
 
 PYTHON ?= $(if $(wildcard .venv/bin/python),.venv/bin/python,python3)
 EVAL_ARTIFACTS_DIR ?= eval-artifacts
@@ -504,6 +504,51 @@ buyer-facing-artifacts-index:
 
 buyer-facing-pack-refresh: pilot-evidence-pack-refresh buyer-facing-artifacts-index
 	@echo "buyer-facing pack refresh complete"
+
+pilot-conversion-layer:
+	@set -euo pipefail; \
+	echo "[1/5] preflight: checking API health at $(DEMO_PACK_API_BASE)"; \
+	if ! curl -fsS "$(DEMO_PACK_API_BASE)/health" >/dev/null; then \
+		echo "FAIL: API health check failed at $(DEMO_PACK_API_BASE)/health" >&2; \
+		echo "Hint: start GrantFlow API first (uvicorn grantflow.api.app:app --reload) or set DEMO_PACK_API_BASE to a reachable endpoint." >&2; \
+		exit 1; \
+	fi; \
+	echo "[2/5] demo + review + export: make demo-pack"; \
+	$(MAKE) demo-pack; \
+	if [ ! -f "$(DEMO_PACK_DIR)/summary.md" ]; then \
+		echo "FAIL: missing demo artifact $(DEMO_PACK_DIR)/summary.md" >&2; \
+		echo "Hint: inspect demo-pack output for failed case generation or export calls." >&2; \
+		exit 1; \
+	fi; \
+	if ! find "$(DEMO_PACK_DIR)" -mindepth 2 -maxdepth 2 -name "review-package.zip" -print -quit | grep -q .; then \
+		echo "FAIL: missing review export artifact (review-package.zip) under $(DEMO_PACK_DIR)" >&2; \
+		echo "Hint: verify /export endpoint is reachable and /status/<job_id>/export-payload succeeds." >&2; \
+		exit 1; \
+	fi; \
+	echo "[3/5] executive summary: make executive-pack-refresh"; \
+	$(MAKE) executive-pack-refresh; \
+	if [ ! -f "$(EXECUTIVE_PACK_OUT_DIR)/README.md" ]; then \
+		echo "FAIL: missing executive summary at $(EXECUTIVE_PACK_OUT_DIR)/README.md" >&2; \
+		echo "Hint: ensure pilot-pack and case-study-pack were generated successfully." >&2; \
+		exit 1; \
+	fi; \
+	echo "[4/5] evidence pack: make pilot-evidence-pack"; \
+	$(MAKE) pilot-evidence-pack; \
+	if [ ! -f "$(PILOT_EVIDENCE_PACK_OUT_DIR)/README.md" ]; then \
+		echo "FAIL: missing evidence pack README at $(PILOT_EVIDENCE_PACK_OUT_DIR)/README.md" >&2; \
+		echo "Hint: ensure executive-pack and case-study-pack artifacts exist, then rerun make pilot-evidence-pack." >&2; \
+		exit 1; \
+	fi; \
+	echo "[5/5] buyer index: make buyer-facing-artifacts-index"; \
+	$(MAKE) buyer-facing-artifacts-index; \
+	echo "pilot conversion layer complete"; \
+	echo "- demo summary: $(DEMO_PACK_DIR)/summary.md"; \
+	echo "- executive summary: $(EXECUTIVE_PACK_OUT_DIR)/README.md"; \
+	echo "- evidence pack: $(PILOT_EVIDENCE_PACK_OUT_DIR)/README.md"; \
+	echo "- buyer index: $(BUYER_FACING_ARTIFACTS_INDEX_OUT)"
+
+pilot-conversion-layer-refresh: pilot-conversion-layer
+	@echo "pilot conversion layer refresh complete"
 
 clean-demo-artifacts:
 	$(PYTHON) scripts/clean_demo_artifacts.py \

@@ -1,74 +1,94 @@
 {
+  "job_id": "job-quality-1",
+  "status": "done",
+  "quality_score": 7.2,
   "critic_score": 6.8,
   "engine": "rules+llm:gpt-4.1-mini",
+  "rule_score": 7.0,
+  "llm_score": 6.5,
+  "needs_revision": true,
+  "revision_instructions": "Fix TOC evidence gaps and tighten MEL indicators.",
   "fatal_flaw_count": 2,
+  "fatal_flaws": [
+    {
+      "id": "finding-1",
+      "finding_id": "finding-1",
+      "status": "open",
+      "severity": "high",
+      "section": "toc",
+      "code": "TOC_EVIDENCE_GAP",
+      "message": "Outcome chain lacks grounded support.",
+      "source": "rules",
+      "version_id": "toc_v1",
+      "rationale": null,
+      "fix_suggestion": null,
+      "fix_hint": null,
+      "review_title": "ToC Evidence Gap",
+      "review_bucket": "grounding",
+      "triage_priority": "urgent",
+      "recommended_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
+      "reviewer_next_step": "ToC Evidence Gap: Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
+      "staleness_band": "fresh",
+      "triage_priority_rationale": "Priority set because severity is high, item is still unacknowledged, evidence traceability is at risk.",
+      "linked_comment_ids": [
+        "comment-1"
+      ]
+    },
+    {
+      "id": "finding-2",
+      "finding_id": "finding-2",
+      "status": "acknowledged",
+      "severity": "medium",
+      "section": "logframe",
+      "code": "MEL_BASELINE_WEAK",
+      "message": "Baselines are not explicit.",
+      "source": "llm",
+      "label": "BASELINE_TARGET_MISSING",
+      "version_id": "logframe_v1",
+      "rationale": null,
+      "fix_suggestion": null,
+      "fix_hint": null,
+      "review_title": "Baseline Target Missing",
+      "review_bucket": "measurement",
+      "triage_priority": "medium",
+      "recommended_action": "Replace placeholder baseline and target values with reviewer-defensible measures before the next export of the USAID results hierarchy and monitoring package.",
+      "reviewer_next_step": "Baseline Target Missing: Replace placeholder baseline and target values with reviewer-defensible measures before the next export of the USAID results hierarchy and monitoring package.",
+      "staleness_band": "fresh",
+      "triage_priority_rationale": "Priority set because item is acknowledged but unresolved, measurement quality blocks reviewer confidence."
+    }
+  ],
   "fatal_flaw_messages": [
     "Outcome chain lacks grounded support.",
     "Baselines are not explicit."
   ],
-  "fatal_flaws": [
-    {
-      "code": "TOC_EVIDENCE_GAP",
-      "finding_id": "finding-1",
-      "fix_hint": null,
-      "fix_suggestion": null,
-      "id": "finding-1",
-      "linked_comment_ids": [
-        "comment-1"
-      ],
-      "message": "Outcome chain lacks grounded support.",
-      "rationale": null,
-      "recommended_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
-      "review_bucket": "grounding",
-      "review_title": "ToC Evidence Gap",
-      "reviewer_next_step": "ToC Evidence Gap: Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
-      "section": "toc",
-      "severity": "high",
-      "source": "rules",
-      "staleness_band": "fresh",
-      "status": "open",
-      "triage_priority": "urgent",
-      "version_id": "toc_v1"
+  "triage_summary": {
+    "urgent_finding_count": 1,
+    "high_priority_finding_count": 0,
+    "stale_open_finding_count": 0,
+    "priority_counts": {
+      "urgent": 1,
+      "high": 0,
+      "medium": 1,
+      "normal": 0,
+      "resolved": 0
     },
-    {
-      "code": "MEL_BASELINE_WEAK",
-      "finding_id": "finding-2",
-      "fix_hint": null,
-      "fix_suggestion": null,
-      "id": "finding-2",
-      "label": "BASELINE_TARGET_MISSING",
-      "message": "Baselines are not explicit.",
-      "rationale": null,
-      "recommended_action": "Replace placeholder baseline and target values with reviewer-defensible measures before the next export of the USAID results hierarchy and monitoring package.",
-      "review_bucket": "measurement",
-      "review_title": "Baseline Target Missing",
-      "reviewer_next_step": "Baseline Target Missing: Replace placeholder baseline and target values with reviewer-defensible measures before the next export of the USAID results hierarchy and monitoring package.",
-      "section": "logframe",
-      "severity": "medium",
-      "source": "llm",
-      "staleness_band": "fresh",
-      "status": "acknowledged",
-      "triage_priority": "medium",
-      "version_id": "logframe_v1"
-    }
-  ],
-  "job_id": "job-quality-1",
-  "llm_advisory_diagnostics": {
-    "applied": false,
-    "reason": "architect_fallback_citations_present"
+    "review_bucket_counts": {
+      "grounding": 1,
+      "measurement": 1,
+      "logic": 0,
+      "compliance": 0,
+      "general": 0
+    },
+    "top_priority_finding_ids": [
+      "finding-1",
+      "finding-2"
+    ],
+    "next_review_section": "toc",
+    "next_review_bucket": "grounding",
+    "next_recommended_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
+    "next_priority_rationale": "Priority set because severity is high, item is still unacknowledged, evidence traceability is at risk.",
+    "next_immediate_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review."
   },
-  "llm_advisory_normalization": {
-    "applied": true,
-    "downgraded_count": 1
-  },
-  "llm_advisory_score_calibration": {
-    "applied": true,
-    "max_llm_penalty": 0.75
-  },
-  "llm_score": 6.5,
-  "needs_revision": true,
-  "quality_score": 7.2,
-  "revision_instructions": "Fix TOC evidence gaps and tighten MEL indicators.",
   "rule_check_count": 3,
   "rule_checks": [
     {
@@ -84,32 +104,16 @@
       "status": "warn"
     }
   ],
-  "rule_score": 7.0,
-  "status": "done",
-  "triage_summary": {
-    "high_priority_finding_count": 0,
-    "next_recommended_action": "Reground the affected ToC claim and replace fallback or weak citations in the USAID results hierarchy and monitoring package before next review.",
-    "next_review_bucket": "grounding",
-    "next_review_section": "toc",
-    "priority_counts": {
-      "high": 0,
-      "medium": 1,
-      "normal": 0,
-      "resolved": 0,
-      "urgent": 1
-    },
-    "review_bucket_counts": {
-      "compliance": 0,
-      "general": 0,
-      "grounding": 1,
-      "logic": 0,
-      "measurement": 1
-    },
-    "stale_open_finding_count": 0,
-    "top_priority_finding_ids": [
-      "finding-1",
-      "finding-2"
-    ],
-    "urgent_finding_count": 1
+  "llm_advisory_diagnostics": {
+    "applied": false,
+    "reason": "architect_fallback_citations_present"
+  },
+  "llm_advisory_normalization": {
+    "applied": true,
+    "downgraded_count": 1
+  },
+  "llm_advisory_score_calibration": {
+    "applied": true,
+    "max_llm_penalty": 0.75
   }
 }

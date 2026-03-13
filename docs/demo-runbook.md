@@ -108,6 +108,19 @@ make pilot-refresh-fast
 make release-demo-bundle-fast
 ```
 
+Or run the full pilot conversion layer in one command (demo -> review -> export -> executive summary -> evidence pack -> buyer index):
+
+```bash
+make pilot-conversion-layer DEMO_PACK_API_BASE=http://127.0.0.1:8000
+```
+
+Expected terminal output includes:
+- `pilot conversion layer complete`
+- `demo summary: build/demo-pack/summary.md`
+- `executive summary: build/executive-pack/README.md`
+- `evidence pack: build/pilot-evidence-pack/README.md`
+- `buyer index: build/buyer-facing-artifacts-index.md`
+
 ### 2. Open the canonical outputs
 
 Open in this order:

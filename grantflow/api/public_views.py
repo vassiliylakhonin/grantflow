@@ -358,6 +358,42 @@ def _finding_triage_priority_label(item: Dict[str, Any]) -> str:
     return label
 
 
+def _finding_priority_rationale(item: Dict[str, Any]) -> str:
+    priority = _finding_triage_priority(item)
+    workflow_state = str(item.get("workflow_state") or "").strip().lower()
+    status = str(item.get("status") or "open").strip().lower()
+    severity = str(item.get("severity") or "").strip().lower()
+    review_bucket = _finding_review_bucket(item)
+    staleness_band = _finding_staleness_band(item)
+
+    reasons: list[str] = []
+    if priority == "resolved" or status in {"resolved", "closed"}:
+        return "Resolved item; no active triage pressure."
+    if workflow_state == "overdue" or staleness_band == "overdue":
+        reasons.append("item is overdue")
+    elif staleness_band == "aging":
+        reasons.append("item is nearing SLA")
+    if severity == "high":
+        reasons.append("severity is high")
+    if status == "open":
+        reasons.append("item is still unacknowledged")
+    elif status == "acknowledged":
+        reasons.append("item is acknowledged but unresolved")
+
+    bucket_reason = {
+        "grounding": "evidence traceability is at risk",
+        "measurement": "measurement quality blocks reviewer confidence",
+        "logic": "core causal logic needs correction",
+        "compliance": "required donor structure is incomplete",
+    }.get(review_bucket)
+    if bucket_reason:
+        reasons.append(bucket_reason)
+
+    if not reasons:
+        return "Prioritized for reviewer queue progression."
+    return f"Priority set because {', '.join(reasons)}."
+
+
 def _finding_reviewer_next_actions(item: Dict[str, Any], *, donor_id: Optional[str] = None) -> list[str]:
     section = str(item.get("section") or "general").strip().lower()
     section_title = {"toc": "ToC", "logframe": "LogFrame", "general": "draft"}.get(section, section.title())
@@ -393,6 +429,7 @@ def _triage_enriched_finding(item: Dict[str, Any], *, donor_id: Optional[str] = 
     current["recommended_action"] = _finding_recommended_action(current, donor_id=donor_id)
     current["reviewer_next_step"] = _finding_reviewer_next_step(current, donor_id=donor_id)
     current["staleness_band"] = _finding_staleness_band(current)
+    current["triage_priority_rationale"] = _finding_priority_rationale(current)
     return current
 
 
@@ -445,6 +482,15 @@ def _critic_triage_summary_payload(
         "next_review_bucket": str(next_item.get("review_bucket") or "").strip() or None if next_item else None,
         "next_recommended_action": (
             str(next_item.get("recommended_action") or "").strip() or None if next_item else None
+        ),
+        "next_priority_rationale": (
+            str(next_item.get("triage_priority_rationale") or "").strip() or None if next_item else None
+        ),
+        "next_immediate_action": (
+            str(next_item.get("reviewer_next_action_short") or next_item.get("recommended_action") or "").strip()
+            or None
+            if next_item
+            else None
         ),
     }
 
@@ -682,6 +728,81 @@ def _state_retrieval_expected(state_dict: Dict[str, Any]) -> bool:
     if isinstance(raw, bool):
         return raw
     return True
+
+
+def _grounding_trust_summary_payload(
+    *,
+    citations: list[Dict[str, Any]],
+    grounding_risk_level: str,
+    open_finding_count: int,
+) -> Dict[str, Any]:
+    confidence_values: list[float] = []
+    traceability_complete = 0
+    traceability_partial = 0
+    rag_low_confidence_count = 0
+
+    for row in citations:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get("citation_type") or "").strip().lower() == "rag_low_confidence":
+            rag_low_confidence_count += 1
+        traceability_status = citation_traceability_status(row)
+        if traceability_status == "complete":
+            traceability_complete += 1
+        elif traceability_status == "partial":
+            traceability_partial += 1
+
+        confidence_raw = row.get("citation_confidence")
+        try:
+            confidence_value = float(confidence_raw) if confidence_raw is not None else None
+        except (TypeError, ValueError):
+            confidence_value = None
+        if confidence_value is not None:
+            confidence_values.append(max(0.0, min(1.0, confidence_value)))
+
+    citation_count = len(citations)
+    confidence_score = round(sum(confidence_values) / len(confidence_values), 4) if confidence_values else 0.0
+    traceability_score = (
+        round((traceability_complete + (0.5 * traceability_partial)) / citation_count, 4) if citation_count else 0.0
+    )
+
+    grounding_risk_penalty = {
+        "low": 0.05,
+        "medium": 0.25,
+        "high": 0.45,
+        "unknown": 0.3,
+    }.get(str(grounding_risk_level or "").strip().lower(), 0.3)
+    open_finding_penalty = min(0.35, max(0, int(open_finding_count)) * 0.1)
+    rag_low_conf_penalty = min(0.2, max(0, int(rag_low_confidence_count)) * 0.05)
+    diagnostic_risk_score = round(min(1.0, grounding_risk_penalty + open_finding_penalty + rag_low_conf_penalty), 4)
+
+    trust_score = round(
+        ((0.45 * confidence_score) + (0.35 * traceability_score) + (0.2 * (1.0 - diagnostic_risk_score))) * 100,
+        1,
+    )
+    if trust_score >= 80.0:
+        trust_level = "high"
+    elif trust_score >= 60.0:
+        trust_level = "medium"
+    else:
+        trust_level = "low"
+
+    return {
+        "trust_score": trust_score,
+        "trust_level": trust_level,
+        "components": {
+            "confidence_score": confidence_score,
+            "traceability_score": traceability_score,
+            "diagnostic_risk_score": diagnostic_risk_score,
+        },
+        "inputs": {
+            "citation_count": citation_count,
+            "open_finding_count": int(open_finding_count),
+            "rag_low_confidence_citation_count": rag_low_confidence_count,
+            "grounding_risk_level": str(grounding_risk_level or "unknown") or "unknown",
+        },
+        "formula": "trust = 100 * (0.45*confidence + 0.35*traceability + 0.20*(1-diagnostic_risk))",
+    }
 
 
 def _citation_grounding_counts(citations: list[Dict[str, Any]]) -> Dict[str, int]:
@@ -1122,6 +1243,7 @@ def public_job_review_workflow_payload(
         next_actions = _finding_reviewer_next_actions(enriched, donor_id=donor_id)
         enriched["reviewer_next_actions"] = next_actions
         enriched["reviewer_next_action_short"] = next_actions[0] if next_actions else None
+        enriched["reviewer_immediate_next_action"] = next_actions[0] if next_actions else None
         findings_with_workflow.append(enriched)
 
     comments_with_workflow: list[Dict[str, Any]] = []
@@ -1323,6 +1445,13 @@ def public_job_review_workflow_payload(
         triage_summary_dict["next_priority_label"] = str(next_item.get("triage_priority_label") or "").strip() or None
         triage_summary_dict["next_action_brief"] = (
             str(next_item.get("reviewer_next_action_short") or "").strip() or None
+        )
+        triage_summary_dict["next_priority_rationale"] = (
+            str(next_item.get("triage_priority_rationale") or "").strip() or None
+        )
+        triage_summary_dict["next_immediate_action"] = (
+            str(next_item.get("reviewer_immediate_next_action") or next_item.get("recommended_action") or "").strip()
+            or None
         )
     summary["reviewer_workflow_summary"] = _reviewer_workflow_summary_payload(
         critic_findings=findings_with_workflow,
@@ -2250,6 +2379,8 @@ def public_job_export_payload(
         review_comments=[item for item in review_comments if isinstance(item, dict)],
     )
     architect_signal_summary = _architect_citation_signal_summary_payload(citations_for_summary_rows)
+    metrics_payload = public_job_metrics_payload(job_id, job)
+    trust_summary = metrics_payload.get("grounding_trust_summary") if isinstance(metrics_payload, dict) else None
     submission_package_readiness = {}
     raw_submission_readiness = export_contract_gate.get("submission_readiness_summary")
     if isinstance(raw_submission_readiness, dict):
@@ -2283,6 +2414,7 @@ def public_job_export_payload(
                 "llm_score": sanitize_for_public_response(critic.get("llm_score")),
                 "fatal_flaw_count": int(critic.get("fatal_flaw_count") or 0),
                 "citation_count": len(citations_for_summary),
+                "grounding_trust_summary": sanitize_for_public_response(trust_summary),
             },
             "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
             "review_comments": [item for item in review_comments if isinstance(item, dict)],
@@ -2583,6 +2715,17 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
     )
     non_retrieval_rate = round(non_retrieval_count / citation_count, 4) if citation_count else None
     retrieval_grounded_rate = round(retrieval_grounded_count / citation_count, 4) if citation_count else None
+    critic_findings = state_critic_findings(state_dict)
+    open_finding_count = sum(
+        1
+        for item in critic_findings
+        if isinstance(item, dict) and str(item.get("status") or "open").strip().lower() == "open"
+    )
+    trust_summary = _grounding_trust_summary_payload(
+        citations=citations_list,
+        grounding_risk_level=grounding_risk_level,
+        open_finding_count=open_finding_count,
+    )
 
     return {
         "job_id": str(job_id),
@@ -2608,6 +2751,7 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
         "non_retrieval_citation_count": non_retrieval_count,
         "retrieval_grounded_citation_rate": retrieval_grounded_rate,
         "non_retrieval_citation_rate": non_retrieval_rate,
+        "grounding_trust_summary": trust_summary,
     }
 
 
@@ -3591,6 +3735,7 @@ def public_job_quality_payload(
     state_dict: Dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
     critic_payload: Dict[str, Any] = public_job_critic_payload(job_id, job)
     metrics_payload: Dict[str, Any] = public_job_metrics_payload(job_id, job)
+    trust_summary = metrics_payload.get("grounding_trust_summary") if isinstance(metrics_payload, dict) else None
     citations_payload = public_job_citations_payload(job_id, job)
 
     citations = citations_payload.get("citations") if isinstance(citations_payload, dict) else []
@@ -3892,6 +4037,7 @@ def public_job_quality_payload(
         "terminal_status": sanitize_for_public_response(metrics_payload.get("terminal_status")),
         "time_to_first_draft_seconds": sanitize_for_public_response(metrics_payload.get("time_to_first_draft_seconds")),
         "time_to_terminal_seconds": sanitize_for_public_response(metrics_payload.get("time_to_terminal_seconds")),
+        "grounding_trust_summary": sanitize_for_public_response(trust_summary),
         "critic": {
             "engine": sanitize_for_public_response(critic_payload.get("engine")),
             "rule_score": sanitize_for_public_response(critic_payload.get("rule_score")),
