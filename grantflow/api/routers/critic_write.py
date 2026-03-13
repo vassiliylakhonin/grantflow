@@ -4,7 +4,11 @@ from typing import Any, Callable
 
 from fastapi import APIRouter, Request
 
-from grantflow.api.schemas import CriticFatalFlawPublicResponse, CriticFindingsBulkStatusPublicResponse
+from grantflow.api.schemas import (
+    CriticFatalFlawPublicResponse,
+    CriticFindingsBulkStatusPublicResponse,
+    CriticFindingsBulkStatusRequest,
+)
 
 router = APIRouter()
 
@@ -88,7 +92,7 @@ def _req_field(req: Any, field: str, default: Any = None) -> Any:
     response_model=CriticFindingsBulkStatusPublicResponse,
     response_model_exclude_none=True,
 )
-def bulk_status_critic_findings(job_id: str, req: Any, request: Request):
+def bulk_status_critic_findings(job_id: str, req: CriticFindingsBulkStatusRequest, request: Request):
     _require_api_key_if_configured(request)
     next_status = str(_req_field(req, "next_status", "") or "").strip().lower()
     return _set_critic_fatal_flaws_status_bulk(
