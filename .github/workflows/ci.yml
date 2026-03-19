@@ -75,10 +75,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
 
       - name: Validate dependency packaging contract
         run: |
           python scripts/dependency_contract_guard.py
+
+      - name: Validate minimal API contract (OpenAPI compatibility guard)
+        run: |
+          python scripts/api_contract_guard.py
 
   style:
     runs-on: ubuntu-latest
