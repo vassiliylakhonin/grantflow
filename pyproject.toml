@@ -20,7 +20,7 @@ dependencies = [
     "python-docx==1.2.0",
     "openpyxl==3.1.5",
     "pymupdf==1.26.5",
-    "python-multipart==0.0.20",
+    "python-multipart==0.0.22",
     "python-dotenv==1.2.1",
     "httpx==0.28.1",
     "tenacity==8.5.0",
@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "black==25.11.0",
+    "black==26.3.1",
     "isort==6.1.0",
     "ruff==0.15.2",
     "pre-commit==4.3.0",
