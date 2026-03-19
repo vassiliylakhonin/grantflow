@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from grantflow.api.app import app
+from grantflow.api.idempotency_store_facade import _set_job
 
 
 def _base_payload() -> dict[str, int]:
@@ -70,3 +71,31 @@ def test_bid_no_bid_rejects_invalid_score_range() -> None:
 
     assert response.status_code == 400
     assert "Scores must be between 0 and 100" in str(response.json())
+
+
+def test_job_scoped_bid_no_bid_persists_to_quality_payload() -> None:
+    client = TestClient(app)
+    job_id = "job-bid-no-bid-persist"
+    _set_job(
+        job_id,
+        {
+            "status": "done",
+            "state": {},
+            "hitl_enabled": False,
+            "donor_id": "eu",
+            "tenant_id": "tenant_demo",
+        },
+    )
+
+    decision_response = client.post(f"/status/{job_id}/decision/bid-no-bid", json=_base_payload())
+    assert decision_response.status_code == 200
+    decision_payload = decision_response.json()
+    assert decision_payload["verdict"] in {"BID", "CONDITIONAL_BID", "NO_BID"}
+
+    quality_response = client.get(f"/status/{job_id}/quality")
+    assert quality_response.status_code == 200
+    quality_payload = quality_response.json()
+    stored_decision = quality_payload.get("bid_no_bid_decision")
+    assert isinstance(stored_decision, dict)
+    assert stored_decision.get("verdict") == decision_payload.get("verdict")
+    assert isinstance(stored_decision.get("inputs"), dict)

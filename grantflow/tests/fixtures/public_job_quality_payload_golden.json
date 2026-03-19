@@ -24,6 +24,7 @@
     },
     "formula": "trust = 100 * (0.45*confidence + 0.35*traceability + 0.20*(1-diagnostic_risk))"
   },
+  "bid_no_bid_decision": null,
   "critic": {
     "engine": "rules+llm:gpt-4.1-mini",
     "rule_score": 7.0,

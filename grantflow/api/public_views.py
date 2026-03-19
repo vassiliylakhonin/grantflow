@@ -4035,6 +4035,7 @@ def public_job_quality_payload(
         "time_to_first_draft_seconds": sanitize_for_public_response(metrics_payload.get("time_to_first_draft_seconds")),
         "time_to_terminal_seconds": sanitize_for_public_response(metrics_payload.get("time_to_terminal_seconds")),
         "grounding_trust_summary": sanitize_for_public_response(trust_summary),
+        "bid_no_bid_decision": sanitize_for_public_response(state_dict.get("bid_no_bid_decision")),
         "critic": {
             "engine": sanitize_for_public_response(critic_payload.get("engine")),
             "rule_score": sanitize_for_public_response(critic_payload.get("rule_score")),
