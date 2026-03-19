@@ -4,48 +4,38 @@
 
 It helps proposal teams turn raw program intent into reviewable draft packages with controlled stages, human approvals, traceability, and export-ready outputs.
 
-Built for organizations that need governed drafting and review workflows, not a generic grant-writing chatbot.
+Built for governed drafting and review workflows — not a generic grant-writing chatbot.
 
 [![CI](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml/badge.svg)](https://github.com/vassiliylakhonin/grantflow/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/Python-3.11--3.13-blue.svg)](https://www.python.org/)
 
-## Why Teams Use It
+---
 
-- turn drafting into a controlled multi-stage workflow
-- route work by donor strategy and proposal mode
-- pause for human approval at critical checkpoints
-- track findings, comments, versions, and citations
-- export review-ready `.docx`, `.xlsx`, and ZIP packages
+## At a Glance
 
-## Why This Exists
+### What it is
+- controlled multi-stage proposal drafting workflow
+- donor-aware routing and mode selection
+- human approval checkpoints (pause / approve / resume)
+- traceability for findings, citations, versions, and events
+- export-ready `.docx`, `.xlsx`, and ZIP deliverables
 
-Generic AI tools generate text.
-
-Proposal operations teams need something different:
-- explicit workflow stages
-- review and remediation loops
-- human approval controls
-- traceability for citations, versions, and events
-- exportable artifacts for downstream submission work
-
-GrantFlow covers the drafting-control-review-export layer.
-Final donor compliance sign-off remains a human responsibility.
-
-## Who It Is For
-
+### Who it is for
 - NGOs and implementing organizations
 - consulting firms managing donor submissions
-- program and MEL teams handling institutional compliance workflows
+- program and MEL teams running institutional compliance workflows
 
-## Who It Is Not For
+### What it is not
+- a general-purpose grant-writing chatbot
+- ad-hoc individual fundraising tooling
+- plain text generation without governed review controls
 
-- teams looking for a general-purpose grant-writing chatbot
-- ad-hoc individual fundraising use cases
-- organizations that only need plain text generation without review controls or audit traces
+---
 
-## What Is Real Today
+## Current Status (What Is Real Today)
 
+### Core workflow capabilities
 - structured draft pipeline for proposal artifacts
 - donor strategy routing
 - critic loop with structured findings
@@ -56,15 +46,24 @@ Final donor compliance sign-off remains a human responsibility.
 - queue-backed runtime with separate worker path
 - bounded `evaluation_rfq` mode for consultancy-style technical responses
 
-## See It In 5 Minutes
+### Engineering guardrails now in CI
+- quality gate split by severity (hard-fail vs warn-only)
+- nightly auto-triage issue creation on repeated failures
+- supply-chain scanning with `pip-audit` + CycloneDX SBOM artifacts
+- deterministic dependency scanning from hash-locked lockfiles
+- grounded smoke performance budget guard (latency + throughput)
 
-1. Start the API.
+---
+
+## 5-Minute Demo Path
+
+1. Start API locally.
 2. Open `/demo`.
 3. Generate from a preset.
-4. Inspect draft status, findings, and review workflow.
-5. Export the review package.
+4. Inspect status, critic findings, and review workflow.
+5. Export package.
 
-Core demo path:
+Core demo endpoints:
 - `GET /demo`
 - `POST /generate/from-preset`
 - `GET /status/{job_id}`
@@ -73,20 +72,53 @@ Core demo path:
 - `POST /export`
 
 Grounding Trust Score (MVP):
-- `GET /status/{job_id}/metrics` now returns `grounding_trust_summary` with a compact trust score and component breakdown.
-- `GET /status/{job_id}/quality` and `POST /export` include the same summary for reviewer/export-facing interpretation.
-- Interpretation: higher `trust_score` means stronger confidence + citation traceability with lower diagnostic risk; use component scores (`confidence_score`, `traceability_score`, `diagnostic_risk_score`) to explain movement.
+- `GET /status/{job_id}/metrics` returns `grounding_trust_summary`.
+- `GET /status/{job_id}/quality` and `POST /export` include the same summary.
+- Interpret with component scores:
+  - `confidence_score`
+  - `traceability_score`
+  - `diagnostic_risk_score`
 
 One-command buyer conversion flow (live API required):
-- `make pilot-conversion-layer DEMO_PACK_API_BASE=http://127.0.0.1:8000`
-- expected outputs: `build/demo-pack/summary.md`, `build/executive-pack/README.md`, `build/pilot-evidence-pack/README.md`, `build/buyer-facing-artifacts-index.md`
+```bash
+make pilot-conversion-layer DEMO_PACK_API_BASE=http://127.0.0.1:8000
+```
+Expected outputs:
+- `build/demo-pack/summary.md`
+- `build/executive-pack/README.md`
+- `build/pilot-evidence-pack/README.md`
+- `build/buyer-facing-artifacts-index.md`
 
 Start here:
 - `docs/buyer-one-pager.md`
 - `docs/five-minute-demo.md`
 - `docs/samples/`
 
-## What Production Means Today
+---
+
+## Quickstart
+
+### Fast local run
+```bash
+pip install ".[dev]"
+uvicorn grantflow.api.app:app --reload
+curl -s http://127.0.0.1:8000/health
+```
+
+Then open: `http://127.0.0.1:8000/demo`
+
+### Reproducible dependency workflow (recommended)
+```bash
+pip install -r requirements.lock
+# or for local dev tooling:
+pip install -r requirements-dev.lock
+```
+
+`pyproject.toml` remains source-of-truth; lockfiles are operational reproducibility artifacts.
+
+---
+
+## Production Boundaries
 
 Recommended deployment profile:
 - API in queue-backed mode
@@ -95,10 +127,10 @@ Recommended deployment profile:
 - API key auth enabled
 - private network for backing services
 
-Current repository scope:
+Repository scope (explicit):
 - built-in auth is API-key based
 - native OIDC / SAML / RBAC is not claimed in-repo
-- enterprise access control is expected at the gateway or platform layer
+- enterprise access control is expected at gateway/platform layer
 
 See:
 - `docs/production-boundaries.md`
@@ -108,19 +140,9 @@ See:
 - `docs/audit-story.md`
 - `SECURITY.md`
 
-## Quickstart
+---
 
-```bash
-pip install ".[dev]"
-uvicorn grantflow.api.app:app --reload
-curl -s http://127.0.0.1:8000/health
-```
-
-Then open:
-
-`http://127.0.0.1:8000/demo`
-
-## Docs By Audience
+## Docs by Audience
 
 **Buyers**
 - `docs/buyer-one-pager.md`
