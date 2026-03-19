@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from fastapi import BackgroundTasks, HTTPException, Query, Request
@@ -83,6 +84,83 @@ def _app_module():
     from grantflow.api import app as api_app_module
 
     return api_app_module
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _bid_no_bid_freshness_signature(job: Dict[str, Any]) -> Dict[str, Any]:
+    state_dict = job.get("state") if isinstance(job.get("state"), dict) else {}
+    critic_notes = state_dict.get("critic_notes") if isinstance(state_dict.get("critic_notes"), dict) else {}
+    fatal_flaws = critic_notes.get("fatal_flaws") if isinstance(critic_notes.get("fatal_flaws"), list) else []
+    open_findings = 0
+    for item in fatal_flaws:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "open").strip().lower()
+        if status in {"open", "pending", "in_progress", "acknowledged"}:
+            open_findings += 1
+
+    comments = job.get("review_comments") if isinstance(job.get("review_comments"), list) else []
+    open_comments = 0
+    for item in comments:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status") or "open").strip().lower()
+        if status in {"open", "pending", "in_progress", "acknowledged"}:
+            open_comments += 1
+
+    return {
+        "open_critic_findings": open_findings,
+        "open_review_comments": open_comments,
+        "needs_revision": bool(state_dict.get("needs_revision")),
+    }
+
+
+def _maybe_refresh_bid_no_bid_decision(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
+    state_dict = job.get("state") if isinstance(job.get("state"), dict) else {}
+    decision = (
+        state_dict.get("bid_no_bid_decision") if isinstance(state_dict.get("bid_no_bid_decision"), dict) else None
+    )
+    if not decision:
+        return job
+
+    inputs = decision.get("inputs") if isinstance(decision.get("inputs"), dict) else {}
+    scores = inputs.get("scores") if isinstance(inputs.get("scores"), dict) else None
+    if not scores:
+        return job
+
+    previous_sig = (
+        decision.get("freshness_signature") if isinstance(decision.get("freshness_signature"), dict) else None
+    )
+    current_sig = _bid_no_bid_freshness_signature(job)
+    stale = bool(previous_sig != current_sig)
+
+    if not stale:
+        return job
+
+    refreshed = evaluate_bid_no_bid(
+        scores={k: int(v) for k, v in scores.items()},
+        donor_profile=inputs.get("donor_profile"),
+        weight_overrides=inputs.get("weight_overrides") if isinstance(inputs.get("weight_overrides"), dict) else None,
+        mandatory_eligibility_gap=bool(inputs.get("mandatory_eligibility_gap")),
+        conflict_of_interest=bool(inputs.get("conflict_of_interest")),
+    )
+
+    next_decision = {
+        **refreshed,
+        "inputs": inputs,
+        "freshness_signature": current_sig,
+        "decision_stale": False,
+        "decision_updated_at": _utc_now_iso(),
+    }
+    next_state = dict(state_dict)
+    next_state["bid_no_bid_decision"] = next_decision
+    updated = _update_job(job_id, state=next_state)
+    if isinstance(updated, dict):
+        return updated
+    return _get_job(job_id) or job
 
 
 @jobs_router.post(
@@ -742,6 +820,7 @@ def get_status_quality(job_id: str, request: Request):
         raise HTTPException(status_code=404, detail="Job not found")
     _ensure_job_tenant_read_access(request, job)
     job = _normalize_critic_fatal_flaws_for_job(job_id) or job
+    job = _maybe_refresh_bid_no_bid_decision(job_id, job)
     job_tenant_id = _job_tenant_id(job)
     donor = _job_donor_id(job)
     inventory_rows = _ingest_inventory(donor_id=donor or None, tenant_id=job_tenant_id)
@@ -790,13 +869,17 @@ def post_status_bid_no_bid_decision(job_id: str, payload: BidNoBidRequest, reque
         "inputs": {
             "scores": scores,
             "donor_profile": payload.donor_profile,
+            "weight_overrides": payload.weight_overrides,
             "mandatory_eligibility_gap": bool(payload.mandatory_eligibility_gap),
             "conflict_of_interest": bool(payload.conflict_of_interest),
         },
+        "freshness_signature": _bid_no_bid_freshness_signature(job),
+        "decision_stale": False,
+        "decision_updated_at": _utc_now_iso(),
     }
     _update_job(job_id, state=next_state)
 
-    return decision
+    return next_state["bid_no_bid_decision"]
 
 
 @jobs_router.get(

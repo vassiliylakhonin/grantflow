@@ -166,6 +166,8 @@ class BidNoBidResponse(BaseModel):
     must_fix_before_bid: list[Dict[str, Any]]
     weights: Dict[str, float]
     preset_profile: Optional[str] = None
+    decision_updated_at: Optional[str] = None
+    decision_stale: Optional[bool] = None
 
     model_config = ConfigDict(extra="forbid")
 

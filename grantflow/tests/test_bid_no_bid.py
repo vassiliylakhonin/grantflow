@@ -113,3 +113,64 @@ def test_job_scoped_bid_no_bid_persists_to_quality_payload() -> None:
     assert stored_decision.get("verdict") == decision_payload.get("verdict")
     assert isinstance(stored_decision.get("inputs"), dict)
     assert stored_decision["inputs"].get("donor_profile") == "eu"
+    assert stored_decision.get("decision_stale") is False
+    assert isinstance(stored_decision.get("decision_updated_at"), str)
+
+
+def test_job_scoped_bid_no_bid_auto_refreshes_when_review_signal_changes() -> None:
+    client = TestClient(app)
+    job_id = "job-bid-no-bid-refresh"
+    _set_job(
+        job_id,
+        {
+            "status": "done",
+            "state": {
+                "needs_revision": False,
+                "critic_notes": {
+                    "fatal_flaws": [
+                        {
+                            "finding_id": "f-1",
+                            "status": "resolved",
+                        }
+                    ]
+                },
+                "bid_no_bid_decision": {
+                    "weighted_score": 72.0,
+                    "verdict": "BID",
+                    "hard_blockers": [],
+                    "top_risks": [],
+                    "must_fix_before_bid": [],
+                    "weights": {},
+                    "inputs": {
+                        "scores": _base_payload(),
+                        "donor_profile": "eu",
+                        "weight_overrides": None,
+                        "mandatory_eligibility_gap": False,
+                        "conflict_of_interest": False,
+                    },
+                    "freshness_signature": {
+                        "open_critic_findings": 0,
+                        "open_review_comments": 0,
+                        "needs_revision": False,
+                    },
+                    "decision_stale": False,
+                    "decision_updated_at": "2026-03-01T00:00:00+00:00",
+                },
+            },
+            "review_comments": [{"comment_id": "c-1", "status": "open"}],
+            "hitl_enabled": False,
+            "donor_id": "eu",
+            "tenant_id": "tenant_demo",
+        },
+    )
+
+    quality_response = client.get(f"/status/{job_id}/quality")
+    assert quality_response.status_code == 200
+    payload = quality_response.json()
+    decision = payload.get("bid_no_bid_decision")
+    assert isinstance(decision, dict)
+    assert decision.get("decision_stale") is False
+    assert isinstance(decision.get("decision_updated_at"), str)
+    sig = decision.get("freshness_signature")
+    assert isinstance(sig, dict)
+    assert sig.get("open_review_comments") == 1
