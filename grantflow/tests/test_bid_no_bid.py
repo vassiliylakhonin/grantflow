@@ -83,6 +83,33 @@ def test_bid_no_bid_rejects_invalid_score_range() -> None:
     assert "Scores must be between 0 and 100" in str(response.json())
 
 
+def test_bid_no_bid_simulation_returns_ranked_scenarios() -> None:
+    client = TestClient(app)
+    request_payload = {
+        **_base_payload(),
+        "step": 12,
+        "max_scenarios": 3,
+    }
+    response = client.post("/decision/bid-no-bid/simulate", json=request_payload)
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert isinstance(payload.get("baseline"), dict)
+    assert isinstance(payload.get("scenarios"), list)
+    assert len(payload["scenarios"]) <= 3
+    if payload["scenarios"]:
+        top = payload["scenarios"][0]
+        assert "criterion" in top
+        assert "score_delta" in top
+
+
+def test_bid_no_bid_simulation_validates_step() -> None:
+    client = TestClient(app)
+    response = client.post("/decision/bid-no-bid/simulate", json={**_base_payload(), "step": 0})
+    assert response.status_code == 400
+    assert "step must be between 1 and 30" in str(response.json())
+
+
 def test_job_scoped_bid_no_bid_persists_to_quality_payload() -> None:
     client = TestClient(app)
     job_id = "job-bid-no-bid-persist"

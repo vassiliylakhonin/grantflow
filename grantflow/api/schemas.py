@@ -172,6 +172,20 @@ class BidNoBidResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class BidNoBidSimulationRequest(BidNoBidRequest):
+    step: int = 10
+    max_scenarios: int = 3
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class BidNoBidSimulationResponse(BaseModel):
+    baseline: BidNoBidResponse
+    scenarios: list[Dict[str, Any]]
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class BidNoBidTrailResponse(BaseModel):
     entries: list[Dict[str, Any]]
 
