@@ -777,6 +777,7 @@ def post_status_bid_no_bid_decision(job_id: str, payload: BidNoBidRequest, reque
 
     decision = evaluate_bid_no_bid(
         scores=scores,
+        donor_profile=payload.donor_profile,
         weight_overrides=payload.weight_overrides,
         mandatory_eligibility_gap=payload.mandatory_eligibility_gap,
         conflict_of_interest=payload.conflict_of_interest,
@@ -788,6 +789,7 @@ def post_status_bid_no_bid_decision(job_id: str, payload: BidNoBidRequest, reque
         **decision,
         "inputs": {
             "scores": scores,
+            "donor_profile": payload.donor_profile,
             "mandatory_eligibility_gap": bool(payload.mandatory_eligibility_gap),
             "conflict_of_interest": bool(payload.conflict_of_interest),
         },

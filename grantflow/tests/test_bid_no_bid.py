@@ -30,6 +30,16 @@ def test_bid_no_bid_returns_bid_for_strong_profile() -> None:
     assert payload["hard_blockers"] == []
 
 
+def test_bid_no_bid_applies_donor_preset_when_requested() -> None:
+    client = TestClient(app)
+    response = client.post("/decision/bid-no-bid", json={**_base_payload(), "donor_profile": "usaid"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["preset_profile"] == "usaid"
+    assert payload["weights"]["compliance_readiness"] >= 0.17
+
+
 def test_bid_no_bid_returns_conditional_bid_for_mid_profile() -> None:
     client = TestClient(app)
     request_payload = {
@@ -87,7 +97,10 @@ def test_job_scoped_bid_no_bid_persists_to_quality_payload() -> None:
         },
     )
 
-    decision_response = client.post(f"/status/{job_id}/decision/bid-no-bid", json=_base_payload())
+    decision_response = client.post(
+        f"/status/{job_id}/decision/bid-no-bid",
+        json={**_base_payload(), "donor_profile": "eu"},
+    )
     assert decision_response.status_code == 200
     decision_payload = decision_response.json()
     assert decision_payload["verdict"] in {"BID", "CONDITIONAL_BID", "NO_BID"}
@@ -99,3 +112,4 @@ def test_job_scoped_bid_no_bid_persists_to_quality_payload() -> None:
     assert isinstance(stored_decision, dict)
     assert stored_decision.get("verdict") == decision_payload.get("verdict")
     assert isinstance(stored_decision.get("inputs"), dict)
+    assert stored_decision["inputs"].get("donor_profile") == "eu"
