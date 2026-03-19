@@ -158,3 +158,17 @@ Operational rules:
 - Baseline updates require explicit reviewer sign-off.
 - If nightly fails on schedule two runs in a row, CI auto-opens a triage issue (single open issue, no duplicates).
 - Triage owner should resolve or re-baseline within 24h.
+
+## 7) Reproducible Dependency Lock Strategy
+
+`pyproject.toml` remains the source of truth for declared dependencies, and lockfiles are used for reproducibility and security scanning.
+
+- Runtime lockfile: `requirements.lock`
+- Dev lockfile: `requirements-dev.lock`
+- Generated via `pip-tools` (`pip-compile`) with `--generate-hashes`
+
+Regeneration commands:
+- `pip-compile pyproject.toml --resolver=backtracking --generate-hashes -o requirements.lock`
+- `pip-compile pyproject.toml --extra dev --resolver=backtracking --generate-hashes -o requirements-dev.lock`
+
+CI uses `requirements.lock` for `pip-audit` and SBOM generation to keep scan inputs deterministic.

@@ -31,14 +31,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[dev]" pip-audit cyclonedx-bom
 
-      - name: pip-audit (installed environment, non-blocking)
+      - name: pip-audit (locked deps, non-blocking)
         continue-on-error: true
         run: |
-          pip-audit --local --format json > pip-audit.json
+          pip-audit -r requirements.lock --format json > pip-audit.json
 
-      - name: Generate SBOM (CycloneDX)
+      - name: Generate SBOM (CycloneDX from lockfile)
         run: |
-          cyclonedx-py requirements -i requirements.txt -o sbom.cdx.json
+          cyclonedx-py requirements -i requirements.lock -o sbom.cdx.json
 
       - name: Upload supply-chain artifacts
         uses: actions/upload-artifact@v4
