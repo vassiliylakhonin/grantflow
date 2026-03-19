@@ -335,11 +335,54 @@ jobs:
           API_BASE=http://127.0.0.1:8000 bash docs/rag_seed_corpus/bulk_ingest_seed_corpus.sh \
             | tee grounded-smoke-artifacts/ingest.log
 
+          BENCH_STARTED_AT=$(python - <<'PY'
+          import time
+          print(time.time())
+          PY
+          )
+
           python docs/rag_seed_corpus/local_grounded_benchmark.py \
             --api-base http://127.0.0.1:8000 \
             --donors usaid,state_department \
             --json-out grounded-smoke-artifacts/benchmark-results.json \
             | tee grounded-smoke-artifacts/benchmark-summary.txt
+
+          BENCH_ENDED_AT=$(python - <<'PY'
+          import time
+          print(time.time())
+          PY
+          )
+
+          export BENCH_STARTED_AT BENCH_ENDED_AT
+          BENCH_ELAPSED=$(python - <<'PY'
+          import os
+          start = float(os.environ['BENCH_STARTED_AT'])
+          end = float(os.environ['BENCH_ENDED_AT'])
+          print(max(0.0, end - start))
+          PY
+          )
+
+          export BENCH_STARTED_AT BENCH_ENDED_AT BENCH_ELAPSED
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          Path("grounded-smoke-artifacts/benchmark-timing.json").write_text(
+            json.dumps(
+              {
+                "started_at": float(os.environ["BENCH_STARTED_AT"]),
+                "ended_at": float(os.environ["BENCH_ENDED_AT"]),
+                "elapsed_seconds": float(os.environ["BENCH_ELAPSED"]),
+              },
+              indent=2,
+              ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
+          )
+          PY
 
           python scripts/runtime_grounded_gate_smoke.py \
             --api-base http://127.0.0.1:8000 \
@@ -366,6 +409,52 @@ jobs:
           if failures:
             raise SystemExit("Grounded smoke check failed: " + " | ".join(failures))
           print("Grounded smoke checks passed.")
+          PY
+
+      - name: Enforce grounded smoke performance budget
+        env:
+          GF_BENCH_MAX_TOTAL_SECONDS: "180"
+          GF_BENCH_MIN_JOBS_PER_MIN: "0.5"
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          rows = json.loads(Path("grounded-smoke-artifacts/benchmark-results.json").read_text(encoding="utf-8"))
+          timing = json.loads(Path("grounded-smoke-artifacts/benchmark-timing.json").read_text(encoding="utf-8"))
+          elapsed = float(timing.get("elapsed_seconds") or 0)
+          jobs = len(rows)
+          jobs_per_min = (jobs / elapsed * 60.0) if elapsed > 0 else 0.0
+
+          max_total_seconds = float(os.environ.get("GF_BENCH_MAX_TOTAL_SECONDS", "180"))
+          min_jobs_per_min = float(os.environ.get("GF_BENCH_MIN_JOBS_PER_MIN", "0.5"))
+
+          summary = {
+            "jobs": jobs,
+            "elapsed_seconds": round(elapsed, 3),
+            "jobs_per_min": round(jobs_per_min, 4),
+            "budget": {
+              "max_total_seconds": max_total_seconds,
+              "min_jobs_per_min": min_jobs_per_min,
+            },
+          }
+
+          Path("grounded-smoke-artifacts/perf-budget.json").write_text(
+            json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+          )
+
+          print("Grounded performance summary:")
+          print(json.dumps(summary, indent=2, ensure_ascii=False))
+
+          failures = []
+          if elapsed > max_total_seconds:
+            failures.append(f"elapsed_seconds={elapsed:.3f} exceeds budget={max_total_seconds:.3f}")
+          if jobs_per_min < min_jobs_per_min:
+            failures.append(f"jobs_per_min={jobs_per_min:.4f} below budget={min_jobs_per_min:.4f}")
+
+          if failures:
+            raise SystemExit("Performance budget check failed: " + " | ".join(failures))
           PY
 
       - name: Upload grounded smoke artifacts
