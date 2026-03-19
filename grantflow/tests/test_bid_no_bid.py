@@ -116,6 +116,15 @@ def test_job_scoped_bid_no_bid_persists_to_quality_payload() -> None:
     assert stored_decision.get("decision_stale") is False
     assert isinstance(stored_decision.get("decision_updated_at"), str)
 
+    trail_response = client.get(f"/status/{job_id}/decision/bid-no-bid/trail")
+    assert trail_response.status_code == 200
+    trail_payload = trail_response.json()
+    assert isinstance(trail_payload.get("entries"), list)
+    assert trail_payload["entries"]
+    last = trail_payload["entries"][-1]
+    assert last.get("reason") == "manual_update"
+    assert last.get("actor") == "user"
+
 
 def test_job_scoped_bid_no_bid_auto_refreshes_when_review_signal_changes() -> None:
     client = TestClient(app)
@@ -174,3 +183,11 @@ def test_job_scoped_bid_no_bid_auto_refreshes_when_review_signal_changes() -> No
     sig = decision.get("freshness_signature")
     assert isinstance(sig, dict)
     assert sig.get("open_review_comments") == 1
+
+    trail_response = client.get(f"/status/{job_id}/decision/bid-no-bid/trail")
+    assert trail_response.status_code == 200
+    entries = trail_response.json().get("entries")
+    assert isinstance(entries, list)
+    assert entries
+    assert entries[-1].get("reason") == "auto_refresh_quality_drift"
+    assert entries[-1].get("actor") == "system"

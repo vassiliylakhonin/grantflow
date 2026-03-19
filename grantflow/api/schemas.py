@@ -172,6 +172,12 @@ class BidNoBidResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class BidNoBidTrailResponse(BaseModel):
+    entries: list[Dict[str, Any]]
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class JobStatusPublicResponse(BaseModel):
     status: str
     state: Optional[Dict[str, Any]] = None

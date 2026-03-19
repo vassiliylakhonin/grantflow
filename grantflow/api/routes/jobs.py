@@ -48,6 +48,7 @@ from grantflow.api.presets_service import _dispatch_generate_from_preset, _resol
 from grantflow.api.schemas import (
     BidNoBidRequest,
     BidNoBidResponse,
+    BidNoBidTrailResponse,
     GenerateAcceptedPublicResponse,
     GenerateFromPresetAcceptedPublicResponse,
     GenerateFromPresetBatchRequest,
@@ -125,6 +126,49 @@ def _bid_no_bid_freshness_signature(job: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _decision_change_fields(previous: Dict[str, Any] | None, current: Dict[str, Any]) -> list[str]:
+    if not previous:
+        return ["initial_decision"]
+
+    changed: list[str] = []
+    for key in ("verdict", "weighted_score", "hard_blockers", "preset_profile"):
+        if previous.get(key) != current.get(key):
+            changed.append(key)
+    return changed or ["metadata_refresh"]
+
+
+def _append_bid_no_bid_trail(
+    *,
+    state_dict: Dict[str, Any],
+    previous_decision: Dict[str, Any] | None,
+    current_decision: Dict[str, Any],
+    reason: str,
+    actor: str,
+) -> Dict[str, Any]:
+    trail_raw = state_dict.get("bid_no_bid_decision_trail")
+    trail: list[Dict[str, Any]] = (
+        [item for item in trail_raw if isinstance(item, dict)] if isinstance(trail_raw, list) else []
+    )
+
+    entry = {
+        "at": _utc_now_iso(),
+        "reason": reason,
+        "actor": actor,
+        "changed_fields": _decision_change_fields(previous_decision, current_decision),
+        "from_verdict": previous_decision.get("verdict") if isinstance(previous_decision, dict) else None,
+        "to_verdict": current_decision.get("verdict"),
+        "from_score": previous_decision.get("weighted_score") if isinstance(previous_decision, dict) else None,
+        "to_score": current_decision.get("weighted_score"),
+    }
+    trail.append(entry)
+    if len(trail) > 50:
+        trail = trail[-50:]
+
+    next_state = dict(state_dict)
+    next_state["bid_no_bid_decision_trail"] = trail
+    return next_state
+
+
 def _maybe_refresh_bid_no_bid_decision(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
     raw_state = job.get("state")
     state_dict: Dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
@@ -166,6 +210,13 @@ def _maybe_refresh_bid_no_bid_decision(job_id: str, job: Dict[str, Any]) -> Dict
     }
     next_state = dict(state_dict)
     next_state["bid_no_bid_decision"] = next_decision
+    next_state = _append_bid_no_bid_trail(
+        state_dict=next_state,
+        previous_decision=decision,
+        current_decision=next_decision,
+        reason="auto_refresh_quality_drift",
+        actor="system",
+    )
     updated = _update_job(job_id, state=next_state)
     if isinstance(updated, dict):
         return updated
@@ -872,6 +923,9 @@ def post_status_bid_no_bid_decision(job_id: str, payload: BidNoBidRequest, reque
     )
 
     state_dict = job.get("state") if isinstance(job.get("state"), dict) else {}
+    previous_decision = (
+        state_dict.get("bid_no_bid_decision") if isinstance(state_dict.get("bid_no_bid_decision"), dict) else None
+    )
     next_state = dict(state_dict)
     decision_updated_at = _utc_now_iso()
     next_state["bid_no_bid_decision"] = {
@@ -887,12 +941,37 @@ def post_status_bid_no_bid_decision(job_id: str, payload: BidNoBidRequest, reque
         "decision_stale": False,
         "decision_updated_at": decision_updated_at,
     }
+    next_state = _append_bid_no_bid_trail(
+        state_dict=next_state,
+        previous_decision=previous_decision,
+        current_decision=next_state["bid_no_bid_decision"],
+        reason="manual_update",
+        actor="user",
+    )
     _update_job(job_id, state=next_state)
     return {
         **decision,
         "decision_stale": False,
         "decision_updated_at": decision_updated_at,
     }
+
+
+@jobs_router.get(
+    "/status/{job_id}/decision/bid-no-bid/trail",
+    response_model=BidNoBidTrailResponse,
+    response_model_exclude_none=True,
+)
+def get_status_bid_no_bid_trail(job_id: str, request: Request):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    _ensure_job_tenant_read_access(request, job)
+
+    state_dict = job.get("state") if isinstance(job.get("state"), dict) else {}
+    trail_raw = state_dict.get("bid_no_bid_decision_trail")
+    trail = [item for item in trail_raw if isinstance(item, dict)] if isinstance(trail_raw, list) else []
+    return {"entries": trail}
 
 
 @jobs_router.get(
