@@ -172,3 +172,19 @@ Regeneration commands:
 - `pip-compile pyproject.toml --extra dev --resolver=backtracking --generate-hashes -o requirements-dev.lock`
 
 CI uses `requirements.lock` for `pip-audit` and SBOM generation to keep scan inputs deterministic.
+
+## 8) Grounded Smoke Performance Budget
+
+CI enforces a lightweight performance budget for deterministic grounded smoke runs.
+
+- Source artifacts:
+  - `grounded-smoke-artifacts/benchmark-results.json`
+  - `grounded-smoke-artifacts/benchmark-timing.json`
+- Derived metric:
+  - `jobs_per_min = jobs / elapsed_seconds * 60`
+
+Current guardrails (in `ci.yml`):
+- `GF_BENCH_MAX_TOTAL_SECONDS=180`
+- `GF_BENCH_MIN_JOBS_PER_MIN=0.5`
+
+If budget fails, the `grounded-smoke` job fails and writes `grounded-smoke-artifacts/perf-budget.json` for triage.
