@@ -86,7 +86,7 @@ def bid_no_bid_simulation(payload: BidNoBidSimulationRequest):
         conflict_of_interest=payload.conflict_of_interest,
     )
 
-    candidates: list[dict[str, object]] = []
+    ranked: list[tuple[float, bool, dict[str, object]]] = []
     for criterion in CRITERIA_ORDER:
         current = int(scores.get(criterion, 0))
         if current >= 100:
@@ -101,18 +101,18 @@ def bid_no_bid_simulation(payload: BidNoBidSimulationRequest):
             conflict_of_interest=payload.conflict_of_interest,
         )
         delta = round(float(simulated["weighted_score"]) - float(baseline["weighted_score"]), 2)
-        candidates.append(
-            {
-                "criterion": criterion,
-                "from_score": current,
-                "to_score": simulated_scores[criterion],
-                "score_delta": delta,
-                "verdict": simulated["verdict"],
-                "projected_weighted_score": simulated["weighted_score"],
-            }
-        )
+        scenario = {
+            "criterion": criterion,
+            "from_score": current,
+            "to_score": simulated_scores[criterion],
+            "score_delta": delta,
+            "verdict": simulated["verdict"],
+            "projected_weighted_score": simulated["weighted_score"],
+        }
+        ranked.append((delta, str(simulated["verdict"]) == "BID", scenario))
 
-    candidates.sort(key=lambda row: (float(row["score_delta"]), str(row["verdict"]) == "BID"), reverse=True)
+    ranked.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    candidates = [row[2] for row in ranked]
     return {
         "baseline": baseline,
         "scenarios": candidates[:max_scenarios],
