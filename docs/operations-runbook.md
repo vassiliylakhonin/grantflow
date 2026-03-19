@@ -199,3 +199,12 @@ Guard scope:
 - Required `200 application/json` response schemas on key public operations.
 
 Goal: catch accidental API contract drift early without relying on full integration runtime.
+
+## 10) P2 Governance Defaults
+
+Repository governance defaults now include:
+
+- Public roadmap: `docs/public-roadmap.md`
+- Good-first-issue template: `.github/ISSUE_TEMPLATE/good-first-issue.md`
+- PR quality checklist: `.github/pull_request_template.md` (eval delta, security impact, performance impact, API contract impact)
+- Coverage policy: `docs/coverage-threshold-policy.md`

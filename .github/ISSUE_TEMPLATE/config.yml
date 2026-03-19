@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Operations runbook
+    url: https://github.com/vassiliylakhonin/grantflow/blob/main/docs/operations-runbook.md
+    about: Read operational policies and CI guardrails before opening platform/process issues.

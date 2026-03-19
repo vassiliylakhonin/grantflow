@@ -159,6 +159,8 @@ See:
 - `docs/architecture.md`
 - `docs/contributor-map.md`
 - `docs/api-stability-policy.md`
+- `docs/public-roadmap.md`
+- `docs/coverage-threshold-policy.md`
 
 **Security / Enterprise Review**
 - `docs/enterprise-access-layer.md`
