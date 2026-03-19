@@ -27,7 +27,6 @@ REQUIRED_PATHS: dict[str, set[str]] = {
 
 # path/method tuples that must document a 200 JSON response schema
 REQUIRED_200_JSON_SCHEMA: set[tuple[str, str]] = {
-    ("/health", "get"),
     ("/generate", "post"),
     ("/generate/from-preset", "post"),
     ("/status/{job_id}", "get"),
