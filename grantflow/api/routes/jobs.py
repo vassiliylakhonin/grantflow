@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 
 from fastapi import BackgroundTasks, HTTPException, Query, Request
 
+from grantflow.api.bid_no_bid import evaluate_bid_no_bid
 from grantflow.api.idempotency_store_facade import (
     _get_job,
     _ingest_inventory,
@@ -44,6 +45,8 @@ from grantflow.api.public_views import (
 )
 from grantflow.api.presets_service import _dispatch_generate_from_preset, _resolve_preflight_request_context
 from grantflow.api.schemas import (
+    BidNoBidRequest,
+    BidNoBidResponse,
     GenerateAcceptedPublicResponse,
     GenerateFromPresetAcceptedPublicResponse,
     GenerateFromPresetBatchRequest,
@@ -743,6 +746,55 @@ def get_status_quality(job_id: str, request: Request):
     donor = _job_donor_id(job)
     inventory_rows = _ingest_inventory(donor_id=donor or None, tenant_id=job_tenant_id)
     return public_job_quality_payload(job_id, job, ingest_inventory_rows=inventory_rows)
+
+
+@jobs_router.post(
+    "/status/{job_id}/decision/bid-no-bid",
+    response_model=BidNoBidResponse,
+    response_model_exclude_none=True,
+)
+def post_status_bid_no_bid_decision(job_id: str, payload: BidNoBidRequest, request: Request):
+    require_api_key_if_configured(request)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    _ensure_job_tenant_write_access(request, job)
+
+    scores = {
+        "strategic_fit": payload.strategic_fit,
+        "win_probability": payload.win_probability,
+        "budget_margin": payload.budget_margin,
+        "delivery_capacity": payload.delivery_capacity,
+        "compliance_readiness": payload.compliance_readiness,
+        "partner_strength": payload.partner_strength,
+        "timeline_realism": payload.timeline_realism,
+        "evidence_strength": payload.evidence_strength,
+    }
+
+    invalid_fields = [key for key, value in scores.items() if int(value) < 0 or int(value) > 100]
+    if invalid_fields:
+        raise HTTPException(status_code=400, detail=f"Scores must be between 0 and 100: {', '.join(invalid_fields)}")
+
+    decision = evaluate_bid_no_bid(
+        scores=scores,
+        weight_overrides=payload.weight_overrides,
+        mandatory_eligibility_gap=payload.mandatory_eligibility_gap,
+        conflict_of_interest=payload.conflict_of_interest,
+    )
+
+    state_dict = job.get("state") if isinstance(job.get("state"), dict) else {}
+    next_state = dict(state_dict)
+    next_state["bid_no_bid_decision"] = {
+        **decision,
+        "inputs": {
+            "scores": scores,
+            "mandatory_eligibility_gap": bool(payload.mandatory_eligibility_gap),
+            "conflict_of_interest": bool(payload.conflict_of_interest),
+        },
+    }
+    _update_job(job_id, state=next_state)
+
+    return decision
 
 
 @jobs_router.get(
