@@ -28,9 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[dev]" pip-audit cyclonedx-bom
 
-      - name: pip-audit
+      - name: pip-audit (installed environment)
         run: |
-          pip-audit -r requirements.txt -r requirements-dev.txt
+          pip-audit --local
 
       - name: Generate SBOM (CycloneDX)
         run: |
