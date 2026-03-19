@@ -150,6 +150,7 @@ class BidNoBidRequest(BaseModel):
     partner_strength: int
     timeline_realism: int
     evidence_strength: int
+    donor_profile: Optional[Literal["usaid", "eu", "un", "giz"]] = None
     weight_overrides: Optional[Dict[str, float]] = None
     mandatory_eligibility_gap: bool = False
     conflict_of_interest: bool = False
@@ -164,6 +165,7 @@ class BidNoBidResponse(BaseModel):
     top_risks: list[Dict[str, Any]]
     must_fix_before_bid: list[Dict[str, Any]]
     weights: Dict[str, float]
+    preset_profile: Optional[str] = None
 
     model_config = ConfigDict(extra="forbid")
 
