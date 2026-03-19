@@ -11,13 +11,11 @@ from typing import Any
 
 from grantflow.api.app import app
 
-
 REQUIRED_SECURITY_SCHEME = "ApiKeyAuth"
 
 # path -> required methods
 REQUIRED_PATHS: dict[str, set[str]] = {
     "/health": {"get"},
-    "/demo": {"get"},
     "/generate": {"post"},
     "/generate/from-preset": {"post"},
     "/status/{job_id}": {"get"},
