@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 
-from grantflow.api.bid_no_bid import evaluate_bid_no_bid
+from grantflow.api.bid_no_bid import CRITERIA_ORDER, evaluate_bid_no_bid
 from grantflow.api.diagnostics_service import _health_diagnostics
 from grantflow.api.readiness_service import _build_readiness_payload
 from grantflow.api.routers import system_router
-from grantflow.api.schemas import BidNoBidRequest, BidNoBidResponse
+from grantflow.api.schemas import (
+    BidNoBidRequest,
+    BidNoBidResponse,
+    BidNoBidSimulationRequest,
+    BidNoBidSimulationResponse,
+)
 from grantflow.core.version import __version__
 
 
@@ -27,9 +32,8 @@ def readiness_check():
     return payload
 
 
-@system_router.post("/decision/bid-no-bid", response_model=BidNoBidResponse)
-def bid_no_bid_decision(payload: BidNoBidRequest):
-    scores = {
+def _extract_bid_no_bid_scores(payload: BidNoBidRequest) -> dict[str, int]:
+    return {
         "strategic_fit": payload.strategic_fit,
         "win_probability": payload.win_probability,
         "budget_margin": payload.budget_margin,
@@ -39,6 +43,11 @@ def bid_no_bid_decision(payload: BidNoBidRequest):
         "timeline_realism": payload.timeline_realism,
         "evidence_strength": payload.evidence_strength,
     }
+
+
+@system_router.post("/decision/bid-no-bid", response_model=BidNoBidResponse)
+def bid_no_bid_decision(payload: BidNoBidRequest):
+    scores = _extract_bid_no_bid_scores(payload)
 
     invalid_fields = [key for key, value in scores.items() if int(value) < 0 or int(value) > 100]
     if invalid_fields:
@@ -51,3 +60,60 @@ def bid_no_bid_decision(payload: BidNoBidRequest):
         mandatory_eligibility_gap=payload.mandatory_eligibility_gap,
         conflict_of_interest=payload.conflict_of_interest,
     )
+
+
+@system_router.post("/decision/bid-no-bid/simulate", response_model=BidNoBidSimulationResponse)
+def bid_no_bid_simulation(payload: BidNoBidSimulationRequest):
+    scores = _extract_bid_no_bid_scores(payload)
+
+    invalid_fields = [key for key, value in scores.items() if int(value) < 0 or int(value) > 100]
+    if invalid_fields:
+        raise HTTPException(status_code=400, detail=f"Scores must be between 0 and 100: {', '.join(invalid_fields)}")
+
+    step = int(payload.step)
+    if step < 1 or step > 30:
+        raise HTTPException(status_code=400, detail="step must be between 1 and 30")
+
+    max_scenarios = int(payload.max_scenarios)
+    if max_scenarios < 1 or max_scenarios > 8:
+        raise HTTPException(status_code=400, detail="max_scenarios must be between 1 and 8")
+
+    baseline = evaluate_bid_no_bid(
+        scores=scores,
+        donor_profile=payload.donor_profile,
+        weight_overrides=payload.weight_overrides,
+        mandatory_eligibility_gap=payload.mandatory_eligibility_gap,
+        conflict_of_interest=payload.conflict_of_interest,
+    )
+
+    candidates: list[dict[str, object]] = []
+    for criterion in CRITERIA_ORDER:
+        current = int(scores.get(criterion, 0))
+        if current >= 100:
+            continue
+        simulated_scores = dict(scores)
+        simulated_scores[criterion] = min(100, current + step)
+        simulated = evaluate_bid_no_bid(
+            scores=simulated_scores,
+            donor_profile=payload.donor_profile,
+            weight_overrides=payload.weight_overrides,
+            mandatory_eligibility_gap=payload.mandatory_eligibility_gap,
+            conflict_of_interest=payload.conflict_of_interest,
+        )
+        delta = round(float(simulated["weighted_score"]) - float(baseline["weighted_score"]), 2)
+        candidates.append(
+            {
+                "criterion": criterion,
+                "from_score": current,
+                "to_score": simulated_scores[criterion],
+                "score_delta": delta,
+                "verdict": simulated["verdict"],
+                "projected_weighted_score": simulated["weighted_score"],
+            }
+        )
+
+    candidates.sort(key=lambda row: (float(row["score_delta"]), str(row["verdict"]) == "BID"), reverse=True)
+    return {
+        "baseline": baseline,
+        "scenarios": candidates[:max_scenarios],
+    }
