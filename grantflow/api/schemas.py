@@ -141,6 +141,33 @@ class ReviewWorkflowSLARecomputeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class BidNoBidRequest(BaseModel):
+    strategic_fit: int
+    win_probability: int
+    budget_margin: int
+    delivery_capacity: int
+    compliance_readiness: int
+    partner_strength: int
+    timeline_realism: int
+    evidence_strength: int
+    weight_overrides: Optional[Dict[str, float]] = None
+    mandatory_eligibility_gap: bool = False
+    conflict_of_interest: bool = False
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class BidNoBidResponse(BaseModel):
+    weighted_score: float
+    verdict: Literal["BID", "CONDITIONAL_BID", "NO_BID"]
+    hard_blockers: list[str]
+    top_risks: list[Dict[str, Any]]
+    must_fix_before_bid: list[Dict[str, Any]]
+    weights: Dict[str, float]
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class JobStatusPublicResponse(BaseModel):
     status: str
     state: Optional[Dict[str, Any]] = None
