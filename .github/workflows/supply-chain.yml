@@ -1,0 +1,47 @@
+name: Supply Chain
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  audit-and-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: pyproject.toml
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]" pip-audit cyclonedx-bom
+
+      - name: pip-audit (installed environment, non-blocking)
+        continue-on-error: true
+        run: |
+          pip-audit --local --format json > pip-audit.json
+
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          cyclonedx-py requirements -i requirements.txt -o sbom.cdx.json
+
+      - name: Upload supply-chain artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: supply-chain-artifacts
+          path: |
+            sbom.cdx.json
+            pip-audit.json

@@ -141,3 +141,20 @@ Recommended baseline:
   - `GRANTFLOW_SQLITE_PATH=<persistent path>`
 
 This keeps queueing, state persistence, and auth posture aligned with the current backend design.
+
+## 6) Nightly Grounded Tail Gate Policy
+
+Nightly grounded tail eval now classifies baseline regressions by severity.
+
+- **Hard regressions** (nightly fails):
+  - `traceability_gap_citations`
+  - `non_retrieval_citations`
+  - `fallback_non_strategy_citations`
+- **Warn-only regressions** (nightly warns, does not fail by itself):
+  - `citation_confidence_avg`
+  - `high_confidence_citation_count`
+
+Operational rules:
+- Baseline updates require explicit reviewer sign-off.
+- If nightly fails on schedule two runs in a row, CI auto-opens a triage issue (single open issue, no duplicates).
+- Triage owner should resolve or re-baseline within 24h.
