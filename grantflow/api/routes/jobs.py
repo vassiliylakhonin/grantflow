@@ -91,9 +91,15 @@ def _utc_now_iso() -> str:
 
 
 def _bid_no_bid_freshness_signature(job: Dict[str, Any]) -> Dict[str, Any]:
-    state_dict = job.get("state") if isinstance(job.get("state"), dict) else {}
-    critic_notes = state_dict.get("critic_notes") if isinstance(state_dict.get("critic_notes"), dict) else {}
-    fatal_flaws = critic_notes.get("fatal_flaws") if isinstance(critic_notes.get("fatal_flaws"), list) else []
+    raw_state = job.get("state")
+    state_dict: Dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
+
+    raw_critic_notes = state_dict.get("critic_notes")
+    critic_notes: Dict[str, Any] = raw_critic_notes if isinstance(raw_critic_notes, dict) else {}
+
+    raw_fatal_flaws = critic_notes.get("fatal_flaws")
+    fatal_flaws: list[Any] = raw_fatal_flaws if isinstance(raw_fatal_flaws, list) else []
+
     open_findings = 0
     for item in fatal_flaws:
         if not isinstance(item, dict):
@@ -102,7 +108,8 @@ def _bid_no_bid_freshness_signature(job: Dict[str, Any]) -> Dict[str, Any]:
         if status in {"open", "pending", "in_progress", "acknowledged"}:
             open_findings += 1
 
-    comments = job.get("review_comments") if isinstance(job.get("review_comments"), list) else []
+    raw_comments = job.get("review_comments")
+    comments: list[Any] = raw_comments if isinstance(raw_comments, list) else []
     open_comments = 0
     for item in comments:
         if not isinstance(item, dict):
@@ -119,21 +126,23 @@ def _bid_no_bid_freshness_signature(job: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _maybe_refresh_bid_no_bid_decision(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
-    state_dict = job.get("state") if isinstance(job.get("state"), dict) else {}
-    decision = (
-        state_dict.get("bid_no_bid_decision") if isinstance(state_dict.get("bid_no_bid_decision"), dict) else None
-    )
+    raw_state = job.get("state")
+    state_dict: Dict[str, Any] = raw_state if isinstance(raw_state, dict) else {}
+
+    raw_decision = state_dict.get("bid_no_bid_decision")
+    decision: Dict[str, Any] | None = raw_decision if isinstance(raw_decision, dict) else None
     if not decision:
         return job
 
-    inputs = decision.get("inputs") if isinstance(decision.get("inputs"), dict) else {}
-    scores = inputs.get("scores") if isinstance(inputs.get("scores"), dict) else None
+    raw_inputs = decision.get("inputs")
+    inputs: Dict[str, Any] = raw_inputs if isinstance(raw_inputs, dict) else {}
+    raw_scores = inputs.get("scores")
+    scores: Dict[str, Any] | None = raw_scores if isinstance(raw_scores, dict) else None
     if not scores:
         return job
 
-    previous_sig = (
-        decision.get("freshness_signature") if isinstance(decision.get("freshness_signature"), dict) else None
-    )
+    raw_previous_sig = decision.get("freshness_signature")
+    previous_sig: Dict[str, Any] | None = raw_previous_sig if isinstance(raw_previous_sig, dict) else None
     current_sig = _bid_no_bid_freshness_signature(job)
     stale = bool(previous_sig != current_sig)
 
@@ -864,6 +873,7 @@ def post_status_bid_no_bid_decision(job_id: str, payload: BidNoBidRequest, reque
 
     state_dict = job.get("state") if isinstance(job.get("state"), dict) else {}
     next_state = dict(state_dict)
+    decision_updated_at = _utc_now_iso()
     next_state["bid_no_bid_decision"] = {
         **decision,
         "inputs": {
@@ -875,11 +885,14 @@ def post_status_bid_no_bid_decision(job_id: str, payload: BidNoBidRequest, reque
         },
         "freshness_signature": _bid_no_bid_freshness_signature(job),
         "decision_stale": False,
-        "decision_updated_at": _utc_now_iso(),
+        "decision_updated_at": decision_updated_at,
     }
     _update_job(job_id, state=next_state)
-
-    return next_state["bid_no_bid_decision"]
+    return {
+        **decision,
+        "decision_stale": False,
+        "decision_updated_at": decision_updated_at,
+    }
 
 
 @jobs_router.get(
