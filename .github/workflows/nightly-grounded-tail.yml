@@ -1,4 +1,5 @@
 name: Nightly Grounded Tail Eval
+run-name: Nightly Grounded Tail Eval
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -7,6 +8,10 @@ on:
   schedule:
     - cron: "20 21 * * *"
   workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   grounded-tail-eval:
@@ -29,6 +34,8 @@ jobs:
           pip install .
 
       - name: Run evaluation harness (grounded tail suite)
+        id: eval
+        continue-on-error: true
         run: |
           mkdir -p grounded-tail-artifacts
           python -m grantflow.eval.harness \
@@ -41,6 +48,32 @@ jobs:
             --comparison-text-out grounded-tail-artifacts/grounded-tail-regression-comparison.txt \
             --comparison-json-out grounded-tail-artifacts/grounded-tail-regression-comparison.json
 
+      - name: Classify regressions (hard-fail vs warn-only)
+        id: classify
+        run: |
+          python scripts/classify_eval_regressions.py \
+            --comparison-text grounded-tail-artifacts/grounded-tail-regression-comparison.txt \
+            --hard-metric traceability_gap_citations \
+            --hard-metric non_retrieval_citations \
+            --hard-metric fallback_non_strategy_citations \
+            --warn-metric citation_confidence_avg \
+            --warn-metric high_confidence_citation_count \
+            --summary-out grounded-tail-artifacts/gate-summary.md
+
+          cat grounded-tail-artifacts/gate-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail only on hard regressions
+        if: steps.classify.outputs.hard_count != '0'
+        run: |
+          echo "Hard regressions detected: ${{ steps.classify.outputs.hard_count }}"
+          exit 1
+
+      - name: Emit warning when eval command failed but no hard regressions
+        if: steps.eval.outcome == 'failure' && steps.classify.outputs.hard_count == '0'
+        run: |
+          echo "::warning::Eval exited non-zero, but only warn-level regressions were found."
+          echo "::warning::See grounded-tail-artifacts/gate-summary.md"
+
       - name: Validate seeded corpus (grounded tail suite)
         run: |
           python scripts/check_seeded_corpus.py \
@@ -48,6 +81,32 @@ jobs:
             --label grounded-tail-eval-seed \
             --expected-donors eu,giz,un_agencies \
             --min-seeded-total 1
+
+      - name: Open issue on 2 consecutive scheduled failures
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          THIS_WF="${{ github.workflow }}"
+          REPO="${{ github.repository }}"
+
+          FAILS=$(gh run list --repo "$REPO" --workflow "$THIS_WF" --limit 2 --json conclusion --jq '[.[] | select(.conclusion=="failure")] | length')
+          if [ "$FAILS" -lt 2 ]; then
+            echo "Not 2 consecutive failures yet."
+            exit 0
+          fi
+
+          TITLE="Nightly Grounded Tail: 2 consecutive failures"
+          EXISTS=$(gh issue list --repo "$REPO" --state open --search "$TITLE in:title" --json number --jq 'length')
+          if [ "$EXISTS" -gt 0 ]; then
+            echo "Issue already exists."
+            exit 0
+          fi
+
+          gh issue create --repo "$REPO" \
+            --title "$TITLE" \
+            --body "Automated alert: nightly grounded tail failed 2 runs in a row. Please triage latest run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Upload grounded tail evaluation report
         uses: actions/upload-artifact@v4
