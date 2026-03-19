@@ -67,21 +67,16 @@ def evaluate_bid_no_bid(
         hard_blockers.append("critical_delivery_capacity")
 
     low_signals = sorted(
-        (
-            {"criterion": key, "score": int(scores.get(key, 0)), "weight": round(weights[key], 4)}
-            for key in CRITERIA_ORDER
-            if int(scores.get(key, 0)) < 60
-        ),
-        key=lambda row: (row["score"], -row["weight"]),
+        ((key, int(scores.get(key, 0)), float(weights[key])) for key in CRITERIA_ORDER if int(scores.get(key, 0)) < 60),
+        key=lambda row: (row[1], -row[2]),
     )
 
     must_fix_before_bid = []
-    for row in low_signals[:3]:
-        criterion = str(row["criterion"])
+    for criterion, current_score, _weight in low_signals[:3]:
         must_fix_before_bid.append(
             {
                 "criterion": criterion,
-                "current_score": int(row["score"]),
+                "current_score": current_score,
                 "target_score": 70,
                 "action": RISK_HINTS.get(criterion, "Raise this signal before bid commitment."),
             }
@@ -98,11 +93,11 @@ def evaluate_bid_no_bid(
 
     top_risks = [
         {
-            "criterion": str(row["criterion"]),
-            "score": int(row["score"]),
-            "risk_level": "high" if int(row["score"]) < 45 else "medium",
+            "criterion": criterion,
+            "score": score,
+            "risk_level": "high" if score < 45 else "medium",
         }
-        for row in low_signals[:3]
+        for criterion, score, _weight in low_signals[:3]
     ]
 
     return {
