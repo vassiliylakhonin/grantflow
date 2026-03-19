@@ -188,3 +188,14 @@ Current guardrails (in `ci.yml`):
 - `GF_BENCH_MIN_JOBS_PER_MIN=0.5`
 
 If budget fails, the `grounded-smoke` job fails and writes `grounded-smoke-artifacts/perf-budget.json` for triage.
+
+## 9) API Contract Compatibility Guard
+
+CI `dependency-contract` includes a lightweight OpenAPI compatibility check via `scripts/api_contract_guard.py`.
+
+Guard scope:
+- Required critical paths and methods (`/health`, `/generate`, `/generate/from-preset`, `/status/{job_id}`, `/status/{job_id}/quality`, `/status/{job_id}/critic`, `/status/{job_id}/review/workflow`, `/export`, `/demo`).
+- Required `ApiKeyAuth` security scheme in OpenAPI components.
+- Required `200 application/json` response schemas on key public operations.
+
+Goal: catch accidental API contract drift early without relying on full integration runtime.
