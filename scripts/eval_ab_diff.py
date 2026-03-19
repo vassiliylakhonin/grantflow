@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Iterable
 
-
 HIGHER_IS_BETTER_METRICS: dict[str, str] = {
     "quality_score": "quality_score",
     "critic_score": "critic_score",

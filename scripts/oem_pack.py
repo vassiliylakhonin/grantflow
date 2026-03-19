@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 OEM_DOCS = (
     "docs/oem-one-pager.md",
     "docs/architecture.md",

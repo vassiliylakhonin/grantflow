@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-
 REQUIRED_LINKS: dict[str, tuple[str, ...]] = {
     "latest-executive-pack": (
         "README.md",

@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-
 CASE_FILES = (
     "generate-request.json",
     "generate-response.json",

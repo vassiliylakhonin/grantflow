@@ -5,7 +5,6 @@ import argparse
 import shutil
 from pathlib import Path
 
-
 DIRECTORY_PATTERNS = (
     "demo-pack*",
     "pilot-pack*",

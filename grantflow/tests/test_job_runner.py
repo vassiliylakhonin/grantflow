@@ -4,7 +4,6 @@ import time
 
 from grantflow.core.job_runner import InMemoryJobRunner, RedisJobRunner
 
-
 _REDIS_TEST_OBSERVED: list[int] = []
 _REDIS_OBSERVED_LOCK = threading.Lock()
 

@@ -4,7 +4,6 @@ from typing import Any, Dict, Iterable, Literal
 
 from pydantic import BaseModel, Field
 
-
 EVALUATION_RFQ_PROPOSAL_MODE = "evaluation_rfq"
 KATCH_EVALUATION_RFQ_PROFILE = "katch_final_assessment"
 

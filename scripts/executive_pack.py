@@ -17,7 +17,6 @@ from grantflow.api.public_views import (
 )
 from toc_snapshot import build_logframe_snapshot, build_toc_snapshot
 
-
 ROOT_FILES = (
     "buyer-brief.md",
     "pilot-scorecard.md",
