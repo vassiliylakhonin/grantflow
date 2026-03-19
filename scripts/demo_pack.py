@@ -13,7 +13,6 @@ from urllib.parse import urlencode
 
 from grantflow.api.public_views import _comment_triage_summary_payload
 
-
 DEFAULT_PRESET_KEYS = (
     "usaid_gov_ai_kazakhstan",
     "eu_digital_governance_moldova",

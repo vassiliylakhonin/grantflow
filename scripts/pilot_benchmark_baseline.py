@@ -9,7 +9,6 @@ from math import ceil
 from pathlib import Path
 from typing import Any
 
-
 FIELDNAMES = [
     "case_dir",
     "preset_key",

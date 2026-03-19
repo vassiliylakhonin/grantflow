@@ -9,7 +9,6 @@ from grantflow.exporters.donor_contracts import evaluate_export_contract
 from grantflow.exporters.excel_builder import build_xlsx_from_logframe
 from grantflow.exporters.word_builder import build_docx_from_toc
 
-
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 

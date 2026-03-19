@@ -6,7 +6,6 @@ import csv
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 FIELDNAMES = [
     "case_dir",
     "preset_key",

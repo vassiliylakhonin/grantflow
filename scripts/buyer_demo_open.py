@@ -6,7 +6,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 OPEN_ORDER = (
     (("latest-open-order.md",), "Opening guide"),
     (("pilot-handout.md", "pilot-handout-smoke.md"), "Single-file buyer summary"),

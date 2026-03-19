@@ -6,7 +6,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 FULL_OPEN_ORDER = (
     (("latest-send-bundle-index.md", "send-bundle-index.md"), "Send bundle index"),
     (("latest-fast-send-bundle/README.md",), "Fast send bundle overview"),

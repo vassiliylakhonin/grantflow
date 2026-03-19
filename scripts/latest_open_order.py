@@ -6,7 +6,6 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 LINK_ORDER = (
     ("latest-diligence-index.md", "Index of all generated artifacts."),
     ("latest-executive-pack", "Primary buyer-facing bundle."),
