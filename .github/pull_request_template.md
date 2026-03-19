@@ -19,6 +19,13 @@
 - [ ] `black` clean
 - [ ] `mypy` clean (targeted baseline)
 
+## Quality & Risk Checklist
+
+- [ ] Eval delta reviewed (if eval/quality-sensitive area changed)
+- [ ] Security impact reviewed (deps/auth/data handling)
+- [ ] Performance impact reviewed (latency/throughput path)
+- [ ] API/contract impact reviewed (OpenAPI / payload compatibility)
+
 ## Changelog
 
 - [ ] `CHANGELOG.md` updated (or not needed, explain below)
