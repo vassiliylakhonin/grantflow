@@ -425,6 +425,9 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Preflight risk</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Strict preflight</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Grounded gate</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Bid/No-Bid verdict</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Bid/No-Bid score</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Bid blockers</div><div class="value mono">-</div></div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div id="qualityGroundedGatePill" class="pill readiness-level-none">
@@ -437,6 +440,12 @@ def render_demo_ui_html() -> str:
               <div class="list" id="qualityGroundedGateReasonsList"></div>
             </div>
             <div id="qualityPreflightMetaLine" class="footer-note mono">warning_count=- · coverage_rate=-</div>
+            <div class="row" style="margin-top:10px;">
+              <div>
+                <label>Bid/No-Bid Decision</label>
+                <div class="list" id="qualityBidNoBidList"></div>
+              </div>
+            </div>
             <div class="row" style="margin-top:10px;">
               <div>
                 <label>MEL Generation</label>
@@ -1928,6 +1937,7 @@ def render_demo_ui_html() -> str:
         qualityAdvisoryBadgeList: $("qualityAdvisoryBadgeList"),
         qualityLlmFindingLabelsList: $("qualityLlmFindingLabelsList"),
         qualityMelSummaryList: $("qualityMelSummaryList"),
+        qualityBidNoBidList: $("qualityBidNoBidList"),
         qualityCitationTypeCountsList: $("qualityCitationTypeCountsList"),
         qualityArchitectCitationTypeCountsList: $("qualityArchitectCitationTypeCountsList"),
         qualityReadinessWarningsList: $("qualityReadinessWarningsList"),
@@ -3841,6 +3851,16 @@ def render_demo_ui_html() -> str:
           groundedGateStatus === "-"
             ? "-"
             : `${groundedGateStatus} (${groundedGateMode}${groundedGateReasons.length ? `, ${groundedGateReasons.length} reasons` : ""})`;
+        const bidNoBid =
+          summary?.bid_no_bid_decision && typeof summary.bid_no_bid_decision === "object" && !Array.isArray(summary.bid_no_bid_decision)
+            ? summary.bid_no_bid_decision
+            : null;
+        const bidNoBidVerdict = String(bidNoBid?.verdict || "-");
+        const bidNoBidScore =
+          typeof bidNoBid?.weighted_score === "number" ? Number(bidNoBid.weighted_score).toFixed(2) : "-";
+        const bidNoBidBlockers = Array.isArray(bidNoBid?.hard_blockers)
+          ? bidNoBid.hard_blockers.filter(Boolean).length
+          : 0;
         const values = [
           typeof summary?.quality_score === "number" ? Number(summary.quality_score).toFixed(2) : "-",
           typeof summary?.critic_score === "number" ? Number(summary.critic_score).toFixed(2) : "-",
@@ -3865,6 +3885,9 @@ def render_demo_ui_html() -> str:
           preflightRiskValue,
           strictPreflightValue,
           groundedGateValue,
+          bidNoBidVerdict,
+          bidNoBidScore,
+          String(bidNoBidBlockers || 0),
         ];
         const qualityValueNodes = [...els.qualityCards.querySelectorAll(".kpi .value")];
         qualityValueNodes.forEach((node, i) => {
@@ -3988,7 +4011,70 @@ def render_demo_ui_html() -> str:
               ? `reasons=${groundedGateReasons.join(", ")}`
               : "No grounded gate summary";
         }
+        const bidVerdictNode = qualityValueNodes[13];
+        if (bidVerdictNode) {
+          bidVerdictNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (bidNoBidVerdict === "NO_BID") bidVerdictNode.classList.add("risk-high");
+          else if (bidNoBidVerdict === "CONDITIONAL_BID") bidVerdictNode.classList.add("risk-medium");
+          else if (bidNoBidVerdict === "BID") bidVerdictNode.classList.add("risk-low");
+          else bidVerdictNode.classList.add("risk-none");
+          bidVerdictNode.title = bidNoBid ? "Latest job-scoped bid/no-bid decision" : "No bid/no-bid decision saved";
+        }
+        const bidScoreNode = qualityValueNodes[14];
+        if (bidScoreNode) {
+          bidScoreNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          const score = Number(bidNoBid?.weighted_score ?? NaN);
+          if (Number.isFinite(score)) {
+            if (score < 55) bidScoreNode.classList.add("risk-high");
+            else if (score < 70) bidScoreNode.classList.add("risk-medium");
+            else bidScoreNode.classList.add("risk-low");
+          } else {
+            bidScoreNode.classList.add("risk-none");
+          }
+        }
+        const bidBlockersNode = qualityValueNodes[15];
+        if (bidBlockersNode) {
+          bidBlockersNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (bidNoBidBlockers >= 1) bidBlockersNode.classList.add("risk-high");
+          else if (bidNoBid) bidBlockersNode.classList.add("risk-low");
+          else bidBlockersNode.classList.add("risk-none");
+        }
         renderQualityGroundedGateExplain(groundedGate);
+        renderKeyValueList(
+          els.qualityBidNoBidList,
+          {
+            verdict: bidNoBidVerdict,
+            weighted_score: bidNoBidScore,
+            preset_profile: String(bidNoBid?.preset_profile || bidNoBid?.inputs?.donor_profile || "-"),
+            hard_blockers: Array.isArray(bidNoBid?.hard_blockers)
+              ? bidNoBid.hard_blockers.join(", ") || "none"
+              : "-",
+            top_risks: Array.isArray(bidNoBid?.top_risks)
+              ? bidNoBid.top_risks
+                  .map((x) => `${String(x?.criterion || "unknown")}:${String(x?.score ?? "-")}`)
+                  .join(", ") || "-"
+              : "-",
+            must_fix_before_bid: Array.isArray(bidNoBid?.must_fix_before_bid)
+              ? bidNoBid.must_fix_before_bid
+                  .map((x) => `${String(x?.criterion || "unknown")}→${String(x?.target_score ?? "-")}`)
+                  .join(", ") || "-"
+              : "-",
+          },
+          {
+            classify: (key, value) => {
+              if (key === "verdict") {
+                if (value === "NO_BID") return "high";
+                if (value === "CONDITIONAL_BID") return "medium";
+                if (value === "BID") return "low";
+              }
+              if (key === "hard_blockers") {
+                if (String(value || "").trim() && String(value) !== "none") return "high";
+                return "low";
+              }
+              return "none";
+            },
+          }
+        );
         renderKeyValueList(
           els.qualityMelSummaryList,
           {
