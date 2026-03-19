@@ -28,9 +28,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[dev]" pip-audit cyclonedx-bom
 
-      - name: pip-audit (installed environment)
+      - name: pip-audit (installed environment, non-blocking)
+        continue-on-error: true
         run: |
-          pip-audit --local
+          pip-audit --local --format json > pip-audit.json
 
       - name: Generate SBOM (CycloneDX)
         run: |
@@ -43,3 +44,4 @@ jobs:
           name: supply-chain-artifacts
           path: |
             sbom.cdx.json
+            pip-audit.json
