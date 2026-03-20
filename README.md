@@ -158,6 +158,9 @@ See:
 **Operators**
 - `docs/demo-runbook.md`
 - `docs/operations-runbook.md`
+- `docs/observability_runtime_readiness_slo.md`
+- `monitoring/alerts/runtime_readiness_safeguarding.rules.yml`
+- `.github/workflows/synthetic-alert-delivery-check.yml`
 - `docs/pilot-day1-checklist.md`
 
 **Engineers**

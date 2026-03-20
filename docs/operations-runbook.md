@@ -208,3 +208,45 @@ Repository governance defaults now include:
 - Good-first-issue template: `.github/ISSUE_TEMPLATE/good-first-issue.md`
 - PR quality checklist: `.github/pull_request_template.md` (eval delta, security impact, performance impact, API contract impact)
 - Coverage policy: `docs/coverage-threshold-policy.md`
+
+## 11) Runtime Readiness + Safeguarding Alert Triage
+
+Related artifacts:
+- SLO pack: `docs/observability_runtime_readiness_slo.md`
+- Alert rules: `monitoring/alerts/runtime_readiness_safeguarding.rules.yml`
+
+Alert owners:
+- Primary owner: **Engineering Lead**
+- Quality drift owner: **QA Lead**
+- Escalation owner (>30m): **PM on duty**
+
+Triage steps (first 15 minutes):
+1. Confirm active alert and severity (warning/critical), and note first-seen timestamp.
+2. Check readiness status and details:
+   - `GET /ready`
+   - `GET /health`
+3. Identify impact scope:
+   - admission degradation only vs generation/safeguarding failures
+   - count affected job IDs in last 15m
+4. For safeguarding failures/timeouts:
+   - inspect recent `/status/{job_id}` + `/status/{job_id}/quality`
+   - check worker heartbeat/queue diagnostics (`/queue/worker-heartbeat`, `/health` queue block)
+5. For quality-state drift anomalies:
+   - compare latest critic findings against previous stable window
+   - flag potential model/policy/config regression
+
+Mitigation playbook:
+- Readiness degradation:
+  - recover Redis/worker connectivity if queue-backed
+  - rollback last runtime policy/config change if recently deployed
+- Safeguarding failure/timeout spike:
+  - reduce concurrency pressure and validate queue depth
+  - rollback recent donor policy or generation changes if correlated
+- Quality drift anomaly:
+  - freeze risky rollout path
+  - open regression issue with sample payloads + findings diff
+
+Incident handling requirements:
+- Open incident record with owner and ETA in first 10 minutes for critical alerts.
+- Post updates every 15 minutes until resolved.
+- After resolution: create follow-up issue with root cause + prevention action.

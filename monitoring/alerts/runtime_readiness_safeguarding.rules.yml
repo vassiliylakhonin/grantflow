@@ -1,0 +1,106 @@
+groups:
+  - name: grantflow-runtime-readiness-safeguarding
+    interval: 1m
+    rules:
+      - alert: GrantFlowReadinessAvailabilityLow
+        expr: |
+          (
+            sum(rate(grantflow_ready_requests_total{status="ready",code="200"}[15m]))
+            /
+            clamp_min(sum(rate(grantflow_ready_requests_total[15m])), 0.001)
+          ) < 0.995
+        for: 15m
+        labels:
+          severity: warning
+          service: grantflow
+          slo: readiness_success_rate
+          owner: engineering-lead
+        annotations:
+          summary: "Readiness success rate below 99.5% (15m)"
+          description: "SLO warning breach for /ready availability. Check /ready details and queue/runtime policy health."
+          runbook: "docs/operations-runbook.md#11-runtime-readiness--safeguarding-alert-triage"
+
+      - alert: GrantFlowReadinessAvailabilityCritical
+        expr: |
+          (
+            sum(rate(grantflow_ready_requests_total{status="ready",code="200"}[15m]))
+            /
+            clamp_min(sum(rate(grantflow_ready_requests_total[15m])), 0.001)
+          ) < 0.985
+        for: 30m
+        labels:
+          severity: critical
+          service: grantflow
+          slo: readiness_success_rate
+          owner: engineering-lead
+        annotations:
+          summary: "Readiness success rate below 98.5% (critical)"
+          description: "Sustained readiness degradation. User-facing impact likely."
+          runbook: "docs/operations-runbook.md#11-runtime-readiness--safeguarding-alert-triage"
+
+      - alert: GrantFlowReadinessLatencyP95High
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(grantflow_ready_request_duration_seconds_bucket[15m]))
+          ) > 1.0
+        for: 15m
+        labels:
+          severity: warning
+          service: grantflow
+          slo: readiness_latency_p95
+          owner: engineering-lead
+        annotations:
+          summary: "Readiness latency p95 above 1s"
+          description: "Readiness checks are slow and may precede degraded admission behavior."
+          runbook: "docs/operations-runbook.md#11-runtime-readiness--safeguarding-alert-triage"
+
+      - alert: GrantFlowSafeguardingFailureRateHigh
+        expr: |
+          (
+            sum(rate(grantflow_safeguarding_path_events_total{outcome="failure"}[15m]))
+            /
+            clamp_min(sum(rate(grantflow_safeguarding_path_events_total[15m])), 0.001)
+          ) > 0.01
+        for: 15m
+        labels:
+          severity: warning
+          service: grantflow
+          slo: safeguarding_failure_rate
+          owner: engineering-lead
+        annotations:
+          summary: "Safeguarding failure rate above 1%"
+          description: "Elevated safeguarding generation/validation failures detected."
+          runbook: "docs/operations-runbook.md#11-runtime-readiness--safeguarding-alert-triage"
+
+      - alert: GrantFlowSafeguardingTimeoutSpike
+        expr: |
+          sum(rate(grantflow_safeguarding_path_events_total{outcome="timeout"}[15m])) > 0.02
+        for: 10m
+        labels:
+          severity: warning
+          service: grantflow
+          slo: safeguarding_latency_p95
+          owner: engineering-lead
+        annotations:
+          summary: "Safeguarding timeout spike detected"
+          description: "Timeout rate over 0.02 events/s for 10m. Investigate queue pressure or upstream dependency latency."
+          runbook: "docs/operations-runbook.md#11-runtime-readiness--safeguarding-alert-triage"
+
+      - alert: GrantFlowSafeguardingQualityDriftAnomaly
+        expr: |
+          (
+            sum(rate(grantflow_safeguarding_quality_state_drift_total{severity=~"high|critical"}[30m]))
+            /
+            clamp_min(sum(rate(grantflow_safeguarding_path_events_total[30m])), 0.001)
+          ) > 0.005
+        for: 30m
+        labels:
+          severity: critical
+          service: grantflow
+          slo: safeguarding_quality_drift_rate
+          owner: qa-lead
+        annotations:
+          summary: "Safeguarding quality-state drift anomaly"
+          description: "High/critical safeguarding drift above 0.5% baseline. Potential policy or model regression."
+          runbook: "docs/operations-runbook.md#11-runtime-readiness--safeguarding-alert-triage"

@@ -1,0 +1,26 @@
+name: Synthetic Alert Delivery Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 3 * * *"
+
+jobs:
+  synthetic-alert-delivery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify alert webhook is configured
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: |
+          if [ -z "$ALERT_WEBHOOK_URL" ]; then
+            echo "Missing required secret ALERT_WEBHOOK_URL"
+            exit 1
+          fi
+
+      - name: Send synthetic alert payload and verify delivery
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: scripts/ops/synthetic_alert_delivery_check.sh
