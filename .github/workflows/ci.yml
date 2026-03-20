@@ -600,6 +600,10 @@ jobs:
             exit 1
           fi
 
+      - name: Run bid/no-bid e2e suite
+        run: |
+          make test-e2e
+
       - name: Upload coverage (optional)
         uses: actions/upload-artifact@v4
         if: always()
