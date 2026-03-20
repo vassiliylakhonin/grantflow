@@ -211,6 +211,57 @@ def apply_donor_specific_toc_checks(
                 message="EU ToC is missing expected outcomes, so the intervention logic cannot yet show measurable downstream change.",
                 fix_hint="Add `expected_outcomes[]` entries with measurable expected change so the EU package shows a clear path from specific objectives to outcome evidence and verification.",
             )
+
+        annex = toc_payload.get("safeguarding_annex")
+        if isinstance(annex, list) and any(str(item).strip() for item in annex):
+            check_fn(
+                code="EU_SAFEGUARDING_ANNEX_PRESENT",
+                status="pass",
+                section="toc",
+                detail=f"{len([x for x in annex if str(x).strip()])} annex item(s)",
+            )
+            annex_text = " ".join(str(item).lower() for item in annex if str(item).strip())
+            required_blocks = {
+                "protocol": any(token in annex_text for token in ("protocol", "do-no-harm", "survivor")),
+                "referral": any(token in annex_text for token in ("referral", "escalation", "handoff")),
+                "owner": any(token in annex_text for token in ("owner", "ownership", "focal point")),
+                "compliance": any(token in annex_text for token in ("compliance", "checkpoint", "evidence")),
+            }
+            missing_blocks = [k for k, ok in required_blocks.items() if not ok]
+            if missing_blocks:
+                check_fn(
+                    code="EU_SAFEGUARDING_ANNEX_MINIMUM_BLOCKS",
+                    status="warn",
+                    section="toc",
+                    detail=f"Missing blocks: {', '.join(missing_blocks)}",
+                )
+                add_flaw_fn(
+                    code="EU_SAFEGUARDING_ANNEX_INCOMPLETE",
+                    severity="medium",
+                    section="toc",
+                    message="EU safeguarding annex is present but incomplete for readiness review.",
+                    fix_hint="Ensure annex covers protocol, referral/escalation, named risk owner, and compliance checkpoint blocks.",
+                )
+            else:
+                check_fn(
+                    code="EU_SAFEGUARDING_ANNEX_MINIMUM_BLOCKS",
+                    status="pass",
+                    section="toc",
+                )
+        else:
+            check_fn(
+                code="EU_SAFEGUARDING_ANNEX_PRESENT",
+                status="warn",
+                section="toc",
+                detail="No safeguarding_annex",
+            )
+            add_flaw_fn(
+                code="EU_SAFEGUARDING_ANNEX_MISSING",
+                severity="medium",
+                section="toc",
+                message="EU ToC is missing a safeguarding annex needed for partner risk and compliance review.",
+                fix_hint="Add `safeguarding_annex[]` with protocol, referral/escalation, risk owner, and compliance checkpoint details.",
+            )
         return
 
     if donor == "giz":

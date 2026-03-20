@@ -113,11 +113,19 @@ def test_eu_complete_payload_passes_new_structure_checks():
                 "expected_change": "15% increase in formal credit uptake",
             }
         ],
+        "safeguarding_annex": [
+            "Safeguarding protocol with do-no-harm and survivor-centered safeguards",
+            "Referral and escalation pathway with handoff steps",
+            "Risk owner matrix with named focal points",
+            "Compliance checkpoint and evidence verification before submission",
+        ],
     }
     checks, flaws = _run_policy("eu", toc_payload)
     assert any(c["code"] == "EU_OVERALL_OBJECTIVE_COMPLETE" and c["status"] == "pass" for c in checks)
     assert any(c["code"] == "EU_SPECIFIC_OBJECTIVES_COMPLETE" and c["status"] == "pass" for c in checks)
     assert any(c["code"] == "EU_EXPECTED_OUTCOMES_PRESENT" and c["status"] == "pass" for c in checks)
+    assert any(c["code"] == "EU_SAFEGUARDING_ANNEX_PRESENT" and c["status"] == "pass" for c in checks)
+    assert any(c["code"] == "EU_SAFEGUARDING_ANNEX_MINIMUM_BLOCKS" and c["status"] == "pass" for c in checks)
     assert not any(f["severity"] == "high" for f in flaws)
 
 
@@ -161,6 +169,19 @@ def test_eu_missing_overall_objective_uses_intervention_logic_language():
     flaw = next(f for f in flaws if f["code"] == "EU_OVERALL_OBJECTIVE_MISSING")
     assert "credible top-line anchor" in flaw["message"].lower()
     assert "verification logic" in flaw["fix_hint"].lower()
+
+
+def test_eu_missing_safeguarding_annex_emits_readiness_flaw():
+    _checks, flaws = _run_policy(
+        "eu",
+        {
+            "overall_objective": {"objective_id": "OO1", "title": "T", "rationale": "R"},
+            "specific_objectives": [{"objective_id": "SO1", "title": "T", "rationale": "R"}],
+            "expected_outcomes": [{"outcome_id": "OUT1", "title": "T", "expected_change": "C"}],
+        },
+    )
+    flaw = next(f for f in flaws if f["code"] == "EU_SAFEGUARDING_ANNEX_MISSING")
+    assert "safeguarding annex" in flaw["message"].lower()
 
 
 def test_worldbank_missing_results_chain_uses_framework_review_language():

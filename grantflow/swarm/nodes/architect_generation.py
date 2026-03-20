@@ -711,8 +711,33 @@ def _fallback_structured_toc(
         depth=0,
         evidence_hint=evidence_hint,
     )
+    if str(donor_id or "").strip().lower() == "eu" and isinstance(payload, dict):
+        payload = _ensure_eu_safeguarding_annex(payload, project=project, country=country)
     return payload, "contract_synthesizer"
 
+
+
+
+def _default_eu_safeguarding_annex(project: str, country: str) -> list[str]:
+    country_name = str(country or "target country").strip()
+    project_label = str(project or "programme").strip()
+    return [
+        f"Safeguarding protocol for {project_label} in {country_name}: prevention, incident intake, confidentiality, survivor-centered support.",
+        "Referral and escalation pathway: focal point roles, 24h escalation trigger, and partner-to-authority handoff protocol.",
+        "Risk ownership matrix: named owner per safeguarding risk, weekly review cadence, and mitigation tracking log.",
+        "EU compliance checkpoint: verify do-no-harm controls, consent records, and annex evidence completeness before submission.",
+    ]
+
+
+def _ensure_eu_safeguarding_annex(payload: Dict[str, Any], *, project: str, country: str) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        return payload
+    existing = payload.get("safeguarding_annex")
+    if isinstance(existing, list) and any(str(item).strip() for item in existing):
+        return payload
+    enriched = dict(payload)
+    enriched["safeguarding_annex"] = _default_eu_safeguarding_annex(project, country)
+    return enriched
 
 def _llm_structured_toc(
     schema_cls: Type[BaseModel],
@@ -1512,6 +1537,9 @@ def generate_toc_under_contract(
             engine = f"deterministic:{synth_engine}"
             fallback_class = "deterministic_mode"
         model = None
+
+    if donor_id.strip().lower() == "eu" and isinstance(raw_payload, dict):
+        raw_payload = _ensure_eu_safeguarding_annex(raw_payload, project=project, country=country)
 
     if model is None:
         model = _model_validate(schema_cls, raw_payload)
