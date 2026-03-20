@@ -26,10 +26,17 @@ def test_docx_autofills_eu_safeguarding_annex_from_critic_findings():
     findings = [
         {
             "code": "EU_SAFE_001",
+            "section": "safeguarding",
             "message": "Safeguarding protocol is missing for partner-facing activities.",
             "fix_hint": "Add referral pathway and incident-response SOP in annex.",
             "severity": "high",
-        }
+        },
+        {
+            "code": "EU_RISK_001",
+            "section": "risk_register",
+            "message": "Risk controls are not clearly assigned.",
+            "severity": "medium",
+        },
     ]
 
     doc = Document(BytesIO(build_docx_from_toc(toc, "eu", critic_findings=findings)))
@@ -37,13 +44,15 @@ def test_docx_autofills_eu_safeguarding_annex_from_critic_findings():
 
     assert "Risk & Safeguarding Annex" in text
     assert "referral pathway" in text.lower()
+    assert "risk register entries" in text.lower()
 
 
 def test_xlsx_autofills_eu_safeguarding_annex_from_critic_findings():
     toc = _eu_min_toc()
     findings = [
         {
-            "code": "EU_SAFE_002",
+            "code": "EU_COMP_002",
+            "section": "compliance",
             "message": "Risk control plan is incomplete for field implementation.",
             "fix_suggestion": "Document do-no-harm controls and escalation owner in annex.",
             "severity": "medium",

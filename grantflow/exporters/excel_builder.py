@@ -1793,21 +1793,57 @@ def _add_evaluation_plan_sheet(
 def _eu_annex_items_from_findings(critic_findings: Optional[List[Dict[str, Any]]]) -> list[str]:
     if not isinstance(critic_findings, list):
         return []
-    items: list[str] = []
+
+    mapped: list[str] = []
+    fallback: list[str] = []
     seen: set[str] = set()
+
+    def _add(line: str, *, mapped_bucket: bool) -> None:
+        text = str(line or "").strip()
+        if not text or text in seen:
+            return
+        seen.add(text)
+        if mapped_bucket:
+            mapped.append(text)
+        else:
+            fallback.append(text)
+
     for finding in critic_findings:
         if not isinstance(finding, dict):
             continue
+
+        code = str(finding.get("code") or "").strip().upper()
+        section = str(finding.get("section") or "").strip().lower()
         message = str(finding.get("message") or "").strip()
         fix_hint = str(finding.get("fix_hint") or finding.get("fix_suggestion") or "").strip()
         text = f"{message} {fix_hint}".lower()
-        if not any(token in text for token in ("safeguard", "protection", "do-no-harm", "risk", "compliance")):
+
+        if code.startswith("EU_SAFE") or "safeguard" in section or "safeguard" in text:
+            _add(
+                fix_hint
+                or "Document safeguarding protocol, referral pathways, and survivor-centered response steps.",
+                mapped_bucket=True,
+            )
             continue
-        line = (fix_hint or message or "Add safeguarding and risk-control note").strip()
-        if line and line not in seen:
-            seen.add(line)
-            items.append(line)
-    return items[:8]
+        if code.startswith("EU_RISK") or "risk" in section:
+            _add(
+                fix_hint
+                or "Document risk register entries with probability, impact, mitigation, and owner.",
+                mapped_bucket=True,
+            )
+            continue
+        if code.startswith("EU_COMP") or "compliance" in section or "compliance" in text:
+            _add(
+                fix_hint
+                or "Document EU compliance controls, evidence checks, and sign-off responsibilities.",
+                mapped_bucket=True,
+            )
+            continue
+
+        if any(token in text for token in ("safeguard", "protection", "do-no-harm", "risk", "compliance")):
+            _add((fix_hint or message or "Add safeguarding and risk-control note"), mapped_bucket=False)
+
+    return (mapped + fallback)[:8]
 
 
 def _augment_eu_toc_with_safeguarding_annex(
