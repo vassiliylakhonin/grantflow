@@ -1,0 +1,15 @@
+donor,artifact,required,status,notes,source
+USAID,Technical narrative,yes,full,Core structure covered,docs/rag_seed_corpus/usaid
+USAID,Logframe/results framework,yes,partial,Needs stricter indicator mapping,docs/rag_seed_corpus/usaid
+USAID,Budget notes/compliance,yes,partial,Template exists but validation rules incomplete,docs/rag_seed_corpus/usaid
+EU,Technical narrative,yes,full,Base template available,docs/rag_seed_corpus/eu
+EU,Logical framework matrix,yes,partial,Section mapping requires normalization,docs/rag_seed_corpus/eu
+EU,Risk & safeguarding annex,yes,missing,No dedicated export template yet,docs/rag_seed_corpus/eu
+World Bank,Project concept note,yes,partial,High-level supported; annex formats missing,docs/rag_seed_corpus/worldbank
+World Bank,Results framework,yes,missing,No structured donor-specific layout yet,docs/rag_seed_corpus/worldbank
+UN Agencies,Programme document,yes,partial,Drafting works; QA rubric donor-specific gaps,docs/rag_seed_corpus/un_agencies
+UN Agencies,Budget framework,yes,missing,No standardized budget sheet adapter,docs/rag_seed_corpus/un_agencies
+GIZ,Project proposal narrative,yes,partial,Mode available; review checklist missing,docs/rag_seed_corpus/giz
+GIZ,Monitoring matrix,yes,missing,No donor-specific artifact mapper,docs/rag_seed_corpus/giz
+State Department,NOFO response narrative,yes,partial,evaluation_rfq helps but compliance pack incomplete,docs/rag_seed_corpus/state_department
+State Department,M&E plan,yes,missing,No section-specific generator yet,docs/rag_seed_corpus/state_department
