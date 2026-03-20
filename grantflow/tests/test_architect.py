@@ -876,6 +876,8 @@ def test_fallback_structured_toc_uses_eu_specific_intervention_logic_phrasing():
     assert any("institutional capacity" in row["title"].lower() for row in payload["specific_objectives"])
     assert payload["expected_outcomes"]
     assert any("measurable improvements" in row["expected_change"].lower() for row in payload["expected_outcomes"])
+    assert payload["safeguarding_annex"]
+    assert len([row for row in payload["safeguarding_annex"] if str(row).strip()]) >= 1
 
 
 def test_fallback_structured_toc_uses_worldbank_specific_results_chain_phrasing():

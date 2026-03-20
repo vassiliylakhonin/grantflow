@@ -711,7 +711,60 @@ def _fallback_structured_toc(
         depth=0,
         evidence_hint=evidence_hint,
     )
+    if str(donor_id or "").strip().lower() == "eu" and isinstance(payload, dict):
+        payload = _ensure_eu_safeguarding_annex(payload, project=project, country=country)
     return payload, "contract_synthesizer"
+
+
+def _default_eu_safeguarding_annex(project: str, country: str) -> list[str]:
+    country_name = str(country or "target country").strip()
+    project_label = str(project or "programme").strip()
+    return [
+        f"Safeguarding protocol for {project_label} in {country_name}: prevention, incident intake, confidentiality, survivor-centered support.",
+        "Referral and escalation pathway: focal point roles, 24h escalation trigger, and partner-to-authority handoff protocol.",
+        "Risk ownership matrix: named owner per safeguarding risk, weekly review cadence, and mitigation tracking log.",
+        "EU compliance checkpoint: verify do-no-harm controls, consent records, and annex evidence completeness before submission.",
+    ]
+
+
+def _ensure_eu_safeguarding_annex(payload: Dict[str, Any], *, project: str, country: str) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        return payload
+
+    defaults = _default_eu_safeguarding_annex(project, country)
+    existing = payload.get("safeguarding_annex")
+    existing_items = [str(item).strip() for item in existing] if isinstance(existing, list) else []
+    existing_items = [item for item in existing_items if item]
+
+    if not existing_items:
+        enriched = dict(payload)
+        enriched["safeguarding_annex"] = defaults
+        return enriched
+
+    annex_text = " ".join(existing_items).lower()
+    required_blocks = {
+        "protocol": any(token in annex_text for token in ("protocol", "do-no-harm", "survivor")),
+        "referral": any(token in annex_text for token in ("referral", "escalation", "handoff")),
+        "owner": any(token in annex_text for token in ("owner", "ownership", "focal point")),
+        "compliance": any(token in annex_text for token in ("compliance", "checkpoint", "evidence")),
+    }
+    if all(required_blocks.values()):
+        return payload
+
+    missing_defaults: list[str] = []
+    if not required_blocks["protocol"]:
+        missing_defaults.append(defaults[0])
+    if not required_blocks["referral"]:
+        missing_defaults.append(defaults[1])
+    if not required_blocks["owner"]:
+        missing_defaults.append(defaults[2])
+    if not required_blocks["compliance"]:
+        missing_defaults.append(defaults[3])
+
+    merged = existing_items + [item for item in missing_defaults if item not in existing_items]
+    enriched = dict(payload)
+    enriched["safeguarding_annex"] = merged
+    return enriched
 
 
 def _llm_structured_toc(
@@ -1512,6 +1565,9 @@ def generate_toc_under_contract(
             engine = f"deterministic:{synth_engine}"
             fallback_class = "deterministic_mode"
         model = None
+
+    if donor_id.strip().lower() == "eu" and isinstance(raw_payload, dict):
+        raw_payload = _ensure_eu_safeguarding_annex(raw_payload, project=project, country=country)
 
     if model is None:
         model = _model_validate(schema_cls, raw_payload)
