@@ -2,6 +2,8 @@
 
 Related: #43, #54, #45, #55
 
+See also: `docs/observability_dashboard_source_of_truth.md` for panel mapping and ownership.
+
 ## Core SLIs (Formulas)
 - **Generation latency p95** = p95(`generation_duration_seconds`) over 1h window
 - **Job error rate** = failed_jobs / total_jobs over 1h window
