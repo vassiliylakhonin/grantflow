@@ -1,0 +1,27 @@
+{
+  "name": "website-to-json",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Claw0x skill for extracting structured JSON from websites",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vassiliylakhonin/grantflow.git",
+    "directory": "skills/website-to-json"
+  },
+  "homepage": "https://github.com/vassiliylakhonin/grantflow/tree/main/skills/website-to-json",
+  "bugs": {
+    "url": "https://github.com/vassiliylakhonin/grantflow/issues"
+  },
+  "type": "module",
+  "main": "handler.ts",
+  "scripts": {
+    "dev": "node --import tsx server.mjs",
+    "start": "node --import tsx server.mjs"
+  },
+  "dependencies": {
+    "tsx": "^4.19.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
