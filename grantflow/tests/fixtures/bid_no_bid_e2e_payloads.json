@@ -1,0 +1,36 @@
+{
+  "base_scores": {
+    "strategic_fit": 80,
+    "win_probability": 75,
+    "budget_margin": 70,
+    "delivery_capacity": 78,
+    "compliance_readiness": 82,
+    "partner_strength": 68,
+    "timeline_realism": 72,
+    "evidence_strength": 74
+  },
+  "job_decision_payload": {
+    "strategic_fit": 80,
+    "win_probability": 75,
+    "budget_margin": 70,
+    "delivery_capacity": 78,
+    "compliance_readiness": 82,
+    "partner_strength": 68,
+    "timeline_realism": 72,
+    "evidence_strength": 74,
+    "donor_profile": "eu"
+  },
+  "simulation_payload": {
+    "strategic_fit": 80,
+    "win_probability": 75,
+    "budget_margin": 70,
+    "delivery_capacity": 78,
+    "compliance_readiness": 82,
+    "partner_strength": 68,
+    "timeline_realism": 72,
+    "evidence_strength": 74,
+    "donor_profile": "eu",
+    "step": 10,
+    "max_scenarios": 3
+  }
+}

@@ -107,6 +107,12 @@ curl -s http://127.0.0.1:8000/health
 
 Then open: `http://127.0.0.1:8000/demo`
 
+### E2E regression checks (bid/no-bid)
+```bash
+make test-e2e
+```
+Runs `grantflow/tests/test_bid_no_bid_e2e.py` with deterministic fixture payloads from `grantflow/tests/fixtures/bid_no_bid_e2e_payloads.json`.
+
 ### Reproducible dependency workflow (recommended)
 ```bash
 pip install -r requirements.lock

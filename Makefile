@@ -141,6 +141,9 @@ qa-fast:
 qa-hitl:
 	$(PYTHON) -m pytest grantflow/tests/test_integration.py -k "test_quality_summary_endpoint_aggregates_quality_signals or test_hitl_pause_resume_flow_supports_export_payload_and_export or test_hitl_reject_then_resume_flow_supports_export_payload_and_export or test_hitl_logframe_reject_then_resume_flow_supports_export_payload_and_export or test_hitl_mixed_checkpoints_reject_approve_flow_records_history_events or test_status_hitl_history_endpoint_lists_and_filters_events" -q
 
+test-e2e:
+	$(PYTHON) -m pytest -c grantflow/pytest.ini grantflow/tests/test_bid_no_bid_e2e.py -q
+
 dev-runtime-refresh:
 	docker compose up -d --build api worker
 
