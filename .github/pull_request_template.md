@@ -25,6 +25,7 @@
 - [ ] Security impact reviewed (deps/auth/data handling)
 - [ ] Performance impact reviewed (latency/throughput path)
 - [ ] API/contract impact reviewed (OpenAPI / payload compatibility)
+- [ ] Post-merge smoke checklist reviewed/run: `docs/post-merge-smoke-checklist.md`
 
 ## Changelog
 

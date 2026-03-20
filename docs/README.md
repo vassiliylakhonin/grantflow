@@ -40,6 +40,7 @@ If you are new to the project, read in this order:
 - `operations-runbook.md`
 - `demo-runbook.md`
 - `deployment-checklist.md`
+- `post-merge-smoke-checklist.md`
 - `troubleshooting.md`
 - `container-hardening-runbook.md`
 - `security-ops-runbook.md`
