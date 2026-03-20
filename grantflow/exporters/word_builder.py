@@ -626,8 +626,6 @@ def _toc_root(toc_draft: Dict[str, Any], donor_id: str | None = None) -> Dict[st
     return normalize_toc_for_export(donor_key, unwrap_toc_payload(toc_draft))
 
 
-
-
 def _eu_annex_items_from_findings(critic_findings: Optional[List[Dict[str, Any]]]) -> list[str]:
     if not isinstance(critic_findings, list):
         return []
@@ -658,22 +656,19 @@ def _eu_annex_items_from_findings(critic_findings: Optional[List[Dict[str, Any]]
 
         if code.startswith("EU_SAFE") or "safeguard" in section or "safeguard" in text:
             _add(
-                fix_hint
-                or "Document safeguarding protocol, referral pathways, and survivor-centered response steps.",
+                fix_hint or "Document safeguarding protocol, referral pathways, and survivor-centered response steps.",
                 mapped_bucket=True,
             )
             continue
         if code.startswith("EU_RISK") or "risk" in section:
             _add(
-                fix_hint
-                or "Document risk register entries with probability, impact, mitigation, and owner.",
+                fix_hint or "Document risk register entries with probability, impact, mitigation, and owner.",
                 mapped_bucket=True,
             )
             continue
         if code.startswith("EU_COMP") or "compliance" in section or "compliance" in text:
             _add(
-                fix_hint
-                or "Document EU compliance controls, evidence checks, and sign-off responsibilities.",
+                fix_hint or "Document EU compliance controls, evidence checks, and sign-off responsibilities.",
                 mapped_bucket=True,
             )
             continue
@@ -699,6 +694,7 @@ def _augment_eu_toc_with_safeguarding_annex(
     enriched = dict(toc_content)
     enriched["safeguarding_annex"] = inferred
     return enriched
+
 
 def _render_usaid_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Optional[Dict[str, Any]] = None) -> None:
     indicators = _normalized_indicator_rows(logframe_draft)
