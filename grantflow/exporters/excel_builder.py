@@ -1026,6 +1026,15 @@ def _add_eu_results_sheet(
             for col in range(1, len(aux_headers) + 1):
                 aux.cell(row=aux_row, column=col).border = aux_border
             aux_row += 1
+
+    safeguarding_annex = toc.get("safeguarding_annex") if isinstance(toc, dict) else None
+    if isinstance(safeguarding_annex, list):
+        for item in safeguarding_annex:
+            aux.append(["Safeguarding Annex", str(item)])
+            for col in range(1, len(aux_headers) + 1):
+                aux.cell(row=aux_row, column=col).border = aux_border
+            aux_row += 1
+
     if aux_row == 2:
         aux.append(["", ""])
         for col in range(1, len(aux_headers) + 1):
@@ -1779,6 +1788,76 @@ def _add_evaluation_plan_sheet(
     _autosize_columns(ws)
 
 
+def _eu_annex_items_from_findings(critic_findings: Optional[List[Dict[str, Any]]]) -> list[str]:
+    if not isinstance(critic_findings, list):
+        return []
+
+    mapped: list[str] = []
+    fallback: list[str] = []
+    seen: set[str] = set()
+
+    def _add(line: str, *, mapped_bucket: bool) -> None:
+        text = str(line or "").strip()
+        if not text or text in seen:
+            return
+        seen.add(text)
+        if mapped_bucket:
+            mapped.append(text)
+        else:
+            fallback.append(text)
+
+    for finding in critic_findings:
+        if not isinstance(finding, dict):
+            continue
+
+        code = str(finding.get("code") or "").strip().upper()
+        section = str(finding.get("section") or "").strip().lower()
+        message = str(finding.get("message") or "").strip()
+        fix_hint = str(finding.get("fix_hint") or finding.get("fix_suggestion") or "").strip()
+        text = f"{message} {fix_hint}".lower()
+
+        if code.startswith("EU_SAFE") or "safeguard" in section or "safeguard" in text:
+            _add(
+                fix_hint or "Document safeguarding protocol, referral pathways, and survivor-centered response steps.",
+                mapped_bucket=True,
+            )
+            continue
+        if code.startswith("EU_RISK") or "risk" in section:
+            _add(
+                fix_hint or "Document risk register entries with probability, impact, mitigation, and owner.",
+                mapped_bucket=True,
+            )
+            continue
+        if code.startswith("EU_COMP") or "compliance" in section or "compliance" in text:
+            _add(
+                fix_hint or "Document EU compliance controls, evidence checks, and sign-off responsibilities.",
+                mapped_bucket=True,
+            )
+            continue
+
+        if any(token in text for token in ("safeguard", "protection", "do-no-harm", "risk", "compliance")):
+            _add((fix_hint or message or "Add safeguarding and risk-control note"), mapped_bucket=False)
+
+    return (mapped + fallback)[:8]
+
+
+def _augment_eu_toc_with_safeguarding_annex(
+    toc_payload: Dict[str, Any],
+    critic_findings: Optional[List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    if not isinstance(toc_payload, dict):
+        return toc_payload
+    existing = toc_payload.get("safeguarding_annex")
+    if isinstance(existing, list) and existing:
+        return toc_payload
+    inferred = _eu_annex_items_from_findings(critic_findings)
+    if not inferred:
+        return toc_payload
+    enriched = dict(toc_payload)
+    enriched["safeguarding_annex"] = inferred
+    return enriched
+
+
 def build_xlsx_from_logframe(
     logframe_draft: Dict[str, Any],
     donor_id: str,
@@ -1850,8 +1929,10 @@ def build_xlsx_from_logframe(
     if not toc_payload_raw:
         toc_payload_raw = logframe_draft if isinstance(logframe_draft, dict) else {}
     toc_payload = _toc_root(toc_payload_raw, donor_id)
-    profile = build_export_template_profile(donor_id=donor_id, toc_payload=toc_payload)
     donor_key = resolve_export_template_key(donor_id=donor_id, toc_payload=toc_payload_raw)
+    if donor_key == "eu":
+        toc_payload = _augment_eu_toc_with_safeguarding_annex(toc_payload, critic_findings)
+    profile = build_export_template_profile(donor_id=donor_id, toc_payload=toc_payload)
     if donor_key == "evaluation_rfq":
         _add_evaluation_plan_sheet(wb, toc_payload, logframe_draft=logframe_draft)
     elif donor_key == "usaid":
