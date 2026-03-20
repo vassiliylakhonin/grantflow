@@ -36,6 +36,10 @@ class EU_TOC(BaseModel):
     expected_outcomes: list[EU_Outcome] = Field(default_factory=list, description="Expected outcomes")
     assumptions: list[str] = Field(default_factory=list, description="Key assumptions")
     risks: list[str] = Field(default_factory=list, description="Key implementation risks")
+    safeguarding_annex: list[str] = Field(
+        default_factory=list,
+        description="Risk and safeguarding annex readiness items (e.g., protocols, referral paths, compliance checks).",
+    )
 
 
 class EU_MELIndicator(BaseModel):

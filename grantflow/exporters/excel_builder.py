@@ -1026,6 +1026,15 @@ def _add_eu_results_sheet(
             for col in range(1, len(aux_headers) + 1):
                 aux.cell(row=aux_row, column=col).border = aux_border
             aux_row += 1
+
+    safeguarding_annex = toc.get("safeguarding_annex") if isinstance(toc, dict) else None
+    if isinstance(safeguarding_annex, list):
+        for item in safeguarding_annex:
+            aux.append(["Safeguarding Annex", str(item)])
+            for col in range(1, len(aux_headers) + 1):
+                aux.cell(row=aux_row, column=col).border = aux_border
+            aux_row += 1
+
     if aux_row == 2:
         aux.append(["", ""])
         for col in range(1, len(aux_headers) + 1):

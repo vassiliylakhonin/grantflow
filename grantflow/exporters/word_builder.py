@@ -768,6 +768,13 @@ def _render_eu_toc(doc: Document, toc: Dict[str, Any], *, logframe_draft: Option
             doc.add_paragraph(str(risk), style="List Bullet")
         rendered = True
 
+    safeguarding_annex = toc.get("safeguarding_annex")
+    if isinstance(safeguarding_annex, list) and safeguarding_annex:
+        doc.add_heading("Risk & Safeguarding Annex", level=2)
+        for item in safeguarding_annex:
+            doc.add_paragraph(str(item), style="List Bullet")
+        rendered = True
+
     if not rendered:
         doc.add_paragraph("Overall objective is not provided in EU schema draft.")
 

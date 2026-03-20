@@ -197,12 +197,25 @@ def _normalize_eu_toc(toc: Dict[str, Any]) -> Dict[str, Any]:
     if not risks:
         risks = _to_str_list(toc.get("assumptions_risks"))
 
+    safeguarding_annex = _to_str_list(
+        _pick_first_list(
+            toc,
+            (
+                "safeguarding_annex",
+                "risk_safeguarding_annex",
+                "annex_readiness",
+                "annexes",
+            ),
+        )
+    )
+
     return {
         "overall_objective": overall_objective,
         "specific_objectives": specific_objectives,
         "expected_outcomes": expected_outcomes,
         "assumptions": assumptions,
         "risks": risks,
+        "safeguarding_annex": safeguarding_annex,
     }
 
 
