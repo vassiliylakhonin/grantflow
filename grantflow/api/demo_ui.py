@@ -8098,39 +8098,12 @@ def render_demo_ui_html() -> str:
       async function downloadPilotQuickReport() {
         const jobId = currentJobId();
         if (!jobId) throw new Error("No job_id");
-        const [quality, metrics, exportPayload, workflow] = await Promise.all([
-          refreshQuality(),
-          refreshMetrics(),
-          refreshExportPayload(),
-          refreshReviewWorkflow(),
-        ]);
-        const qualityRoot = quality && typeof quality === "object" ? quality : {};
-        const metricsRoot = metrics && typeof metrics === "object" ? metrics : {};
-        const payloadRoot = exportPayload && typeof exportPayload === "object" ? (exportPayload.payload || {}) : {};
-        const readiness = payloadRoot && typeof payloadRoot === "object"
-          ? (payloadRoot.submission_package_readiness || {})
-          : {};
-        const workflowRoot = workflow && typeof workflow === "object" ? workflow : {};
-        const report = {
-          generated_at: new Date().toISOString(),
-          api_base: apiBase(),
-          job_id: jobId,
-          terminal_status: metricsRoot.terminal_status || null,
-          quality_score: qualityRoot.quality_score ?? null,
-          critic_score: qualityRoot.critic_score ?? null,
-          grounded_trust_score:
-            (metricsRoot.grounding_trust_summary && metricsRoot.grounding_trust_summary.score)
-            ?? (qualityRoot.grounding_trust_summary && qualityRoot.grounding_trust_summary.score)
-            ?? null,
-          export_readiness_status: readiness.readiness_status || null,
-          export_completeness_score: readiness.completeness_score ?? null,
-          export_top_gap: readiness.top_gap || null,
-          review_workflow_summary_present: Boolean(workflowRoot.summary && typeof workflowRoot.summary === "object"),
-        };
+        const report = await apiFetch(`/status/${encodeURIComponent(jobId)}/pilot-quick-report`);
+        const reportRoot = report && typeof report === "object" ? report : {};
         const dateSuffix = new Date().toISOString().slice(0, 10);
-        const jsonBlob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+        const jsonBlob = new Blob([JSON.stringify(reportRoot, null, 2)], { type: "application/json" });
         downloadBlob(jsonBlob, `pilot_quick_report_${jobId}_${dateSuffix}.json`);
-        const markdown = buildPilotQuickReportMarkdown(report);
+        const markdown = buildPilotQuickReportMarkdown(reportRoot);
         const mdBlob = new Blob([markdown], { type: "text/markdown" });
         downloadBlob(mdBlob, `pilot_quick_report_${jobId}_${dateSuffix}.md`);
       }

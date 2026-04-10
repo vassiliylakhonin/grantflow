@@ -14612,6 +14612,31 @@ def test_demo_endpoint_chain_exposes_quality_metrics_and_export_readiness():
     assert submission_readiness.get("top_gap") is not None
 
 
+def test_status_pilot_quick_report_endpoint_exposes_compact_review_snapshot():
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+
+    report = client.get(f"/status/{job_id}/pilot-quick-report")
+    assert report.status_code == 200
+    body = report.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "done"
+    assert body["export_readiness_status"] in {"ready", "partial", "weak", "missing"}
+    assert body.get("export_top_gap") is not None
+    assert isinstance(body.get("review_workflow_summary_present"), bool)
+
+
 def test_public_export_payload_downgrades_rfq_readiness_when_ready_annex_file_is_missing():
     job = {
         "status": "done",
