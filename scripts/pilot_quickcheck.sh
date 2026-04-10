@@ -8,6 +8,7 @@ AUTO_JOB="${AUTO_JOB:-0}"
 PRESET_KEY="${PRESET_KEY:-un_agencies_katch_evaluation_kyrgyzstan}"
 PRESET_TYPE="${PRESET_TYPE:-auto}"
 JOB_TIMEOUT_SEC="${JOB_TIMEOUT_SEC:-180}"
+POLL_INTERVAL_SEC="${POLL_INTERVAL_SEC:-2}"
 SKIP_QA_FAST="${SKIP_QA_FAST:-0}"
 SKIP_DEMO_SMOKE="${SKIP_DEMO_SMOKE:-0}"
 REPORT_DIR="${REPORT_DIR:-build/pilot-quickcheck}"
@@ -37,15 +38,15 @@ fi
 
 if [[ -z "$JOB_ID" && "$AUTO_JOB" == "1" ]]; then
   printf "[3.5/4] Auto-create job from preset: %s\n" "$PRESET_KEY"
-  JOB_ID="$(python3 - "$API_BASE" "$API_KEY" "$PRESET_KEY" "$PRESET_TYPE" "$JOB_TIMEOUT_SEC" <<'PY'
+  JOB_ID="$(python3 - "$API_BASE" "$API_KEY" "$PRESET_KEY" "$PRESET_TYPE" "$JOB_TIMEOUT_SEC" "$POLL_INTERVAL_SEC" <<'PY'
 import json
 import sys
 import time
-import urllib.error
 import urllib.request
 
-api_base, api_key, preset_key, preset_type, timeout_sec = sys.argv[1:6]
+api_base, api_key, preset_key, preset_type, timeout_sec, poll_interval_sec = sys.argv[1:7]
 timeout_sec = int(timeout_sec)
+poll_interval_sec = float(poll_interval_sec)
 
 headers = {"Content-Type": "application/json"}
 if api_key:
@@ -90,7 +91,7 @@ while time.time() < deadline:
             raise SystemExit(f"job ended with status={status}")
         print(job_id)
         raise SystemExit(0)
-    time.sleep(2)
+    time.sleep(max(0.5, poll_interval_sec))
 
 raise SystemExit(f"job did not finish within {timeout_sec}s")
 PY
@@ -98,14 +99,14 @@ PY
   printf "auto job ready: %s\n" "$JOB_ID"
 fi
 
-python3 - "$API_BASE" "$JOB_ID" "$REPORT_JSON" "$REPORT_MD" <<'PY'
+python3 - "$API_BASE" "$JOB_ID" "$REPORT_JSON" "$REPORT_MD" "$API_KEY" <<'PY'
 import json
 import pathlib
 import sys
 import urllib.request
 from datetime import datetime, timezone
 
-api_base, job_id, report_json_path, report_md_path = sys.argv[1:5]
+api_base, job_id, report_json_path, report_md_path, api_key = sys.argv[1:6]
 
 report = {
     "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -121,7 +122,10 @@ report = {
 
 if job_id:
     def fetch_json(url: str):
-        with urllib.request.urlopen(url, timeout=30) as response:
+        req = urllib.request.Request(url, method="GET")
+        if api_key:
+            req.add_header("X-API-Key", api_key)
+        with urllib.request.urlopen(req, timeout=30) as response:
             return json.loads(response.read().decode("utf-8"))
 
     quality = fetch_json(f"{api_base}/status/{job_id}/quality")
