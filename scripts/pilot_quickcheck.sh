@@ -8,9 +8,12 @@ AUTO_JOB="${AUTO_JOB:-0}"
 PRESET_KEY="${PRESET_KEY:-un_agencies_katch_evaluation_kyrgyzstan}"
 PRESET_TYPE="${PRESET_TYPE:-auto}"
 JOB_TIMEOUT_SEC="${JOB_TIMEOUT_SEC:-180}"
+SKIP_QA_FAST="${SKIP_QA_FAST:-0}"
+SKIP_DEMO_SMOKE="${SKIP_DEMO_SMOKE:-0}"
 REPORT_DIR="${REPORT_DIR:-build/pilot-quickcheck}"
 REPORT_JSON="$REPORT_DIR/report.json"
 REPORT_MD="$REPORT_DIR/report.md"
+REPORT_SUMMARY="$REPORT_DIR/report.summary.txt"
 
 mkdir -p "$REPORT_DIR"
 
@@ -19,10 +22,18 @@ curl -fsS "$API_BASE/health" >/dev/null
 curl -fsS "$API_BASE/ready" >/dev/null
 
 printf "[2/4] Local fast gate (qa-fast)\n"
-make qa-fast >/dev/null
+if [[ "$SKIP_QA_FAST" == "1" ]]; then
+  echo "skip qa-fast (SKIP_QA_FAST=1)"
+else
+  make qa-fast >/dev/null
+fi
 
 printf "[3/4] Demo smoke artifacts\n"
-make ci-demo-smoke >/dev/null
+if [[ "$SKIP_DEMO_SMOKE" == "1" ]]; then
+  echo "skip ci-demo-smoke (SKIP_DEMO_SMOKE=1)"
+else
+  make ci-demo-smoke >/dev/null
+fi
 
 if [[ -z "$JOB_ID" && "$AUTO_JOB" == "1" ]]; then
   printf "[3.5/4] Auto-create job from preset: %s\n" "$PRESET_KEY"
@@ -170,6 +181,32 @@ pathlib.Path(report_json_path).write_text(json.dumps(report, indent=2), encoding
 pathlib.Path(report_md_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
+python3 - "$REPORT_JSON" "$REPORT_SUMMARY" <<'PY'
+import json
+import pathlib
+import sys
+
+report_json, report_summary = sys.argv[1:3]
+report = json.loads(pathlib.Path(report_json).read_text(encoding="utf-8"))
+
+checks = report.get("checks") or {}
+check_line = ", ".join(f"{k}={v}" for k, v in checks.items()) if isinstance(checks, dict) else "checks=unknown"
+
+lines = [
+    f"generated_at={report.get('generated_at')}",
+    f"job_id={report.get('job_id')}",
+    f"terminal_status={report.get('terminal_status')}",
+    check_line,
+]
+
+export_readiness = report.get("export_readiness") or {}
+if isinstance(export_readiness, dict) and export_readiness:
+    lines.append(f"readiness_status={export_readiness.get('readiness_status')}")
+    lines.append(f"top_gap={export_readiness.get('top_gap')}")
+
+pathlib.Path(report_summary).write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+
 if [[ -n "$JOB_ID" ]]; then
   printf "[4/4] Job contract spot-check for %s\n" "$JOB_ID"
   if [[ -n "$API_KEY" ]]; then
@@ -183,4 +220,4 @@ if [[ -n "$JOB_ID" ]]; then
   curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=md" -o "$REPORT_DIR/report_api.md"
 fi
 
-echo "pilot_quickcheck: PASS ($REPORT_JSON, $REPORT_MD)"
+echo "pilot_quickcheck: PASS ($REPORT_JSON, $REPORT_MD, $REPORT_SUMMARY)"
