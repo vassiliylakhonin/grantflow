@@ -2504,7 +2504,7 @@ def mel_assign_indicators(state: Dict[str, Any]) -> Dict[str, Any]:
 
     indicators: list[Dict[str, Any]] = []
     if llm_mode and llm_available:
-        prompts = getattr(strategy, "get_system_prompts", lambda: {})() or {}
+        prompts: Dict[str, Any] = getattr(strategy, "get_system_prompts", lambda: {})() or {}
         model_candidates = llm_model_candidates(
             str(getattr(config.llm, "mel_model", "") or ""),
             str(getattr(config.llm, "reasoning_model", "") or ""),
