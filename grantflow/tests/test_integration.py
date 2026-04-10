@@ -14575,6 +14575,43 @@ def test_status_export_payload_exposes_evaluation_rfq_submission_package_readine
     assert isinstance(export_contract.get("submission_readiness_summary"), dict)
 
 
+def test_demo_endpoint_chain_exposes_quality_metrics_and_export_readiness():
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+
+    quality = client.get(f"/status/{job_id}/quality")
+    assert quality.status_code == 200
+    quality_body = quality.json()
+    assert isinstance(quality_body.get("grounding_trust_summary"), dict)
+    export_contract = quality_body.get("export_contract") or {}
+    assert isinstance(export_contract, dict)
+    assert isinstance(export_contract.get("submission_readiness_summary"), dict)
+
+    metrics = client.get(f"/status/{job_id}/metrics")
+    assert metrics.status_code == 200
+    metrics_body = metrics.json()
+    assert isinstance(metrics_body.get("grounding_trust_summary"), dict)
+    assert metrics_body.get("terminal_status") == "done"
+
+    export_payload = client.get(f"/status/{job_id}/export-payload")
+    assert export_payload.status_code == 200
+    payload_root = export_payload.json().get("payload") or {}
+    submission_readiness = payload_root.get("submission_package_readiness") or {}
+    assert submission_readiness.get("readiness_status") in {"ready", "partial", "weak", "missing"}
+    assert submission_readiness.get("top_gap") is not None
+
+
 def test_public_export_payload_downgrades_rfq_readiness_when_ready_annex_file_is_missing():
     job = {
         "status": "done",
