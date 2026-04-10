@@ -8,6 +8,7 @@ from grantflow.api.public_views import (
     _grounding_trust_summary_payload,
     public_job_critic_payload,
     public_job_export_payload,
+    public_job_metrics_payload,
     public_job_payload,
     public_job_quality_payload,
 )
@@ -504,6 +505,21 @@ def test_public_job_quality_payload_matches_golden_snapshot():
     ]
     actual = public_job_quality_payload("job-quality-1", job, ingest_inventory_rows=inventory_rows)
     assert actual == expected
+
+
+def test_public_job_metrics_payload_core_timing_contract():
+    job = _sample_quality_contract_job()
+
+    actual = public_job_metrics_payload("job-quality-1", job)
+
+    assert actual["status_change_count"] == 5
+    assert actual["pause_count"] == 1
+    assert actual["resume_count"] == 1
+    assert actual["time_to_first_draft_seconds"] == 60.0
+    assert actual["time_to_terminal_seconds"] == 240.0
+    assert actual["time_in_pending_hitl_seconds"] == 70.0
+    assert actual["grounding_trust_summary"]["trust_score"] == 51.1
+    assert actual["grounding_trust_summary"]["trust_level"] == "low"
 
 
 def test_grounding_trust_summary_is_deterministic():
