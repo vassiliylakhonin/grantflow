@@ -8120,6 +8120,7 @@ def render_demo_ui_html() -> str:
 
         await downloadFormat("json", `pilot_quick_report_${jobId}.json`);
         await downloadFormat("md", `pilot_quick_report_${jobId}.md`);
+        await downloadFormat("csv", `pilot_quick_report_${jobId}.csv`);
       }
 
       function applyPortfolioDonorFilter(donorKey) {
