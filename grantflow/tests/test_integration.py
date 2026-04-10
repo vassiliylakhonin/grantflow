@@ -56,6 +56,23 @@ def _drain_hitl_to_done(job_id: str, *, initial_status: dict | None = None, max_
     raise AssertionError("HITL pipeline did not reach done within max_cycles")
 
 
+def _generate_done_pilot_quick_report_job_id() -> str:
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+    return job_id
+
+
 def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
@@ -14610,6 +14627,83 @@ def test_demo_endpoint_chain_exposes_quality_metrics_and_export_readiness():
     submission_readiness = payload_root.get("submission_package_readiness") or {}
     assert submission_readiness.get("readiness_status") in {"ready", "partial", "weak", "missing"}
     assert submission_readiness.get("top_gap") is not None
+
+
+def test_status_pilot_quick_report_endpoint_exposes_compact_review_snapshot():
+    job_id = _generate_done_pilot_quick_report_job_id()
+
+    report = client.get(f"/status/{job_id}/pilot-quick-report")
+    assert report.status_code == 200
+    body = report.json()
+    assert body["job_id"] == job_id
+    assert body["status"] == "done"
+    assert body["export_readiness_status"] in {"ready", "partial", "weak", "missing"}
+    assert body.get("export_top_gap") is not None
+    assert isinstance(body.get("review_workflow_summary_present"), bool)
+
+
+def test_status_pilot_quick_report_export_supports_json_and_markdown():
+    job_id = _generate_done_pilot_quick_report_job_id()
+
+    exported_json = client.get(f"/status/{job_id}/pilot-quick-report/export?format=json")
+    assert exported_json.status_code == 200
+    assert exported_json.headers["content-type"].startswith("application/json")
+    assert f"pilot_quick_report_{job_id}.json" in exported_json.headers.get("content-disposition", "")
+    json_payload = json.loads(exported_json.text)
+    assert json_payload["job_id"] == job_id
+
+    exported_md = client.get(f"/status/{job_id}/pilot-quick-report/export?format=md")
+    assert exported_md.status_code == 200
+    assert exported_md.headers["content-type"].startswith("text/markdown")
+    assert f"pilot_quick_report_{job_id}.md" in exported_md.headers.get("content-disposition", "")
+    assert "# Pilot Quick Report" in exported_md.text
+
+    exported_csv = client.get(f"/status/{job_id}/pilot-quick-report/export?format=csv")
+    assert exported_csv.status_code == 200
+    assert exported_csv.headers["content-type"].startswith("text/csv")
+    assert f"pilot_quick_report_{job_id}.csv" in exported_csv.headers.get("content-disposition", "")
+    assert "job_id" in exported_csv.text.splitlines()[0]
+
+
+def test_status_pilot_quick_report_export_supports_gzip_json():
+    job_id = _generate_done_pilot_quick_report_job_id()
+
+    exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=json&gzip=true")
+    assert exported_gz.status_code == 200
+    assert exported_gz.headers["content-type"].startswith("application/gzip")
+    assert exported_gz.headers.get("content-disposition", "").endswith(".json.gz\"")
+    payload = json.loads(gzip.decompress(exported_gz.content).decode("utf-8"))
+    assert payload["job_id"] == job_id
+
+
+def test_status_pilot_quick_report_export_supports_gzip_markdown():
+    job_id = _generate_done_pilot_quick_report_job_id()
+
+    exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=md&gzip=true")
+    assert exported_gz.status_code == 200
+    assert exported_gz.headers["content-type"].startswith("application/gzip")
+    assert exported_gz.headers.get("content-disposition", "").endswith(".md.gz\"")
+    markdown = gzip.decompress(exported_gz.content).decode("utf-8")
+    assert "# Pilot Quick Report" in markdown
+
+
+def test_status_pilot_quick_report_export_supports_gzip_csv():
+    job_id = _generate_done_pilot_quick_report_job_id()
+
+    exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=csv&gzip=true")
+    assert exported_gz.status_code == 200
+    assert exported_gz.headers["content-type"].startswith("application/gzip")
+    assert exported_gz.headers.get("content-disposition", "").endswith(".csv.gz\"")
+    csv_text = gzip.decompress(exported_gz.content).decode("utf-8")
+    assert "job_id" in csv_text.splitlines()[0]
+
+
+def test_status_pilot_quick_report_export_rejects_unsupported_format():
+    job_id = _generate_done_pilot_quick_report_job_id()
+
+    bad = client.get(f"/status/{job_id}/pilot-quick-report/export?format=txt")
+    assert bad.status_code == 400
+    assert bad.json().get("detail") == "Unsupported format"
 
 
 def test_public_export_payload_downgrades_rfq_readiness_when_ready_annex_file_is_missing():

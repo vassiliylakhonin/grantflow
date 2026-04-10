@@ -516,6 +516,7 @@ jobs:
           curl -fsS http://127.0.0.1:8000/health >/dev/null
 
           make ci-demo-smoke CI_DEMO_SMOKE_ROOT=build/ci-demo-smoke | tee demo-smoke-artifacts/ci-demo-smoke.log
+          make ci-pilot-quickcheck-smoke | tee demo-smoke-artifacts/ci-pilot-quickcheck-smoke.log
 
       - name: Publish demo review smoke summary
         if: always()
@@ -524,6 +525,14 @@ jobs:
             cat demo-smoke-artifacts/demo-review-smoke-summary.md >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Demo review smoke summary not found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ -f build/pilot-quickcheck/report.summary.txt ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "## Pilot quickcheck summary" >> "$GITHUB_STEP_SUMMARY"
+            cat build/pilot-quickcheck/report.summary.txt >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Pilot quickcheck summary not found." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload demo smoke artifacts
@@ -535,6 +544,7 @@ jobs:
             demo-smoke-artifacts/
             demo-smoke-artifacts/demo-review-smoke-summary.md
             build/ci-demo-smoke/
+            build/pilot-quickcheck/
             build/latest-open-order.md
           if-no-files-found: error
 

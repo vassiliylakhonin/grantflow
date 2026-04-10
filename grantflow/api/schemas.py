@@ -1012,6 +1012,22 @@ class JobQualitySummaryPublicResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class JobPilotQuickReportPublicResponse(BaseModel):
+    generated_at: str
+    job_id: str
+    status: str
+    terminal_status: Optional[str] = None
+    quality_score: Optional[float] = None
+    critic_score: Optional[float] = None
+    grounded_trust_score: Optional[float] = None
+    export_readiness_status: Optional[str] = None
+    export_completeness_score: Optional[float] = None
+    export_top_gap: Optional[str] = None
+    review_workflow_summary_present: bool = False
+
+    model_config = ConfigDict(extra="allow")
+
+
 class JobGroundingGatePublicResponse(BaseModel):
     job_id: str
     status: str

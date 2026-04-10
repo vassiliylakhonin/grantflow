@@ -3,9 +3,18 @@ set -euo pipefail
 
 API_BASE="${API_BASE:-http://127.0.0.1:8000}"
 JOB_ID="${JOB_ID:-}"
+API_KEY="${API_KEY:-}"
+AUTO_JOB="${AUTO_JOB:-0}"
+PRESET_KEY="${PRESET_KEY:-un_agencies_katch_evaluation_kyrgyzstan}"
+PRESET_TYPE="${PRESET_TYPE:-auto}"
+JOB_TIMEOUT_SEC="${JOB_TIMEOUT_SEC:-180}"
+POLL_INTERVAL_SEC="${POLL_INTERVAL_SEC:-2}"
+SKIP_QA_FAST="${SKIP_QA_FAST:-0}"
+SKIP_DEMO_SMOKE="${SKIP_DEMO_SMOKE:-0}"
 REPORT_DIR="${REPORT_DIR:-build/pilot-quickcheck}"
 REPORT_JSON="$REPORT_DIR/report.json"
 REPORT_MD="$REPORT_DIR/report.md"
+REPORT_SUMMARY="$REPORT_DIR/report.summary.txt"
 
 mkdir -p "$REPORT_DIR"
 
@@ -14,19 +23,90 @@ curl -fsS "$API_BASE/health" >/dev/null
 curl -fsS "$API_BASE/ready" >/dev/null
 
 printf "[2/4] Local fast gate (qa-fast)\n"
-make qa-fast >/dev/null
+if [[ "$SKIP_QA_FAST" == "1" ]]; then
+  echo "skip qa-fast (SKIP_QA_FAST=1)"
+else
+  make qa-fast >/dev/null
+fi
 
 printf "[3/4] Demo smoke artifacts\n"
-make ci-demo-smoke >/dev/null
+if [[ "$SKIP_DEMO_SMOKE" == "1" ]]; then
+  echo "skip ci-demo-smoke (SKIP_DEMO_SMOKE=1)"
+else
+  make ci-demo-smoke >/dev/null
+fi
 
-python3 - "$API_BASE" "$JOB_ID" "$REPORT_JSON" "$REPORT_MD" <<'PY'
+if [[ -z "$JOB_ID" && "$AUTO_JOB" == "1" ]]; then
+  printf "[3.5/4] Auto-create job from preset: %s\n" "$PRESET_KEY"
+  JOB_ID="$(python3 - "$API_BASE" "$API_KEY" "$PRESET_KEY" "$PRESET_TYPE" "$JOB_TIMEOUT_SEC" "$POLL_INTERVAL_SEC" <<'PY'
+import json
+import sys
+import time
+import urllib.request
+
+api_base, api_key, preset_key, preset_type, timeout_sec, poll_interval_sec = sys.argv[1:7]
+timeout_sec = int(timeout_sec)
+poll_interval_sec = float(poll_interval_sec)
+
+headers = {"Content-Type": "application/json"}
+if api_key:
+    headers["X-API-Key"] = api_key
+
+payload = {
+    "preset_key": preset_key,
+    "preset_type": preset_type,
+    "llm_mode": False,
+    "hitl_enabled": False,
+}
+
+req = urllib.request.Request(
+    f"{api_base}/generate/from-preset",
+    data=json.dumps(payload).encode("utf-8"),
+    headers=headers,
+    method="POST",
+)
+with urllib.request.urlopen(req, timeout=30) as resp:
+    body = json.loads(resp.read().decode("utf-8"))
+
+job_id = str(body.get("job_id") or "").strip()
+if not job_id:
+    raise SystemExit("missing job_id in /generate/from-preset response")
+
+status_headers = {}
+if api_key:
+    status_headers["X-API-Key"] = api_key
+
+deadline = time.time() + timeout_sec
+while time.time() < deadline:
+    status_req = urllib.request.Request(
+        f"{api_base}/status/{job_id}",
+        headers=status_headers,
+        method="GET",
+    )
+    with urllib.request.urlopen(status_req, timeout=30) as resp:
+        status_body = json.loads(resp.read().decode("utf-8"))
+    status = str(status_body.get("status") or "").lower()
+    if status in {"done", "failed", "canceled"}:
+        if status != "done":
+            raise SystemExit(f"job ended with status={status}")
+        print(job_id)
+        raise SystemExit(0)
+    time.sleep(max(0.5, poll_interval_sec))
+
+raise SystemExit(f"job did not finish within {timeout_sec}s")
+PY
+)"
+  printf "auto job ready: %s\n" "$JOB_ID"
+fi
+
+python3 - "$API_BASE" "$JOB_ID" "$REPORT_JSON" "$REPORT_MD" "$API_KEY" <<'PY'
 import json
 import pathlib
 import sys
 import urllib.request
 from datetime import datetime, timezone
 
-api_base, job_id, report_json_path, report_md_path = sys.argv[1:5]
+api_base, job_id, report_json_path, report_md_path, api_key = sys.argv[1:6]
 
 report = {
     "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -42,7 +122,10 @@ report = {
 
 if job_id:
     def fetch_json(url: str):
-        with urllib.request.urlopen(url, timeout=30) as response:
+        req = urllib.request.Request(url, method="GET")
+        if api_key:
+            req.add_header("X-API-Key", api_key)
+        with urllib.request.urlopen(req, timeout=30) as response:
             return json.loads(response.read().decode("utf-8"))
 
     quality = fetch_json(f"{api_base}/status/{job_id}/quality")
@@ -102,10 +185,44 @@ pathlib.Path(report_json_path).write_text(json.dumps(report, indent=2), encoding
 pathlib.Path(report_md_path).write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
+python3 - "$REPORT_JSON" "$REPORT_SUMMARY" <<'PY'
+import json
+import pathlib
+import sys
+
+report_json, report_summary = sys.argv[1:3]
+report = json.loads(pathlib.Path(report_json).read_text(encoding="utf-8"))
+
+checks = report.get("checks") or {}
+check_line = ", ".join(f"{k}={v}" for k, v in checks.items()) if isinstance(checks, dict) else "checks=unknown"
+
+lines = [
+    f"generated_at={report.get('generated_at')}",
+    f"job_id={report.get('job_id')}",
+    f"terminal_status={report.get('terminal_status')}",
+    check_line,
+]
+
+export_readiness = report.get("export_readiness") or {}
+if isinstance(export_readiness, dict) and export_readiness:
+    lines.append(f"readiness_status={export_readiness.get('readiness_status')}")
+    lines.append(f"top_gap={export_readiness.get('top_gap')}")
+
+pathlib.Path(report_summary).write_text("\n".join(lines) + "\n", encoding="utf-8")
+PY
+
 if [[ -n "$JOB_ID" ]]; then
   printf "[4/4] Job contract spot-check for %s\n" "$JOB_ID"
-  curl -fsS "$API_BASE/status/$JOB_ID/quality" | python3 -c 'import json,sys;d=json.load(sys.stdin);s=((d.get("export_contract") or {}).get("submission_readiness_summary") or {});assert s.get("readiness_status") in {"ready","partial","weak","missing"};print("quality_ok")' >/dev/null
-  curl -fsS "$API_BASE/status/$JOB_ID/review/workflow" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert isinstance(d.get("summary"),dict);print("workflow_ok")' >/dev/null
+  if [[ -n "$API_KEY" ]]; then
+    HDR=(-H "X-API-Key: $API_KEY")
+  else
+    HDR=()
+  fi
+  curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/quality" | python3 -c 'import json,sys;d=json.load(sys.stdin);s=((d.get("export_contract") or {}).get("submission_readiness_summary") or {});assert s.get("readiness_status") in {"ready","partial","weak","missing"};print("quality_ok")' >/dev/null
+  curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/review/workflow" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert isinstance(d.get("summary"),dict);print("workflow_ok")' >/dev/null
+  curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=json" -o "$REPORT_DIR/report_api.json"
+  curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=md" -o "$REPORT_DIR/report_api.md"
+  curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=csv" -o "$REPORT_DIR/report_api.csv"
 fi
 
-echo "pilot_quickcheck: PASS ($REPORT_JSON, $REPORT_MD)"
+echo "pilot_quickcheck: PASS ($REPORT_JSON, $REPORT_MD, $REPORT_SUMMARY)"

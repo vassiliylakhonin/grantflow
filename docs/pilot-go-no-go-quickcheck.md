@@ -8,9 +8,34 @@ One-command option:
 make pilot-quickcheck
 ```
 
+Auto-create and validate one preset job end-to-end:
+
+```bash
+make pilot-quickcheck-auto
+```
+
+Light mode (skip local qa/smoke, keep API-level report checks):
+
+```bash
+make pilot-quickcheck-light
+```
+
+CI-friendly one-command smoke:
+
+```bash
+make ci-pilot-quickcheck-smoke
+```
+
+Useful env overrides:
+- `API_KEY=<key>` (for protected API)
+- `PRESET_KEY=<preset>` / `PRESET_TYPE=<type>`
+- `JOB_TIMEOUT_SEC=<seconds>` / `POLL_INTERVAL_SEC=<seconds>`
+
 Artifacts:
 - `build/pilot-quickcheck/report.json`
 - `build/pilot-quickcheck/report.md`
+- `build/pilot-quickcheck/report.summary.txt`
+- with `JOB_ID` (or `AUTO_JOB=1`): `build/pilot-quickcheck/report_api.json` + `build/pilot-quickcheck/report_api.md` + `build/pilot-quickcheck/report_api.csv`
 
 ## 1) Runtime up and healthy
 
