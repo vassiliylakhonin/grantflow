@@ -2,6 +2,12 @@
 
 Use this right before demo or pilot handoff.
 
+One-command option:
+
+```bash
+make pilot-quickcheck
+```
+
 ## 1) Runtime up and healthy
 
 ```bash
