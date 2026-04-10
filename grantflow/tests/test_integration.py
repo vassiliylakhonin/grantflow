@@ -14671,7 +14671,7 @@ def test_status_pilot_quick_report_export_supports_gzip_json():
     exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=json&gzip=true")
     assert exported_gz.status_code == 200
     assert exported_gz.headers["content-type"].startswith("application/gzip")
-    assert exported_gz.headers.get("content-disposition", "").endswith(".json.gz\"")
+    assert exported_gz.headers.get("content-disposition", "").endswith('.json.gz"')
     payload = json.loads(gzip.decompress(exported_gz.content).decode("utf-8"))
     assert payload["job_id"] == job_id
 
@@ -14682,7 +14682,7 @@ def test_status_pilot_quick_report_export_supports_gzip_markdown():
     exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=md&gzip=true")
     assert exported_gz.status_code == 200
     assert exported_gz.headers["content-type"].startswith("application/gzip")
-    assert exported_gz.headers.get("content-disposition", "").endswith(".md.gz\"")
+    assert exported_gz.headers.get("content-disposition", "").endswith('.md.gz"')
     markdown = gzip.decompress(exported_gz.content).decode("utf-8")
     assert "# Pilot Quick Report" in markdown
 
@@ -14693,7 +14693,7 @@ def test_status_pilot_quick_report_export_supports_gzip_csv():
     exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=csv&gzip=true")
     assert exported_gz.status_code == 200
     assert exported_gz.headers["content-type"].startswith("application/gzip")
-    assert exported_gz.headers.get("content-disposition", "").endswith(".csv.gz\"")
+    assert exported_gz.headers.get("content-disposition", "").endswith('.csv.gz"')
     csv_text = gzip.decompress(exported_gz.content).decode("utf-8")
     assert "job_id" in csv_text.splitlines()[0]
 

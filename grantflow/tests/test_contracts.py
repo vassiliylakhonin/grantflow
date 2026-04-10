@@ -453,7 +453,7 @@ def test_public_job_export_payload_degrades_attachment_readiness_when_ready_file
     }
 
     actual = public_job_export_payload("job-attachment-check-1", job)
-    readiness = ((actual.get("payload") or {}).get("submission_package_readiness") or {})
+    readiness = (actual.get("payload") or {}).get("submission_package_readiness") or {}
 
     assert readiness.get("top_gap") == "attachment_files"
     assert readiness.get("readiness_status") == "partial"
@@ -487,10 +487,10 @@ def test_public_job_export_payload_uses_state_export_contract_gate_when_provided
     }
 
     actual = public_job_export_payload("job-export-contract-1", job)
-    export_contract = ((actual.get("payload") or {}).get("export_contract") or {})
+    export_contract = (actual.get("payload") or {}).get("export_contract") or {}
 
     assert export_contract == gate
-    readiness = ((actual.get("payload") or {}).get("submission_package_readiness") or {})
+    readiness = (actual.get("payload") or {}).get("submission_package_readiness") or {}
     assert readiness.get("readiness_status") == "partial"
     assert readiness.get("completeness_score") == 62.5
 
