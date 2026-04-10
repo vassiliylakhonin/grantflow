@@ -52,6 +52,8 @@ Built for governed drafting and review workflows — not a generic grant-writing
 - supply-chain scanning with `pip-audit` + CycloneDX SBOM artifacts
 - deterministic dependency scanning from hash-locked lockfiles
 - grounded smoke performance budget guard (latency + throughput)
+- manual CI trigger available via GitHub Actions `workflow_dispatch`
+- Dependabot automation for GitHub Actions + pip dependencies (`.github/dependabot.yml`)
 
 ---
 
