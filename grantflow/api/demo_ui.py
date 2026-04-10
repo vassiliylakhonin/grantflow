@@ -410,6 +410,7 @@ def render_demo_ui_html() -> str:
             <div class="row">
               <button id="qualityBtn" class="ghost">Load Quality Summary</button>
               <button id="qualityOpenExportPayloadBtn" class="ghost">Open Export Payload</button>
+              <button id="downloadPilotQuickReportBtn" class="ghost">Download Pilot Quick Report</button>
               <div class="sub" style="align-self:center;">Critic + citations + architect policy summary for reviewer triage.</div>
             </div>
             <div class="kpis" id="qualityCards" style="margin-top:10px;">
@@ -2201,6 +2202,7 @@ def render_demo_ui_html() -> str:
         criticBulkClearFiltersBtn: $("criticBulkClearFiltersBtn"),
         qualityBtn: $("qualityBtn"),
         qualityOpenExportPayloadBtn: $("qualityOpenExportPayloadBtn"),
+        downloadPilotQuickReportBtn: $("downloadPilotQuickReportBtn"),
         portfolioBtn: $("portfolioBtn"),
         portfolioReviewWorkflowBtn: $("portfolioReviewWorkflowBtn"),
         portfolioReviewWorkflowSlaBtn: $("portfolioReviewWorkflowSlaBtn"),
@@ -8067,6 +8069,72 @@ def render_demo_ui_html() -> str:
         }
       }
 
+      function buildPilotQuickReportMarkdown(report) {
+        const lines = [];
+        lines.push("# Pilot Quick Report");
+        lines.push("");
+        lines.push(`- generated_at: ${String(report.generated_at || "-")}`);
+        lines.push(`- job_id: ${String(report.job_id || "-")}`);
+        lines.push("");
+        lines.push("## Runtime");
+        lines.push(`- api_base: ${String(report.api_base || "-")}`);
+        lines.push(`- terminal_status: ${String(report.terminal_status || "-")}`);
+        lines.push("");
+        lines.push("## Quality");
+        lines.push(`- quality_score: ${String(report.quality_score ?? "-")}`);
+        lines.push(`- critic_score: ${String(report.critic_score ?? "-")}`);
+        lines.push(`- grounded_trust_score: ${String(report.grounded_trust_score ?? "-")}`);
+        lines.push("");
+        lines.push("## Export readiness");
+        lines.push(`- readiness_status: ${String(report.export_readiness_status || "-")}`);
+        lines.push(`- completeness_score: ${String(report.export_completeness_score ?? "-")}`);
+        lines.push(`- top_gap: ${String(report.export_top_gap || "-")}`);
+        lines.push("");
+        lines.push("## Workflow");
+        lines.push(`- summary_present: ${String(Boolean(report.review_workflow_summary_present))}`);
+        return lines.join("\n");
+      }
+
+      async function downloadPilotQuickReport() {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        const [quality, metrics, exportPayload, workflow] = await Promise.all([
+          refreshQuality(),
+          refreshMetrics(),
+          refreshExportPayload(),
+          refreshReviewWorkflow(),
+        ]);
+        const qualityRoot = quality && typeof quality === "object" ? quality : {};
+        const metricsRoot = metrics && typeof metrics === "object" ? metrics : {};
+        const payloadRoot = exportPayload && typeof exportPayload === "object" ? (exportPayload.payload || {}) : {};
+        const readiness = payloadRoot && typeof payloadRoot === "object"
+          ? (payloadRoot.submission_package_readiness || {})
+          : {};
+        const workflowRoot = workflow && typeof workflow === "object" ? workflow : {};
+        const report = {
+          generated_at: new Date().toISOString(),
+          api_base: apiBase(),
+          job_id: jobId,
+          terminal_status: metricsRoot.terminal_status || null,
+          quality_score: qualityRoot.quality_score ?? null,
+          critic_score: qualityRoot.critic_score ?? null,
+          grounded_trust_score:
+            (metricsRoot.grounding_trust_summary && metricsRoot.grounding_trust_summary.score)
+            ?? (qualityRoot.grounding_trust_summary && qualityRoot.grounding_trust_summary.score)
+            ?? null,
+          export_readiness_status: readiness.readiness_status || null,
+          export_completeness_score: readiness.completeness_score ?? null,
+          export_top_gap: readiness.top_gap || null,
+          review_workflow_summary_present: Boolean(workflowRoot.summary && typeof workflowRoot.summary === "object"),
+        };
+        const dateSuffix = new Date().toISOString().slice(0, 10);
+        const jsonBlob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+        downloadBlob(jsonBlob, `pilot_quick_report_${jobId}_${dateSuffix}.json`);
+        const markdown = buildPilotQuickReportMarkdown(report);
+        const mdBlob = new Blob([markdown], { type: "text/markdown" });
+        downloadBlob(mdBlob, `pilot_quick_report_${jobId}_${dateSuffix}.md`);
+      }
+
       function applyPortfolioDonorFilter(donorKey) {
         els.portfolioDonorFilter.value = donorKey || "";
         persistUiState();
@@ -9803,6 +9871,9 @@ def render_demo_ui_html() -> str:
         els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
         els.qualityOpenExportPayloadBtn?.addEventListener("click", () =>
           openExportPayloadFromQuality().catch(showError)
+        );
+        els.downloadPilotQuickReportBtn?.addEventListener("click", () =>
+          downloadPilotQuickReport().catch(showError)
         );
         els.workerHeartbeatBtn.addEventListener("click", () => refreshWorkerHeartbeat().catch(showError));
         els.workerHeartbeatPollToggleBtn.addEventListener("click", toggleWorkerHeartbeatPolling);
