@@ -1694,6 +1694,24 @@ def _pilot_quick_report_markdown(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def _pilot_quick_report_csv(payload: dict) -> str:
+    keys = [
+        "generated_at",
+        "job_id",
+        "status",
+        "terminal_status",
+        "quality_score",
+        "critic_score",
+        "grounded_trust_score",
+        "export_readiness_status",
+        "export_completeness_score",
+        "export_top_gap",
+        "review_workflow_summary_present",
+    ]
+    values = [str(payload.get(k, "")) for k in keys]
+    return ",".join(keys) + "\n" + ",".join(values) + "\n"
+
+
 @exports_router.get("/status/{job_id}/pilot-quick-report/export")
 def export_status_pilot_quick_report(
     job_id: str,
@@ -1745,16 +1763,16 @@ def export_status_pilot_quick_report(
     }
 
     export_format = str(format or "json").strip().lower()
-    if export_format == "json":
+    if export_format in {"json", "csv"}:
         return _portfolio_export_response(
             payload=report_payload,
             filename_prefix=f"pilot_quick_report_{job_id}",
             donor_id=None,
             status=None,
             hitl_enabled=None,
-            export_format="json",
+            export_format="csv" if export_format == "csv" else "json",
             gzip_enabled=gzip_enabled,
-            csv_renderer=lambda _: "",
+            csv_renderer=_pilot_quick_report_csv,
         )
     if export_format == "md":
         body_text = _pilot_quick_report_markdown(report_payload)

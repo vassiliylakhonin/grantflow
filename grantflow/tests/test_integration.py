@@ -14664,6 +14664,11 @@ def test_status_pilot_quick_report_export_supports_json_and_markdown():
     assert exported_md.headers["content-type"].startswith("text/markdown")
     assert "# Pilot Quick Report" in exported_md.text
 
+    exported_csv = client.get(f"/status/{job_id}/pilot-quick-report/export?format=csv")
+    assert exported_csv.status_code == 200
+    assert exported_csv.headers["content-type"].startswith("text/csv")
+    assert "job_id" in exported_csv.text.splitlines()[0]
+
 
 def test_status_pilot_quick_report_export_supports_gzip_json():
     gen = client.post(
