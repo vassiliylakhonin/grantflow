@@ -2667,9 +2667,11 @@ def _pilot_success_kpis_payload(
         "kpis": {
             "cycle_time": {
                 "target_reduction_range": "30-50%",
-                "time_to_terminal_seconds": round(float(time_to_terminal_seconds), 3)
-                if isinstance(time_to_terminal_seconds, (int, float))
-                else None,
+                "time_to_terminal_seconds": (
+                    round(float(time_to_terminal_seconds), 3)
+                    if isinstance(time_to_terminal_seconds, (int, float))
+                    else None
+                ),
                 "baseline_required": True,
             },
             "review_loops": {

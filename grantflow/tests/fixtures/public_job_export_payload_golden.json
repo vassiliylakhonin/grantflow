@@ -47,6 +47,36 @@
           "grounding_risk_level": "unknown"
         },
         "formula": "trust = 100 * (0.45*confidence + 0.35*traceability + 0.20*(1-diagnostic_risk))"
+      },
+      "pilot_success_kpis": {
+        "scorecard_version": "pilot-success-metrics-v1",
+        "kpis": {
+          "cycle_time": {
+            "target_reduction_range": "30-50%",
+            "time_to_terminal_seconds": null,
+            "baseline_required": true
+          },
+          "review_loops": {
+            "target_reduction_range": "20-40%",
+            "review_round_count_proxy": 0,
+            "pause_count": 0,
+            "resume_count": 0,
+            "proxy_ready_threshold": "<=2 rounds",
+            "proxy_ready": true,
+            "baseline_required": true
+          },
+          "traceability_coverage": {
+            "target_min": 0.9,
+            "retrieval_grounded_citation_rate": null,
+            "citation_count": 0,
+            "ready": false
+          },
+          "compliance_completeness": {
+            "target_min": 0.95,
+            "export_contract_submission_readiness_required": true,
+            "measured_in": "/status/{job_id}/export-payload.payload.submission_package_readiness"
+          }
+        }
       }
     },
     "critic_findings": [
