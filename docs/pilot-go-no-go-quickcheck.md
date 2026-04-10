@@ -20,6 +20,12 @@ Light mode (skip local qa/smoke, keep API-level report checks):
 make pilot-quickcheck-light
 ```
 
+CI-friendly one-command smoke:
+
+```bash
+make ci-pilot-quickcheck-smoke
+```
+
 Useful env overrides:
 - `API_KEY=<key>` (for protected API)
 - `PRESET_KEY=<preset>` / `PRESET_TYPE=<type>`
