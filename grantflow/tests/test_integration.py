@@ -14665,6 +14665,29 @@ def test_status_pilot_quick_report_export_supports_json_and_markdown():
     assert "# Pilot Quick Report" in exported_md.text
 
 
+def test_status_pilot_quick_report_export_supports_gzip_json():
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+
+    exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=json&gzip=true")
+    assert exported_gz.status_code == 200
+    assert exported_gz.headers["content-type"].startswith("application/gzip")
+    assert exported_gz.headers.get("content-disposition", "").endswith(".json.gz\"")
+    payload = json.loads(gzip.decompress(exported_gz.content).decode("utf-8"))
+    assert payload["job_id"] == job_id
+
+
 def test_public_export_payload_downgrades_rfq_readiness_when_ready_annex_file_is_missing():
     job = {
         "status": "done",
