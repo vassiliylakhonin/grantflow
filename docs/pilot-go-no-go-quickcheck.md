@@ -8,10 +8,16 @@ One-command option:
 make pilot-quickcheck
 ```
 
+Auto-create and validate one preset job end-to-end:
+
+```bash
+make pilot-quickcheck-auto
+```
+
 Artifacts:
 - `build/pilot-quickcheck/report.json`
 - `build/pilot-quickcheck/report.md`
-- with `JOB_ID`: `build/pilot-quickcheck/report_api.json` + `build/pilot-quickcheck/report_api.md`
+- with `JOB_ID` (or `AUTO_JOB=1`): `build/pilot-quickcheck/report_api.json` + `build/pilot-quickcheck/report_api.md`
 
 ## 1) Runtime up and healthy
 
