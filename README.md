@@ -87,6 +87,14 @@ One-command buyer conversion flow (live API required):
 ```bash
 make pilot-conversion-layer DEMO_PACK_API_BASE=http://127.0.0.1:8000
 ```
+
+One-command Kazakhstan AI training validation demo (live API required):
+```bash
+make kz-ai-demo API_BASE=http://127.0.0.1:8000
+```
+Outputs:
+- `build/kz-ai-demo/kz_ai_demo_result.json`
+- `build/kz-ai-demo/kz_ai_demo_result.md`
 Expected outputs:
 - `build/demo-pack/summary.md`
 - `build/executive-pack/README.md`
