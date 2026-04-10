@@ -32,6 +32,7 @@ If you are new to the project, read in this order:
 - `full-guide.md`
 - `git-process.md`
 - `release-process.md`
+- `ci-maintenance.md`
 
 ---
 

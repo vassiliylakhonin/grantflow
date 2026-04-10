@@ -1,0 +1,50 @@
+name: Dependabot Auto-Merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable-automerge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether update is patch/minor
+        id: semver
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+
+          title = os.environ.get("PR_TITLE", "")
+          m = re.search(r" from ([0-9]+(?:\.[0-9]+){0,2}) to ([0-9]+(?:\.[0-9]+){0,2})", title)
+          ok = False
+          if m:
+              old = [int(x) for x in m.group(1).split(".")]
+              new = [int(x) for x in m.group(2).split(".")]
+              while len(old) < 3:
+                  old.append(0)
+              while len(new) < 3:
+                  new.append(0)
+              if new[0] == old[0] and (new[1] > old[1] or (new[1] == old[1] and new[2] >= old[2])):
+                  ok = True
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"allow={str(ok).lower()}\n")
+          PY
+
+      - name: Enable auto-merge (squash) for safe updates
+        if: steps.semver.outputs.allow == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge "${{ github.event.pull_request.number }}" --auto --squash
+
+      - name: Skip major or non-semver update
+        if: steps.semver.outputs.allow != 'true'
+        run: echo "Skip auto-merge: major or unrecognized version bump format"
