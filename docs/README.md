@@ -75,6 +75,7 @@ If you are new to the project, read in this order:
 ## 7) Pilot toolkit (active)
 
 - `pilot-day1-checklist.md`
+- `pilot-go-no-go-quickcheck.md`
 - `pilot-evaluation-checklist.md`
 - `pilot-kickoff-agenda.md`
 - `pilot-proof-outreach-template.md`

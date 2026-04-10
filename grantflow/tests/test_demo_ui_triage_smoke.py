@@ -11,6 +11,11 @@ def test_demo_ui_contains_triage_power_controls_and_telemetry_hooks():
     assert 'id="reviewWorkflowKpiLine"' in html
     assert 'id="reviewWorkflowSloLine"' in html
     assert 'id="downloadTriageOpsReportBtn"' in html
+    assert 'id="qualityOpenExportPayloadBtn"' in html
+    assert 'id="exportPayloadCard"' in html
+    assert 'Export readiness' in html
+    assert 'Export score' in html
+    assert 'Export top gap' in html
 
     # keyboard shortcuts, telemetry persistence, KPI/SLO/report hooks
     assert "function handleTriageShortcut(event)" in html

@@ -409,6 +409,7 @@ def render_demo_ui_html() -> str:
           <div class="body">
             <div class="row">
               <button id="qualityBtn" class="ghost">Load Quality Summary</button>
+              <button id="qualityOpenExportPayloadBtn" class="ghost">Open Export Payload</button>
               <div class="sub" style="align-self:center;">Critic + citations + architect policy summary for reviewer triage.</div>
             </div>
             <div class="kpis" id="qualityCards" style="margin-top:10px;">
@@ -1224,7 +1225,7 @@ def render_demo_ui_html() -> str:
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="exportPayloadCard">
           <h2>Export Payload</h2>
           <div class="body">
             <div class="row">
@@ -1963,6 +1964,7 @@ def render_demo_ui_html() -> str:
         portfolioReviewWorkflowTrendsJson: $("portfolioReviewWorkflowTrendsJson"),
         portfolioReviewWorkflowSlaTrendsJson: $("portfolioReviewWorkflowSlaTrendsJson"),
         criticJson: $("criticJson"),
+        exportPayloadCard: $("exportPayloadCard"),
         exportPayloadJson: $("exportPayloadJson"),
         exportContractPill: $("exportContractPill"),
         exportContractPillText: $("exportContractPillText"),
@@ -2198,6 +2200,7 @@ def render_demo_ui_html() -> str:
         criticBulkApplyBtn: $("criticBulkApplyBtn"),
         criticBulkClearFiltersBtn: $("criticBulkClearFiltersBtn"),
         qualityBtn: $("qualityBtn"),
+        qualityOpenExportPayloadBtn: $("qualityOpenExportPayloadBtn"),
         portfolioBtn: $("portfolioBtn"),
         portfolioReviewWorkflowBtn: $("portfolioReviewWorkflowBtn"),
         portfolioReviewWorkflowSlaBtn: $("portfolioReviewWorkflowSlaBtn"),
@@ -8054,6 +8057,16 @@ def render_demo_ui_html() -> str:
         return body;
       }
 
+      async function openExportPayloadFromQuality() {
+        const jobId = currentJobId();
+        if (!jobId) throw new Error("No job_id");
+        await refreshExportPayload();
+        const target = els.exportPayloadCard || document.getElementById("exportPayloadCard");
+        if (target && typeof target.scrollIntoView === "function") {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+
       function applyPortfolioDonorFilter(donorKey) {
         els.portfolioDonorFilter.value = donorKey || "";
         persistUiState();
@@ -9788,6 +9801,9 @@ def render_demo_ui_html() -> str:
           }
         });
         els.qualityBtn.addEventListener("click", () => refreshQuality().catch(showError));
+        els.qualityOpenExportPayloadBtn?.addEventListener("click", () =>
+          openExportPayloadFromQuality().catch(showError)
+        );
         els.workerHeartbeatBtn.addEventListener("click", () => refreshWorkerHeartbeat().catch(showError));
         els.workerHeartbeatPollToggleBtn.addEventListener("click", toggleWorkerHeartbeatPolling);
         els.workerHeartbeatPollSeconds.addEventListener("change", onWorkerHeartbeatPollIntervalChange);
