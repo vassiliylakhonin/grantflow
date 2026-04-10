@@ -18,9 +18,9 @@ jobs:
   audit-and-sbom:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -41,7 +41,7 @@ jobs:
           cyclonedx-py requirements -i requirements.lock -o sbom.cdx.json
 
       - name: Upload supply-chain artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: supply-chain-artifacts

@@ -20,10 +20,10 @@ jobs:
       OPENROUTER_HTTP_REFERER: ${{ vars.OPENROUTER_HTTP_REFERER }}
       OPENROUTER_X_TITLE: ${{ vars.OPENROUTER_X_TITLE }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -50,7 +50,7 @@ jobs:
             --json-out llm-eval-artifacts/llm-eval-report.json
 
       - name: Upload LLM evaluation report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: llm-eval-report

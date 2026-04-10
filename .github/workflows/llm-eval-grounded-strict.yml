@@ -49,10 +49,10 @@ jobs:
       CHROMA_PORT: ${{ vars.CHROMA_PORT }}
       CHROMA_COLLECTION_PREFIX: ${{ vars.CHROMA_COLLECTION_PREFIX }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -158,7 +158,7 @@ jobs:
           fi
 
       - name: Upload grounded strict LLM evaluation report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: llm-eval-grounded-strict-report
