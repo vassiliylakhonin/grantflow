@@ -14688,6 +14688,26 @@ def test_status_pilot_quick_report_export_supports_gzip_json():
     assert payload["job_id"] == job_id
 
 
+def test_status_pilot_quick_report_export_rejects_unsupported_format():
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+
+    bad = client.get(f"/status/{job_id}/pilot-quick-report/export?format=txt")
+    assert bad.status_code == 400
+    assert bad.json().get("detail") == "Unsupported format"
+
+
 def test_public_export_payload_downgrades_rfq_readiness_when_ready_annex_file_is_missing():
     job = {
         "status": "done",

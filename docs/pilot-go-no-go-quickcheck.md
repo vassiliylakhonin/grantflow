@@ -14,9 +14,16 @@ Auto-create and validate one preset job end-to-end:
 make pilot-quickcheck-auto
 ```
 
+Light mode (skip local qa/smoke, keep API-level report checks):
+
+```bash
+make pilot-quickcheck-light
+```
+
 Artifacts:
 - `build/pilot-quickcheck/report.json`
 - `build/pilot-quickcheck/report.md`
+- `build/pilot-quickcheck/report.summary.txt`
 - with `JOB_ID` (or `AUTO_JOB=1`): `build/pilot-quickcheck/report_api.json` + `build/pilot-quickcheck/report_api.md`
 
 ## 1) Runtime up and healthy
