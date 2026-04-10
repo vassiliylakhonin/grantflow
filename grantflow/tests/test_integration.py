@@ -14648,18 +14648,20 @@ def test_status_pilot_quick_report_export_supports_json_and_markdown():
     exported_json = client.get(f"/status/{job_id}/pilot-quick-report/export?format=json")
     assert exported_json.status_code == 200
     assert exported_json.headers["content-type"].startswith("application/json")
-    assert "pilot_quick_report" in exported_json.headers.get("content-disposition", "")
+    assert f"pilot_quick_report_{job_id}.json" in exported_json.headers.get("content-disposition", "")
     json_payload = json.loads(exported_json.text)
     assert json_payload["job_id"] == job_id
 
     exported_md = client.get(f"/status/{job_id}/pilot-quick-report/export?format=md")
     assert exported_md.status_code == 200
     assert exported_md.headers["content-type"].startswith("text/markdown")
+    assert f"pilot_quick_report_{job_id}.md" in exported_md.headers.get("content-disposition", "")
     assert "# Pilot Quick Report" in exported_md.text
 
     exported_csv = client.get(f"/status/{job_id}/pilot-quick-report/export?format=csv")
     assert exported_csv.status_code == 200
     assert exported_csv.headers["content-type"].startswith("text/csv")
+    assert f"pilot_quick_report_{job_id}.csv" in exported_csv.headers.get("content-disposition", "")
     assert "job_id" in exported_csv.text.splitlines()[0]
 
 
