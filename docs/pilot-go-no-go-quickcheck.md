@@ -8,6 +8,10 @@ One-command option:
 make pilot-quickcheck
 ```
 
+Artifacts:
+- `build/pilot-quickcheck/report.json`
+- `build/pilot-quickcheck/report.md`
+
 ## 1) Runtime up and healthy
 
 ```bash

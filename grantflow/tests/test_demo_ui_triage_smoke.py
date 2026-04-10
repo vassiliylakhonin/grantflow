@@ -12,6 +12,7 @@ def test_demo_ui_contains_triage_power_controls_and_telemetry_hooks():
     assert 'id="reviewWorkflowSloLine"' in html
     assert 'id="downloadTriageOpsReportBtn"' in html
     assert 'id="qualityOpenExportPayloadBtn"' in html
+    assert 'id="downloadPilotQuickReportBtn"' in html
     assert 'id="exportPayloadCard"' in html
     assert 'Export readiness' in html
     assert 'Export score' in html
