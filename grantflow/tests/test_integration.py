@@ -14716,6 +14716,29 @@ def test_status_pilot_quick_report_export_supports_gzip_markdown():
     assert "# Pilot Quick Report" in markdown
 
 
+def test_status_pilot_quick_report_export_supports_gzip_csv():
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+
+    exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=csv&gzip=true")
+    assert exported_gz.status_code == 200
+    assert exported_gz.headers["content-type"].startswith("application/gzip")
+    assert exported_gz.headers.get("content-disposition", "").endswith(".csv.gz\"")
+    csv_text = gzip.decompress(exported_gz.content).decode("utf-8")
+    assert "job_id" in csv_text.splitlines()[0]
+
+
 def test_status_pilot_quick_report_export_rejects_unsupported_format():
     gen = client.post(
         "/generate/from-preset",
