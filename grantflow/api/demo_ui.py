@@ -428,6 +428,9 @@ def render_demo_ui_html() -> str:
               <div class="kpi"><div class="label">Bid/No-Bid verdict</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Bid/No-Bid score</div><div class="value mono">-</div></div>
               <div class="kpi"><div class="label">Bid blockers</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Export readiness</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Export score</div><div class="value mono">-</div></div>
+              <div class="kpi"><div class="label">Export top gap</div><div class="value mono">-</div></div>
             </div>
             <div class="row" style="margin-top:10px;">
               <div id="qualityGroundedGatePill" class="pill readiness-level-none">
@@ -3861,6 +3864,20 @@ def render_demo_ui_html() -> str:
         const bidNoBidBlockers = Array.isArray(bidNoBid?.hard_blockers)
           ? bidNoBid.hard_blockers.filter(Boolean).length
           : 0;
+        const exportContract =
+          summary?.export_contract && typeof summary.export_contract === "object" && !Array.isArray(summary.export_contract)
+            ? summary.export_contract
+            : null;
+        const submissionReadiness =
+          exportContract?.submission_readiness_summary && typeof exportContract.submission_readiness_summary === "object"
+            ? exportContract.submission_readiness_summary
+            : null;
+        const exportReadinessStatus = String(submissionReadiness?.readiness_status || "-");
+        const exportReadinessScore =
+          typeof submissionReadiness?.completeness_score === "number"
+            ? `${Number(submissionReadiness.completeness_score).toFixed(1)}%`
+            : "-";
+        const exportReadinessTopGap = String(submissionReadiness?.top_gap || "-");
         const values = [
           typeof summary?.quality_score === "number" ? Number(summary.quality_score).toFixed(2) : "-",
           typeof summary?.critic_score === "number" ? Number(summary.critic_score).toFixed(2) : "-",
@@ -3888,6 +3905,9 @@ def render_demo_ui_html() -> str:
           bidNoBidVerdict,
           bidNoBidScore,
           String(bidNoBidBlockers || 0),
+          exportReadinessStatus,
+          exportReadinessScore,
+          exportReadinessTopGap,
         ];
         const qualityValueNodes = [...els.qualityCards.querySelectorAll(".kpi .value")];
         qualityValueNodes.forEach((node, i) => {
@@ -4038,6 +4058,37 @@ def render_demo_ui_html() -> str:
           if (bidNoBidBlockers >= 1) bidBlockersNode.classList.add("risk-high");
           else if (bidNoBid) bidBlockersNode.classList.add("risk-low");
           else bidBlockersNode.classList.add("risk-none");
+        }
+        const exportReadinessNode = qualityValueNodes[16];
+        if (exportReadinessNode) {
+          const level = String(exportReadinessStatus || "").toLowerCase();
+          exportReadinessNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          if (level === "missing" || level === "weak") exportReadinessNode.classList.add("risk-high");
+          else if (level === "partial") exportReadinessNode.classList.add("risk-medium");
+          else if (level === "ready") exportReadinessNode.classList.add("risk-low");
+          else exportReadinessNode.classList.add("risk-none");
+          exportReadinessNode.title = submissionReadiness
+            ? `status=${exportReadinessStatus} · score=${exportReadinessScore} · top_gap=${exportReadinessTopGap}`
+            : "No export contract readiness summary";
+        }
+        const exportScoreNode = qualityValueNodes[17];
+        if (exportScoreNode) {
+          exportScoreNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          const scoreRaw = Number(submissionReadiness?.completeness_score ?? NaN);
+          if (Number.isFinite(scoreRaw)) {
+            if (scoreRaw < 60) exportScoreNode.classList.add("risk-high");
+            else if (scoreRaw < 85) exportScoreNode.classList.add("risk-medium");
+            else exportScoreNode.classList.add("risk-low");
+          } else {
+            exportScoreNode.classList.add("risk-none");
+          }
+        }
+        const exportTopGapNode = qualityValueNodes[18];
+        if (exportTopGapNode) {
+          exportTopGapNode.classList.remove("risk-high", "risk-medium", "risk-low", "risk-none");
+          const topGap = String(exportReadinessTopGap || "").toLowerCase();
+          if (!topGap || topGap === "-" || topGap === "none") exportTopGapNode.classList.add("risk-low");
+          else exportTopGapNode.classList.add("risk-medium");
         }
         renderQualityGroundedGateExplain(groundedGate);
         renderKeyValueList(
