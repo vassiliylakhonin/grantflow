@@ -145,8 +145,8 @@ def _run_case(llm_mode: bool) -> Dict[str, Any]:
     quality = _get(f"/status/{job_id}/quality")
     events = _get(f"/status/{job_id}/events")
     export_payload = _get(f"/status/{job_id}/export-payload")
-    trust = (metrics.get("grounding_trust_summary") or {})
-    readiness = ((export_payload.get("payload") or {}).get("submission_package_readiness") or {})
+    trust = metrics.get("grounding_trust_summary") or {}
+    readiness = (export_payload.get("payload") or {}).get("submission_package_readiness") or {}
     return {
         "job_id": job_id,
         "status": status,
