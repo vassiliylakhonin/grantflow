@@ -100,12 +100,15 @@ Start here:
 
 ### Fast local run
 ```bash
-pip install ".[dev]"
+make bootstrap-dev
+source .venv/bin/activate
 uvicorn grantflow.api.app:app --reload
 curl -s http://127.0.0.1:8000/health
 ```
 
 Then open: `http://127.0.0.1:8000/demo`
+
+`bootstrap-dev` auto-selects Python 3.11-3.13 and installs `requirements-dev.txt` into `.venv`.
 
 ### E2E regression checks (bid/no-bid)
 ```bash
