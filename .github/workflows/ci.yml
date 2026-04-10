@@ -297,7 +297,7 @@ jobs:
             --out eval-artifacts/grounded-gate-summary.md
 
       - name: Upload evaluation report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: eval-report
@@ -470,7 +470,7 @@ jobs:
           PY
 
       - name: Upload grounded smoke artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: grounded-smoke-artifacts
@@ -536,7 +536,7 @@ jobs:
           fi
 
       - name: Upload demo smoke artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: demo-smoke-artifacts
@@ -616,7 +616,7 @@ jobs:
           make test-e2e
 
       - name: Upload coverage (optional)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
