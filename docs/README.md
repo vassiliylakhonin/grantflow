@@ -20,6 +20,7 @@ If you are new to the project, read in this order:
 - `oem-one-pager.md`
 - `five-minute-demo.md`
 - `proof-summary.md`
+- `pilot-success-metrics.md`
 - `production-boundaries.md`
 
 ---

@@ -21,10 +21,12 @@ Built for governed drafting and review workflows — not a generic grant-writing
 - traceability for findings, citations, versions, and events
 - export-ready `.docx`, `.xlsx`, and ZIP deliverables
 
-### Who it is for
-- NGOs and implementing organizations
-- consulting firms managing donor submissions
-- program and MEL teams running institutional compliance workflows
+### Who it is for (current wedge)
+- NGOs and implementing organizations preparing institutional donor proposals
+- proposal managers and MEL leads who need governed drafting with auditability
+
+### Primary use case (now)
+- turn one funding opportunity + internal program inputs into a review-ready draft package with checkpoints and exports
 
 ### What it is not
 - a general-purpose grant-writing chatbot
@@ -94,6 +96,7 @@ Expected outputs:
 Start here:
 - `docs/buyer-one-pager.md`
 - `docs/five-minute-demo.md`
+- `docs/pilot-success-metrics.md`
 - `docs/samples/`
 
 ---
