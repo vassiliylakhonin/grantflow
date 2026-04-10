@@ -222,6 +222,7 @@ if [[ -n "$JOB_ID" ]]; then
   curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/review/workflow" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert isinstance(d.get("summary"),dict);print("workflow_ok")' >/dev/null
   curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=json" -o "$REPORT_DIR/report_api.json"
   curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=md" -o "$REPORT_DIR/report_api.md"
+  curl -fsS "${HDR[@]}" "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=csv" -o "$REPORT_DIR/report_api.csv"
 fi
 
 echo "pilot_quickcheck: PASS ($REPORT_JSON, $REPORT_MD, $REPORT_SUMMARY)"

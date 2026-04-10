@@ -29,7 +29,7 @@ Artifacts:
 - `build/pilot-quickcheck/report.json`
 - `build/pilot-quickcheck/report.md`
 - `build/pilot-quickcheck/report.summary.txt`
-- with `JOB_ID` (or `AUTO_JOB=1`): `build/pilot-quickcheck/report_api.json` + `build/pilot-quickcheck/report_api.md`
+- with `JOB_ID` (or `AUTO_JOB=1`): `build/pilot-quickcheck/report_api.json` + `build/pilot-quickcheck/report_api.md` + `build/pilot-quickcheck/report_api.csv`
 
 ## 1) Runtime up and healthy
 
