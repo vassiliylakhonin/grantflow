@@ -14637,6 +14637,34 @@ def test_status_pilot_quick_report_endpoint_exposes_compact_review_snapshot():
     assert isinstance(body.get("review_workflow_summary_present"), bool)
 
 
+def test_status_pilot_quick_report_export_supports_json_and_markdown():
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+
+    exported_json = client.get(f"/status/{job_id}/pilot-quick-report/export?format=json")
+    assert exported_json.status_code == 200
+    assert exported_json.headers["content-type"].startswith("application/json")
+    assert "pilot_quick_report" in exported_json.headers.get("content-disposition", "")
+    json_payload = json.loads(exported_json.text)
+    assert json_payload["job_id"] == job_id
+
+    exported_md = client.get(f"/status/{job_id}/pilot-quick-report/export?format=md")
+    assert exported_md.status_code == 200
+    assert exported_md.headers["content-type"].startswith("text/markdown")
+    assert "# Pilot Quick Report" in exported_md.text
+
+
 def test_public_export_payload_downgrades_rfq_readiness_when_ready_annex_file_is_missing():
     job = {
         "status": "done",

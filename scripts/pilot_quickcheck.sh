@@ -106,6 +106,8 @@ if [[ -n "$JOB_ID" ]]; then
   printf "[4/4] Job contract spot-check for %s\n" "$JOB_ID"
   curl -fsS "$API_BASE/status/$JOB_ID/quality" | python3 -c 'import json,sys;d=json.load(sys.stdin);s=((d.get("export_contract") or {}).get("submission_readiness_summary") or {});assert s.get("readiness_status") in {"ready","partial","weak","missing"};print("quality_ok")' >/dev/null
   curl -fsS "$API_BASE/status/$JOB_ID/review/workflow" | python3 -c 'import json,sys;d=json.load(sys.stdin);assert isinstance(d.get("summary"),dict);print("workflow_ok")' >/dev/null
+  curl -fsS "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=json" -o "$REPORT_DIR/report_api.json"
+  curl -fsS "$API_BASE/status/$JOB_ID/pilot-quick-report/export?format=md" -o "$REPORT_DIR/report_api.md"
 fi
 
 echo "pilot_quickcheck: PASS ($REPORT_JSON, $REPORT_MD)"

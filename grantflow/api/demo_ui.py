@@ -8098,14 +8098,28 @@ def render_demo_ui_html() -> str:
       async function downloadPilotQuickReport() {
         const jobId = currentJobId();
         if (!jobId) throw new Error("No job_id");
-        const report = await apiFetch(`/status/${encodeURIComponent(jobId)}/pilot-quick-report`);
-        const reportRoot = report && typeof report === "object" ? report : {};
-        const dateSuffix = new Date().toISOString().slice(0, 10);
-        const jsonBlob = new Blob([JSON.stringify(reportRoot, null, 2)], { type: "application/json" });
-        downloadBlob(jsonBlob, `pilot_quick_report_${jobId}_${dateSuffix}.json`);
-        const markdown = buildPilotQuickReportMarkdown(reportRoot);
-        const mdBlob = new Blob([markdown], { type: "text/markdown" });
-        downloadBlob(mdBlob, `pilot_quick_report_${jobId}_${dateSuffix}.md`);
+
+        const downloadFormat = async (format, fallbackFilename) => {
+          const endpoint = `/status/${encodeURIComponent(jobId)}/pilot-quick-report/export?format=${encodeURIComponent(format)}`;
+          const res = await fetch(`${apiBase()}${endpoint}`, { headers: { ...headers() } });
+          if (!res.ok) {
+            const ct = res.headers.get("content-type") || "";
+            if (ct.includes("application/json")) {
+              const body = await res.json();
+              throw new Error(JSON.stringify(body, null, 2));
+            }
+            throw new Error(await res.text());
+          }
+          const filename = parseDownloadFilenameFromDisposition(
+            res.headers.get("content-disposition"),
+            fallbackFilename
+          );
+          const blob = await res.blob();
+          downloadBlob(blob, filename);
+        };
+
+        await downloadFormat("json", `pilot_quick_report_${jobId}.json`);
+        await downloadFormat("md", `pilot_quick_report_${jobId}.md`);
       }
 
       function applyPortfolioDonorFilter(donorKey) {
