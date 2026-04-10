@@ -466,6 +466,34 @@ def test_public_job_export_payload_degrades_attachment_readiness_when_ready_file
     assert readiness.get("attachment_file_validation") == {"missing_ready_file_count": 1}
 
 
+def test_public_job_export_payload_uses_state_export_contract_gate_when_provided():
+    gate = {
+        "policy_mode": "warn",
+        "ready_for_export": False,
+        "summary": "manual gate snapshot",
+        "submission_readiness_summary": {
+            "readiness_status": "partial",
+            "completeness_score": 62.5,
+        },
+    }
+    job = {
+        "status": "done",
+        "state": {
+            "donor_id": "usaid",
+            "export_contract_gate": gate,
+            "toc_draft": {"project_goal": "Sample"},
+        },
+    }
+
+    actual = public_job_export_payload("job-export-contract-1", job)
+    export_contract = ((actual.get("payload") or {}).get("export_contract") or {})
+
+    assert export_contract == gate
+    readiness = ((actual.get("payload") or {}).get("submission_package_readiness") or {})
+    assert readiness.get("readiness_status") == "partial"
+    assert readiness.get("completeness_score") == 62.5
+
+
 def test_public_job_quality_payload_matches_golden_snapshot():
     expected = _fixture_json("public_job_quality_payload_golden.json")
     job = _sample_quality_contract_job()
