@@ -412,6 +412,60 @@ def test_public_job_critic_payload_matches_golden_snapshot():
     assert actual == expected
 
 
+def test_public_job_export_payload_degrades_attachment_readiness_when_ready_file_missing():
+    job = {
+        "status": "done",
+        "state": {
+            "donor_id": "usaid",
+            "toc_draft": {
+                "attachment_manifest": [
+                    {
+                        "status": "ready",
+                        "source_path": "/definitely/missing/path/attachment.pdf",
+                    }
+                ]
+            },
+            "export_contract_gate": {
+                "submission_readiness_summary": {
+                    "readiness_status": "ready",
+                    "top_gap": "none",
+                    "completeness_score": 100.0,
+                    "submission_package_counts": {
+                        "total": 2,
+                        "ready": 2,
+                        "partial": 0,
+                    },
+                    "attachment_manifest_counts": {
+                        "total": 1,
+                        "ready": 1,
+                        "partial": 0,
+                        "pending": 0,
+                    },
+                    "compliance_matrix_counts": {
+                        "total": 1,
+                        "ready": 1,
+                        "partial": 0,
+                    },
+                }
+            },
+        },
+    }
+
+    actual = public_job_export_payload("job-attachment-check-1", job)
+    readiness = ((actual.get("payload") or {}).get("submission_package_readiness") or {})
+
+    assert readiness.get("top_gap") == "attachment_files"
+    assert readiness.get("readiness_status") == "partial"
+    assert readiness.get("completeness_score") == 75.0
+    assert readiness.get("attachment_manifest_counts") == {
+        "total": 1,
+        "ready": 0,
+        "partial": 0,
+        "pending": 1,
+    }
+    assert readiness.get("attachment_file_validation") == {"missing_ready_file_count": 1}
+
+
 def test_public_job_quality_payload_matches_golden_snapshot():
     expected = _fixture_json("public_job_quality_payload_golden.json")
     job = _sample_quality_contract_job()
