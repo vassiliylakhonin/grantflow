@@ -109,7 +109,7 @@ jobs:
             --body "Automated alert: nightly grounded tail failed 2 runs in a row. Please triage latest run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: Upload grounded tail evaluation report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: grounded-tail-eval-report
