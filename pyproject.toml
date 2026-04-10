@@ -16,7 +16,7 @@ dependencies = [
     "langgraph-checkpoint==4.0.1",
     "langchain==1.2.11",
     "langchain-core==1.2.28",
-    "langchain-openai==1.1.11",
+    "langchain-openai==1.1.12",
     "langchain-text-splitters==1.1.1",
     "chromadb==1.5.1",
     "python-docx==1.2.0",
