@@ -11,6 +11,7 @@ make pilot-quickcheck
 Artifacts:
 - `build/pilot-quickcheck/report.json`
 - `build/pilot-quickcheck/report.md`
+- with `JOB_ID`: `build/pilot-quickcheck/report_api.json` + `build/pilot-quickcheck/report_api.md`
 
 ## 1) Runtime up and healthy
 

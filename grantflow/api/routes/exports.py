@@ -45,6 +45,8 @@ from grantflow.api.public_views import (
     public_job_comments_payload,
     public_job_events_payload,
     public_job_export_payload,
+    public_job_metrics_payload,
+    public_job_quality_payload,
     public_job_review_workflow_csv_text,
     public_job_review_workflow_payload,
     public_job_review_workflow_sla_csv_text,
@@ -1664,6 +1666,114 @@ def get_status_export_payload(job_id: str, request: Request):
     donor = _job_donor_id(job)
     inventory_rows = _ingest_inventory(donor_id=donor or None, tenant_id=job_tenant_id)
     return public_job_export_payload(job_id, job, ingest_inventory_rows=inventory_rows)
+
+
+def _pilot_quick_report_markdown(payload: dict) -> str:
+    lines = [
+        "# Pilot Quick Report",
+        "",
+        f"- generated_at: {str(payload.get('generated_at') or '-')}",
+        f"- job_id: {str(payload.get('job_id') or '-')}",
+        f"- status: {str(payload.get('status') or '-')}",
+        f"- terminal_status: {str(payload.get('terminal_status') or '-')}",
+        "",
+        "## Quality",
+        f"- quality_score: {str(payload.get('quality_score'))}",
+        f"- critic_score: {str(payload.get('critic_score'))}",
+        f"- grounded_trust_score: {str(payload.get('grounded_trust_score'))}",
+        "",
+        "## Export readiness",
+        f"- readiness_status: {str(payload.get('export_readiness_status') or '-')}",
+        f"- completeness_score: {str(payload.get('export_completeness_score'))}",
+        f"- top_gap: {str(payload.get('export_top_gap') or '-')}",
+        "",
+        "## Workflow",
+        f"- summary_present: {str(bool(payload.get('review_workflow_summary_present'))).lower()}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+@exports_router.get("/status/{job_id}/pilot-quick-report/export")
+def export_status_pilot_quick_report(
+    job_id: str,
+    request: Request,
+    format: str = Query(default="json"),
+    gzip_enabled: bool = Query(default=False, alias="gzip"),
+):
+    require_api_key_if_configured(request, for_read=True)
+    job = _get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    _ensure_job_tenant_read_access(request, job)
+    job = _normalize_critic_fatal_flaws_for_job(job_id) or job
+
+    job_tenant_id = _job_tenant_id(job)
+    donor = _job_donor_id(job)
+    inventory_rows = _ingest_inventory(donor_id=donor or None, tenant_id=job_tenant_id)
+
+    metrics_payload = public_job_metrics_payload(job_id, job)
+    quality_payload = public_job_quality_payload(job_id, job, ingest_inventory_rows=inventory_rows)
+    export_payload = public_job_export_payload(job_id, job, ingest_inventory_rows=inventory_rows)
+    workflow_payload = public_job_review_workflow_payload(job_id, job)
+
+    metrics_root: dict = metrics_payload if isinstance(metrics_payload, dict) else {}
+    quality_root: dict = quality_payload if isinstance(quality_payload, dict) else {}
+    export_root: dict = export_payload if isinstance(export_payload, dict) else {}
+    workflow_root: dict = workflow_payload if isinstance(workflow_payload, dict) else {}
+
+    export_payload_node = export_root.get("payload")
+    export_data: dict = export_payload_node if isinstance(export_payload_node, dict) else {}
+
+    readiness_node = export_data.get("submission_package_readiness")
+    readiness: dict = readiness_node if isinstance(readiness_node, dict) else {}
+
+    trust_node = metrics_root.get("grounding_trust_summary")
+    trust: dict = trust_node if isinstance(trust_node, dict) else {}
+    report_payload = {
+        "generated_at": metrics_root.get("generated_at") or quality_root.get("generated_at") or "",
+        "job_id": job_id,
+        "status": str(job.get("status") or "unknown"),
+        "terminal_status": metrics_root.get("terminal_status"),
+        "quality_score": quality_root.get("quality_score"),
+        "critic_score": quality_root.get("critic_score"),
+        "grounded_trust_score": trust.get("score"),
+        "export_readiness_status": readiness.get("readiness_status"),
+        "export_completeness_score": readiness.get("completeness_score"),
+        "export_top_gap": readiness.get("top_gap"),
+        "review_workflow_summary_present": isinstance(workflow_root.get("summary"), dict),
+    }
+
+    export_format = str(format or "json").strip().lower()
+    if export_format == "json":
+        return _portfolio_export_response(
+            payload=report_payload,
+            filename_prefix=f"pilot_quick_report_{job_id}",
+            donor_id=None,
+            status=None,
+            hitl_enabled=None,
+            export_format="json",
+            gzip_enabled=gzip_enabled,
+            csv_renderer=lambda _: "",
+        )
+    if export_format == "md":
+        body_text = _pilot_quick_report_markdown(report_payload)
+        body_bytes = body_text.encode("utf-8")
+        extension = "md"
+        media_type = "text/markdown; charset=utf-8"
+        if gzip_enabled:
+            import gzip
+
+            body_bytes = gzip.compress(body_bytes)
+            extension = "md.gz"
+            media_type = "application/gzip"
+        filename = f"pilot_quick_report_{job_id}.{extension}"
+        return StreamingResponse(
+            io.BytesIO(body_bytes),
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    raise HTTPException(status_code=400, detail="Unsupported format")
 
 
 @exports_router.get("/status/{job_id}/events/export")
