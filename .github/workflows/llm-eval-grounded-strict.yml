@@ -49,7 +49,7 @@ jobs:
       CHROMA_PORT: ${{ vars.CHROMA_PORT }}
       CHROMA_COLLECTION_PREFIX: ${{ vars.CHROMA_COLLECTION_PREFIX }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6

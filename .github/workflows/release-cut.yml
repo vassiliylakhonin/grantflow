@@ -35,7 +35,7 @@ jobs:
       tag_name: ${{ steps.resolve.outputs.tag_name }}
       target_commitish: ${{ steps.resolve.outputs.target_commitish }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -99,7 +99,7 @@ jobs:
     environment:
       name: release
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
