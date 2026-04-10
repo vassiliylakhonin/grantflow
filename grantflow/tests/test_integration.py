@@ -56,6 +56,23 @@ def _drain_hitl_to_done(job_id: str, *, initial_status: dict | None = None, max_
     raise AssertionError("HITL pipeline did not reach done within max_cycles")
 
 
+def _generate_done_pilot_quick_report_job_id() -> str:
+    gen = client.post(
+        "/generate/from-preset",
+        json={
+            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
+            "preset_type": "auto",
+            "llm_mode": False,
+            "hitl_enabled": False,
+        },
+    )
+    assert gen.status_code == 200
+    job_id = gen.json()["job_id"]
+    status = _wait_for_terminal_status(job_id)
+    assert status["status"] == "done"
+    return job_id
+
+
 def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
@@ -14613,19 +14630,7 @@ def test_demo_endpoint_chain_exposes_quality_metrics_and_export_readiness():
 
 
 def test_status_pilot_quick_report_endpoint_exposes_compact_review_snapshot():
-    gen = client.post(
-        "/generate/from-preset",
-        json={
-            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
-            "preset_type": "auto",
-            "llm_mode": False,
-            "hitl_enabled": False,
-        },
-    )
-    assert gen.status_code == 200
-    job_id = gen.json()["job_id"]
-    status = _wait_for_terminal_status(job_id)
-    assert status["status"] == "done"
+    job_id = _generate_done_pilot_quick_report_job_id()
 
     report = client.get(f"/status/{job_id}/pilot-quick-report")
     assert report.status_code == 200
@@ -14638,19 +14643,7 @@ def test_status_pilot_quick_report_endpoint_exposes_compact_review_snapshot():
 
 
 def test_status_pilot_quick_report_export_supports_json_and_markdown():
-    gen = client.post(
-        "/generate/from-preset",
-        json={
-            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
-            "preset_type": "auto",
-            "llm_mode": False,
-            "hitl_enabled": False,
-        },
-    )
-    assert gen.status_code == 200
-    job_id = gen.json()["job_id"]
-    status = _wait_for_terminal_status(job_id)
-    assert status["status"] == "done"
+    job_id = _generate_done_pilot_quick_report_job_id()
 
     exported_json = client.get(f"/status/{job_id}/pilot-quick-report/export?format=json")
     assert exported_json.status_code == 200
@@ -14671,19 +14664,7 @@ def test_status_pilot_quick_report_export_supports_json_and_markdown():
 
 
 def test_status_pilot_quick_report_export_supports_gzip_json():
-    gen = client.post(
-        "/generate/from-preset",
-        json={
-            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
-            "preset_type": "auto",
-            "llm_mode": False,
-            "hitl_enabled": False,
-        },
-    )
-    assert gen.status_code == 200
-    job_id = gen.json()["job_id"]
-    status = _wait_for_terminal_status(job_id)
-    assert status["status"] == "done"
+    job_id = _generate_done_pilot_quick_report_job_id()
 
     exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=json&gzip=true")
     assert exported_gz.status_code == 200
@@ -14694,19 +14675,7 @@ def test_status_pilot_quick_report_export_supports_gzip_json():
 
 
 def test_status_pilot_quick_report_export_supports_gzip_markdown():
-    gen = client.post(
-        "/generate/from-preset",
-        json={
-            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
-            "preset_type": "auto",
-            "llm_mode": False,
-            "hitl_enabled": False,
-        },
-    )
-    assert gen.status_code == 200
-    job_id = gen.json()["job_id"]
-    status = _wait_for_terminal_status(job_id)
-    assert status["status"] == "done"
+    job_id = _generate_done_pilot_quick_report_job_id()
 
     exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=md&gzip=true")
     assert exported_gz.status_code == 200
@@ -14717,19 +14686,7 @@ def test_status_pilot_quick_report_export_supports_gzip_markdown():
 
 
 def test_status_pilot_quick_report_export_supports_gzip_csv():
-    gen = client.post(
-        "/generate/from-preset",
-        json={
-            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
-            "preset_type": "auto",
-            "llm_mode": False,
-            "hitl_enabled": False,
-        },
-    )
-    assert gen.status_code == 200
-    job_id = gen.json()["job_id"]
-    status = _wait_for_terminal_status(job_id)
-    assert status["status"] == "done"
+    job_id = _generate_done_pilot_quick_report_job_id()
 
     exported_gz = client.get(f"/status/{job_id}/pilot-quick-report/export?format=csv&gzip=true")
     assert exported_gz.status_code == 200
@@ -14740,19 +14697,7 @@ def test_status_pilot_quick_report_export_supports_gzip_csv():
 
 
 def test_status_pilot_quick_report_export_rejects_unsupported_format():
-    gen = client.post(
-        "/generate/from-preset",
-        json={
-            "preset_key": "un_agencies_katch_evaluation_kyrgyzstan",
-            "preset_type": "auto",
-            "llm_mode": False,
-            "hitl_enabled": False,
-        },
-    )
-    assert gen.status_code == 200
-    job_id = gen.json()["job_id"]
-    status = _wait_for_terminal_status(job_id)
-    assert status["status"] == "done"
+    job_id = _generate_done_pilot_quick_report_job_id()
 
     bad = client.get(f"/status/{job_id}/pilot-quick-report/export?format=txt")
     assert bad.status_code == 400
