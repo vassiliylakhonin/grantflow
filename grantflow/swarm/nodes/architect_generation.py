@@ -1435,7 +1435,7 @@ def generate_toc_under_contract(
     fallback_class = "deterministic_mode"
 
     if llm_mode and llm_available:
-        prompts = getattr(strategy, "get_system_prompts", lambda: {})() or {}
+        prompts: Dict[str, Any] = getattr(strategy, "get_system_prompts", lambda: {})() or {}
         model_candidates = llm_model_candidates(
             str(getattr(config.llm, "architect_model", "") or ""),
             str(getattr(config.llm, "reasoning_model", "") or ""),
