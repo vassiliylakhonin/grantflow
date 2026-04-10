@@ -12,6 +12,11 @@
 2. Fix forward in the dependency PR branch if change is safe.
 3. If unsafe, close the PR and pin version explicitly in `pyproject.toml`/workflow.
 
+## Docs-only PR fast-path
+
+- `CI` workflow is skipped for pull requests that touch only `docs/**` and `*.md` files.
+- Use `workflow_dispatch` if you still want a full CI run on a docs-only branch.
+
 ## Manual CI trigger
 
 Use workflow_dispatch when PR event CI is stale or needs a clean rerun:
