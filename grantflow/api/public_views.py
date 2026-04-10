@@ -2378,6 +2378,7 @@ def public_job_export_payload(
     architect_signal_summary = _architect_citation_signal_summary_payload(citations_for_summary_rows)
     metrics_payload = public_job_metrics_payload(job_id, job)
     trust_summary = metrics_payload.get("grounding_trust_summary") if isinstance(metrics_payload, dict) else None
+    pilot_success_kpis = metrics_payload.get("pilot_success_kpis") if isinstance(metrics_payload, dict) else None
     submission_package_readiness = {}
     raw_submission_readiness = export_contract_gate.get("submission_readiness_summary")
     if isinstance(raw_submission_readiness, dict):
@@ -2412,6 +2413,7 @@ def public_job_export_payload(
                 "fatal_flaw_count": int(critic.get("fatal_flaw_count") or 0),
                 "citation_count": len(citations_for_summary),
                 "grounding_trust_summary": sanitize_for_public_response(trust_summary),
+                "pilot_success_kpis": sanitize_for_public_response(pilot_success_kpis),
             },
             "critic_findings": [item for item in critic_findings if isinstance(item, dict)],
             "review_comments": [item for item in review_comments if isinstance(item, dict)],
@@ -2645,6 +2647,57 @@ def _parse_event_ts(value: Any) -> Optional[datetime]:
         return None
 
 
+def _pilot_success_kpis_payload(
+    *,
+    time_to_terminal_seconds: Optional[float],
+    pause_count: int,
+    resume_count: int,
+    citation_count: int,
+    retrieval_grounded_rate: Optional[float],
+) -> Dict[str, Any]:
+    review_round_count = max(int(pause_count), int(resume_count))
+    traceability_coverage_target = 0.9
+    traceability_coverage_ready = (
+        bool(retrieval_grounded_rate is not None and retrieval_grounded_rate >= traceability_coverage_target)
+        if citation_count > 0
+        else False
+    )
+    return {
+        "scorecard_version": "pilot-success-metrics-v1",
+        "kpis": {
+            "cycle_time": {
+                "target_reduction_range": "30-50%",
+                "time_to_terminal_seconds": (
+                    round(float(time_to_terminal_seconds), 3)
+                    if isinstance(time_to_terminal_seconds, (int, float))
+                    else None
+                ),
+                "baseline_required": True,
+            },
+            "review_loops": {
+                "target_reduction_range": "20-40%",
+                "review_round_count_proxy": review_round_count,
+                "pause_count": int(pause_count),
+                "resume_count": int(resume_count),
+                "proxy_ready_threshold": "<=2 rounds",
+                "proxy_ready": review_round_count <= 2,
+                "baseline_required": True,
+            },
+            "traceability_coverage": {
+                "target_min": traceability_coverage_target,
+                "retrieval_grounded_citation_rate": retrieval_grounded_rate,
+                "citation_count": int(citation_count),
+                "ready": traceability_coverage_ready,
+            },
+            "compliance_completeness": {
+                "target_min": 0.95,
+                "export_contract_submission_readiness_required": True,
+                "measured_in": "/status/{job_id}/export-payload.payload.submission_package_readiness",
+            },
+        },
+    }
+
+
 def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, Any]:
     raw_events = job.get("job_events")
     events: list[Dict[str, Any]] = []
@@ -2723,6 +2776,13 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
         grounding_risk_level=grounding_risk_level,
         open_finding_count=open_finding_count,
     )
+    pilot_success_kpis = _pilot_success_kpis_payload(
+        time_to_terminal_seconds=time_to_terminal,
+        pause_count=len(pause_events),
+        resume_count=len(resume_events),
+        citation_count=citation_count,
+        retrieval_grounded_rate=retrieval_grounded_rate,
+    )
 
     return {
         "job_id": str(job_id),
@@ -2749,6 +2809,7 @@ def public_job_metrics_payload(job_id: str, job: Dict[str, Any]) -> Dict[str, An
         "retrieval_grounded_citation_rate": retrieval_grounded_rate,
         "non_retrieval_citation_rate": non_retrieval_rate,
         "grounding_trust_summary": trust_summary,
+        "pilot_success_kpis": pilot_success_kpis,
     }
 
 

@@ -24,6 +24,12 @@ Use this as the default scorecard for buyer pilots.
 - Export/package preparation time: 40-60% faster
 - Fewer late-stage structural rewrites
 
+## Instrumentation (in-product)
+
+- `GET /status/{job_id}/metrics` includes `pilot_success_kpis` with cycle-time, review-loop, and traceability KPI signals.
+- `GET /status/{job_id}/export-payload` mirrors `pilot_success_kpis` under `payload.quality_summary` for export packaging.
+- Baseline comparison (for reduction %) remains pilot-operator input.
+
 ## Evidence to collect weekly
 
 - median lead time: intake -> first review-ready package
