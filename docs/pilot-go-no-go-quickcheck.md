@@ -20,6 +20,11 @@ Light mode (skip local qa/smoke, keep API-level report checks):
 make pilot-quickcheck-light
 ```
 
+Useful env overrides:
+- `API_KEY=<key>` (for protected API)
+- `PRESET_KEY=<preset>` / `PRESET_TYPE=<type>`
+- `JOB_TIMEOUT_SEC=<seconds>` / `POLL_INTERVAL_SEC=<seconds>`
+
 Artifacts:
 - `build/pilot-quickcheck/report.json`
 - `build/pilot-quickcheck/report.md`
