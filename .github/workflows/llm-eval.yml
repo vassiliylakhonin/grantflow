@@ -20,7 +20,7 @@ jobs:
       OPENROUTER_HTTP_REFERER: ${{ vars.OPENROUTER_HTTP_REFERER }}
       OPENROUTER_X_TITLE: ${{ vars.OPENROUTER_X_TITLE }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
